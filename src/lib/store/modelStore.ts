@@ -1,7 +1,24 @@
 import { create } from 'zustand';
-import { ModelAssumptions, ModelOutput, FinancingPath, PropertyConfig, PropertyOpex } from '../engine/types';
-import { BASE_CASE, DEFAULT_VILLA, DEFAULT_SUITE } from '../engine/defaults';
+import {
+  ModelAssumptions,
+  ModelOutput,
+  FinancingPath,
+  PropertyTemplate,
+  ProjectAllocation,
+  PropertyConfig,
+  PropertyOpex,
+} from '../engine/types';
+import {
+  BASE_CASE,
+  BUILT_IN_TEMPLATES,
+  DEFAULT_PROJECTS,
+  DEFAULT_VILLA,
+  DEFAULT_SUITE,
+  resolvePortfolio,
+} from '../engine/defaults';
 import { computeModel } from '../engine/model';
+
+// ── Helpers ──
 
 function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
   const result = { ...target };
@@ -24,10 +41,71 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
   return result;
 }
 
-// Migrate old saved configs (fixed propertyA/B format) to new portfolio format
+function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
+  const keys = path.split('.');
+  const result = { ...obj };
+  let current: Record<string, unknown> = result;
+  for (let i = 0; i < keys.length - 1; i++) {
+    current[keys[i]] = { ...(current[keys[i]] as Record<string, unknown>) };
+    current = current[keys[i]] as Record<string, unknown>;
+  }
+  current[keys[keys.length - 1]] = value;
+  return result;
+}
+
+let idCounter = 0;
+function generateId(prefix: string): string {
+  idCounter++;
+  return `${prefix}-${Date.now()}-${idCounter}`;
+}
+
+// ── Storage ──
+
+const STORAGE_KEY = 'villa-lev-saved-configs';
+const TEMPLATES_STORAGE_KEY = 'villa-lev-templates';
+
+function loadFromStorage(): SavedConfiguration[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(configs: SavedConfiguration[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+  } catch { /* storage full */ }
+}
+
+function loadTemplatesFromStorage(): PropertyTemplate[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveTemplatesToStorage(templates: PropertyTemplate[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    // Only save custom templates (non-built-in)
+    const custom = templates.filter((t) => !t.builtIn);
+    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(custom));
+  } catch { /* storage full */ }
+}
+
+// ── Migration ──
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateToPortfolio(raw: any): ModelAssumptions {
-  // If it already has a portfolio array, merge with BASE_CASE and return
   if (raw.portfolio && Array.isArray(raw.portfolio)) {
     const merged = deepMerge(
       BASE_CASE as unknown as Record<string, unknown>,
@@ -36,7 +114,6 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
     return merged;
   }
 
-  // Old format: convert properties + opex + numberOfPropertyA/B → portfolio[]
   const portfolio: PropertyConfig[] = [];
 
   if (raw.properties?.propertyA) {
@@ -99,12 +176,10 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
     });
   }
 
-  // If neither A nor B found, use defaults
   if (portfolio.length === 0) {
     portfolio.push({ ...DEFAULT_VILLA }, { ...DEFAULT_SUITE });
   }
 
-  // Build migrated assumptions (strip old fields)
   const migrated: ModelAssumptions = {
     ...BASE_CASE,
     general: raw.general ? deepMerge(BASE_CASE.general as unknown as Record<string, unknown>, raw.general) as unknown as typeof BASE_CASE.general : BASE_CASE.general,
@@ -124,16 +199,18 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
   return migrated;
 }
 
+// ── Types ──
+
 export type ScenarioName = 'realistic' | 'upside' | 'downside' | 'breakeven';
 
 export interface SavedConfiguration {
   id: string;
   name: string;
   assumptions: ModelAssumptions;
+  templates?: PropertyTemplate[];
+  projects?: ProjectAllocation[];
   savedAt: number;
 }
-
-const STORAGE_KEY = 'villa-lev-saved-configs';
 
 interface ModelStore {
   assumptions: ModelAssumptions;
@@ -142,10 +219,16 @@ interface ModelStore {
   computeTimeMs: number;
   activeScenario: ScenarioName;
 
+  // Templates & Projects
+  templates: PropertyTemplate[];
+  projects: ProjectAllocation[];
+
+  // Saved configs
   savedConfigs: SavedConfiguration[];
   activeConfigId: string | null;
   activeConfigName: string | null;
 
+  // Core actions
   setAssumption: (path: string, value: unknown) => void;
   setFinancingPath: (path: FinancingPath) => void;
   setActiveScenario: (scenario: ScenarioName) => void;
@@ -155,7 +238,21 @@ interface ModelStore {
   recompute: () => void;
   init: () => void;
 
-  // Portfolio management
+  // Template management
+  addTemplate: (type: 'villa' | 'suite') => void;
+  updateTemplate: (id: string, path: string, value: unknown) => void;
+  renameTemplate: (id: string, newName: string) => void;
+  duplicateTemplate: (id: string) => void;
+  deleteTemplate: (id: string) => void;
+
+  // Project management
+  addProject: (templateId: string) => void;
+  removeProject: (id: string) => void;
+  updateProjectCount: (id: string, count: number) => void;
+  changeProjectTemplate: (id: string, templateId: string) => void;
+  renameProject: (id: string, newName: string) => void;
+
+  // Legacy portfolio (for backward compatibility with other pages)
   addProperty: (type: 'villa' | 'suite') => void;
   removeProperty: (id: string) => void;
   updateProperty: (id: string, path: string, value: unknown) => void;
@@ -168,43 +265,7 @@ interface ModelStore {
   renameConfig: (id: string, newName: string) => void;
 }
 
-function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
-  const keys = path.split('.');
-  const result = { ...obj };
-  let current: Record<string, unknown> = result;
-  for (let i = 0; i < keys.length - 1; i++) {
-    current[keys[i]] = { ...(current[keys[i]] as Record<string, unknown>) };
-    current = current[keys[i]] as Record<string, unknown>;
-  }
-  current[keys[keys.length - 1]] = value;
-  return result;
-}
-
-function loadFromStorage(): SavedConfiguration[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-function saveToStorage(configs: SavedConfiguration[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
-  } catch {
-    // storage full or unavailable
-  }
-}
-
-let idCounter = 0;
-function generateId(): string {
-  idCounter++;
-  return `prop-${Date.now()}-${idCounter}`;
-}
+// ── Store ──
 
 export const useModelStore = create<ModelStore>((set, get) => ({
   assumptions: { ...BASE_CASE, portfolio: BASE_CASE.portfolio.map((p) => ({ ...p, opex: { ...p.opex } })) },
@@ -212,6 +273,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   loading: false,
   computeTimeMs: 0,
   activeScenario: 'realistic' as ScenarioName,
+  templates: [...BUILT_IN_TEMPLATES],
+  projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
   savedConfigs: [],
   activeConfigId: null,
   activeConfigName: null,
@@ -269,6 +332,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         ...BASE_CASE,
         portfolio: BASE_CASE.portfolio.map((p) => ({ ...p, opex: { ...p.opex } })),
       },
+      templates: [...BUILT_IN_TEMPLATES],
+      projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
       activeConfigId: null,
       activeConfigName: null,
     });
@@ -277,97 +342,182 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   recompute: () => {
     set({ loading: true });
-    const a = get().assumptions;
-    const model = computeModel(a);
-    set({ model, loading: false, computeTimeMs: model.computeTimeMs });
+    const state = get();
+    // Resolve templates + projects → portfolio
+    const portfolio = resolvePortfolio(state.templates, state.projects);
+    // Update assumptions with resolved portfolio
+    const assumptions = { ...state.assumptions, portfolio };
+    const model = computeModel(assumptions);
+    set({ assumptions, model, loading: false, computeTimeMs: model.computeTimeMs });
   },
 
   init: () => {
     const configs = loadFromStorage();
-    set({ savedConfigs: configs });
+    const customTemplates = loadTemplatesFromStorage();
+    // Merge built-in + custom templates
+    const allTemplates = [
+      ...BUILT_IN_TEMPLATES,
+      ...customTemplates.filter((ct) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === ct.id)),
+    ];
+    set({ savedConfigs: configs, templates: allTemplates });
     get().recompute();
   },
 
-  // ── Portfolio Management ──
+  // ── Template Management ──
 
-  addProperty: (type: 'villa' | 'suite') => {
-    const template = type === 'villa' ? DEFAULT_VILLA : DEFAULT_SUITE;
-    const current = get().assumptions;
-    const existingCount = current.portfolio.filter((p) => p.type === type).length;
-    const newProp: PropertyConfig = {
-      ...template,
-      opex: { ...template.opex },
-      id: generateId(),
-      name: `${type === 'villa' ? 'Villa' : 'Suite'} Property ${existingCount + 1}`,
+  addTemplate: (type: 'villa' | 'suite') => {
+    const templates = get().templates;
+    const existingCount = templates.filter((t) => t.type === type && !t.builtIn).length;
+    const base = type === 'villa' ? BUILT_IN_TEMPLATES[0] : BUILT_IN_TEMPLATES[1];
+    const newTemplate: PropertyTemplate = {
+      ...base,
+      id: generateId('tpl'),
+      name: `Custom ${type === 'villa' ? 'Villa' : 'Suite'} ${existingCount + 1}`,
+      builtIn: false,
+      opex: { ...base.opex },
+    };
+    const updated = [...templates, newTemplate];
+    set({ templates: updated });
+    saveTemplatesToStorage(updated);
+  },
+
+  updateTemplate: (id: string, path: string, value: unknown) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== id) return tpl;
+      if (path.includes('.')) {
+        const keys = path.split('.');
+        if (keys[0] === 'opex') {
+          return { ...tpl, opex: { ...tpl.opex, [keys[1]]: value } as PropertyOpex };
+        }
+        return tpl;
+      }
+      return { ...tpl, [path]: value };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    get().recompute();
+  },
+
+  renameTemplate: (id: string, newName: string) => {
+    const templates = get().templates.map((tpl) =>
+      tpl.id === id ? { ...tpl, name: newName } : tpl
+    );
+    set({ templates });
+    saveTemplatesToStorage(templates);
+  },
+
+  duplicateTemplate: (id: string) => {
+    const tpl = get().templates.find((t) => t.id === id);
+    if (!tpl) return;
+    const copy: PropertyTemplate = {
+      ...tpl,
+      id: generateId('tpl'),
+      name: `${tpl.name} (copy)`,
+      builtIn: false,
+      opex: { ...tpl.opex },
+    };
+    const templates = [...get().templates, copy];
+    set({ templates });
+    saveTemplatesToStorage(templates);
+  },
+
+  deleteTemplate: (id: string) => {
+    const tpl = get().templates.find((t) => t.id === id);
+    if (!tpl || tpl.builtIn) return; // Can't delete built-in
+    // Check if any project uses this template
+    const projects = get().projects;
+    const inUse = projects.some((p) => p.templateId === id);
+    if (inUse) return; // Can't delete template in use
+    const templates = get().templates.filter((t) => t.id !== id);
+    set({ templates });
+    saveTemplatesToStorage(templates);
+  },
+
+  // ── Project Management ──
+
+  addProject: (templateId: string) => {
+    const tpl = get().templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const newProject: ProjectAllocation = {
+      id: generateId('proj'),
+      templateId,
+      name: tpl.name,
       count: 1,
     };
-    set({
-      assumptions: {
-        ...current,
-        portfolio: [...current.portfolio, newProp],
-      },
-      activeConfigId: null,
-    });
+    const projects = [...get().projects, newProject];
+    set({ projects, activeConfigId: null });
     get().recompute();
+  },
+
+  removeProject: (id: string) => {
+    const projects = get().projects;
+    if (projects.length <= 1) return;
+    set({ projects: projects.filter((p) => p.id !== id), activeConfigId: null });
+    get().recompute();
+  },
+
+  updateProjectCount: (id: string, count: number) => {
+    if (count < 0) return;
+    const projects = get().projects.map((p) =>
+      p.id === id ? { ...p, count } : p
+    );
+    set({ projects, activeConfigId: null });
+    get().recompute();
+  },
+
+  changeProjectTemplate: (id: string, templateId: string) => {
+    const tpl = get().templates.find((t) => t.id === templateId);
+    if (!tpl) return;
+    const projects = get().projects.map((p) =>
+      p.id === id ? { ...p, templateId, name: tpl.name } : p
+    );
+    set({ projects, activeConfigId: null });
+    get().recompute();
+  },
+
+  renameProject: (id: string, newName: string) => {
+    const projects = get().projects.map((p) =>
+      p.id === id ? { ...p, name: newName } : p
+    );
+    set({ projects, activeConfigId: null });
+  },
+
+  // ── Legacy Portfolio Methods (backward compat) ──
+
+  addProperty: (type: 'villa' | 'suite') => {
+    const templateId = type === 'villa' ? 'tpl-twin-villa' : 'tpl-boutique-suite';
+    get().addProject(templateId);
   },
 
   removeProperty: (id: string) => {
-    const current = get().assumptions;
-    if (current.portfolio.length <= 1) return; // Must keep at least one property
-    set({
-      assumptions: {
-        ...current,
-        portfolio: current.portfolio.filter((p) => p.id !== id),
-      },
-      activeConfigId: null,
-    });
-    get().recompute();
+    get().removeProject(id);
   },
 
   updateProperty: (id: string, path: string, value: unknown) => {
-    const current = get().assumptions;
-    const portfolio = current.portfolio.map((prop) => {
-      if (prop.id !== id) return prop;
-      // Handle nested paths like 'opex.housekeeping'
-      if (path.includes('.')) {
-        const keys = path.split('.');
-        const updated = { ...prop };
-        if (keys[0] === 'opex') {
-          updated.opex = { ...updated.opex, [keys[1]]: value } as PropertyOpex;
-        }
-        return updated;
-      }
-      return { ...prop, [path]: value };
-    });
-    set({
-      assumptions: { ...current, portfolio },
-      activeConfigId: null,
-    });
-    get().recompute();
+    // For legacy compatibility: update the template of this project
+    const proj = get().projects.find((p) => p.id === id);
+    if (!proj) return;
+    get().updateTemplate(proj.templateId, path, value);
   },
 
   renameProperty: (id: string, newName: string) => {
-    const current = get().assumptions;
-    const portfolio = current.portfolio.map((prop) =>
-      prop.id === id ? { ...prop, name: newName } : prop
-    );
-    set({
-      assumptions: { ...current, portfolio },
-      activeConfigId: null,
-    });
+    get().renameProject(id, newName);
   },
 
   // ── Config Management ──
 
   saveConfig: (name: string) => {
     const id = crypto.randomUUID();
+    const state = get();
     const config: SavedConfiguration = {
       id,
       name,
-      assumptions: JSON.parse(JSON.stringify(get().assumptions)),
+      assumptions: JSON.parse(JSON.stringify(state.assumptions)),
+      templates: JSON.parse(JSON.stringify(state.templates.filter((t) => !t.builtIn))),
+      projects: JSON.parse(JSON.stringify(state.projects)),
       savedAt: Date.now(),
     };
-    const configs = [...get().savedConfigs, config];
+    const configs = [...state.savedConfigs, config];
     set({ savedConfigs: configs, activeConfigId: id, activeConfigName: name });
     saveToStorage(configs);
   },
@@ -375,13 +525,37 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   loadConfig: (id: string) => {
     const config = get().savedConfigs.find((c) => c.id === id);
     if (!config) return;
-    // Migrate old format if needed, then merge with defaults
-    const migrated = migrateToPortfolio(config.assumptions);
-    set({
-      assumptions: migrated,
-      activeConfigId: id,
-      activeConfigName: config.name,
-    });
+
+    // If config has templates+projects, use them
+    if (config.projects && config.projects.length > 0) {
+      const customTemplates = config.templates ?? [];
+      const allTemplates = [
+        ...BUILT_IN_TEMPLATES,
+        ...customTemplates.filter((ct) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === ct.id)),
+      ];
+      set({
+        templates: allTemplates,
+        projects: config.projects,
+        activeConfigId: id,
+        activeConfigName: config.name,
+      });
+      saveTemplatesToStorage(allTemplates);
+    } else {
+      // Legacy config: migrate portfolio to projects
+      const migrated = migrateToPortfolio(config.assumptions);
+      const projects: ProjectAllocation[] = migrated.portfolio.map((p, i) => ({
+        id: p.id || generateId('proj'),
+        templateId: p.type === 'villa' ? 'tpl-twin-villa' : 'tpl-boutique-suite',
+        name: p.name,
+        count: p.count,
+      }));
+      set({
+        assumptions: migrated,
+        projects,
+        activeConfigId: id,
+        activeConfigName: config.name,
+      });
+    }
     get().recompute();
   },
 

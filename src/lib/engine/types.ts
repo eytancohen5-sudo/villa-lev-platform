@@ -34,6 +34,33 @@ export interface PropertyConfig {
   opex: PropertyOpex;
 }
 
+// ── Templates & Projects (UI layer) ──
+
+export interface PropertyTemplate {
+  id: string;
+  name: string;
+  type: 'villa' | 'suite';
+  builtIn?: boolean;
+  // CAPEX parameters
+  landCost: number;
+  constructionArea: number;
+  constructionCostPerM2: number;
+  ffeCost: number;
+  legalFees: number;
+  architectFees: number;
+  civilEngineerFees: number;
+  contingencyRate: number;
+  // OPEX parameters
+  opex: PropertyOpex;
+}
+
+export interface ProjectAllocation {
+  id: string;
+  templateId: string;
+  name: string;
+  count: number;
+}
+
 // ── Revenue & Ramp ──
 
 export interface RevenueAssumptions {

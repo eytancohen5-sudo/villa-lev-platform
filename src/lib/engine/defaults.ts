@@ -2,10 +2,150 @@
 // VILLA LEV GROUP — Default Assumptions (from Excel BP v4)
 // ============================================================
 
-import { ModelAssumptions, PropertyConfig } from './types';
+import { ModelAssumptions, PropertyConfig, PropertyTemplate, ProjectAllocation } from './types';
 
-// Default property templates
-const DEFAULT_VILLA: PropertyConfig = {
+// ── Built-in Property Templates ──
+
+export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
+  {
+    id: 'tpl-twin-villa',
+    name: 'Twin Villas',
+    type: 'villa',
+    builtIn: true,
+    landCost: 400000,
+    constructionArea: 350,
+    constructionCostPerM2: 4000,
+    ffeCost: 120000,
+    legalFees: 20000,
+    architectFees: 44000,
+    civilEngineerFees: 35000,
+    contingencyRate: 0.10,
+    opex: {
+      housekeeping: 15000,
+      maintenance: 21000,
+      utilities: 12000,
+      insurance: 2500,
+      propertyTax: 4000,
+      marketing: 4000,
+      managementFee: 20000,
+      consumables: 5000,
+      accounting: 7000,
+    },
+  },
+  {
+    id: 'tpl-boutique-suite',
+    name: 'Boutique Suites',
+    type: 'suite',
+    builtIn: true,
+    landCost: 400000,
+    constructionArea: 250,
+    constructionCostPerM2: 4000,
+    ffeCost: 100000,
+    legalFees: 15000,
+    architectFees: 32000,
+    civilEngineerFees: 25000,
+    contingencyRate: 0.10,
+    opex: {
+      housekeeping: 13000,
+      maintenance: 15000,
+      utilities: 12000,
+      insurance: 2500,
+      propertyTax: 4000,
+      marketing: 4000,
+      managementFee: 20000,
+      consumables: 5000,
+      accounting: 7000,
+    },
+  },
+  {
+    id: 'tpl-luxury-villa',
+    name: 'Luxury Villa',
+    type: 'villa',
+    builtIn: true,
+    landCost: 600000,
+    constructionArea: 500,
+    constructionCostPerM2: 5000,
+    ffeCost: 200000,
+    legalFees: 25000,
+    architectFees: 65000,
+    civilEngineerFees: 45000,
+    contingencyRate: 0.10,
+    opex: {
+      housekeeping: 22000,
+      maintenance: 37500,
+      utilities: 18000,
+      insurance: 4000,
+      propertyTax: 6000,
+      marketing: 6000,
+      managementFee: 30000,
+      consumables: 8000,
+      accounting: 10000,
+    },
+  },
+  {
+    id: 'tpl-compact-studio',
+    name: 'Compact Studio',
+    type: 'suite',
+    builtIn: true,
+    landCost: 250000,
+    constructionArea: 150,
+    constructionCostPerM2: 3500,
+    ffeCost: 60000,
+    legalFees: 12000,
+    architectFees: 20000,
+    civilEngineerFees: 18000,
+    contingencyRate: 0.10,
+    opex: {
+      housekeeping: 8000,
+      maintenance: 7875,
+      utilities: 8000,
+      insurance: 1500,
+      propertyTax: 2500,
+      marketing: 3000,
+      managementFee: 12000,
+      consumables: 3000,
+      accounting: 5000,
+    },
+  },
+];
+
+// ── Default Project Allocations ──
+
+export const DEFAULT_PROJECTS: ProjectAllocation[] = [
+  { id: 'proj-1', templateId: 'tpl-twin-villa', name: 'Twin Villas', count: 2 },
+  { id: 'proj-2', templateId: 'tpl-boutique-suite', name: 'Boutique Suites', count: 1 },
+];
+
+// Helper: resolve projects → portfolio (PropertyConfig[])
+export function resolvePortfolio(
+  templates: PropertyTemplate[],
+  projects: ProjectAllocation[]
+): PropertyConfig[] {
+  return projects
+    .map((proj) => {
+      const tpl = templates.find((t) => t.id === proj.templateId);
+      if (!tpl) return null;
+      return {
+        id: proj.id,
+        name: proj.name,
+        type: tpl.type,
+        count: proj.count,
+        landCost: tpl.landCost,
+        constructionArea: tpl.constructionArea,
+        constructionCostPerM2: tpl.constructionCostPerM2,
+        ffeCost: tpl.ffeCost,
+        legalFees: tpl.legalFees,
+        architectFees: tpl.architectFees,
+        civilEngineerFees: tpl.civilEngineerFees,
+        contingencyRate: tpl.contingencyRate,
+        opex: { ...tpl.opex },
+      } as PropertyConfig;
+    })
+    .filter((p): p is PropertyConfig => p !== null);
+}
+
+// Legacy exports for backward compatibility
+export const DEFAULT_VILLA: PropertyConfig = {
   id: 'prop-a',
   name: 'Twin Villas',
   type: 'villa',
@@ -31,7 +171,7 @@ const DEFAULT_VILLA: PropertyConfig = {
   },
 };
 
-const DEFAULT_SUITE: PropertyConfig = {
+export const DEFAULT_SUITE: PropertyConfig = {
   id: 'prop-b',
   name: 'Boutique Suites',
   type: 'suite',
@@ -57,8 +197,6 @@ const DEFAULT_SUITE: PropertyConfig = {
   },
 };
 
-export { DEFAULT_VILLA, DEFAULT_SUITE };
-
 export const BASE_CASE: ModelAssumptions = {
   general: {
     year1RampFactor: 0.75,  // 2028 partial season
@@ -70,8 +208,8 @@ export const BASE_CASE: ModelAssumptions = {
   revenueRealistic: {
     villaADR: 3500,          // Net blended ADR
     villaBaseNights: 95,     // Mature year
-    suiteStandardADR: 650,   // ×2 suites
-    suiteDoubleADR: 920,     // ×2 suites
+    suiteStandardADR: 650,   // x2 suites
+    suiteDoubleADR: 920,     // x2 suites
     suiteBaseNights: 100,    // All 4 suites same occupancy
     eventsPerYear: 10,
     netProfitPerEvent: 6000,
