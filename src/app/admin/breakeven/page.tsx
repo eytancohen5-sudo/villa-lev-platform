@@ -23,15 +23,21 @@ export default function BreakEvenPage() {
   const analysis = useMemo(() => {
     if (!model) return null;
 
-    const nA = assumptions.numberOfPropertyA;
-    const nB = assumptions.numberOfPropertyB;
+    // Compute villa/suite counts from portfolio
+    const nVilla = assumptions.portfolio
+      .filter((p) => p.type === 'villa')
+      .reduce((s, p) => s + p.count, 0);
+    const nSuite = assumptions.portfolio
+      .filter((p) => p.type === 'suite')
+      .reduce((s, p) => s + p.count, 0);
+
     const annualDS = model.keyMetrics.annualDS;
     const totalOpex = model.scenarios.realistic.stabilisedYear?.totalOpex ?? 263500;
     const breakEvenRevenue = annualDS + totalOpex;
 
     const a = assumptions.revenueRealistic;
-    const revenuePerVillaNight = a.villaADR * nA;
-    const revenuePerSuiteNight = (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * nB;
+    const revenuePerVillaNight = a.villaADR * nVilla;
+    const revenuePerSuiteNight = (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * nSuite;
     const fixedRevenue =
       a.eventsPerYear * a.netProfitPerEvent +
       a.ancillaryBaseProfit * Math.pow(1 + a.ancillaryGrowthRate, 3);
@@ -59,17 +65,17 @@ export default function BreakEvenPage() {
     const baseNights = a.villaBaseNights + 3;
     const baseSuiteNights = a.suiteBaseNights + 3;
     const suiteRevAtBase =
-      (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * baseSuiteNights * nB;
+      (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * baseSuiteNights * nSuite;
     const breakEvenADR = Math.ceil(
       (breakEvenRevenue - suiteRevAtBase - fixedRevenue) /
-        (nA * baseNights)
+        (nVilla * baseNights)
     );
 
     // ADR sweep
     const adrSweep = [];
     for (let adr = 1500; adr <= 5000; adr += 250) {
       const rev =
-        nA * baseNights * adr + suiteRevAtBase + fixedRevenue;
+        nVilla * baseNights * adr + suiteRevAtBase + fixedRevenue;
       const ncf = rev - totalOpex - annualDS;
       const dscr = (rev - totalOpex) / annualDS;
       adrSweep.push({
@@ -93,8 +99,8 @@ export default function BreakEvenPage() {
     for (const n of nightsRange) {
       for (const adr of adrRange) {
         const rev =
-          nA * n * adr +
-          (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * n * nB +
+          nVilla * n * adr +
+          (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * n * nSuite +
           fixedRevenue;
         const ebitda = rev - totalOpex;
         const dscr = ebitda / annualDS;
@@ -116,9 +122,9 @@ export default function BreakEvenPage() {
       const beNights = Math.ceil(
         (beRev - fixedRevenue) / revenuePerNight
       );
-      const beADR = Math.ceil(
-        (beRev - suiteRevAtBase - fixedRevenue) / (nA * baseNights)
-      );
+      const beADR = nVilla > 0 ? Math.ceil(
+        (beRev - suiteRevAtBase - fixedRevenue) / (nVilla * baseNights)
+      ) : 0;
       return {
         path: path === "commercial"
           ? t('path.commercialShort')
@@ -138,7 +144,7 @@ export default function BreakEvenPage() {
         bufferNights: baseNights - beNights,
         bufferADR: a.villaADR - beADR,
         bufferNightsPct: ((baseNights - beNights) / baseNights) * 100,
-        bufferADRPct: ((a.villaADR - beADR) / a.villaADR) * 100,
+        bufferADRPct: beADR > 0 ? ((a.villaADR - beADR) / a.villaADR) * 100 : 0,
         color: path === "commercial" ? "#8B6914"
           : path === "rrf" ? "#4A6A8B"
           : path === "grant" ? "#4A7C3F"
@@ -148,33 +154,33 @@ export default function BreakEvenPage() {
     });
 
     // Financial Break-Even Scenario
-    const villaRevCurrent = nA * baseNights * a.villaADR;
+    const villaRevCurrent = nVilla * baseNights * a.villaADR;
     const suiteRevCurrent = suiteRevAtBase;
     const currentRev = villaRevCurrent + suiteRevCurrent + fixedRevenue;
     const currentEBITDA = currentRev - totalOpex;
     const occLinkedRevCurrent = villaRevCurrent + suiteRevCurrent;
 
-    const nightsFactor = (annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent;
+    const nightsFactor = occLinkedRevCurrent > 0 ? (annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent : 1;
     const beNightsOnlyNights = Math.ceil(baseNights * nightsFactor);
-    const beNightsOnlyVillaRev = nA * beNightsOnlyNights * a.villaADR;
-    const beNightsOnlySuiteRev = (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * beNightsOnlyNights * nB;
+    const beNightsOnlyVillaRev = nVilla * beNightsOnlyNights * a.villaADR;
+    const beNightsOnlySuiteRev = (2 * a.suiteStandardADR + 2 * a.suiteDoubleADR) * beNightsOnlyNights * nSuite;
     const beNightsOnlyRev = beNightsOnlyVillaRev + beNightsOnlySuiteRev + fixedRevenue;
 
-    const adrFactor = (annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent;
+    const adrFactor = occLinkedRevCurrent > 0 ? (annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent : 1;
     const beADROnlyVillaADR = Math.ceil(a.villaADR * adrFactor);
     const beADROnlyStdADR = Math.round(a.suiteStandardADR * adrFactor);
     const beADROnlyDblADR = Math.round(a.suiteDoubleADR * adrFactor);
-    const beADROnlyVillaRev = nA * baseNights * beADROnlyVillaADR;
-    const beADROnlySuiteRev = (2 * beADROnlyStdADR + 2 * beADROnlyDblADR) * baseNights * nB;
+    const beADROnlyVillaRev = nVilla * baseNights * beADROnlyVillaADR;
+    const beADROnlySuiteRev = (2 * beADROnlyStdADR + 2 * beADROnlyDblADR) * baseNights * nSuite;
     const beADROnlyRev = beADROnlyVillaRev + beADROnlySuiteRev + fixedRevenue;
 
-    const combinedFactor = Math.sqrt((annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent);
+    const combinedFactor = occLinkedRevCurrent > 0 ? Math.sqrt((annualDS + totalOpex - fixedRevenue) / occLinkedRevCurrent) : 1;
     const beComboNights = Math.ceil(baseNights * combinedFactor);
     const beComboVillaADR = Math.ceil(a.villaADR * combinedFactor);
     const beComboStdADR = Math.round(a.suiteStandardADR * combinedFactor);
-    const beComboVillaRev = nA * beComboNights * beComboVillaADR;
+    const beComboVillaRev = nVilla * beComboNights * beComboVillaADR;
     const beComboDblADR = Math.round(a.suiteDoubleADR * combinedFactor);
-    const beComboSuiteRev = (2 * beComboStdADR + 2 * beComboDblADR) * beComboNights * nB;
+    const beComboSuiteRev = (2 * beComboStdADR + 2 * beComboDblADR) * beComboNights * nSuite;
     const beComboRev = beComboVillaRev + beComboSuiteRev + fixedRevenue;
 
     const breakEvenScenario = {
@@ -205,7 +211,7 @@ export default function BreakEvenPage() {
         villaRev: villaRevCurrent, suiteRev: suiteRevCurrent,
         fixedRev: fixedRevenue, revenue: currentRev,
         ebitda: currentEBITDA, ds: annualDS,
-        ncf: currentEBITDA - annualDS, dscr: currentEBITDA / annualDS,
+        ncf: currentEBITDA - annualDS, dscr: annualDS > 0 ? currentEBITDA / annualDS : 0,
       },
     };
 
@@ -214,6 +220,7 @@ export default function BreakEvenPage() {
       nightsSweep, adrSweep, heatmapData, paths,
       currentNights: baseNights, currentADR: a.villaADR,
       nightsRange, adrRange, breakEvenScenario,
+      nVilla, nSuite,
     };
   }, [assumptions, model, t]);
 
@@ -327,13 +334,13 @@ export default function BreakEvenPage() {
                     ))}
                   </tr>
                   <tr className="border-b border-surface-secondary/50 bg-surface-secondary/20">
-                    <td className="py-2.5 pr-4 text-text-tertiary text-xs pl-2">{t('be.villaRevenue')}</td>
+                    <td className="py-2.5 pr-4 text-text-tertiary text-xs pl-2">Villa revenue ({analysis.nVilla} project{analysis.nVilla !== 1 ? 's' : ''})</td>
                     {cols.map((c) => (
                       <td key={c.key} className="text-right py-2.5 px-4 data-cell text-text-tertiary font-mono">{formatCurrency(get(c.key).villaRev, true, locale)}</td>
                     ))}
                   </tr>
                   <tr className="border-b border-surface-secondary/50 bg-surface-secondary/20">
-                    <td className="py-2.5 pr-4 text-text-tertiary text-xs pl-2">{t('be.suiteRevenue')}</td>
+                    <td className="py-2.5 pr-4 text-text-tertiary text-xs pl-2">Suite revenue ({analysis.nSuite * 4} suites)</td>
                     {cols.map((c) => (
                       <td key={c.key} className="text-right py-2.5 px-4 data-cell text-text-tertiary font-mono">{formatCurrency(get(c.key).suiteRev, true, locale)}</td>
                     ))}

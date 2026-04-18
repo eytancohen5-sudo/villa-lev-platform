@@ -16,38 +16,47 @@ type RowDef = {
 
 export default function PnLPage() {
   const { t, locale } = useTranslation();
-  const { model, activeScenario, assumptions } = useModelStore();
+  const { model, activeScenario } = useModelStore();
 
   if (!model) return null;
 
   const pnl = model.scenarios[activeScenario].pnl;
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
-  const nA = assumptions.numberOfPropertyA;
-  const nB = assumptions.numberOfPropertyB;
 
-  // Build rows dynamically based on property counts
+  // Get property breakdown from first operational year to know the portfolio shape
+  const sampleYear = pnl.find((p) => p.propertyBreakdown.length > 0);
+  const portfolioShape = sampleYear?.propertyBreakdown ?? [];
+
+  // Build rows dynamically based on portfolio
   const rows: RowDef[] = [
-    { label: t('pnl.villaNights'), getValue: (p) => p.villaNightsPerProject, format: "number" },
-    { label: t('pnl.suiteNights'), getValue: (p) => p.suiteNightsPerSuite, format: "number" },
+    { label: t('pnl.villaNights'), getValue: (p) => p.villaNights, format: "number" },
+    { label: t('pnl.suiteNights'), getValue: (p) => p.suiteNights, format: "number" },
   ];
 
-  // Revenue rows — one per Property A unit
-  for (let i = 0; i < nA; i++) {
-    rows.push({
-      label: nA === 1 ? 'Property A — Villas' : `Property A${i + 1} — Villas`,
-      getValue: (p) => p.revenuePerA,
-      format: "currency",
-      indent: true,
-    });
-  }
-  // Revenue rows — one per Property B unit
-  for (let i = 0; i < nB; i++) {
-    rows.push({
-      label: nB === 1 ? 'Property B — Suites' : `Property B${i + 1} — Suites`,
-      getValue: (p) => p.revenuePerB,
-      format: "currency",
-      indent: true,
-    });
+  // Revenue rows — one per property in portfolio
+  for (const prop of portfolioShape) {
+    const propId = prop.id;
+    if (prop.count > 1) {
+      rows.push({
+        label: `${prop.name} (×${prop.count})`,
+        getValue: (p) => {
+          const pb = p.propertyBreakdown.find((b) => b.id === propId);
+          return pb ? pb.totalRevenue : 0;
+        },
+        format: "currency",
+        indent: true,
+      });
+    } else {
+      rows.push({
+        label: prop.name,
+        getValue: (p) => {
+          const pb = p.propertyBreakdown.find((b) => b.id === propId);
+          return pb ? pb.revenuePerUnit : 0;
+        },
+        format: "currency",
+        indent: true,
+      });
+    }
   }
 
   rows.push(
@@ -56,19 +65,15 @@ export default function PnLPage() {
     { label: t('pnl.totalRevenue'), getValue: (p) => p.totalRevenue, format: "currency", bold: true },
   );
 
-  // OPEX rows
-  for (let i = 0; i < nA; i++) {
+  // OPEX rows — one per property
+  for (const prop of portfolioShape) {
+    const propId = prop.id;
     rows.push({
-      label: nA === 1 ? 'OPEX Property A' : `OPEX Property A${i + 1}`,
-      getValue: (p) => p.opexPerA,
-      format: "currency",
-      indent: true,
-    });
-  }
-  for (let i = 0; i < nB; i++) {
-    rows.push({
-      label: nB === 1 ? 'OPEX Property B' : `OPEX Property B${i + 1}`,
-      getValue: (p) => p.opexPerB,
+      label: `OPEX ${prop.name}`,
+      getValue: (p) => {
+        const pb = p.propertyBreakdown.find((b) => b.id === propId);
+        return pb ? pb.totalOpex : 0;
+      },
       format: "currency",
       indent: true,
     });

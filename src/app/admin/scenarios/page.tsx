@@ -20,8 +20,8 @@ export default function ScenariosPage() {
   if (!stabR || !stabU || !stabD || !stabG) return null;
 
   const metrics = [
-    { label: t('pnl.villaNights'), r: stabR.villaNightsPerProject, u: stabU.villaNightsPerProject, d: stabD.villaNightsPerProject, g: stabG.villaNightsPerProject, fmt: "n" },
-    { label: t('pnl.suiteNights'), r: stabR.suiteNightsPerSuite, u: stabU.suiteNightsPerSuite, d: stabD.suiteNightsPerSuite, g: stabG.suiteNightsPerSuite, fmt: "n" },
+    { label: t('pnl.villaNights'), r: stabR.villaNights, u: stabU.villaNights, d: stabD.villaNights, g: stabG.villaNights, fmt: "n" },
+    { label: t('pnl.suiteNights'), r: stabR.suiteNights, u: stabU.suiteNights, d: stabD.suiteNights, g: stabG.suiteNights, fmt: "n" },
     { label: t('pnl.totalRevenue'), r: stabR.totalRevenue, u: stabU.totalRevenue, d: stabD.totalRevenue, g: stabG.totalRevenue, fmt: "c" },
     { label: t('pnl.totalOpex'), r: stabR.totalOpex, u: stabU.totalOpex, d: stabD.totalOpex, g: stabG.totalOpex, fmt: "c" },
     { label: t('term.ebitda'), r: stabR.ebitda, u: stabU.ebitda, d: stabD.ebitda, g: stabG.ebitda, fmt: "c", bold: true },

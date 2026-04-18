@@ -8,7 +8,7 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState } from "react";
-import { FinancingPath } from "@/lib/engine/types";
+import { FinancingPath, PropertyConfig } from "@/lib/engine/types";
 
 function EditableCell({
   value,
@@ -105,17 +105,196 @@ function AssumptionRow({
   );
 }
 
+// ── Property Card Component ──
+function PropertyCard({ prop, index }: { prop: PropertyConfig; index: number }) {
+  const { locale } = useTranslation();
+  const { updateProperty, removeProperty, renameProperty, assumptions } = useModelStore();
+  const [expanded, setExpanded] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameValue, setNameValue] = useState(prop.name);
+
+  const canRemove = assumptions.portfolio.length > 1;
+
+  return (
+    <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 bg-surface-secondary/30">
+        <div className="flex items-center gap-3">
+          <div className={`w-3 h-3 rounded-full ${prop.type === 'villa' ? 'bg-brand-600' : 'bg-info'}`} />
+          {editingName ? (
+            <input
+              type="text"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={() => {
+                setEditingName(false);
+                if (nameValue.trim()) renameProperty(prop.id, nameValue.trim());
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                if (e.key === 'Escape') { setEditingName(false); setNameValue(prop.name); }
+              }}
+              className="px-2 py-0.5 rounded border border-brand-500/30 text-sm font-medium focus:outline-none"
+              autoFocus
+            />
+          ) : (
+            <button
+              onClick={() => { setEditingName(true); setNameValue(prop.name); }}
+              className="text-sm font-medium text-text-primary hover:text-brand-600 transition-colors"
+            >
+              {prop.name}
+            </button>
+          )}
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            prop.type === 'villa'
+              ? 'bg-brand-100 text-brand-700'
+              : 'bg-blue-100 text-blue-700'
+          }`}>
+            {prop.type === 'villa' ? 'Villa' : 'Suite'}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Count stepper */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-text-tertiary uppercase tracking-wider mr-1">Units</span>
+            <button
+              onClick={() => prop.count > 0 && updateProperty(prop.id, 'count', prop.count - 1)}
+              className="w-7 h-7 rounded-md border border-surface-tertiary bg-white text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-sm transition-colors"
+            >
+              &minus;
+            </button>
+            <div className="w-8 h-7 rounded-md border border-surface-tertiary bg-white flex items-center justify-center font-mono text-sm font-semibold">
+              {prop.count}
+            </div>
+            <button
+              onClick={() => updateProperty(prop.id, 'count', prop.count + 1)}
+              className="w-7 h-7 rounded-md border border-surface-tertiary bg-white text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-sm transition-colors"
+            >
+              +
+            </button>
+          </div>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-text-tertiary hover:text-text-primary transition-colors px-2 py-1"
+          >
+            {expanded ? '▲ Collapse' : '▼ Expand'}
+          </button>
+          {canRemove && (
+            <button
+              onClick={() => removeProperty(prop.id)}
+              className="text-xs text-negative/50 hover:text-negative transition-colors px-1"
+              title="Remove property"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary line */}
+      <div className="px-5 py-2 flex items-center gap-6 text-xs text-text-tertiary border-b border-surface-secondary/30">
+        <span>{prop.constructionArea}m² &middot; {formatCurrency(prop.constructionCostPerM2, false, locale)}/m²</span>
+        <span>Land: {formatCurrency(prop.landCost, false, locale)}</span>
+        <span className="font-medium text-text-secondary">
+          CAPEX/unit: {formatCurrency(
+            prop.landCost +
+            prop.constructionArea * prop.constructionCostPerM2 +
+            prop.ffeCost +
+            prop.legalFees +
+            prop.architectFees +
+            prop.civilEngineerFees +
+            (prop.constructionArea * prop.constructionCostPerM2 + prop.ffeCost) * prop.contingencyRate,
+            true, locale
+          )}
+        </span>
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="px-5 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* CAPEX */}
+            <div>
+              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">CAPEX Parameters</h4>
+              <table className="w-full">
+                <tbody>
+                  <PropertyRow label="Land cost" value={prop.landCost} propId={prop.id} path="landCost" format="currency" />
+                  <PropertyRow label="Construction area (m²)" value={prop.constructionArea} propId={prop.id} path="constructionArea" />
+                  <PropertyRow label="Cost per m²" value={prop.constructionCostPerM2} propId={prop.id} path="constructionCostPerM2" format="currency" />
+                  <PropertyRow label="FF&E" value={prop.ffeCost} propId={prop.id} path="ffeCost" format="currency" />
+                  <PropertyRow label="Legal & notary" value={prop.legalFees} propId={prop.id} path="legalFees" format="currency" />
+                  <PropertyRow label="Architect + design" value={prop.architectFees} propId={prop.id} path="architectFees" format="currency" />
+                  <PropertyRow label="Civil engineer" value={prop.civilEngineerFees} propId={prop.id} path="civilEngineerFees" format="currency" />
+                  <PropertyRow label="Contingency rate" value={prop.contingencyRate} propId={prop.id} path="contingencyRate" format="percent" />
+                </tbody>
+              </table>
+            </div>
+
+            {/* OPEX */}
+            <div>
+              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Annual OPEX (per unit)</h4>
+              <table className="w-full">
+                <tbody>
+                  {Object.entries(prop.opex).map(([key, val]) => (
+                    <PropertyRow
+                      key={key}
+                      label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                      value={val}
+                      propId={prop.id}
+                      path={`opex.${key}`}
+                      format="currency"
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PropertyRow({
+  label,
+  value,
+  propId,
+  path,
+  format = "number",
+}: {
+  label: string;
+  value: number;
+  propId: string;
+  path: string;
+  format?: "number" | "currency" | "percent";
+}) {
+  const { updateProperty } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-3 text-xs text-text-secondary">{label}</td>
+      <td className="py-1.5 w-28">
+        <EditableCell
+          value={value}
+          format={format}
+          onChange={(v) => updateProperty(propId, path, v)}
+        />
+      </td>
+    </tr>
+  );
+}
+
 export default function AssumptionsPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setAssumption, setFinancingPath, resetToDefaults } =
+  const { model, assumptions, setAssumption, setFinancingPath, resetToDefaults, addProperty } =
     useModelStore();
   const [tab, setTab] = useState<
-    "general" | "revenue" | "opex" | "financing" | "capex"
-  >("financing");
+    "portfolio" | "general" | "revenue" | "financing"
+  >("portfolio");
 
   if (!model) return null;
 
   const a = assumptions;
+  const totalPlots = a.portfolio.reduce((s, p) => s + p.count, 0);
 
   return (
     <div>
@@ -136,59 +315,43 @@ export default function AssumptionsPage() {
         </button>
       </div>
 
-      {/* Portfolio Configuration — Property Count */}
+      {/* Portfolio Summary Bar */}
       <div className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
-        <h3 className="font-display text-base text-text-primary mb-4">Portfolio Configuration</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-display text-base text-text-primary">Portfolio Overview</h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => addProperty('villa')}
+              className="px-3 py-1.5 rounded-lg bg-brand-600/10 text-brand-600 text-xs font-medium hover:bg-brand-600/20 transition-colors"
+            >
+              + Add Villa
+            </button>
+            <button
+              onClick={() => addProperty('suite')}
+              className="px-3 py-1.5 rounded-lg bg-blue-600/10 text-blue-600 text-xs font-medium hover:bg-blue-600/20 transition-colors"
+            >
+              + Add Suite
+            </button>
+          </div>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Property A — Twin Villas</label>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => a.numberOfPropertyA > 0 && setAssumption('numberOfPropertyA', a.numberOfPropertyA - 1)}
-                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
-              >
-                &minus;
-              </button>
-              <div className="w-12 h-9 rounded-lg border border-surface-tertiary bg-white flex items-center justify-center font-mono text-lg font-semibold text-text-primary">
-                {a.numberOfPropertyA}
-              </div>
-              <button
-                onClick={() => setAssumption('numberOfPropertyA', a.numberOfPropertyA + 1)}
-                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
-              >
-                +
-              </button>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Properties</label>
+            <div className="font-mono text-2xl font-bold text-brand-600">{a.portfolio.length}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Total Units</label>
+            <div className="font-mono text-2xl font-bold text-text-primary">{totalPlots}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Built Surface</label>
+            <div className="font-mono text-lg font-semibold text-text-primary">
+              {a.portfolio.reduce((s, p) => s + p.constructionArea * p.count, 0).toLocaleString()}m²
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Property B — Boutique Suites</label>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => a.numberOfPropertyB > 0 && setAssumption('numberOfPropertyB', a.numberOfPropertyB - 1)}
-                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
-              >
-                &minus;
-              </button>
-              <div className="w-12 h-9 rounded-lg border border-surface-tertiary bg-white flex items-center justify-center font-mono text-lg font-semibold text-text-primary">
-                {a.numberOfPropertyB}
-              </div>
-              <button
-                onClick={() => setAssumption('numberOfPropertyB', a.numberOfPropertyB + 1)}
-                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
-              >
-                +
-              </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Total Properties</label>
-            <div className="h-9 flex items-center font-mono text-2xl font-bold text-brand-600">
-              {a.numberOfPropertyA + a.numberOfPropertyB}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Total CAPEX</label>
-            <div className="h-9 flex items-center font-mono text-lg font-semibold text-text-primary">
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Total CAPEX</label>
+            <div className="font-mono text-lg font-semibold text-text-primary">
               {formatCurrency(model.capex.portfolioTotal, true, locale)}
             </div>
           </div>
@@ -199,26 +362,65 @@ export default function AssumptionsPage() {
       <div className="flex gap-1 mb-6 bg-surface-secondary rounded-lg p-1">
         {(
           [
+            { id: "portfolio", label: "Portfolio" },
             { id: "financing", label: t('as.financingPaths') },
             { id: "general", label: t('as.general') },
             { id: "revenue", label: t('as.revenue') },
-            { id: "opex", label: t('as.opexTab') },
-            { id: "capex", label: t('as.capexTab') },
           ] as const
-        ).map((t) => (
+        ).map((tabDef) => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabDef.id}
+            onClick={() => setTab(tabDef.id)}
             className={`px-4 py-2 rounded-md text-sm transition-colors ${
-              tab === t.id
+              tab === tabDef.id
                 ? "bg-white text-text-primary font-medium shadow-sm"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >
-            {t.label}
+            {tabDef.label}
           </button>
         ))}
       </div>
+
+      {/* ── PORTFOLIO TAB ── */}
+      {tab === "portfolio" && (
+        <div className="space-y-4">
+          {a.portfolio.map((prop, i) => (
+            <PropertyCard key={prop.id} prop={prop} index={i} />
+          ))}
+
+          <div className="flex items-center justify-center gap-4 py-6">
+            <button
+              onClick={() => addProperty('villa')}
+              className="px-6 py-3 rounded-xl border-2 border-dashed border-brand-300 text-brand-600 text-sm font-medium hover:bg-brand-50 hover:border-brand-500 transition-all"
+            >
+              + New Villa Property
+            </button>
+            <button
+              onClick={() => addProperty('suite')}
+              className="px-6 py-3 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 text-sm font-medium hover:bg-blue-50 hover:border-blue-500 transition-all"
+            >
+              + New Suite Property
+            </button>
+          </div>
+
+          {/* Acquisition legal */}
+          <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+            <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Shared Costs</h4>
+            <table className="w-full">
+              <tbody>
+                <AssumptionRow
+                  label={t('field.acqLegalPerPlot')}
+                  value={a.acquisitionLegalPerPlot}
+                  path="acquisitionLegalPerPlot"
+                  format="currency"
+                  note={`×${totalPlots} plots = ${formatCurrency(a.acquisitionLegalPerPlot * totalPlots, true, locale)}`}
+                />
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* ── FINANCING PATHS TAB ── */}
       {tab === "financing" && (
@@ -285,7 +487,7 @@ export default function AssumptionsPage() {
                   onClick={() => setFinancingPath(path.id)}
                   className={`text-left rounded-xl border-2 p-5 transition-all ${
                     isActive
-                      ? `border-${path.color} bg-${path.color}/5 shadow-md`
+                      ? `shadow-md`
                       : "border-surface-tertiary bg-white hover:border-surface-tertiary/80 hover:shadow-sm"
                   }`}
                   style={
@@ -300,20 +502,12 @@ export default function AssumptionsPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <div
                       className={`w-3 h-3 rounded-full ${isActive ? "ring-2 ring-offset-2" : ""}`}
-                      style={{
-                        backgroundColor: path.borderColor,
-                      }}
+                      style={{ backgroundColor: path.borderColor }}
                     />
-                    <h3 className="font-medium text-text-primary">
-                      {path.title}
-                    </h3>
+                    <h3 className="font-medium text-text-primary">{path.title}</h3>
                   </div>
-                  <p className="text-xs text-text-secondary mb-3">
-                    {path.desc}
-                  </p>
-                  <p className="text-sm font-mono font-medium text-text-primary">
-                    {path.highlight}
-                  </p>
+                  <p className="text-xs text-text-secondary mb-3">{path.desc}</p>
+                  <p className="text-sm font-mono font-medium text-text-primary">{path.highlight}</p>
                 </button>
               );
             })}
@@ -328,39 +522,11 @@ export default function AssumptionsPage() {
             {a.financingPath === "commercial" && (
               <table className="w-full">
                 <tbody>
-                  <AssumptionRow
-                    label={t('field.loanCoverage')}
-                    value={a.commercialLoan.loanCoverageRate}
-                    path="commercialLoan.loanCoverageRate"
-                    format="percent"
-                    note="75% of total project cost"
-                  />
-                  <AssumptionRow
-                    label={t('field.interestRate')}
-                    value={a.commercialLoan.interestRate}
-                    path="commercialLoan.interestRate"
-                    format="percent"
-                    note="Indicative commercial rate"
-                  />
-                  <AssumptionRow
-                    label={t('field.gracePeriod')}
-                    value={a.commercialLoan.gracePeriodYears}
-                    path="commercialLoan.gracePeriodYears"
-                    note="Interest-only, starts Q4 2026"
-                  />
-                  <AssumptionRow
-                    label={t('field.repaymentTerm')}
-                    value={a.commercialLoan.repaymentTermYears}
-                    path="commercialLoan.repaymentTermYears"
-                    note="Full DS from 2029"
-                  />
-                  <AssumptionRow
-                    label={t('field.workingCapital')}
-                    value={a.commercialLoan.workingCapitalFacility}
-                    path="commercialLoan.workingCapitalFacility"
-                    format="currency"
-                    note="Revolving, self-liquidating"
-                  />
+                  <AssumptionRow label={t('field.loanCoverage')} value={a.commercialLoan.loanCoverageRate} path="commercialLoan.loanCoverageRate" format="percent" note="75% of total project cost" />
+                  <AssumptionRow label={t('field.interestRate')} value={a.commercialLoan.interestRate} path="commercialLoan.interestRate" format="percent" note="Indicative commercial rate" />
+                  <AssumptionRow label={t('field.gracePeriod')} value={a.commercialLoan.gracePeriodYears} path="commercialLoan.gracePeriodYears" note="Interest-only, starts Q4 2026" />
+                  <AssumptionRow label={t('field.repaymentTerm')} value={a.commercialLoan.repaymentTermYears} path="commercialLoan.repaymentTermYears" note="Full DS from 2029" />
+                  <AssumptionRow label={t('field.workingCapital')} value={a.commercialLoan.workingCapitalFacility} path="commercialLoan.workingCapitalFacility" format="currency" note="Revolving, self-liquidating" />
                 </tbody>
               </table>
             )}
@@ -368,48 +534,12 @@ export default function AssumptionsPage() {
             {a.financingPath === "rrf" && (
               <table className="w-full">
                 <tbody>
-                  <AssumptionRow
-                    label={t('field.rrfShare')}
-                    value={a.rrf.rrfShareOfLoan}
-                    path="rrf.rrfShareOfLoan"
-                    format="percent"
-                    note="80% of total financing at concessional rate"
-                  />
-                  <AssumptionRow
-                    label={t('field.rrfRate')}
-                    value={a.rrf.rrfInterestRate}
-                    path="rrf.rrfInterestRate"
-                    format="percent"
-                    note="0.35% per annum"
-                  />
-                  <AssumptionRow
-                    label={t('field.commShare')}
-                    value={a.rrf.commercialShareRate}
-                    path="rrf.commercialShareRate"
-                    format="percent"
-                    note="20% at commercial rate"
-                  />
-                  <AssumptionRow
-                    label={t('field.commRate')}
-                    value={a.rrf.commercialInterestRate}
-                    path="rrf.commercialInterestRate"
-                    format="percent"
-                    note="5% standard"
-                  />
-                  <AssumptionRow
-                    label={t('field.totalLoanDrawn')}
-                    value={a.rrf.totalLoanDrawn}
-                    path="rrf.totalLoanDrawn"
-                    format="currency"
-                    note="Indicative €4,939,200"
-                  />
-                  <AssumptionRow
-                    label={t('field.equityRequired')}
-                    value={a.rrf.equityRequired}
-                    path="rrf.equityRequired"
-                    format="currency"
-                    note="Indicative €1,234,800"
-                  />
+                  <AssumptionRow label={t('field.rrfShare')} value={a.rrf.rrfShareOfLoan} path="rrf.rrfShareOfLoan" format="percent" note="80% of total financing at concessional rate" />
+                  <AssumptionRow label={t('field.rrfRate')} value={a.rrf.rrfInterestRate} path="rrf.rrfInterestRate" format="percent" note="0.35% per annum" />
+                  <AssumptionRow label={t('field.commShare')} value={a.rrf.commercialShareRate} path="rrf.commercialShareRate" format="percent" note="20% at commercial rate" />
+                  <AssumptionRow label={t('field.commRate')} value={a.rrf.commercialInterestRate} path="rrf.commercialInterestRate" format="percent" note="5% standard" />
+                  <AssumptionRow label={t('field.totalLoanDrawn')} value={a.rrf.totalLoanDrawn} path="rrf.totalLoanDrawn" format="currency" />
+                  <AssumptionRow label={t('field.equityRequired')} value={a.rrf.equityRequired} path="rrf.equityRequired" format="currency" />
                 </tbody>
               </table>
             )}
@@ -417,63 +547,34 @@ export default function AssumptionsPage() {
             {a.financingPath === "grant" && (
               <table className="w-full">
                 <tbody>
-                  <AssumptionRow
-                    label={t('field.grantRate')}
-                    value={a.grant.grantRate}
-                    path="grant.grantRate"
-                    format="percent"
-                    note="60% confirmed — Antiparos max aid zone"
-                  />
+                  <AssumptionRow label={t('field.grantRate')} value={a.grant.grantRate} path="grant.grantRate" format="percent" note="60% confirmed — Antiparos max aid zone" />
                   <tr className="border-b border-surface-secondary/50">
-                    <td className="py-2 pr-4 text-sm text-text-secondary">
-                      {t('field.nonPlotEligible')}
-                    </td>
+                    <td className="py-2 pr-4 text-sm text-text-secondary">{t('field.nonPlotEligible')}</td>
                     <td className="py-2 data-cell text-right pr-2">
                       {formatCurrency(
                         model.capex.portfolioTotal -
-                          (a.properties.propertyA.landCost *
-                            a.numberOfPropertyA +
-                            a.properties.propertyB.landCost * a.numberOfPropertyB) -
-                          a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB),
+                          a.portfolio.reduce((s, p) => s + p.landCost * p.count, 0) -
+                          a.acquisitionLegalPerPlot * totalPlots,
                         false, locale
                       )}
                     </td>
-                    <td className="py-2 pl-4 text-xs text-text-tertiary">
-                      CAPEX less land and acquisition legal
-                    </td>
+                    <td className="py-2 pl-4 text-xs text-text-tertiary">CAPEX less land and acquisition legal</td>
                   </tr>
                   <tr className="border-b border-surface-secondary/50">
-                    <td className="py-2 pr-4 text-sm font-medium text-positive">
-                      {t('field.grantAmount')}
-                    </td>
+                    <td className="py-2 pr-4 text-sm font-medium text-positive">{t('field.grantAmount')}</td>
                     <td className="py-2 data-cell text-right pr-2 font-medium text-positive">
                       {formatCurrency(
                         (model.capex.portfolioTotal -
-                          (a.properties.propertyA.landCost *
-                            a.numberOfPropertyA +
-                            a.properties.propertyB.landCost * a.numberOfPropertyB) -
-                          a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB)) *
+                          a.portfolio.reduce((s, p) => s + p.landCost * p.count, 0) -
+                          a.acquisitionLegalPerPlot * totalPlots) *
                           a.grant.grantRate,
                         false, locale
                       )}
                     </td>
-                    <td className="py-2 pl-4 text-xs text-text-tertiary">
-                      Non-plot eligible × grant rate
-                    </td>
+                    <td className="py-2 pl-4 text-xs text-text-tertiary">Non-plot eligible &times; grant rate</td>
                   </tr>
-                  <AssumptionRow
-                    label="Interest rate (on remaining loan)"
-                    value={a.commercialLoan.interestRate}
-                    path="commercialLoan.interestRate"
-                    format="percent"
-                    note="5% on reduced loan amount"
-                  />
-                  <AssumptionRow
-                    label="Repayment term (years)"
-                    value={a.commercialLoan.repaymentTermYears}
-                    path="commercialLoan.repaymentTermYears"
-                    note="13 years from 2029"
-                  />
+                  <AssumptionRow label="Interest rate (on remaining loan)" value={a.commercialLoan.interestRate} path="commercialLoan.interestRate" format="percent" note="5% on reduced loan amount" />
+                  <AssumptionRow label="Repayment term (years)" value={a.commercialLoan.repaymentTermYears} path="commercialLoan.repaymentTermYears" note="13 years from 2029" />
                 </tbody>
               </table>
             )}
@@ -481,92 +582,25 @@ export default function AssumptionsPage() {
             {a.financingPath === "tepix-loan" && (<>
               <table className="w-full">
                 <tbody>
-                  <AssumptionRow
-                    label={t('field.tepixCoverage')}
-                    value={a.tepixLoan.coverageRate}
-                    path="tepixLoan.coverageRate"
-                    format="percent"
-                    note="90% — 10% equity"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixHdbShare')}
-                    value={a.tepixLoan.hdbShareOfLoan}
-                    path="tepixLoan.hdbShareOfLoan"
-                    format="percent"
-                    note="40% interest-free from HDB/EAT"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixBankShare')}
-                    value={a.tepixLoan.bankShareOfLoan}
-                    path="tepixLoan.bankShareOfLoan"
-                    format="percent"
-                    note="60% from partner bank"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixBankRate')}
-                    value={a.tepixLoan.bankInterestRate}
-                    path="tepixLoan.bankInterestRate"
-                    format="percent"
-                    note="Indicative bank rate"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixSubsidy')}
-                    value={a.tepixLoan.interestSubsidy}
-                    path="tepixLoan.interestSubsidy"
-                    format="percent"
-                    note="2pp — South Aegean (verified HDB)"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixSubsidyDuration')}
-                    value={a.tepixLoan.subsidyDurationYears}
-                    path="tepixLoan.subsidyDurationYears"
-                    note="From first disbursement"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixTotalTerm')}
-                    value={a.tepixLoan.totalTermYears}
-                    path="tepixLoan.totalTermYears"
-                    note="12 years amortization + 2 years grace = 14 total"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixGrace')}
-                    value={a.tepixLoan.gracePeriodYears}
-                    path="tepixLoan.gracePeriodYears"
-                    note="Within total term"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixLandCap')}
-                    value={a.tepixLoan.landCapOnFundContribution}
-                    path="tepixLoan.landCapOnFundContribution"
-                    format="percent"
-                    note={t('field.tepixLandCapNote')}
-                  />
+                  <AssumptionRow label={t('field.tepixCoverage')} value={a.tepixLoan.coverageRate} path="tepixLoan.coverageRate" format="percent" note="90% — 10% equity" />
+                  <AssumptionRow label={t('field.tepixHdbShare')} value={a.tepixLoan.hdbShareOfLoan} path="tepixLoan.hdbShareOfLoan" format="percent" note="40% interest-free from HDB/EAT" />
+                  <AssumptionRow label={t('field.tepixBankShare')} value={a.tepixLoan.bankShareOfLoan} path="tepixLoan.bankShareOfLoan" format="percent" note="60% from partner bank" />
+                  <AssumptionRow label={t('field.tepixBankRate')} value={a.tepixLoan.bankInterestRate} path="tepixLoan.bankInterestRate" format="percent" note="Indicative bank rate" />
+                  <AssumptionRow label={t('field.tepixSubsidy')} value={a.tepixLoan.interestSubsidy} path="tepixLoan.interestSubsidy" format="percent" note="2pp — South Aegean (verified HDB)" />
+                  <AssumptionRow label={t('field.tepixSubsidyDuration')} value={a.tepixLoan.subsidyDurationYears} path="tepixLoan.subsidyDurationYears" note="From first disbursement" />
+                  <AssumptionRow label={t('field.tepixTotalTerm')} value={a.tepixLoan.totalTermYears} path="tepixLoan.totalTermYears" note="12yr amortization + 2yr grace = 14 total" />
+                  <AssumptionRow label={t('field.tepixGrace')} value={a.tepixLoan.gracePeriodYears} path="tepixLoan.gracePeriodYears" note="Within total term" />
+                  <AssumptionRow label={t('field.tepixLandCap')} value={a.tepixLoan.landCapOnFundContribution} path="tepixLoan.landCapOnFundContribution" format="percent" note={t('field.tepixLandCapNote')} />
                 </tbody>
               </table>
-              {/* Combined Structure Panel */}
               <div className="mt-4 rounded-lg border border-purple-300 bg-purple-50 p-4">
                 <h4 className="text-sm font-semibold text-[#7B5EA7] mb-3">{t('field.tepixCombinedStructure')}</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixLandGap')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div>
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-purple-200">
-                    <span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span>
-                    <div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div>
-                  </div>
+                  <div><span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixLandGap')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div></div>
+                  <div className="col-span-2 pt-2 border-t border-purple-200"><span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span><div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div></div>
                 </div>
               </div>
             </>)}
@@ -574,92 +608,25 @@ export default function AssumptionsPage() {
             {a.financingPath === "tepix-guarantee" && (<>
               <table className="w-full">
                 <tbody>
-                  <AssumptionRow
-                    label={t('field.tepixCoverage')}
-                    value={a.tepixGuarantee.coverageRate}
-                    path="tepixGuarantee.coverageRate"
-                    format="percent"
-                    note="90% — 10% equity"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixGuaranteeRate')}
-                    value={a.tepixGuarantee.guaranteeRate}
-                    path="tepixGuarantee.guaranteeRate"
-                    format="percent"
-                    note="70% — General Entrepreneurship"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixBankRate')}
-                    value={a.tepixGuarantee.bankInterestRate}
-                    path="tepixGuarantee.bankInterestRate"
-                    format="percent"
-                    note="Full loan at bank rate"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixSubsidy')}
-                    value={a.tepixGuarantee.interestSubsidy}
-                    path="tepixGuarantee.interestSubsidy"
-                    format="percent"
-                    note="2pp — South Aegean"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixSubsidyDuration')}
-                    value={a.tepixGuarantee.subsidyDurationYears}
-                    path="tepixGuarantee.subsidyDurationYears"
-                    note="From first disbursement"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixTotalTerm')}
-                    value={a.tepixGuarantee.totalTermYears}
-                    path="tepixGuarantee.totalTermYears"
-                    note="12 years amortization + 2 years grace = 14 total"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixGrace')}
-                    value={a.tepixGuarantee.gracePeriodYears}
-                    path="tepixGuarantee.gracePeriodYears"
-                    note="Within total term"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixCollateralCap')}
-                    value={a.tepixGuarantee.collateralCapRate}
-                    path="tepixGuarantee.collateralCapRate"
-                    format="percent"
-                    note="30% of loan principal (statutory)"
-                  />
-                  <AssumptionRow
-                    label={t('field.tepixLandCap')}
-                    value={a.tepixGuarantee.landCapOnFundContribution}
-                    path="tepixGuarantee.landCapOnFundContribution"
-                    format="percent"
-                    note={t('field.tepixLandCapNote')}
-                  />
+                  <AssumptionRow label={t('field.tepixCoverage')} value={a.tepixGuarantee.coverageRate} path="tepixGuarantee.coverageRate" format="percent" note="90% — 10% equity" />
+                  <AssumptionRow label={t('field.tepixGuaranteeRate')} value={a.tepixGuarantee.guaranteeRate} path="tepixGuarantee.guaranteeRate" format="percent" note="70% — General Entrepreneurship" />
+                  <AssumptionRow label={t('field.tepixBankRate')} value={a.tepixGuarantee.bankInterestRate} path="tepixGuarantee.bankInterestRate" format="percent" note="Full loan at bank rate" />
+                  <AssumptionRow label={t('field.tepixSubsidy')} value={a.tepixGuarantee.interestSubsidy} path="tepixGuarantee.interestSubsidy" format="percent" note="2pp — South Aegean" />
+                  <AssumptionRow label={t('field.tepixSubsidyDuration')} value={a.tepixGuarantee.subsidyDurationYears} path="tepixGuarantee.subsidyDurationYears" note="From first disbursement" />
+                  <AssumptionRow label={t('field.tepixTotalTerm')} value={a.tepixGuarantee.totalTermYears} path="tepixGuarantee.totalTermYears" note="12yr amortization + 2yr grace = 14 total" />
+                  <AssumptionRow label={t('field.tepixGrace')} value={a.tepixGuarantee.gracePeriodYears} path="tepixGuarantee.gracePeriodYears" note="Within total term" />
+                  <AssumptionRow label={t('field.tepixCollateralCap')} value={a.tepixGuarantee.collateralCapRate} path="tepixGuarantee.collateralCapRate" format="percent" note="30% of loan principal (statutory)" />
+                  <AssumptionRow label={t('field.tepixLandCap')} value={a.tepixGuarantee.landCapOnFundContribution} path="tepixGuarantee.landCapOnFundContribution" format="percent" note={t('field.tepixLandCapNote')} />
                 </tbody>
               </table>
-              {/* Combined Structure Panel */}
               <div className="mt-4 rounded-lg border border-orange-300 bg-orange-50 p-4">
                 <h4 className="text-sm font-semibold text-[#C4754B] mb-3">{t('field.tepixCombinedStructure')}</h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-tertiary">{t('field.tepixLandGap')}</span>
-                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div>
-                  </div>
-                  <div className="col-span-2 pt-2 border-t border-orange-200">
-                    <span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span>
-                    <div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div>
-                  </div>
+                  <div><span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div></div>
+                  <div><span className="text-text-tertiary">{t('field.tepixLandGap')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div></div>
+                  <div className="col-span-2 pt-2 border-t border-orange-200"><span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span><div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div></div>
                 </div>
               </div>
             </>)}
@@ -668,28 +635,16 @@ export default function AssumptionsPage() {
           {/* Impact Summary */}
           <div className="mt-6 grid grid-cols-3 gap-4">
             <div className="bg-white rounded-xl border border-surface-tertiary p-4 text-center">
-              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">
-                {t('kpi.loanAmount')}
-              </div>
-              <div className="kpi-value text-text-primary text-2xl">
-                {formatCurrency(model.keyMetrics.loanAmount, true, locale)}
-              </div>
+              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('kpi.loanAmount')}</div>
+              <div className="kpi-value text-text-primary text-2xl">{formatCurrency(model.keyMetrics.loanAmount, true, locale)}</div>
             </div>
             <div className="bg-white rounded-xl border border-surface-tertiary p-4 text-center">
-              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">
-                {t('kpi.equityRequired')}
-              </div>
-              <div className="kpi-value text-text-primary text-2xl">
-                {formatCurrency(model.keyMetrics.equityRequired, true, locale)}
-              </div>
+              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('kpi.equityRequired')}</div>
+              <div className="kpi-value text-text-primary text-2xl">{formatCurrency(model.keyMetrics.equityRequired, true, locale)}</div>
             </div>
             <div className="bg-white rounded-xl border border-surface-tertiary p-4 text-center">
-              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">
-                {t('term.dscr')} ({t('phase.stabilised')})
-              </div>
-              <div className="kpi-value text-text-primary text-2xl">
-                {formatMultiple(model.keyMetrics.stabilisedDSCR)}
-              </div>
+              <div className="text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('term.dscr')} ({t('phase.stabilised')})</div>
+              <div className="kpi-value text-text-primary text-2xl">{formatMultiple(model.keyMetrics.stabilisedDSCR)}</div>
             </div>
           </div>
         </div>
@@ -701,52 +656,18 @@ export default function AssumptionsPage() {
           <SectionHeader title={t('as.rampUp')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow
-                label={t('field.y1Ramp')}
-                value={a.general.year1RampFactor}
-                path="general.year1RampFactor"
-                format="percent"
-                note="% of mature revenue"
-              />
-              <AssumptionRow
-                label={t('field.y2Ramp')}
-                value={a.general.year2RampFactor}
-                path="general.year2RampFactor"
-                format="percent"
-                note="% of mature revenue"
-              />
-              <AssumptionRow
-                label={t('field.nightsGrowth')}
-                value={a.general.nightsGrowthPerYear}
-                path="general.nightsGrowthPerYear"
-                note="Added per year"
-              />
-              <AssumptionRow
-                label={t('field.nightsCap')}
-                value={a.general.nightsCap}
-                path="general.nightsCap"
-                note="Upper bound"
-              />
+              <AssumptionRow label={t('field.y1Ramp')} value={a.general.year1RampFactor} path="general.year1RampFactor" format="percent" note="% of mature revenue" />
+              <AssumptionRow label={t('field.y2Ramp')} value={a.general.year2RampFactor} path="general.year2RampFactor" format="percent" note="% of mature revenue" />
+              <AssumptionRow label={t('field.nightsGrowth')} value={a.general.nightsGrowthPerYear} path="general.nightsGrowthPerYear" note="Added per year" />
+              <AssumptionRow label={t('field.nightsCap')} value={a.general.nightsCap} path="general.nightsCap" note="Upper bound" />
             </tbody>
           </table>
 
           <SectionHeader title={t('as.tax')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow
-                label={t('field.citRate')}
-                value={a.tax.corporateIncomeTaxRate}
-                path="tax.corporateIncomeTaxRate"
-                format="percent"
-                note="Greek CIT — Law 4172/2013"
-              />
-              <AssumptionRow
-                label={t('field.vatRate')}
-                value={a.tax.netVATRate}
-                path="tax.netVATRate"
-                format="percent"
-                note="7% net after input credits"
-              />
+              <AssumptionRow label={t('field.citRate')} value={a.tax.corporateIncomeTaxRate} path="tax.corporateIncomeTaxRate" format="percent" note="Greek CIT — Law 4172/2013" />
+              <AssumptionRow label={t('field.vatRate')} value={a.tax.netVATRate} path="tax.netVATRate" format="percent" note="7% net after input credits" />
             </tbody>
           </table>
         </div>
@@ -758,179 +679,27 @@ export default function AssumptionsPage() {
           <SectionHeader title={t('as.realisticScenario')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow
-                label={t('field.villaADR')}
-                value={a.revenueRealistic.villaADR}
-                path="revenueRealistic.villaADR"
-                format="currency"
-                note="Net of all commissions"
-              />
-              <AssumptionRow
-                label={t('field.villaNights')}
-                value={a.revenueRealistic.villaBaseNights}
-                path="revenueRealistic.villaBaseNights"
-                note="Per project"
-              />
-              <AssumptionRow
-                label={t('field.stdSuiteADR')}
-                value={a.revenueRealistic.suiteStandardADR}
-                path="revenueRealistic.suiteStandardADR"
-                format="currency"
-                note="×2 suites"
-              />
-              <AssumptionRow
-                label={t('field.dblSuiteADR')}
-                value={a.revenueRealistic.suiteDoubleADR}
-                path="revenueRealistic.suiteDoubleADR"
-                format="currency"
-                note="×2 suites"
-              />
-              <AssumptionRow
-                label={t('field.suiteNights')}
-                value={a.revenueRealistic.suiteBaseNights}
-                path="revenueRealistic.suiteBaseNights"
-              />
-              <AssumptionRow
-                label={t('field.eventsPerYear')}
-                value={a.revenueRealistic.eventsPerYear}
-                path="revenueRealistic.eventsPerYear"
-              />
-              <AssumptionRow
-                label={t('field.profitPerEvent')}
-                value={a.revenueRealistic.netProfitPerEvent}
-                path="revenueRealistic.netProfitPerEvent"
-                format="currency"
-              />
-              <AssumptionRow
-                label={t('field.ancillaryProfit')}
-                value={a.revenueRealistic.ancillaryBaseProfit}
-                path="revenueRealistic.ancillaryBaseProfit"
-                format="currency"
-                note="Chef, boat, car rentals"
-              />
-              <AssumptionRow
-                label={t('field.ancillaryGrowth')}
-                value={a.revenueRealistic.ancillaryGrowthRate}
-                path="revenueRealistic.ancillaryGrowthRate"
-                format="percent"
-                note="+10%/yr from 2028"
-              />
+              <AssumptionRow label={t('field.villaADR')} value={a.revenueRealistic.villaADR} path="revenueRealistic.villaADR" format="currency" note="Net of all commissions" />
+              <AssumptionRow label={t('field.villaNights')} value={a.revenueRealistic.villaBaseNights} path="revenueRealistic.villaBaseNights" note="Per project" />
+              <AssumptionRow label={t('field.stdSuiteADR')} value={a.revenueRealistic.suiteStandardADR} path="revenueRealistic.suiteStandardADR" format="currency" note="&times;2 suites" />
+              <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueRealistic.suiteDoubleADR} path="revenueRealistic.suiteDoubleADR" format="currency" note="&times;2 suites" />
+              <AssumptionRow label={t('field.suiteNights')} value={a.revenueRealistic.suiteBaseNights} path="revenueRealistic.suiteBaseNights" />
+              <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueRealistic.eventsPerYear} path="revenueRealistic.eventsPerYear" />
+              <AssumptionRow label={t('field.profitPerEvent')} value={a.revenueRealistic.netProfitPerEvent} path="revenueRealistic.netProfitPerEvent" format="currency" />
+              <AssumptionRow label={t('field.ancillaryProfit')} value={a.revenueRealistic.ancillaryBaseProfit} path="revenueRealistic.ancillaryBaseProfit" format="currency" note="Chef, boat, car rentals" />
+              <AssumptionRow label={t('field.ancillaryGrowth')} value={a.revenueRealistic.ancillaryGrowthRate} path="revenueRealistic.ancillaryGrowthRate" format="percent" note="+10%/yr from 2028" />
             </tbody>
           </table>
 
           <SectionHeader title={t('as.upsideScenario')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow
-                label="Villa ADR — upside (€/night)"
-                value={a.revenueUpside.villaADR}
-                path="revenueUpside.villaADR"
-                format="currency"
-              />
-              <AssumptionRow
-                label="Villa nights — upside (mature)"
-                value={a.revenueUpside.villaBaseNights}
-                path="revenueUpside.villaBaseNights"
-              />
-              <AssumptionRow
-                label="Standard Suite ADR — upside"
-                value={a.revenueUpside.suiteStandardADR}
-                path="revenueUpside.suiteStandardADR"
-                format="currency"
-              />
-              <AssumptionRow
-                label="Double Suite ADR — upside"
-                value={a.revenueUpside.suiteDoubleADR}
-                path="revenueUpside.suiteDoubleADR"
-                format="currency"
-              />
-              <AssumptionRow
-                label="Suite nights — upside"
-                value={a.revenueUpside.suiteBaseNights}
-                path="revenueUpside.suiteBaseNights"
-              />
-              <AssumptionRow
-                label="Events — upside"
-                value={a.revenueUpside.eventsPerYear}
-                path="revenueUpside.eventsPerYear"
-              />
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ── OPEX TAB ── */}
-      {tab === "opex" && (
-        <div className="bg-white rounded-xl border border-surface-tertiary p-6">
-          <SectionHeader title={t('as.propAOpex')} />
-          <table className="w-full">
-            <tbody>
-              {Object.entries(a.opex.propertyA).map(([key, val]) => (
-                <AssumptionRow
-                  key={key}
-                  label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                  value={val}
-                  path={`opex.propertyA.${key}`}
-                  format="currency"
-                />
-              ))}
-            </tbody>
-          </table>
-
-          <SectionHeader title={t('as.propBOpex')} />
-          <table className="w-full">
-            <tbody>
-              {Object.entries(a.opex.propertyB).map(([key, val]) => (
-                <AssumptionRow
-                  key={key}
-                  label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                  value={val}
-                  path={`opex.propertyB.${key}`}
-                  format="currency"
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ── CAPEX TAB ── */}
-      {tab === "capex" && (
-        <div className="bg-white rounded-xl border border-surface-tertiary p-6">
-          <SectionHeader title={t('as.propATwinVillas')} />
-          <table className="w-full">
-            <tbody>
-              <AssumptionRow label={t('field.landCost')} value={a.properties.propertyA.landCost} path="properties.propertyA.landCost" format="currency" />
-              <AssumptionRow label={t('field.constructionArea')} value={a.properties.propertyA.constructionArea} path="properties.propertyA.constructionArea" />
-              <AssumptionRow label={t('field.costPerM2')} value={a.properties.propertyA.constructionCostPerM2} path="properties.propertyA.constructionCostPerM2" format="currency" />
-              <AssumptionRow label={t('term.ffe')} value={a.properties.propertyA.ffeCost} path="properties.propertyA.ffeCost" format="currency" />
-              <AssumptionRow label={t('field.legalNotary')} value={a.properties.propertyA.legalFees} path="properties.propertyA.legalFees" format="currency" />
-              <AssumptionRow label={t('field.architectDesign')} value={a.properties.propertyA.architectFees} path="properties.propertyA.architectFees" format="currency" />
-              <AssumptionRow label={t('field.civilEngineer')} value={a.properties.propertyA.civilEngineerFees} path="properties.propertyA.civilEngineerFees" format="currency" />
-              <AssumptionRow label={t('field.contingencyRate')} value={a.properties.propertyA.contingencyRate} path="properties.propertyA.contingencyRate" format="percent" />
-            </tbody>
-          </table>
-
-          <SectionHeader title={t('as.propBSuites')} />
-          <table className="w-full">
-            <tbody>
-              <AssumptionRow label={t('field.landCost')} value={a.properties.propertyB.landCost} path="properties.propertyB.landCost" format="currency" />
-              <AssumptionRow label={t('field.constructionArea')} value={a.properties.propertyB.constructionArea} path="properties.propertyB.constructionArea" />
-              <AssumptionRow label={t('field.costPerM2')} value={a.properties.propertyB.constructionCostPerM2} path="properties.propertyB.constructionCostPerM2" format="currency" />
-              <AssumptionRow label={t('term.ffe')} value={a.properties.propertyB.ffeCost} path="properties.propertyB.ffeCost" format="currency" />
-              <AssumptionRow label={t('field.legalNotary')} value={a.properties.propertyB.legalFees} path="properties.propertyB.legalFees" format="currency" />
-              <AssumptionRow label={t('field.architectDesign')} value={a.properties.propertyB.architectFees} path="properties.propertyB.architectFees" format="currency" />
-              <AssumptionRow label={t('field.civilEngineer')} value={a.properties.propertyB.civilEngineerFees} path="properties.propertyB.civilEngineerFees" format="currency" />
-              <AssumptionRow label={t('field.contingencyRate')} value={a.properties.propertyB.contingencyRate} path="properties.propertyB.contingencyRate" format="percent" />
-            </tbody>
-          </table>
-
-          <SectionHeader title={t('as.other')} />
-          <table className="w-full">
-            <tbody>
-              <AssumptionRow label={t('field.acqLegalPerPlot')} value={a.acquisitionLegalPerPlot} path="acquisitionLegalPerPlot" format="currency" note={`×${a.numberOfPropertyA + a.numberOfPropertyB} plots`} />
-              <AssumptionRow label={t('field.numPropA')} value={a.numberOfPropertyA} path="numberOfPropertyA" note="Twin Villa projects" />
-              <AssumptionRow label={t('field.numPropB')} value={a.numberOfPropertyB} path="numberOfPropertyB" note="Boutique Suite properties" />
+              <AssumptionRow label="Villa ADR — upside (&euro;/night)" value={a.revenueUpside.villaADR} path="revenueUpside.villaADR" format="currency" />
+              <AssumptionRow label="Villa nights — upside (mature)" value={a.revenueUpside.villaBaseNights} path="revenueUpside.villaBaseNights" />
+              <AssumptionRow label="Standard Suite ADR — upside" value={a.revenueUpside.suiteStandardADR} path="revenueUpside.suiteStandardADR" format="currency" />
+              <AssumptionRow label="Double Suite ADR — upside" value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" />
+              <AssumptionRow label="Suite nights — upside" value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" />
+              <AssumptionRow label="Events — upside" value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" />
             </tbody>
           </table>
         </div>
@@ -962,7 +731,6 @@ function ConfigPanel() {
     <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
       <h3 className="font-display text-lg text-text-primary mb-4">{t('config.savedConfigs')}</h3>
 
-      {/* Active config indicator */}
       {activeConfigName && (
         <div className="mb-4 flex items-center gap-2 text-sm">
           <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
@@ -973,7 +741,6 @@ function ConfigPanel() {
         </div>
       )}
 
-      {/* Save current */}
       <div className="flex gap-2 mb-6">
         <input
           type="text"
@@ -992,7 +759,6 @@ function ConfigPanel() {
         </button>
       </div>
 
-      {/* Saved configs list */}
       {savedConfigs.length === 0 ? (
         <p className="text-sm text-text-tertiary text-center py-6">{t('config.noSaved')}</p>
       ) : (
@@ -1012,16 +778,10 @@ function ConfigPanel() {
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      renameConfig(config.id, editName);
-                      setEditingId(null);
-                    }
+                    if (e.key === 'Enter') { renameConfig(config.id, editName); setEditingId(null); }
                     if (e.key === 'Escape') setEditingId(null);
                   }}
-                  onBlur={() => {
-                    renameConfig(config.id, editName);
-                    setEditingId(null);
-                  }}
+                  onBlur={() => { renameConfig(config.id, editName); setEditingId(null); }}
                   autoFocus
                   className="flex-1 px-3 py-1 rounded-lg border border-brand-500/30 text-sm focus:outline-none"
                 />
@@ -1034,29 +794,9 @@ function ConfigPanel() {
                 </div>
               )}
               <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => loadConfig(config.id)}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors"
-                >
-                  {t('config.load')}
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingId(config.id);
-                    setEditName(config.name);
-                  }}
-                  className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors"
-                  title={t('config.rename')}
-                >
-                  &#9998;
-                </button>
-                <button
-                  onClick={() => deleteConfig(config.id)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
-                  title={t('config.delete')}
-                >
-                  &times;
-                </button>
+                <button onClick={() => loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
+                <button onClick={() => { setEditingId(config.id); setEditName(config.name); }} className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors" title={t('config.rename')}>&#9998;</button>
+                <button onClick={() => deleteConfig(config.id)} className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors" title={t('config.delete')}>&times;</button>
               </div>
             </div>
           ))}

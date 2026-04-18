@@ -6,11 +6,14 @@ import {
   ModelAssumptions,
   ModelOutput,
   CapexBreakdown,
+  CapexPropertyLine,
   AnnualPnL,
+  PropertyPnLLine,
   ScenarioOutput,
   RevenueAssumptions,
   FinancingComparison,
   FinancingPath,
+  PropertyConfig,
 } from './types';
 import { DOWNSIDE_FACTORS } from './defaults';
 
@@ -18,81 +21,91 @@ import { DOWNSIDE_FACTORS } from './defaults';
 // CAPEX
 // ────────────────────────────────────────────
 
+function computeCapexPerUnit(prop: PropertyConfig): number {
+  const construction = prop.constructionArea * prop.constructionCostPerM2;
+  const contingency = (construction + prop.ffeCost) * prop.contingencyRate;
+  return (
+    prop.landCost +
+    construction +
+    prop.ffeCost +
+    prop.legalFees +
+    prop.architectFees +
+    prop.civilEngineerFees +
+    contingency
+  );
+}
+
 function computeCapex(a: ModelAssumptions): CapexBreakdown {
-  const propA = a.properties.propertyA;
-  const propB = a.properties.propertyB;
-  const nA = a.numberOfPropertyA;
-  const nB = a.numberOfPropertyB;
-  const totalPlots = nA + nB;
+  const totalPlots = a.portfolio.reduce((sum, p) => sum + p.count, 0);
 
-  const constructionA = propA.constructionArea * propA.constructionCostPerM2;
-  const constructionB = propB.constructionArea * propB.constructionCostPerM2;
-  const contingencyA = (constructionA + propA.ffeCost) * propA.contingencyRate;
-  const contingencyB = (constructionB + propB.ffeCost) * propB.contingencyRate;
-
-  const perUnitA =
-    propA.landCost +
-    constructionA +
-    propA.ffeCost +
-    propA.legalFees +
-    propA.architectFees +
-    propA.civilEngineerFees +
-    contingencyA;
-
-  const perUnitB =
-    propB.landCost +
-    constructionB +
-    propB.ffeCost +
-    propB.legalFees +
-    propB.architectFees +
-    propB.civilEngineerFees +
-    contingencyB;
-
-  const totalA = perUnitA * nA;
-  const totalB = perUnitB * nB;
-  const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
-  const portfolio = totalA + totalB + acqLegal;
-
-  const cat = (name: string, aUnit: number, bUnit: number) => ({
-    name,
-    propAPerUnit: aUnit,
-    propATotal: aUnit * nA,
-    propBPerUnit: bUnit,
-    propBTotal: bUnit * nB,
-    total: aUnit * nA + bUnit * nB,
+  const properties: CapexPropertyLine[] = a.portfolio.map((prop) => {
+    const perUnit = computeCapexPerUnit(prop);
+    return {
+      id: prop.id,
+      name: prop.name,
+      count: prop.count,
+      perUnit,
+      total: perUnit * prop.count,
+    };
   });
 
-  const categories = [
-    cat('Land acquisition', propA.landCost, propB.landCost),
-    cat(
-      `Construction (${propA.constructionArea}m² / ${propB.constructionArea}m² × €${propA.constructionCostPerM2}/m²)`,
-      constructionA,
-      constructionB
-    ),
-    cat('FF&E', propA.ffeCost, propB.ffeCost),
-    cat('Legal & notary', propA.legalFees, propB.legalFees),
-    cat('Architect + interior design', propA.architectFees, propB.architectFees),
-    cat('Civil engineer', propA.civilEngineerFees, propB.civilEngineerFees),
-    cat('Contingency (10% of construction + FF&E)', contingencyA, contingencyB),
+  const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
+  const portfolioTotal =
+    properties.reduce((sum, p) => sum + p.total, 0) + acqLegal;
+
+  // Build category breakdown
+  const categoryDefs = [
+    {
+      name: 'Land acquisition',
+      getPerUnit: (p: PropertyConfig) => p.landCost,
+    },
+    {
+      name: 'Construction',
+      getPerUnit: (p: PropertyConfig) =>
+        p.constructionArea * p.constructionCostPerM2,
+    },
+    {
+      name: 'FF&E',
+      getPerUnit: (p: PropertyConfig) => p.ffeCost,
+    },
+    {
+      name: 'Legal & notary',
+      getPerUnit: (p: PropertyConfig) => p.legalFees,
+    },
+    {
+      name: 'Architect + interior design',
+      getPerUnit: (p: PropertyConfig) => p.architectFees,
+    },
+    {
+      name: 'Civil engineer',
+      getPerUnit: (p: PropertyConfig) => p.civilEngineerFees,
+    },
+    {
+      name: 'Contingency (10% of construction + FF&E)',
+      getPerUnit: (p: PropertyConfig) =>
+        (p.constructionArea * p.constructionCostPerM2 + p.ffeCost) *
+        p.contingencyRate,
+    },
     {
       name: `Acquisition legal & due diligence (×${totalPlots} plots)`,
-      propAPerUnit: a.acquisitionLegalPerPlot,
-      propATotal: a.acquisitionLegalPerPlot * nA,
-      propBPerUnit: a.acquisitionLegalPerPlot,
-      propBTotal: a.acquisitionLegalPerPlot * nB,
-      total: acqLegal,
+      getPerUnit: () => a.acquisitionLegalPerPlot,
     },
   ];
 
+  const categories = categoryDefs.map((cat) => {
+    const perProperty = a.portfolio.map((prop) => {
+      const perUnit = cat.getPerUnit(prop);
+      return { id: prop.id, perUnit, total: perUnit * prop.count };
+    });
+    const grandTotal = perProperty.reduce((sum, p) => sum + p.total, 0);
+    return { name: cat.name, perProperty, grandTotal };
+  });
+
   return {
-    propertyAPerUnit: perUnitA,
-    propertyATotal: totalA,
-    propertyBPerUnit: perUnitB,
-    propertyBTotal: totalB,
-    numberOfPropertyA: nA,
-    numberOfPropertyB: nB,
+    properties,
     acquisitionLegal: acqLegal,
-    portfolioTotal: portfolio,
+    portfolioTotal,
+    totalPlots,
     categories,
   };
 }
@@ -117,12 +130,15 @@ interface DebtServiceResult {
   equityRequired: number;
   getDS: (year: number) => number;
   grantAmount: number;
-  // Exposed for UI breakdown (TEPIX paths)
   primaryLoan?: number;
   supplementaryLoan?: number;
   supplementaryAnnualDS?: number;
   landFundedByTepix?: number;
   landFundedByCommercial?: number;
+}
+
+function computeTotalLand(a: ModelAssumptions): number {
+  return a.portfolio.reduce((sum, p) => sum + p.landCost * p.count, 0);
 }
 
 function computeDebtService(
@@ -131,6 +147,7 @@ function computeDebtService(
   path: FinancingPath
 ): DebtServiceResult {
   const totalCost = capex.portfolioTotal;
+  const totalPlots = capex.totalPlots;
 
   if (path === 'commercial') {
     const loanAmount = totalCost * a.commercialLoan.loanCoverageRate;
@@ -157,20 +174,15 @@ function computeDebtService(
   }
 
   if (path === 'grant') {
-    // Non-plot eligible costs = total CAPEX - land (3 plots) - acquisition legal
-    const totalLand =
-      a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost * a.numberOfPropertyB;
-    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
+    const totalLand = computeTotalLand(a);
+    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
     const nonPlotEligible = totalCost - totalLand - acqLegal;
     const grantAmt = nonPlotEligible * a.grant.grantRate;
 
-    // Phase 1 = plots + permits = €1,350,000
     const phase1 = 1350000;
     const phase1Loan = phase1 * a.commercialLoan.loanCoverageRate;
     const phase1Equity = phase1 - phase1Loan;
 
-    // Phase 2 after grant
     const phase2Total = totalCost - phase1;
     const phase2AfterGrant = Math.max(0, phase2Total - grantAmt);
     const phase2Loan = phase2AfterGrant * a.commercialLoan.loanCoverageRate;
@@ -199,13 +211,11 @@ function computeDebtService(
     };
   }
 
-  // RRF Path — 80/20 structure
   if (path === 'rrf') {
     const totalLoan = a.rrf.totalLoanDrawn;
     const equity = a.rrf.equityRequired;
     const annualDS = a.rrf.annualDS;
 
-    // Calculate RRF DS properly: 80% at 0.35%, 20% at 5%
     const rrfPortion = totalLoan * a.rrf.rrfShareOfLoan;
     const commPortion = totalLoan * a.rrf.commercialShareRate;
     const rrfAnnualDS = pmt(
@@ -235,29 +245,20 @@ function computeDebtService(
     };
   }
 
-  // TEPIX Loan Fund — 40% HDB interest-free + 60% bank + land cap
+  // TEPIX Loan Fund
   if (path === 'tepix-loan') {
     const tp = a.tepixLoan;
-    const cap = tp.landCapOnFundContribution; // 0.10
+    const cap = tp.landCapOnFundContribution;
 
-    // Land / non-land split
-    const totalLand =
-      a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost * a.numberOfPropertyB;
-    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
+    const totalLand = computeTotalLand(a);
+    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
     const nonLandCost = totalCost - totalLand - acqLegal;
 
-    // Primary TEPIX loan (non-land eligible costs at 90% coverage)
     const nonLandLoan = nonLandCost * tp.coverageRate;
-
-    // Recursive land cap: landPortion = cap × nonLandLoan / (1 − cap)
     const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
     const primaryLoan = nonLandLoan + landFundedByTepix;
 
-    // Land gap = total land − land funded by TEPIX
     const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
-
-    // Supplementary commercial loan for land gap (Phase 1 terms)
     const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
     const suppEquity = landGap - suppLoanAmount;
     const suppAnnualDS = pmt(
@@ -266,15 +267,13 @@ function computeDebtService(
       suppLoanAmount
     );
 
-    // TEPIX primary loan debt service
-    const amortYears = tp.totalTermYears - tp.gracePeriodYears; // 12
+    const amortYears = tp.totalTermYears - tp.gracePeriodYears;
     const hdbPortion = primaryLoan * tp.hdbShareOfLoan;
     const bankPortion = primaryLoan * tp.bankShareOfLoan;
     const hdbAnnual = hdbPortion / amortYears;
     const bankAnnual = pmt(tp.bankInterestRate, amortYears, bankPortion);
     const primaryAnnualDS = hdbAnnual + bankAnnual;
 
-    // Primary equity = non-land equity (10% of non-land cost)
     const primaryEquity = nonLandCost - nonLandLoan;
     const totalEquity = primaryEquity + suppEquity;
     const totalLoanDrawn = primaryLoan + suppLoanAmount;
@@ -291,47 +290,32 @@ function computeDebtService(
       landFundedByTepix,
       landFundedByCommercial: landGap,
       getDS: (year: number) => {
-        // Grace years: interest only on bank portions (subsidised in Y1-Y2)
         if (year === 2026 || year === 2027) {
           const subsidisedRate = Math.max(0, tp.bankInterestRate - tp.interestSubsidy);
           const tepixInterest = bankPortion * subsidisedRate;
-          // Supplementary loan also in grace during construction
           const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
           return tepixInterest + suppInterest;
         }
-        if (year === 2028) {
-          // First full DS year for both loans
-          return combinedDS;
-        }
-        if (year >= 2029) return combinedDS;
+        if (year >= 2028) return combinedDS;
         return 0;
       },
     };
   }
 
-  // TEPIX Guarantee Fund — full bank loan, 70% guarantee + land cap
+  // TEPIX Guarantee Fund
   if (path === 'tepix-guarantee') {
     const tg = a.tepixGuarantee;
-    const cap = tg.landCapOnFundContribution; // 0.10
+    const cap = tg.landCapOnFundContribution;
 
-    // Land / non-land split
-    const totalLand =
-      a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost * a.numberOfPropertyB;
-    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
+    const totalLand = computeTotalLand(a);
+    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
     const nonLandCost = totalCost - totalLand - acqLegal;
 
-    // Primary TEPIX loan (non-land eligible costs at 90% coverage)
     const nonLandLoan = nonLandCost * tg.coverageRate;
-
-    // Recursive land cap: landPortion = cap × nonLandLoan / (1 − cap)
     const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
     const primaryLoan = nonLandLoan + landFundedByTepix;
 
-    // Land gap = total land − land funded by TEPIX
     const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
-
-    // Supplementary commercial loan for land gap (Phase 1 terms)
     const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
     const suppEquity = landGap - suppLoanAmount;
     const suppAnnualDS = pmt(
@@ -340,11 +324,9 @@ function computeDebtService(
       suppLoanAmount
     );
 
-    // TEPIX primary loan debt service
-    const amortYears = tg.totalTermYears - tg.gracePeriodYears; // 12
+    const amortYears = tg.totalTermYears - tg.gracePeriodYears;
     const annualDSTepix = pmt(tg.bankInterestRate, amortYears, primaryLoan);
 
-    // Primary equity = non-land equity (10% of non-land cost)
     const primaryEquity = nonLandCost - nonLandLoan;
     const totalEquity = primaryEquity + suppEquity;
     const totalLoanDrawn = primaryLoan + suppLoanAmount;
@@ -361,21 +343,18 @@ function computeDebtService(
       landFundedByTepix,
       landFundedByCommercial: landGap,
       getDS: (year: number) => {
-        // Grace years: interest only (subsidised in Y1-Y2)
         if (year === 2026 || year === 2027) {
           const subsidisedRate = Math.max(0, tg.bankInterestRate - tg.interestSubsidy);
           const tepixInterest = primaryLoan * subsidisedRate;
           const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
           return tepixInterest + suppInterest;
         }
-        if (year === 2028) return combinedDS;
-        if (year >= 2029) return combinedDS;
+        if (year >= 2028) return combinedDS;
         return 0;
       },
     };
   }
 
-  // fallback
   return {
     annualDS: 0,
     loanAmount: 0,
@@ -407,21 +386,14 @@ function computeRampFactor(year: number, a: ModelAssumptions): number {
   return 0;
 }
 
-function computeOpexForYear(
+function computeOpexForProperty(
   year: number,
-  a: ModelAssumptions,
-  propType: 'A' | 'B'
+  prop: PropertyConfig
 ): number {
   if (year <= 2027) return 0;
 
-  const constructionCost =
-    propType === 'A'
-      ? a.properties.propertyA.constructionArea *
-        a.properties.propertyA.constructionCostPerM2
-      : a.properties.propertyB.constructionArea *
-        a.properties.propertyB.constructionCostPerM2;
+  const constructionCost = prop.constructionArea * prop.constructionCostPerM2;
 
-  // Maintenance phasing: Y1-2 (2028-2029) = 0.5%, Y3 (2030) = 1.0%, Y4+ (2031+) = 1.5%
   let maintenanceRate: number;
   if (year <= 2029) maintenanceRate = 0.005;
   else if (year === 2030) maintenanceRate = 0.01;
@@ -429,16 +401,15 @@ function computeOpexForYear(
 
   const maintenance = constructionCost * maintenanceRate;
 
-  const opex = propType === 'A' ? a.opex.propertyA : a.opex.propertyB;
   const baseOpexNoMaintenance =
-    opex.housekeeping +
-    opex.utilities +
-    opex.insurance +
-    opex.propertyTax +
-    opex.marketing +
-    opex.managementFee +
-    opex.consumables +
-    opex.accounting;
+    prop.opex.housekeeping +
+    prop.opex.utilities +
+    prop.opex.insurance +
+    prop.opex.propertyTax +
+    prop.opex.marketing +
+    prop.opex.managementFee +
+    prop.opex.consumables +
+    prop.opex.accounting;
 
   return baseOpexNoMaintenance + maintenance;
 }
@@ -477,7 +448,6 @@ function computeScenario(
 
     const ramp = computeRampFactor(year, a);
 
-    // Apply downside adjustments
     const effVillaNights = downside
       ? villaNights * (1 - downside.occupancyFactor)
       : villaNights;
@@ -495,14 +465,35 @@ function computeScenario(
       : rev.suiteDoubleADR;
     const effEvents = downside ? downside.events : rev.eventsPerYear;
 
-    // Revenue per property
-    const revenueA = year <= 2027 ? 0 : effVillaNights * effVillaADR * ramp;
-    const revenueB =
-      year <= 2027
-        ? 0
-        : (2 * effSuiteNights * effStdADR +
-            2 * effSuiteNights * effDblADR) *
-          ramp;
+    // Revenue & OPEX per property in portfolio
+    const propertyBreakdown: PropertyPnLLine[] = a.portfolio.map((prop) => {
+      let revenuePerUnit = 0;
+      if (year > 2027) {
+        if (prop.type === 'villa') {
+          revenuePerUnit = effVillaNights * effVillaADR * ramp;
+        } else {
+          // suite: 2×standard + 2×double per property
+          revenuePerUnit =
+            (2 * effSuiteNights * effStdADR +
+              2 * effSuiteNights * effDblADR) *
+            ramp;
+        }
+      }
+
+      const opexPerUnit = computeOpexForProperty(year, prop);
+
+      return {
+        id: prop.id,
+        name: prop.name,
+        type: prop.type,
+        count: prop.count,
+        revenuePerUnit,
+        totalRevenue: revenuePerUnit * prop.count,
+        opexPerUnit,
+        totalOpex: year <= 2027 ? 0 : opexPerUnit * prop.count,
+      };
+    });
+
     const revenueEvents =
       year <= 2027 ? 0 : effEvents * rev.netProfitPerEvent * ramp;
     const revenueAncillary =
@@ -511,51 +502,36 @@ function computeScenario(
         : rev.ancillaryBaseProfit *
           Math.pow(1 + rev.ancillaryGrowthRate, year - 2028);
 
-    const totalRevenueA = revenueA * a.numberOfPropertyA;
-    const totalRevenueB = revenueB * a.numberOfPropertyB;
     const totalRevenue =
-      totalRevenueA + totalRevenueB + revenueEvents + revenueAncillary;
+      propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0) +
+      revenueEvents +
+      revenueAncillary;
 
-    // OPEX per property
-    const opexA = computeOpexForYear(year, a, 'A');
-    const opexB = computeOpexForYear(year, a, 'B');
-    const totalOpexA = year <= 2027 ? 0 : opexA * a.numberOfPropertyA;
-    const totalOpexB = year <= 2027 ? 0 : opexB * a.numberOfPropertyB;
-    const totalOpex = totalOpexA + totalOpexB;
+    const totalOpex = propertyBreakdown.reduce(
+      (sum, p) => sum + p.totalOpex,
+      0
+    );
 
     const ebitda = totalRevenue - totalOpex;
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
 
-    // Debt service
     const ds = debtResult.getDS(year);
     const ncf = ebitda - ds;
     cumulativeNCF += ncf;
 
-    // VAT
     const vat = year <= 2027 ? 0 : -(totalRevenue * a.tax.netVATRate);
     const ncfPostVAT = ncf + vat;
-
-    // DSCR
     const dscr = ds > 0 ? ebitda / ds : 0;
 
     return {
       year,
       phase: getPhaseLabel(year),
-      villaNightsPerProject: Math.round(
-        downside ? effVillaNights : villaNights
-      ),
-      suiteNightsPerSuite: Math.round(downside ? effSuiteNights : suiteNights),
-      revenuePerA: revenueA,
-      revenuePerB: revenueB,
-      totalRevenueA,
-      totalRevenueB,
+      villaNights: Math.round(downside ? effVillaNights : villaNights),
+      suiteNights: Math.round(downside ? effSuiteNights : suiteNights),
+      propertyBreakdown,
       revenueEvents,
       revenueAncillary,
       totalRevenue,
-      opexPerA: opexA,
-      opexPerB: opexB,
-      totalOpexA,
-      totalOpexB,
       totalOpex,
       ebitda,
       ebitdaMargin,
@@ -565,8 +541,6 @@ function computeScenario(
       vatPayable: vat,
       netCashFlowPostVAT: ncfPostVAT,
       dscr,
-      numberOfPropertyA: a.numberOfPropertyA,
-      numberOfPropertyB: a.numberOfPropertyB,
     };
   });
 
@@ -584,14 +558,12 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
 
   const capex = computeCapex(a);
 
-  // Compute debt for each path
   const commercialDebt = computeDebtService(a, capex, 'commercial');
   const grantDebt = computeDebtService(a, capex, 'grant');
   const rrfDebt = computeDebtService(a, capex, 'rrf');
   const tepixLoanDebt = computeDebtService(a, capex, 'tepix-loan');
   const tepixGuaranteeDebt = computeDebtService(a, capex, 'tepix-guarantee');
 
-  // Active debt based on selected path
   const activeDebt =
     a.financingPath === 'grant'
       ? grantDebt
@@ -603,7 +575,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
             ? tepixGuaranteeDebt
             : commercialDebt;
 
-  // Compute all scenarios with active financing
   const realistic = computeScenario(
     'Realistic',
     a,
@@ -623,24 +594,22 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     }
   );
 
-  // Break-even scenario: scale both occupancy and ADR so DSCR = 1.0 in stabilised year
-  // We need: EBITDA = DS → Revenue - OPEX = DS → Revenue = DS + OPEX
-  // First compute realistic stabilised to get the factor
+  // Break-even scenario
   const realisticStab = realistic.stabilisedYear;
   let breakevenFactor = 1;
   if (realisticStab && realisticStab.ebitda > 0) {
-    // occupancy-linked revenue at stabilised year = totalRevenue - ancillary
-    const ancillary2031 = a.revenueRealistic.ancillaryBaseProfit *
+    const ancillary2031 =
+      a.revenueRealistic.ancillaryBaseProfit *
       Math.pow(1 + a.revenueRealistic.ancillaryGrowthRate, 3);
     const occLinkedRev = realisticStab.totalRevenue - ancillary2031;
-    const targetOccLinkedRev = activeDebt.annualDS + realisticStab.totalOpex - ancillary2031;
-    // factor² × occLinkedRev + ancillary = DS + OPEX → factor = sqrt(targetOccLinked / occLinked)
+    const targetOccLinkedRev =
+      activeDebt.annualDS + realisticStab.totalOpex - ancillary2031;
     if (occLinkedRev > 0 && targetOccLinkedRev > 0) {
       breakevenFactor = Math.sqrt(targetOccLinkedRev / occLinkedRev);
     }
   }
-  const beOccFactor = 1 - breakevenFactor; // how much occupancy drops
-  const beAdrFactor = 1 - breakevenFactor; // how much ADR drops
+  const beOccFactor = 1 - breakevenFactor;
+  const beAdrFactor = 1 - breakevenFactor;
   const breakeven = computeScenario(
     'Break-Even',
     a,
@@ -649,11 +618,12 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     {
       occupancyFactor: beOccFactor,
       adrFactor: beAdrFactor,
-      events: Math.round(a.revenueRealistic.eventsPerYear * breakevenFactor),
+      events: Math.round(
+        a.revenueRealistic.eventsPerYear * breakevenFactor
+      ),
     }
   );
 
-  // Grant scenario always uses grant debt + realistic revenue
   const grantScenario = computeScenario(
     'Grant Path',
     a,
@@ -661,7 +631,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     grantDebt
   );
 
-  // DSCR by year (all financing paths × realistic revenue)
+  // DSCR by year
   const commercialRealistic = computeScenario(
     'comm',
     a,
@@ -692,7 +662,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     }
   );
 
-  // TEPIX realistic scenarios for DSCR tracking
   const tepixLoanRealistic = computeScenario(
     'tepixLoan',
     a,
@@ -716,7 +685,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     tepixGuarantee: tepixGuaranteeRealistic.pnl[i].dscr,
   }));
 
-  // Financing comparison table
+  // Financing comparison
   const financingComparison: FinancingComparison[] = [
     {
       metric: 'Total loan drawn (€)',
@@ -752,8 +721,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     },
     {
       metric: 'DSCR — Realistic (2031)',
-      commercial:
-        commercialRealistic.stabilisedYear?.dscr ?? 0,
+      commercial: commercialRealistic.stabilisedYear?.dscr ?? 0,
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
       grant: grantScenario.stabilisedYear?.dscr ?? 0,
       tepixLoan: tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
@@ -770,21 +738,21 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     {
       metric: 'Equity saving vs. commercial',
       commercial: '—',
-      rrf:
-        commercialDebt.equityRequired - rrfDebt.equityRequired,
-      grant:
-        commercialDebt.equityRequired - grantDebt.equityRequired,
+      rrf: commercialDebt.equityRequired - rrfDebt.equityRequired,
+      grant: commercialDebt.equityRequired - grantDebt.equityRequired,
       tepixLoan:
         commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
       tepixGuarantee:
-        commercialDebt.equityRequired - tepixGuaranteeDebt.equityRequired,
+        commercialDebt.equityRequired -
+        tepixGuaranteeDebt.equityRequired,
     },
   ];
 
   // Collateral
-  const builtSurface =
-    a.properties.propertyA.constructionArea * a.numberOfPropertyA +
-    a.properties.propertyB.constructionArea * a.numberOfPropertyB;
+  const builtSurface = a.portfolio.reduce(
+    (sum, p) => sum + p.constructionArea * p.count,
+    0
+  );
   const loan = activeDebt.loanAmount;
   const collateral = {
     builtSurface,
@@ -808,16 +776,19 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     },
   };
 
-  // Key Metrics (from active path + realistic scenario)
+  // Key Metrics
   const stab = realistic.stabilisedYear;
+
+  // Compute villa & suite revenue components for break-even
+  const villaCount = a.portfolio.filter((p) => p.type === 'villa').reduce((s, p) => s + p.count, 0);
+  const suiteCount = a.portfolio.filter((p) => p.type === 'suite').reduce((s, p) => s + p.count, 0);
   const breakEvenDS = activeDebt.annualDS;
-  // Break-even: how many villa nights to cover DS with zero other revenue
-  // Simplified: DS / (ADR * numProperties) gives approximate nights
   const breakEvenNights = Math.round(
     breakEvenDS /
-      (a.revenueRealistic.villaADR * a.numberOfPropertyA +
+      (a.revenueRealistic.villaADR * villaCount +
         (2 * a.revenueRealistic.suiteStandardADR +
-          2 * a.revenueRealistic.suiteDoubleADR))
+          2 * a.revenueRealistic.suiteDoubleADR) *
+          suiteCount)
   );
   const bufferToBreakEven =
     stab && stab.totalRevenue > 0

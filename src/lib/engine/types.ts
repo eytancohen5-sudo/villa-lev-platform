@@ -2,8 +2,26 @@
 // VILLA LEV GROUP — Financial Engine Types
 // ============================================================
 
-export interface PropertyAssumptions {
+// ── Property Configuration (dynamic portfolio) ──
+
+export interface PropertyOpex {
+  housekeeping: number;
+  maintenance: number;
+  utilities: number;
+  insurance: number;
+  propertyTax: number;
+  marketing: number;
+  managementFee: number;
+  consumables: number;
+  accounting: number;
+}
+
+export interface PropertyConfig {
+  id: string;
   name: string;
+  type: 'villa' | 'suite';
+  count: number;
+  // CAPEX parameters
   landCost: number;
   constructionArea: number; // m²
   constructionCostPerM2: number;
@@ -12,59 +30,39 @@ export interface PropertyAssumptions {
   architectFees: number;
   civilEngineerFees: number;
   contingencyRate: number; // % of construction + FF&E
+  // OPEX parameters
+  opex: PropertyOpex;
 }
 
+// ── Revenue & Ramp ──
+
 export interface RevenueAssumptions {
-  villaADR: number; // Blended net ADR per night
-  villaBaseNights: number; // Mature year nights
+  villaADR: number;
+  villaBaseNights: number;
   suiteStandardADR: number;
   suiteDoubleADR: number;
   suiteBaseNights: number;
   eventsPerYear: number;
   netProfitPerEvent: number;
   ancillaryBaseProfit: number;
-  ancillaryGrowthRate: number; // Annual growth %
+  ancillaryGrowthRate: number;
 }
 
 export interface RampAssumptions {
-  year1RampFactor: number; // 2028 — % of mature revenue
-  year2RampFactor: number; // 2029 — % of mature revenue
+  year1RampFactor: number;
+  year2RampFactor: number;
   nightsGrowthPerYear: number;
   nightsCap: number;
 }
 
-export interface OpexAssumptions {
-  propertyA: {
-    housekeeping: number;
-    maintenance: number; // Y4+ rate (1.5% of construction)
-    utilities: number;
-    insurance: number;
-    propertyTax: number;
-    marketing: number;
-    managementFee: number;
-    consumables: number;
-    accounting: number;
-  };
-  propertyB: {
-    housekeeping: number;
-    maintenance: number;
-    utilities: number;
-    insurance: number;
-    propertyTax: number;
-    marketing: number;
-    managementFee: number;
-    consumables: number;
-    accounting: number;
-  };
-}
+// ── Financing Parameters ──
 
 export interface CommercialLoanParams {
-  loanCoverageRate: number; // 75%
-  interestRate: number; // 5%
-  gracePeriodYears: number; // 2
-  repaymentTermYears: number; // 13
-  workingCapitalFacility: number; // €400,000
-  // Progressive interest during grace
+  loanCoverageRate: number;
+  interestRate: number;
+  gracePeriodYears: number;
+  repaymentTermYears: number;
+  workingCapitalFacility: number;
   interest2026: number;
   interest2027: number;
   interest2028: number;
@@ -72,8 +70,7 @@ export interface CommercialLoanParams {
 
 export interface GrantParams {
   enabled: boolean;
-  grantRate: number; // 60% of non-plot eligible costs
-  // Calculated:
+  grantRate: number;
   nonPlotEligibleCosts?: number;
   grantAmount?: number;
   remainingLoan?: number;
@@ -86,59 +83,57 @@ export interface GrantParams {
 
 export interface RRFParams {
   enabled: boolean;
-  rrfShareOfLoan: number; // 80% of total loan is RRF
-  rrfInterestRate: number; // 0.35%
-  commercialShareRate: number; // 20% of loan at commercial rate
-  commercialInterestRate: number; // 5%
-  gracePeriodYears: number; // 2
-  repaymentTermYears: number; // 13
-  totalLoanDrawn: number; // €4,939,200
-  equityRequired: number; // €1,234,800
-  annualDS: number; // €439,700
+  rrfShareOfLoan: number;
+  rrfInterestRate: number;
+  commercialShareRate: number;
+  commercialInterestRate: number;
+  gracePeriodYears: number;
+  repaymentTermYears: number;
+  totalLoanDrawn: number;
+  equityRequired: number;
+  annualDS: number;
 }
 
 export interface TepixLoanFundParams {
   enabled: boolean;
-  coverageRate: number;        // 90% — 10% equity
-  hdbShareOfLoan: number;      // 40% interest-free from HDB
-  bankShareOfLoan: number;     // 60% from partner bank
-  bankInterestRate: number;    // 5% indicative
-  interestSubsidy: number;     // 2pp — South Aegean verified against HDB
-  subsidyDurationYears: number;// 2 — first 2 years from disbursement
-  totalTermYears: number;      // 14 (12yr amort + 2yr grace)
-  gracePeriodYears: number;    // 2
-  landCapOnFundContribution: number; // 0.10 — statutory 10% rule
+  coverageRate: number;
+  hdbShareOfLoan: number;
+  bankShareOfLoan: number;
+  bankInterestRate: number;
+  interestSubsidy: number;
+  subsidyDurationYears: number;
+  totalTermYears: number;
+  gracePeriodYears: number;
+  landCapOnFundContribution: number;
 }
 
 export interface TepixGuaranteeFundParams {
   enabled: boolean;
-  coverageRate: number;        // 90%
-  guaranteeRate: number;       // 70% — General Entrepreneurship
-  bankInterestRate: number;    // 5%
-  interestSubsidy: number;     // 2pp
-  subsidyDurationYears: number;// 2
-  totalTermYears: number;      // 14
-  gracePeriodYears: number;    // 2
-  collateralCapRate: number;   // 30% of loan principal (statutory)
-  landCapOnFundContribution: number; // 0.10 — statutory 10% rule
+  coverageRate: number;
+  guaranteeRate: number;
+  bankInterestRate: number;
+  interestSubsidy: number;
+  subsidyDurationYears: number;
+  totalTermYears: number;
+  gracePeriodYears: number;
+  collateralCapRate: number;
+  landCapOnFundContribution: number;
 }
 
 export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan' | 'tepix-guarantee';
 
 export interface TaxAssumptions {
-  corporateIncomeTaxRate: number; // 22%
-  netVATRate: number; // 7% effective
+  corporateIncomeTaxRate: number;
+  netVATRate: number;
 }
+
+// ── Model Input ──
 
 export interface ModelAssumptions {
   general: RampAssumptions;
   revenueRealistic: RevenueAssumptions;
   revenueUpside: RevenueAssumptions;
-  properties: {
-    propertyA: PropertyAssumptions;
-    propertyB: PropertyAssumptions;
-  };
-  opex: OpexAssumptions;
+  portfolio: PropertyConfig[];
   commercialLoan: CommercialLoanParams;
   grant: GrantParams;
   rrf: RRFParams;
@@ -146,8 +141,6 @@ export interface ModelAssumptions {
   tepixGuarantee: TepixGuaranteeFundParams;
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
-  numberOfPropertyA: number;
-  numberOfPropertyB: number;
   financingPath: FinancingPath;
 }
 
@@ -155,42 +148,46 @@ export interface ModelAssumptions {
 // OUTPUT TYPES
 // ============================================================
 
+export interface CapexPropertyLine {
+  id: string;
+  name: string;
+  count: number;
+  perUnit: number;
+  total: number;
+}
+
 export interface CapexBreakdown {
-  propertyAPerUnit: number;
-  propertyATotal: number;
-  propertyBPerUnit: number;
-  propertyBTotal: number;
-  numberOfPropertyA: number;
-  numberOfPropertyB: number;
+  properties: CapexPropertyLine[];
   acquisitionLegal: number;
   portfolioTotal: number;
+  totalPlots: number;
   categories: {
     name: string;
-    propAPerUnit: number;
-    propATotal: number;
-    propBPerUnit: number;
-    propBTotal: number;
-    total: number;
+    perProperty: { id: string; perUnit: number; total: number }[];
+    grandTotal: number;
   }[];
+}
+
+export interface PropertyPnLLine {
+  id: string;
+  name: string;
+  type: 'villa' | 'suite';
+  count: number;
+  revenuePerUnit: number;
+  totalRevenue: number;
+  opexPerUnit: number;
+  totalOpex: number;
 }
 
 export interface AnnualPnL {
   year: number;
   phase: string;
-  villaNightsPerProject: number;
-  suiteNightsPerSuite: number;
-  // Per-unit values (identical for all units of same type)
-  revenuePerA: number;
-  revenuePerB: number;
-  totalRevenueA: number;
-  totalRevenueB: number;
+  villaNights: number;
+  suiteNights: number;
+  propertyBreakdown: PropertyPnLLine[];
   revenueEvents: number;
   revenueAncillary: number;
   totalRevenue: number;
-  opexPerA: number;
-  opexPerB: number;
-  totalOpexA: number;
-  totalOpexB: number;
   totalOpex: number;
   ebitda: number;
   ebitdaMargin: number;
@@ -200,9 +197,6 @@ export interface AnnualPnL {
   vatPayable: number;
   netCashFlowPostVAT: number;
   dscr: number;
-  // Carried for dynamic display
-  numberOfPropertyA: number;
-  numberOfPropertyB: number;
 }
 
 export interface ScenarioOutput {
@@ -228,7 +222,7 @@ export interface ModelOutput {
     downside: ScenarioOutput;
     breakeven: ScenarioOutput;
   };
-  grantScenario: ScenarioOutput; // Same revenue as realistic, different DS
+  grantScenario: ScenarioOutput;
   financingComparison: FinancingComparison[];
   keyMetrics: {
     stabilisedRevenue: number;

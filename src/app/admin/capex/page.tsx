@@ -10,8 +10,6 @@ export default function CapexPage() {
   if (!model) return null;
 
   const { capex } = model;
-  const nA = capex.numberOfPropertyA;
-  const nB = capex.numberOfPropertyB;
 
   return (
     <div>
@@ -24,17 +22,17 @@ export default function CapexPage() {
             <thead>
               <tr className="bg-surface-secondary/40">
                 <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.costCategory')}</th>
-                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.propAPer')}</th>
-                {nA > 1 && (
-                  <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Prop A &times;{nA}
+                {capex.properties.map((prop) => (
+                  <th key={`${prop.id}-per`} className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    {prop.name} /unit
                   </th>
-                )}
-                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{nB > 1 ? `Prop B /unit` : t('capex.propB')}</th>
-                {nB > 1 && (
-                  <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Prop B &times;{nB}
-                  </th>
+                ))}
+                {capex.properties.filter((p) => p.count > 1).length > 0 && capex.properties.map((prop) =>
+                  prop.count > 1 ? (
+                    <th key={`${prop.id}-total`} className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                      {prop.name} &times;{prop.count}
+                    </th>
+                  ) : null
                 )}
                 <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.total')}</th>
               </tr>
@@ -43,30 +41,40 @@ export default function CapexPage() {
               {capex.categories.map((cat, i) => (
                 <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/15'}`}>
                   <td className="py-3 px-5 text-text-secondary">{cat.name}</td>
-                  <td className="text-right py-3 px-4 data-cell font-mono text-sm">{formatCurrency(cat.propAPerUnit, false, locale)}</td>
-                  {nA > 1 && (
-                    <td className="text-right py-3 px-4 data-cell font-mono text-sm">{formatCurrency(cat.propATotal, false, locale)}</td>
+                  {capex.properties.map((prop) => {
+                    const pp = cat.perProperty.find((p) => p.id === prop.id);
+                    return (
+                      <td key={`${prop.id}-per`} className="text-right py-3 px-4 data-cell font-mono text-sm">
+                        {pp && pp.perUnit > 0 ? formatCurrency(pp.perUnit, false, locale) : "—"}
+                      </td>
+                    );
+                  })}
+                  {capex.properties.filter((p) => p.count > 1).length > 0 && capex.properties.map((prop) =>
+                    prop.count > 1 ? (
+                      <td key={`${prop.id}-total`} className="text-right py-3 px-4 data-cell font-mono text-sm">
+                        {(() => {
+                          const pp = cat.perProperty.find((p) => p.id === prop.id);
+                          return pp && pp.total > 0 ? formatCurrency(pp.total, false, locale) : "—";
+                        })()}
+                      </td>
+                    ) : null
                   )}
-                  <td className="text-right py-3 px-4 data-cell font-mono text-sm">
-                    {cat.propBPerUnit > 0 ? formatCurrency(cat.propBPerUnit, false, locale) : "—"}
-                  </td>
-                  {nB > 1 && (
-                    <td className="text-right py-3 px-4 data-cell font-mono text-sm">
-                      {cat.propBTotal > 0 ? formatCurrency(cat.propBTotal, false, locale) : "—"}
-                    </td>
-                  )}
-                  <td className="text-right py-3 px-4 data-cell font-mono text-sm font-medium">{formatCurrency(cat.total, false, locale)}</td>
+                  <td className="text-right py-3 px-4 data-cell font-mono text-sm font-medium">{formatCurrency(cat.grandTotal, false, locale)}</td>
                 </tr>
               ))}
               <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/40 font-semibold">
                 <td className="py-4 px-5">{t('capex.totalCapex')}</td>
-                <td className="text-right py-4 px-4 data-cell font-mono">{formatCurrency(capex.propertyAPerUnit, false, locale)}</td>
-                {nA > 1 && (
-                  <td className="text-right py-4 px-4 data-cell font-mono">{formatCurrency(capex.propertyATotal, false, locale)}</td>
-                )}
-                <td className="text-right py-4 px-4 data-cell font-mono">{formatCurrency(capex.propertyBPerUnit, false, locale)}</td>
-                {nB > 1 && (
-                  <td className="text-right py-4 px-4 data-cell font-mono">{formatCurrency(capex.propertyBTotal, false, locale)}</td>
+                {capex.properties.map((prop) => (
+                  <td key={`${prop.id}-per`} className="text-right py-4 px-4 data-cell font-mono">
+                    {formatCurrency(prop.perUnit, false, locale)}
+                  </td>
+                ))}
+                {capex.properties.filter((p) => p.count > 1).length > 0 && capex.properties.map((prop) =>
+                  prop.count > 1 ? (
+                    <td key={`${prop.id}-total`} className="text-right py-4 px-4 data-cell font-mono">
+                      {formatCurrency(prop.total, false, locale)}
+                    </td>
+                  ) : null
                 )}
                 <td className="text-right py-4 px-4 data-cell font-mono text-brand-600">{formatCurrency(capex.portfolioTotal, false, locale)}</td>
               </tr>
@@ -80,16 +88,19 @@ export default function CapexPage() {
         <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
           <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">{t('capex.totalProjectCost')}</div>
           <div className="kpi-value text-brand-600">{formatCurrency(capex.portfolioTotal, true, locale)}</div>
-          <div className="text-xs text-text-tertiary mt-1">{nA} villa{nA > 1 ? 's' : ''} + {nB} suite{nB > 1 ? 's' : ''} property</div>
+          <div className="text-xs text-text-tertiary mt-1">
+            {capex.properties.map((p) => `${p.count} ${p.name}`).join(' + ')}
+          </div>
         </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
-          <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">{t('capex.propAEach')}</div>
-          <div className="kpi-value text-text-primary">{formatCurrency(capex.propertyAPerUnit, true, locale)}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
-          <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">Property B (each)</div>
-          <div className="kpi-value text-text-primary">{formatCurrency(capex.propertyBPerUnit, true, locale)}</div>
-        </div>
+        {capex.properties.map((prop) => (
+          <div key={prop.id} className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
+            <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">{prop.name} (each)</div>
+            <div className="kpi-value text-text-primary">{formatCurrency(prop.perUnit, true, locale)}</div>
+            {prop.count > 1 && (
+              <div className="text-xs text-text-tertiary mt-1">&times;{prop.count} = {formatCurrency(prop.total, true, locale)}</div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

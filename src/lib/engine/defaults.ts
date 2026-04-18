@@ -2,7 +2,62 @@
 // VILLA LEV GROUP — Default Assumptions (from Excel BP v4)
 // ============================================================
 
-import { ModelAssumptions } from './types';
+import { ModelAssumptions, PropertyConfig } from './types';
+
+// Default property templates
+const DEFAULT_VILLA: PropertyConfig = {
+  id: 'prop-a',
+  name: 'Twin Villas',
+  type: 'villa',
+  count: 2,
+  landCost: 400000,
+  constructionArea: 350,
+  constructionCostPerM2: 4000,
+  ffeCost: 120000,
+  legalFees: 20000,
+  architectFees: 44000,
+  civilEngineerFees: 35000,
+  contingencyRate: 0.10,
+  opex: {
+    housekeeping: 15000,
+    maintenance: 21000,
+    utilities: 12000,
+    insurance: 2500,
+    propertyTax: 4000,
+    marketing: 4000,
+    managementFee: 20000,
+    consumables: 5000,
+    accounting: 7000,
+  },
+};
+
+const DEFAULT_SUITE: PropertyConfig = {
+  id: 'prop-b',
+  name: 'Boutique Suites',
+  type: 'suite',
+  count: 1,
+  landCost: 400000,
+  constructionArea: 250,
+  constructionCostPerM2: 4000,
+  ffeCost: 100000,
+  legalFees: 15000,
+  architectFees: 32000,
+  civilEngineerFees: 25000,
+  contingencyRate: 0.10,
+  opex: {
+    housekeeping: 13000,
+    maintenance: 15000,
+    utilities: 12000,
+    insurance: 2500,
+    propertyTax: 4000,
+    marketing: 4000,
+    managementFee: 20000,
+    consumables: 5000,
+    accounting: 7000,
+  },
+};
+
+export { DEFAULT_VILLA, DEFAULT_SUITE };
 
 export const BASE_CASE: ModelAssumptions = {
   general: {
@@ -36,55 +91,10 @@ export const BASE_CASE: ModelAssumptions = {
     ancillaryGrowthRate: 0.10,
   },
 
-  properties: {
-    propertyA: {
-      name: 'Property A — Twin Villas',
-      landCost: 400000,
-      constructionArea: 350,
-      constructionCostPerM2: 4000,
-      ffeCost: 120000,
-      legalFees: 20000,
-      architectFees: 44000,
-      civilEngineerFees: 35000,
-      contingencyRate: 0.10,
-    },
-    propertyB: {
-      name: 'Property B — Boutique Suites',
-      landCost: 400000,
-      constructionArea: 250,
-      constructionCostPerM2: 4000,
-      ffeCost: 100000,
-      legalFees: 15000,
-      architectFees: 32000,
-      civilEngineerFees: 25000,
-      contingencyRate: 0.10,
-    },
-  },
-
-  opex: {
-    propertyA: {
-      housekeeping: 15000,
-      maintenance: 21000,  // Y4+ at 1.5% of construction
-      utilities: 12000,
-      insurance: 2500,
-      propertyTax: 4000,
-      marketing: 4000,
-      managementFee: 20000,
-      consumables: 5000,
-      accounting: 7000,
-    },
-    propertyB: {
-      housekeeping: 13000,
-      maintenance: 15000,
-      utilities: 12000,
-      insurance: 2500,
-      propertyTax: 4000,
-      marketing: 4000,
-      managementFee: 20000,
-      consumables: 5000,
-      accounting: 7000,
-    },
-  },
+  portfolio: [
+    { ...DEFAULT_VILLA },
+    { ...DEFAULT_SUITE },
+  ],
 
   commercialLoan: {
     loanCoverageRate: 0.75,
@@ -126,7 +136,7 @@ export const BASE_CASE: ModelAssumptions = {
     bankInterestRate: 0.05,
     interestSubsidy: 0.02,
     subsidyDurationYears: 2,
-    totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
+    totalTermYears: 14,
     gracePeriodYears: 2,
     landCapOnFundContribution: 0.10,
   },
@@ -138,7 +148,7 @@ export const BASE_CASE: ModelAssumptions = {
     bankInterestRate: 0.05,
     interestSubsidy: 0.02,
     subsidyDurationYears: 2,
-    totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
+    totalTermYears: 14,
     gracePeriodYears: 2,
     collateralCapRate: 0.30,
     landCapOnFundContribution: 0.10,
@@ -150,8 +160,6 @@ export const BASE_CASE: ModelAssumptions = {
   },
 
   acquisitionLegalPerPlot: 50000,
-  numberOfPropertyA: 2,
-  numberOfPropertyB: 1,
   financingPath: 'commercial',
 };
 
