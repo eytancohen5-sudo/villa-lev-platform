@@ -109,11 +109,11 @@ function AssumptionRow({
 
 // ── Template Card ──
 
-function TemplateCard({ tpl }: { tpl: PropertyTemplate }) {
+function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; startExpanded?: boolean }) {
   const { locale } = useTranslation();
   const { updateTemplate, renameTemplate, duplicateTemplate, deleteTemplate, projects } =
     useModelStore();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(startExpanded);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(tpl.name);
 
@@ -133,36 +133,18 @@ function TemplateCard({ tpl }: { tpl: PropertyTemplate }) {
 
   return (
     <div className={`bg-white rounded-xl border overflow-hidden transition-all ${
-      tpl.builtIn ? 'border-surface-tertiary' : 'border-brand-200'
+      tpl.builtIn ? 'border-surface-tertiary' : 'border-brand-300 shadow-sm'
     }`}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 bg-surface-secondary/30">
+      {/* Header — clickable to expand/collapse */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-5 py-4 bg-surface-secondary/30 hover:bg-surface-secondary/50 transition-colors cursor-pointer text-left"
+      >
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full ${tpl.type === 'villa' ? 'bg-brand-600' : 'bg-info'}`} />
-          {editingName && !tpl.builtIn ? (
-            <input
-              type="text"
-              value={nameValue}
-              onChange={(e) => setNameValue(e.target.value)}
-              onBlur={() => {
-                setEditingName(false);
-                if (nameValue.trim()) renameTemplate(tpl.id, nameValue.trim());
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-                if (e.key === 'Escape') { setEditingName(false); setNameValue(tpl.name); }
-              }}
-              className="px-2 py-0.5 rounded border border-brand-500/30 text-sm font-medium focus:outline-none"
-              autoFocus
-            />
-          ) : (
-            <button
-              onClick={() => { if (!tpl.builtIn) { setEditingName(true); setNameValue(tpl.name); } }}
-              className={`text-sm font-medium text-text-primary ${!tpl.builtIn ? 'hover:text-brand-600 cursor-pointer' : ''} transition-colors`}
-            >
-              {tpl.name}
-            </button>
-          )}
+          <span className="text-sm font-semibold text-text-primary">
+            {tpl.name}
+          </span>
           <span className={`text-xs px-2 py-0.5 rounded-full ${
             tpl.type === 'villa'
               ? 'bg-brand-100 text-brand-700'
@@ -175,88 +157,132 @@ function TemplateCard({ tpl }: { tpl: PropertyTemplate }) {
               Built-in
             </span>
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          {inUse && (
-            <span className="text-xs text-positive bg-positive/10 px-2 py-0.5 rounded-full">
-              {projectCount} project{projectCount > 1 ? 's' : ''}
+          {!tpl.builtIn && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-brand-100 text-brand-700">
+              Custom
             </span>
           )}
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-xs text-text-tertiary hover:text-text-primary transition-colors px-2 py-1"
-          >
-            {expanded ? '▲ Collapse' : '▼ Details'}
-          </button>
-          <button
-            onClick={() => duplicateTemplate(tpl.id)}
-            className="text-xs text-brand-600/60 hover:text-brand-600 transition-colors px-1.5 py-1"
-            title="Duplicate template"
-          >
-            ⧉
-          </button>
-          {!tpl.builtIn && !inUse && (
-            <button
-              onClick={() => deleteTemplate(tpl.id)}
-              className="text-xs text-negative/50 hover:text-negative transition-colors px-1"
-              title="Delete template"
-            >
-              ✕
-            </button>
+          {inUse && (
+            <span className="text-xs text-positive bg-positive/10 px-2 py-0.5 rounded-full">
+              Used in {projectCount} project{projectCount > 1 ? 's' : ''}
+            </span>
           )}
         </div>
-      </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-text-tertiary font-mono">
+            {formatCurrency(capexPerUnit, true, locale)}/unit
+          </span>
+          <span className={`text-sm transition-transform ${expanded ? 'rotate-180' : ''}`}>
+            &#9660;
+          </span>
+        </div>
+      </button>
 
-      {/* Summary */}
-      <div className="px-5 py-2 flex items-center gap-6 text-xs text-text-tertiary border-b border-surface-secondary/30">
-        <span>{tpl.constructionArea}m² &middot; {formatCurrency(tpl.constructionCostPerM2, false, locale)}/m²</span>
-        <span>Land: {formatCurrency(tpl.landCost, false, locale)}</span>
-        <span className="font-medium text-text-secondary">
-          CAPEX/unit: {formatCurrency(capexPerUnit, true, locale)}
-        </span>
-        <span className="text-text-tertiary">
-          OPEX/yr: {formatCurrency(totalOpex, true, locale)}
-        </span>
-      </div>
-
-      {/* Expanded Details */}
+      {/* Expanded: Full editable details */}
       {expanded && (
-        <div className="px-5 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* CAPEX */}
-            <div>
-              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">CAPEX Parameters</h4>
-              <table className="w-full">
-                <tbody>
-                  <TemplateRow label="Land cost" value={tpl.landCost} tplId={tpl.id} path="landCost" format="currency" />
-                  <TemplateRow label="Construction area (m²)" value={tpl.constructionArea} tplId={tpl.id} path="constructionArea" />
-                  <TemplateRow label="Cost per m²" value={tpl.constructionCostPerM2} tplId={tpl.id} path="constructionCostPerM2" format="currency" />
-                  <TemplateRow label="FF&E" value={tpl.ffeCost} tplId={tpl.id} path="ffeCost" format="currency" />
-                  <TemplateRow label="Legal & notary" value={tpl.legalFees} tplId={tpl.id} path="legalFees" format="currency" />
-                  <TemplateRow label="Architect + design" value={tpl.architectFees} tplId={tpl.id} path="architectFees" format="currency" />
-                  <TemplateRow label="Civil engineer" value={tpl.civilEngineerFees} tplId={tpl.id} path="civilEngineerFees" format="currency" />
-                  <TemplateRow label="Contingency rate" value={tpl.contingencyRate} tplId={tpl.id} path="contingencyRate" format="percent" />
-                </tbody>
-              </table>
+        <div className="border-t border-surface-secondary/50">
+          {/* Action bar */}
+          <div className="px-5 py-3 bg-surface-secondary/20 flex items-center justify-between border-b border-surface-secondary/30">
+            <div className="flex items-center gap-4 text-xs text-text-tertiary">
+              <span>{tpl.constructionArea}m² &middot; {formatCurrency(tpl.constructionCostPerM2, false, locale)}/m²</span>
+              <span>Land: {formatCurrency(tpl.landCost, false, locale)}</span>
+              <span>OPEX/yr: {formatCurrency(totalOpex, true, locale)}</span>
             </div>
+            <div className="flex items-center gap-2">
+              {/* Rename */}
+              {!tpl.builtIn && (
+                editingName ? (
+                  <input
+                    type="text"
+                    value={nameValue}
+                    onChange={(e) => setNameValue(e.target.value)}
+                    onBlur={() => {
+                      setEditingName(false);
+                      if (nameValue.trim()) renameTemplate(tpl.id, nameValue.trim());
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                      if (e.key === 'Escape') { setEditingName(false); setNameValue(tpl.name); }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="px-2 py-1 rounded border border-brand-500/30 text-xs focus:outline-none w-40"
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    onClick={() => { setEditingName(true); setNameValue(tpl.name); }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-secondary text-text-secondary hover:bg-surface-tertiary transition-colors"
+                  >
+                    Rename
+                  </button>
+                )
+              )}
+              <button
+                onClick={() => duplicateTemplate(tpl.id)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors"
+              >
+                Duplicate as Custom
+              </button>
+              {!tpl.builtIn && !inUse && (
+                <button
+                  onClick={() => deleteTemplate(tpl.id)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-negative hover:bg-red-100 transition-colors"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          </div>
 
-            {/* OPEX */}
-            <div>
-              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Annual OPEX (per unit)</h4>
-              <table className="w-full">
-                <tbody>
-                  {Object.entries(tpl.opex).map(([key, val]) => (
-                    <TemplateRow
-                      key={key}
-                      label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                      value={val}
-                      tplId={tpl.id}
-                      path={`opex.${key}`}
-                      format="currency"
-                    />
-                  ))}
-                </tbody>
-              </table>
+          {/* Editable fields */}
+          <div className="px-5 py-5">
+            <p className="text-xs text-text-tertiary mb-4">
+              Click any value to edit it. Changes apply to all projects using this template.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* CAPEX */}
+              <div>
+                <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">CAPEX Parameters</h4>
+                <table className="w-full">
+                  <tbody>
+                    <TemplateRow label="Land cost" value={tpl.landCost} tplId={tpl.id} path="landCost" format="currency" />
+                    <TemplateRow label="Construction area (m²)" value={tpl.constructionArea} tplId={tpl.id} path="constructionArea" />
+                    <TemplateRow label="Cost per m²" value={tpl.constructionCostPerM2} tplId={tpl.id} path="constructionCostPerM2" format="currency" />
+                    <TemplateRow label="FF&E" value={tpl.ffeCost} tplId={tpl.id} path="ffeCost" format="currency" />
+                    <TemplateRow label="Legal & notary" value={tpl.legalFees} tplId={tpl.id} path="legalFees" format="currency" />
+                    <TemplateRow label="Architect + design" value={tpl.architectFees} tplId={tpl.id} path="architectFees" format="currency" />
+                    <TemplateRow label="Civil engineer" value={tpl.civilEngineerFees} tplId={tpl.id} path="civilEngineerFees" format="currency" />
+                    <TemplateRow label="Contingency rate" value={tpl.contingencyRate} tplId={tpl.id} path="contingencyRate" format="percent" />
+                  </tbody>
+                </table>
+                <div className="mt-2 pt-2 border-t border-surface-secondary/50 flex justify-between text-xs">
+                  <span className="font-medium text-text-secondary">Total CAPEX/unit</span>
+                  <span className="font-mono font-semibold text-text-primary">{formatCurrency(capexPerUnit, true, locale)}</span>
+                </div>
+              </div>
+
+              {/* OPEX */}
+              <div>
+                <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Annual OPEX (per unit)</h4>
+                <table className="w-full">
+                  <tbody>
+                    {Object.entries(tpl.opex).map(([key, val]) => (
+                      <TemplateRow
+                        key={key}
+                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                        value={val}
+                        tplId={tpl.id}
+                        path={`opex.${key}`}
+                        format="currency"
+                      />
+                    ))}
+                  </tbody>
+                </table>
+                <div className="mt-2 pt-2 border-t border-surface-secondary/50 flex justify-between text-xs">
+                  <span className="font-medium text-text-secondary">Total OPEX/yr</span>
+                  <span className="font-mono font-semibold text-text-primary">{formatCurrency(totalOpex, true, locale)}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -624,30 +650,44 @@ export default function AssumptionsPage() {
 
       {/* ── TEMPLATES TAB ── */}
       {tab === "templates" && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-text-secondary">
-              Define property types with their CAPEX and OPEX parameters. Templates can be reused across projects.
+        <div className="space-y-6">
+          {/* Create New Template — prominent CTA at top */}
+          <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border-2 border-dashed border-brand-300 p-6">
+            <h3 className="font-display text-lg text-text-primary mb-2">Create a New Template</h3>
+            <p className="text-sm text-text-secondary mb-4">
+              Start from a default template, then customize all CAPEX and OPEX values.
+              Or duplicate any existing template below.
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => addTemplate('villa')}
-                className="px-3 py-1.5 rounded-lg bg-brand-600/10 text-brand-600 text-xs font-medium hover:bg-brand-600/20 transition-colors"
+                className="px-5 py-3 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors shadow-sm"
               >
                 + New Villa Template
               </button>
               <button
                 onClick={() => addTemplate('suite')}
-                className="px-3 py-1.5 rounded-lg bg-blue-600/10 text-blue-600 text-xs font-medium hover:bg-blue-600/20 transition-colors"
+                className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
               >
                 + New Suite Template
               </button>
             </div>
           </div>
 
-          {templates.map((tpl) => (
-            <TemplateCard key={tpl.id} tpl={tpl} />
-          ))}
+          {/* Existing templates */}
+          <div>
+            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-3">
+              Your Templates ({templates.length})
+            </h3>
+            <p className="text-xs text-text-tertiary mb-4">
+              Click any template to expand it and edit its CAPEX/OPEX values. Click any number to change it.
+            </p>
+            <div className="space-y-3">
+              {templates.map((tpl) => (
+                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={!tpl.builtIn} />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
