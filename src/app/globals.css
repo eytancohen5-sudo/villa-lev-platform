@@ -1,26 +1,126 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── Brand Colors (Mediterranean luxury) ── */
+  --color-brand-50: #FAF7F0;
+  --color-brand-100: #F2EBD8;
+  --color-brand-200: #E5D7B1;
+  --color-brand-300: #D4BE83;
+  --color-brand-400: #C4A55E;
+  --color-brand-500: #8B6914;
+  --color-brand-600: #7A5C10;
+  --color-brand-700: #5C450C;
+  --color-brand-800: #3D2E08;
+  --color-brand-900: #1F1704;
+
+  /* ── Surface Colors ── */
+  --color-surface-primary: #FEFCF7;
+  --color-surface-secondary: #F5F0E6;
+  --color-surface-tertiary: #EDE6D5;
+  --color-surface-card: #FFFFFF;
+
+  /* ── Earth Tones ── */
+  --color-earth-terracotta: #C4754B;
+  --color-earth-olive: #6B7A3D;
+  --color-earth-stone: #8C8477;
+  --color-earth-sienna: #9E6B4A;
+  --color-earth-sand: #D4C5A0;
+
+  /* ── Semantic Colors ── */
+  --color-positive: #4A7C3F;
+  --color-negative: #9E3B3B;
+  --color-warning: #B8863A;
+  --color-info: #4A6A8B;
+
+  /* ── Text Colors ── */
+  --color-text-primary: #3A3632;
+  --color-text-secondary: #5C564D;
+  --color-text-tertiary: #8C8477;
+
+  /* ── Fonts ── */
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  --font-sans: var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  --background: var(--color-surface-primary);
+  --foreground: var(--color-text-primary);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* ── Utility classes ── */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Scrollbar styling ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-earth-sand);
+  border-radius: 3px;
+}
+
+/* ── Data tables ── */
+.data-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+
+/* ── KPI value ── */
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.kpi-hero {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* ── RTL support ── */
+[dir="rtl"] .data-cell {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+[dir="rtl"] .kpi-value,
+[dir="rtl"] .kpi-hero {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+[dir="rtl"] .font-mono {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* Hebrew fallback display font */
+[lang="he"] .font-display {
+  font-family: Georgia, 'David Libre', serif;
 }
