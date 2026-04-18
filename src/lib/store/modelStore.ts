@@ -26,12 +26,26 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
 
 export type ScenarioName = 'realistic' | 'upside' | 'downside' | 'breakeven';
 
+export interface SavedConfiguration {
+  id: string;
+  name: string;
+  assumptions: ModelAssumptions;
+  savedAt: number;
+}
+
+const STORAGE_KEY = 'villa-lev-saved-configs';
+
 interface ModelStore {
   assumptions: ModelAssumptions;
   model: ModelOutput | null;
   loading: boolean;
   computeTimeMs: number;
   activeScenario: ScenarioName;
+
+  // Saved configurations
+  savedConfigs: SavedConfiguration[];
+  activeConfigId: string | null;
+  activeConfigName: string | null;
 
   setAssumption: (path: string, value: unknown) => void;
   setFinancingPath: (path: FinancingPath) => void;
@@ -41,6 +55,12 @@ interface ModelStore {
   resetToDefaults: () => void;
   recompute: () => void;
   init: () => void;
+
+  // Config management
+  saveConfig: (name: string) => void;
+  loadConfig: (id: string) => void;
+  deleteConfig: (id: string) => void;
+  renameConfig: (id: string, newName: string) => void;
 }
 
 function setNestedValue(obj: Record<string, unknown>, path: string, value: unknown): Record<string, unknown> {
@@ -55,12 +75,35 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
   return result;
 }
 
+function loadFromStorage(): SavedConfiguration[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveToStorage(configs: SavedConfiguration[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(configs));
+  } catch {
+    // storage full or unavailable
+  }
+}
+
 export const useModelStore = create<ModelStore>((set, get) => ({
   assumptions: { ...BASE_CASE },
   model: null,
   loading: false,
   computeTimeMs: 0,
   activeScenario: 'realistic' as ScenarioName,
+  savedConfigs: [],
+  activeConfigId: null,
+  activeConfigName: null,
 
   setAssumption: (path: string, value: unknown) => {
     const current = get().assumptions;
@@ -69,7 +112,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       path,
       value
     ) as unknown as ModelAssumptions;
-    set({ assumptions: updated });
+    set({ assumptions: updated, activeConfigId: null }); // Mark as modified
     get().recompute();
   },
 
@@ -80,6 +123,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   setFinancingPath: (path: FinancingPath) => {
     set((state) => ({
       assumptions: { ...state.assumptions, financingPath: path },
+      activeConfigId: null,
     }));
     get().recompute();
   },
@@ -91,6 +135,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         financingPath: enabled ? 'grant' : 'commercial',
         grant: { ...state.assumptions.grant, enabled },
       },
+      activeConfigId: null,
     }));
     get().recompute();
   },
@@ -102,12 +147,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         financingPath: enabled ? 'rrf' : 'commercial',
         rrf: { ...state.assumptions.rrf, enabled },
       },
+      activeConfigId: null,
     }));
     get().recompute();
   },
 
   resetToDefaults: () => {
-    set({ assumptions: { ...BASE_CASE } });
+    set({ assumptions: { ...BASE_CASE }, activeConfigId: null, activeConfigName: null });
     get().recompute();
   },
 
@@ -119,6 +165,54 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
 
   init: () => {
+    const configs = loadFromStorage();
+    set({ savedConfigs: configs });
     get().recompute();
+  },
+
+  saveConfig: (name: string) => {
+    const id = crypto.randomUUID();
+    const config: SavedConfiguration = {
+      id,
+      name,
+      assumptions: JSON.parse(JSON.stringify(get().assumptions)),
+      savedAt: Date.now(),
+    };
+    const configs = [...get().savedConfigs, config];
+    set({ savedConfigs: configs, activeConfigId: id, activeConfigName: name });
+    saveToStorage(configs);
+  },
+
+  loadConfig: (id: string) => {
+    const config = get().savedConfigs.find((c) => c.id === id);
+    if (!config) return;
+    // Deep merge with BASE_CASE for backward compat (new fields get defaults)
+    const merged = deepMerge(
+      BASE_CASE as unknown as Record<string, unknown>,
+      config.assumptions as unknown as Record<string, unknown>
+    ) as unknown as ModelAssumptions;
+    set({ assumptions: merged, activeConfigId: id, activeConfigName: config.name });
+    get().recompute();
+  },
+
+  deleteConfig: (id: string) => {
+    const configs = get().savedConfigs.filter((c) => c.id !== id);
+    set({
+      savedConfigs: configs,
+      activeConfigId: get().activeConfigId === id ? null : get().activeConfigId,
+      activeConfigName: get().activeConfigId === id ? null : get().activeConfigName,
+    });
+    saveToStorage(configs);
+  },
+
+  renameConfig: (id: string, newName: string) => {
+    const configs = get().savedConfigs.map((c) =>
+      c.id === id ? { ...c, name: newName } : c
+    );
+    set({
+      savedConfigs: configs,
+      activeConfigName: get().activeConfigId === id ? newName : get().activeConfigName,
+    });
+    saveToStorage(configs);
   },
 }));

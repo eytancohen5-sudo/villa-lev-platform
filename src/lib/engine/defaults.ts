@@ -151,6 +151,7 @@ export const BASE_CASE: ModelAssumptions = {
 
   acquisitionLegalPerPlot: 50000,
   numberOfPropertyA: 2,
+  numberOfPropertyB: 1,
   financingPath: 'commercial',
 };
 

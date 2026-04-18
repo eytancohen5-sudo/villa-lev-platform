@@ -118,14 +118,12 @@ export interface TranslationDictionary {
   'pnl.phase': string;
   'pnl.villaNights': string;
   'pnl.suiteNights': string;
-  'pnl.propA1': string;
-  'pnl.propA2': string;
+  'pnl.propA': string;
   'pnl.propB': string;
   'pnl.events': string;
   'pnl.ancillary': string;
   'pnl.totalRevenue': string;
-  'pnl.opexA1': string;
-  'pnl.opexA2': string;
+  'pnl.opexA': string;
   'pnl.opexB': string;
   'pnl.totalOpex': string;
   'pnl.debtService': string;
@@ -312,4 +310,33 @@ export interface TranslationDictionary {
   'common.path': string;
   'common.metric': string;
   'common.loading': string;
+
+  // ── Config management ──
+  'config.title': string;
+  'config.save': string;
+  'config.load': string;
+  'config.delete': string;
+  'config.rename': string;
+  'config.savedConfigs': string;
+  'config.nameLabel': string;
+  'config.noSaved': string;
+  'config.unsaved': string;
+  'config.active': string;
+
+  // ── Property count ──
+  'field.numPropB': string;
+
+  // ── Lexicon ──
+  'nav.lexicon': string;
+  'lex.title': string;
+  'lex.subtitle': string;
+  'lex.capex': string;
+  'lex.revenue': string;
+  'lex.opex': string;
+  'lex.ebitda': string;
+  'lex.pmt': string;
+  'lex.dscr': string;
+  'lex.breakeven': string;
+  'lex.collateral': string;
+  'lex.paths': string;
 }

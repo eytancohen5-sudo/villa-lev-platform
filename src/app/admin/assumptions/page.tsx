@@ -374,8 +374,8 @@ export default function AssumptionsPage() {
                         model.capex.portfolioTotal -
                           (a.properties.propertyA.landCost *
                             a.numberOfPropertyA +
-                            a.properties.propertyB.landCost) -
-                          a.acquisitionLegalPerPlot * 3,
+                            a.properties.propertyB.landCost * a.numberOfPropertyB) -
+                          a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB),
                         false, locale
                       )}
                     </td>
@@ -392,8 +392,8 @@ export default function AssumptionsPage() {
                         (model.capex.portfolioTotal -
                           (a.properties.propertyA.landCost *
                             a.numberOfPropertyA +
-                            a.properties.propertyB.landCost) -
-                          a.acquisitionLegalPerPlot * 3) *
+                            a.properties.propertyB.landCost * a.numberOfPropertyB) -
+                          a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB)) *
                           a.grant.grantRate,
                         false, locale
                       )}
@@ -869,10 +869,138 @@ export default function AssumptionsPage() {
           <SectionHeader title={t('as.other')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow label={t('field.acqLegalPerPlot')} value={a.acquisitionLegalPerPlot} path="acquisitionLegalPerPlot" format="currency" note="×3 plots" />
+              <AssumptionRow label={t('field.acqLegalPerPlot')} value={a.acquisitionLegalPerPlot} path="acquisitionLegalPerPlot" format="currency" note={`×${a.numberOfPropertyA + a.numberOfPropertyB} plots`} />
               <AssumptionRow label={t('field.numPropA')} value={a.numberOfPropertyA} path="numberOfPropertyA" note="Twin Villa projects" />
+              <AssumptionRow label={t('field.numPropB')} value={a.numberOfPropertyB} path="numberOfPropertyB" note="Boutique Suite properties" />
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── Saved Configurations ── */}
+      <ConfigPanel />
+    </div>
+  );
+}
+
+function ConfigPanel() {
+  const { t } = useTranslation();
+  const {
+    savedConfigs, activeConfigId, activeConfigName,
+    saveConfig, loadConfig, deleteConfig, renameConfig,
+  } = useModelStore();
+  const [newName, setNewName] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+
+  const handleSave = () => {
+    if (!newName.trim()) return;
+    saveConfig(newName.trim());
+    setNewName('');
+  };
+
+  return (
+    <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
+      <h3 className="font-display text-lg text-text-primary mb-4">{t('config.savedConfigs')}</h3>
+
+      {/* Active config indicator */}
+      {activeConfigName && (
+        <div className="mb-4 flex items-center gap-2 text-sm">
+          <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
+          <span className="text-text-secondary">{t('config.active')}: <strong>{activeConfigName}</strong></span>
+          {!activeConfigId && (
+            <span className="text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full">{t('config.unsaved')}</span>
+          )}
+        </div>
+      )}
+
+      {/* Save current */}
+      <div className="flex gap-2 mb-6">
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+          placeholder={t('config.nameLabel')}
+          className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
+        />
+        <button
+          onClick={handleSave}
+          disabled={!newName.trim()}
+          className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+        >
+          {t('config.save')}
+        </button>
+      </div>
+
+      {/* Saved configs list */}
+      {savedConfigs.length === 0 ? (
+        <p className="text-sm text-text-tertiary text-center py-6">{t('config.noSaved')}</p>
+      ) : (
+        <div className="space-y-2">
+          {savedConfigs.map((config) => (
+            <div
+              key={config.id}
+              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+                config.id === activeConfigId
+                  ? 'border-brand-500/40 bg-brand-50/50'
+                  : 'border-surface-tertiary hover:border-surface-tertiary/80 hover:bg-surface-secondary/20'
+              }`}
+            >
+              {editingId === config.id ? (
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      renameConfig(config.id, editName);
+                      setEditingId(null);
+                    }
+                    if (e.key === 'Escape') setEditingId(null);
+                  }}
+                  onBlur={() => {
+                    renameConfig(config.id, editName);
+                    setEditingId(null);
+                  }}
+                  autoFocus
+                  className="flex-1 px-3 py-1 rounded-lg border border-brand-500/30 text-sm focus:outline-none"
+                />
+              ) : (
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-text-primary truncate">{config.name}</div>
+                  <div className="text-xs text-text-tertiary">
+                    {new Date(config.savedAt).toLocaleDateString()} {new Date(config.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => loadConfig(config.id)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors"
+                >
+                  {t('config.load')}
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingId(config.id);
+                    setEditName(config.name);
+                  }}
+                  className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors"
+                  title={t('config.rename')}
+                >
+                  &#9998;
+                </button>
+                <button
+                  onClick={() => deleteConfig(config.id)}
+                  className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
+                  title={t('config.delete')}
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

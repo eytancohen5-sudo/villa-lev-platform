@@ -145,8 +145,9 @@ export interface ModelAssumptions {
   tepixLoan: TepixLoanFundParams;
   tepixGuarantee: TepixGuaranteeFundParams;
   tax: TaxAssumptions;
-  acquisitionLegalPerPlot: number; // €50,000 × 3
-  numberOfPropertyA: number; // 2
+  acquisitionLegalPerPlot: number;
+  numberOfPropertyA: number;
+  numberOfPropertyB: number;
   financingPath: FinancingPath;
 }
 
@@ -157,14 +158,18 @@ export interface ModelAssumptions {
 export interface CapexBreakdown {
   propertyAPerUnit: number;
   propertyATotal: number;
+  propertyBPerUnit: number;
   propertyBTotal: number;
+  numberOfPropertyA: number;
+  numberOfPropertyB: number;
   acquisitionLegal: number;
   portfolioTotal: number;
   categories: {
     name: string;
     propAPerUnit: number;
     propATotal: number;
-    propB: number;
+    propBPerUnit: number;
+    propBTotal: number;
     total: number;
   }[];
 }
@@ -174,15 +179,18 @@ export interface AnnualPnL {
   phase: string;
   villaNightsPerProject: number;
   suiteNightsPerSuite: number;
-  revenueA1: number;
-  revenueA2: number;
-  revenueB: number;
+  // Per-unit values (identical for all units of same type)
+  revenuePerA: number;
+  revenuePerB: number;
+  totalRevenueA: number;
+  totalRevenueB: number;
   revenueEvents: number;
   revenueAncillary: number;
   totalRevenue: number;
-  opexA1: number;
-  opexA2: number;
-  opexB: number;
+  opexPerA: number;
+  opexPerB: number;
+  totalOpexA: number;
+  totalOpexB: number;
   totalOpex: number;
   ebitda: number;
   ebitdaMargin: number;
@@ -192,6 +200,9 @@ export interface AnnualPnL {
   vatPayable: number;
   netCashFlowPostVAT: number;
   dscr: number;
+  // Carried for dynamic display
+  numberOfPropertyA: number;
+  numberOfPropertyB: number;
 }
 
 export interface ScenarioOutput {

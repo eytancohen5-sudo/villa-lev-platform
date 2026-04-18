@@ -21,6 +21,9 @@ import { DOWNSIDE_FACTORS } from './defaults';
 function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const propA = a.properties.propertyA;
   const propB = a.properties.propertyB;
+  const nA = a.numberOfPropertyA;
+  const nB = a.numberOfPropertyB;
+  const totalPlots = nA + nB;
 
   const constructionA = propA.constructionArea * propA.constructionCostPerM2;
   const constructionB = propB.constructionArea * propB.constructionCostPerM2;
@@ -36,7 +39,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     propA.civilEngineerFees +
     contingencyA;
 
-  const totalB =
+  const perUnitB =
     propB.landCost +
     constructionB +
     propB.ffeCost +
@@ -45,68 +48,38 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     propB.civilEngineerFees +
     contingencyB;
 
-  const acqLegal = a.acquisitionLegalPerPlot * 3;
-  const totalA = perUnitA * a.numberOfPropertyA;
+  const totalA = perUnitA * nA;
+  const totalB = perUnitB * nB;
+  const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
   const portfolio = totalA + totalB + acqLegal;
 
+  const cat = (name: string, aUnit: number, bUnit: number) => ({
+    name,
+    propAPerUnit: aUnit,
+    propATotal: aUnit * nA,
+    propBPerUnit: bUnit,
+    propBTotal: bUnit * nB,
+    total: aUnit * nA + bUnit * nB,
+  });
+
   const categories = [
+    cat('Land acquisition', propA.landCost, propB.landCost),
+    cat(
+      `Construction (${propA.constructionArea}m² / ${propB.constructionArea}m² × €${propA.constructionCostPerM2}/m²)`,
+      constructionA,
+      constructionB
+    ),
+    cat('FF&E', propA.ffeCost, propB.ffeCost),
+    cat('Legal & notary', propA.legalFees, propB.legalFees),
+    cat('Architect + interior design', propA.architectFees, propB.architectFees),
+    cat('Civil engineer', propA.civilEngineerFees, propB.civilEngineerFees),
+    cat('Contingency (10% of construction + FF&E)', contingencyA, contingencyB),
     {
-      name: 'Land acquisition',
-      propAPerUnit: propA.landCost,
-      propATotal: propA.landCost * a.numberOfPropertyA,
-      propB: propB.landCost,
-      total:
-        propA.landCost * a.numberOfPropertyA + propB.landCost,
-    },
-    {
-      name: `Construction (${propA.constructionArea}m² / ${propB.constructionArea}m² × €${propA.constructionCostPerM2}/m²)`,
-      propAPerUnit: constructionA,
-      propATotal: constructionA * a.numberOfPropertyA,
-      propB: constructionB,
-      total:
-        constructionA * a.numberOfPropertyA + constructionB,
-    },
-    {
-      name: 'FF&E',
-      propAPerUnit: propA.ffeCost,
-      propATotal: propA.ffeCost * a.numberOfPropertyA,
-      propB: propB.ffeCost,
-      total: propA.ffeCost * a.numberOfPropertyA + propB.ffeCost,
-    },
-    {
-      name: 'Legal & notary',
-      propAPerUnit: propA.legalFees,
-      propATotal: propA.legalFees * a.numberOfPropertyA,
-      propB: propB.legalFees,
-      total: propA.legalFees * a.numberOfPropertyA + propB.legalFees,
-    },
-    {
-      name: 'Architect + interior design',
-      propAPerUnit: propA.architectFees,
-      propATotal: propA.architectFees * a.numberOfPropertyA,
-      propB: propB.architectFees,
-      total: propA.architectFees * a.numberOfPropertyA + propB.architectFees,
-    },
-    {
-      name: 'Civil engineer',
-      propAPerUnit: propA.civilEngineerFees,
-      propATotal: propA.civilEngineerFees * a.numberOfPropertyA,
-      propB: propB.civilEngineerFees,
-      total:
-        propA.civilEngineerFees * a.numberOfPropertyA + propB.civilEngineerFees,
-    },
-    {
-      name: 'Contingency (10% of construction + FF&E)',
-      propAPerUnit: contingencyA,
-      propATotal: contingencyA * a.numberOfPropertyA,
-      propB: contingencyB,
-      total: contingencyA * a.numberOfPropertyA + contingencyB,
-    },
-    {
-      name: 'Acquisition legal & due diligence (×3 plots)',
+      name: `Acquisition legal & due diligence (×${totalPlots} plots)`,
       propAPerUnit: a.acquisitionLegalPerPlot,
-      propATotal: acqLegal,
-      propB: 0,
+      propATotal: a.acquisitionLegalPerPlot * nA,
+      propBPerUnit: a.acquisitionLegalPerPlot,
+      propBTotal: a.acquisitionLegalPerPlot * nB,
       total: acqLegal,
     },
   ];
@@ -114,7 +87,10 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
   return {
     propertyAPerUnit: perUnitA,
     propertyATotal: totalA,
+    propertyBPerUnit: perUnitB,
     propertyBTotal: totalB,
+    numberOfPropertyA: nA,
+    numberOfPropertyB: nB,
     acquisitionLegal: acqLegal,
     portfolioTotal: portfolio,
     categories,
@@ -184,8 +160,8 @@ function computeDebtService(
     // Non-plot eligible costs = total CAPEX - land (3 plots) - acquisition legal
     const totalLand =
       a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost;
-    const acqLegal = a.acquisitionLegalPerPlot * 3;
+      a.properties.propertyB.landCost * a.numberOfPropertyB;
+    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
     const nonPlotEligible = totalCost - totalLand - acqLegal;
     const grantAmt = nonPlotEligible * a.grant.grantRate;
 
@@ -267,8 +243,8 @@ function computeDebtService(
     // Land / non-land split
     const totalLand =
       a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost;
-    const acqLegal = a.acquisitionLegalPerPlot * 3;
+      a.properties.propertyB.landCost * a.numberOfPropertyB;
+    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
     const nonLandCost = totalCost - totalLand - acqLegal;
 
     // Primary TEPIX loan (non-land eligible costs at 90% coverage)
@@ -341,8 +317,8 @@ function computeDebtService(
     // Land / non-land split
     const totalLand =
       a.properties.propertyA.landCost * a.numberOfPropertyA +
-      a.properties.propertyB.landCost;
-    const acqLegal = a.acquisitionLegalPerPlot * 3;
+      a.properties.propertyB.landCost * a.numberOfPropertyB;
+    const acqLegal = a.acquisitionLegalPerPlot * (a.numberOfPropertyA + a.numberOfPropertyB);
     const nonLandCost = totalCost - totalLand - acqLegal;
 
     // Primary TEPIX loan (non-land eligible costs at 90% coverage)
@@ -535,14 +511,17 @@ function computeScenario(
         : rev.ancillaryBaseProfit *
           Math.pow(1 + rev.ancillaryGrowthRate, year - 2028);
 
+    const totalRevenueA = revenueA * a.numberOfPropertyA;
+    const totalRevenueB = revenueB * a.numberOfPropertyB;
     const totalRevenue =
-      revenueA * a.numberOfPropertyA + revenueB + revenueEvents + revenueAncillary;
+      totalRevenueA + totalRevenueB + revenueEvents + revenueAncillary;
 
     // OPEX per property
     const opexA = computeOpexForYear(year, a, 'A');
     const opexB = computeOpexForYear(year, a, 'B');
-    const totalOpex =
-      year <= 2027 ? 0 : opexA * a.numberOfPropertyA + opexB;
+    const totalOpexA = year <= 2027 ? 0 : opexA * a.numberOfPropertyA;
+    const totalOpexB = year <= 2027 ? 0 : opexB * a.numberOfPropertyB;
+    const totalOpex = totalOpexA + totalOpexB;
 
     const ebitda = totalRevenue - totalOpex;
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
@@ -566,15 +545,17 @@ function computeScenario(
         downside ? effVillaNights : villaNights
       ),
       suiteNightsPerSuite: Math.round(downside ? effSuiteNights : suiteNights),
-      revenueA1: revenueA,
-      revenueA2: revenueA,
-      revenueB,
+      revenuePerA: revenueA,
+      revenuePerB: revenueB,
+      totalRevenueA,
+      totalRevenueB,
       revenueEvents,
       revenueAncillary,
       totalRevenue,
-      opexA1: opexA,
-      opexA2: opexA,
-      opexB,
+      opexPerA: opexA,
+      opexPerB: opexB,
+      totalOpexA,
+      totalOpexB,
       totalOpex,
       ebitda,
       ebitdaMargin,
@@ -584,6 +565,8 @@ function computeScenario(
       vatPayable: vat,
       netCashFlowPostVAT: ncfPostVAT,
       dscr,
+      numberOfPropertyA: a.numberOfPropertyA,
+      numberOfPropertyB: a.numberOfPropertyB,
     };
   });
 
@@ -799,7 +782,9 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   ];
 
   // Collateral
-  const builtSurface = 950; // m²
+  const builtSurface =
+    a.properties.propertyA.constructionArea * a.numberOfPropertyA +
+    a.properties.propertyB.constructionArea * a.numberOfPropertyB;
   const loan = activeDebt.loanAmount;
   const collateral = {
     builtSurface,

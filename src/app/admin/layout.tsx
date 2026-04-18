@@ -36,6 +36,7 @@ export default function AdminLayout({
     { href: "/admin/scenarios", labelKey: "nav.scenarios" },
     { href: "/admin/assumptions", labelKey: "nav.assumptions" },
     { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
+    { href: "/admin/lexicon", labelKey: "nav.lexicon" },
   ];
 
   const scenarios: { id: ScenarioName; labelKey: keyof TranslationDictionary }[] = [
