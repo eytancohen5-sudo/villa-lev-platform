@@ -10,8 +10,10 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
   {
     id: 'tpl-twin-villa',
     name: 'Twin Villas',
-    type: 'villa',
     builtIn: true,
+    villaUnits: 1,
+    standardSuites: 0,
+    doubleSuites: 0,
     landCost: 400000,
     constructionArea: 350,
     constructionCostPerM2: 4000,
@@ -35,8 +37,10 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
   {
     id: 'tpl-boutique-suite',
     name: 'Boutique Suites',
-    type: 'suite',
     builtIn: true,
+    villaUnits: 0,
+    standardSuites: 2,
+    doubleSuites: 2,
     landCost: 400000,
     constructionArea: 250,
     constructionCostPerM2: 4000,
@@ -60,8 +64,10 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
   {
     id: 'tpl-luxury-villa',
     name: 'Luxury Villa',
-    type: 'villa',
     builtIn: true,
+    villaUnits: 1,
+    standardSuites: 0,
+    doubleSuites: 0,
     landCost: 600000,
     constructionArea: 500,
     constructionCostPerM2: 5000,
@@ -85,8 +91,10 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
   {
     id: 'tpl-compact-studio',
     name: 'Compact Studio',
-    type: 'suite',
     builtIn: true,
+    villaUnits: 0,
+    standardSuites: 2,
+    doubleSuites: 0,
     landCost: 250000,
     constructionArea: 150,
     constructionCostPerM2: 3500,
@@ -105,6 +113,33 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       managementFee: 12000,
       consumables: 3000,
       accounting: 5000,
+    },
+  },
+  {
+    id: 'tpl-mixed-resort',
+    name: 'Villa + Hotel Rooms',
+    builtIn: true,
+    villaUnits: 1,
+    standardSuites: 2,
+    doubleSuites: 1,
+    landCost: 500000,
+    constructionArea: 420,
+    constructionCostPerM2: 4200,
+    ffeCost: 160000,
+    legalFees: 22000,
+    architectFees: 52000,
+    civilEngineerFees: 38000,
+    contingencyRate: 0.10,
+    opex: {
+      housekeeping: 20000,
+      maintenance: 26460,
+      utilities: 16000,
+      insurance: 3500,
+      propertyTax: 5000,
+      marketing: 5000,
+      managementFee: 25000,
+      consumables: 7000,
+      accounting: 9000,
     },
   },
 ];
@@ -128,7 +163,9 @@ export function resolvePortfolio(
       return {
         id: proj.id,
         name: proj.name,
-        type: tpl.type,
+        villaUnits: tpl.villaUnits,
+        standardSuites: tpl.standardSuites,
+        doubleSuites: tpl.doubleSuites,
         count: proj.count,
         landCost: tpl.landCost,
         constructionArea: tpl.constructionArea,
@@ -148,7 +185,9 @@ export function resolvePortfolio(
 export const DEFAULT_VILLA: PropertyConfig = {
   id: 'prop-a',
   name: 'Twin Villas',
-  type: 'villa',
+  villaUnits: 1,
+  standardSuites: 0,
+  doubleSuites: 0,
   count: 2,
   landCost: 400000,
   constructionArea: 350,
@@ -174,7 +213,9 @@ export const DEFAULT_VILLA: PropertyConfig = {
 export const DEFAULT_SUITE: PropertyConfig = {
   id: 'prop-b',
   name: 'Boutique Suites',
-  type: 'suite',
+  villaUnits: 0,
+  standardSuites: 2,
+  doubleSuites: 2,
   count: 1,
   landCost: 400000,
   constructionArea: 250,
@@ -199,22 +240,22 @@ export const DEFAULT_SUITE: PropertyConfig = {
 
 export const BASE_CASE: ModelAssumptions = {
   general: {
-    year1RampFactor: 0.75,  // 2028 partial season
-    year2RampFactor: 0.88,  // 2029
-    nightsGrowthPerYear: 3, // +3 nights/year from 2030
-    nightsCap: 110,         // Max nights per year
+    year1RampFactor: 0.75,
+    year2RampFactor: 0.88,
+    nightsGrowthPerYear: 3,
+    nightsCap: 110,
   },
 
   revenueRealistic: {
-    villaADR: 3500,          // Net blended ADR
-    villaBaseNights: 95,     // Mature year
-    suiteStandardADR: 650,   // x2 suites
-    suiteDoubleADR: 920,     // x2 suites
-    suiteBaseNights: 100,    // All 4 suites same occupancy
+    villaADR: 3500,
+    villaBaseNights: 95,
+    suiteStandardADR: 650,
+    suiteDoubleADR: 920,
+    suiteBaseNights: 100,
     eventsPerYear: 10,
     netProfitPerEvent: 6000,
     ancillaryBaseProfit: 75000,
-    ancillaryGrowthRate: 0.10, // +10%/yr from 2028
+    ancillaryGrowthRate: 0.10,
   },
 
   revenueUpside: {
@@ -240,14 +281,14 @@ export const BASE_CASE: ModelAssumptions = {
     gracePeriodYears: 2,
     repaymentTermYears: 13,
     workingCapitalFacility: 400000,
-    interest2026: 50625,    // Phase 1 loan only
-    interest2027: 110544,   // Progressive build drawdown
-    interest2028: 216402,   // Full loan drawn H2
+    interest2026: 50625,
+    interest2027: 110544,
+    interest2028: 216402,
   },
 
   grant: {
     enabled: false,
-    grantRate: 0.60, // 60% of non-plot eligible costs
+    grantRate: 0.60,
     interest2026: 50625,
     interest2027: 110544,
     interest2028: 114109,
@@ -255,9 +296,9 @@ export const BASE_CASE: ModelAssumptions = {
 
   rrf: {
     enabled: false,
-    rrfShareOfLoan: 0.80,       // 80% of total financing is RRF
-    rrfInterestRate: 0.0035,    // 0.35%
-    commercialShareRate: 0.20,  // 20% at commercial rate
+    rrfShareOfLoan: 0.80,
+    rrfInterestRate: 0.0035,
+    commercialShareRate: 0.20,
     commercialInterestRate: 0.05,
     gracePeriodYears: 2,
     repaymentTermYears: 13,
@@ -301,9 +342,8 @@ export const BASE_CASE: ModelAssumptions = {
   financingPath: 'commercial',
 };
 
-// Downside stress factors
 export const DOWNSIDE_FACTORS = {
-  occupancyReduction: 0.10,  // -10% nights
-  adrReduction: 0.05,        // -5% ADR
-  eventsPerYear: 4,          // vs 10 in realistic
+  occupancyReduction: 0.10,
+  adrReduction: 0.05,
+  eventsPerYear: 4,
 };

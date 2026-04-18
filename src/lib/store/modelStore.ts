@@ -122,7 +122,9 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
     portfolio.push({
       id: 'prop-a',
       name: oldA.name || 'Twin Villas',
-      type: 'villa' as const,
+      villaUnits: 1,
+      standardSuites: 0,
+      doubleSuites: 0,
       count: raw.numberOfPropertyA ?? 2,
       landCost: oldA.landCost ?? DEFAULT_VILLA.landCost,
       constructionArea: oldA.constructionArea ?? DEFAULT_VILLA.constructionArea,
@@ -152,7 +154,9 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
     portfolio.push({
       id: 'prop-b',
       name: oldB.name || 'Boutique Suites',
-      type: 'suite' as const,
+      villaUnits: 0,
+      standardSuites: 2,
+      doubleSuites: 2,
       count: raw.numberOfPropertyB ?? 1,
       landCost: oldB.landCost ?? DEFAULT_SUITE.landCost,
       constructionArea: oldB.constructionArea ?? DEFAULT_SUITE.constructionArea,
@@ -239,7 +243,7 @@ interface ModelStore {
   init: () => void;
 
   // Template management
-  addTemplate: (type: 'villa' | 'suite') => void;
+  addTemplate: (type: 'villa' | 'suite' | 'mixed') => void;
   updateTemplate: (id: string, path: string, value: unknown) => void;
   renameTemplate: (id: string, newName: string) => void;
   duplicateTemplate: (id: string) => void;
@@ -365,14 +369,15 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   // ── Template Management ──
 
-  addTemplate: (type: 'villa' | 'suite') => {
+  addTemplate: (type: 'villa' | 'suite' | 'mixed') => {
     const templates = get().templates;
-    const existingCount = templates.filter((t) => t.type === type && !t.builtIn).length;
-    const base = type === 'villa' ? BUILT_IN_TEMPLATES[0] : BUILT_IN_TEMPLATES[1];
+    const existingCount = templates.filter((t) => !t.builtIn).length;
+    const base = type === 'mixed' ? BUILT_IN_TEMPLATES[4] : type === 'villa' ? BUILT_IN_TEMPLATES[0] : BUILT_IN_TEMPLATES[1];
+    const label = type === 'mixed' ? 'Mixed' : type === 'villa' ? 'Villa' : 'Suite';
     const newTemplate: PropertyTemplate = {
       ...base,
       id: generateId('tpl'),
-      name: `Custom ${type === 'villa' ? 'Villa' : 'Suite'} ${existingCount + 1}`,
+      name: `Custom ${label} ${existingCount + 1}`,
       builtIn: false,
       opex: { ...base.opex },
     };
@@ -543,9 +548,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     } else {
       // Legacy config: migrate portfolio to projects
       const migrated = migrateToPortfolio(config.assumptions);
-      const projects: ProjectAllocation[] = migrated.portfolio.map((p, i) => ({
+      const projects: ProjectAllocation[] = migrated.portfolio.map((p) => ({
         id: p.id || generateId('proj'),
-        templateId: p.type === 'villa' ? 'tpl-twin-villa' : 'tpl-boutique-suite',
+        templateId: p.villaUnits > 0 ? 'tpl-twin-villa' : 'tpl-boutique-suite',
         name: p.name,
         count: p.count,
       }));

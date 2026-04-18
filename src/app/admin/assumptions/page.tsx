@@ -8,7 +8,7 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState } from "react";
-import { FinancingPath, PropertyTemplate } from "@/lib/engine/types";
+import { FinancingPath, PropertyTemplate, getPropertyDisplayType } from "@/lib/engine/types";
 
 // ── Shared Components ──
 
@@ -107,6 +107,48 @@ function AssumptionRow({
   );
 }
 
+// ── Unit Stepper ──
+
+function UnitStepper({
+  label,
+  value,
+  onChange,
+  color = "brand",
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  color?: "brand" | "blue" | "indigo";
+}) {
+  const colorMap = {
+    brand: "text-brand-600",
+    blue: "text-blue-600",
+    indigo: "text-indigo-600",
+  };
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <span className={`text-xs font-medium ${colorMap[color]}`}>{label}</span>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => value > 0 && onChange(value - 1)}
+          className="w-7 h-7 rounded-md border border-surface-tertiary bg-white text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-sm transition-colors"
+        >
+          &minus;
+        </button>
+        <div className="w-10 h-7 rounded-md border border-surface-tertiary bg-white flex items-center justify-center font-mono text-sm font-bold">
+          {value}
+        </div>
+        <button
+          onClick={() => onChange(value + 1)}
+          className="w-7 h-7 rounded-md border border-surface-tertiary bg-white text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-sm transition-colors"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Template Card ──
 
 function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; startExpanded?: boolean }) {
@@ -141,17 +183,16 @@ function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; s
         className="w-full flex items-center justify-between px-5 py-4 bg-surface-secondary/30 hover:bg-surface-secondary/50 transition-colors cursor-pointer text-left"
       >
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${tpl.type === 'villa' ? 'bg-brand-600' : 'bg-info'}`} />
+          <div className={`w-3 h-3 rounded-full ${getPropertyDisplayType(tpl) === 'villa' ? 'bg-brand-600' : getPropertyDisplayType(tpl) === 'mixed' ? 'bg-purple-500' : 'bg-info'}`} />
           <span className="text-sm font-semibold text-text-primary">
             {tpl.name}
           </span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            tpl.type === 'villa'
-              ? 'bg-brand-100 text-brand-700'
-              : 'bg-blue-100 text-blue-700'
-          }`}>
-            {tpl.type === 'villa' ? 'Villa' : 'Suite'}
-          </span>
+          {(() => {
+            const dt = getPropertyDisplayType(tpl);
+            const label = dt === 'mixed' ? 'Mixed' : dt === 'villa' ? 'Villa' : 'Suite';
+            const cls = dt === 'mixed' ? 'bg-purple-100 text-purple-700' : dt === 'villa' ? 'bg-brand-100 text-brand-700' : 'bg-blue-100 text-blue-700';
+            return <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+          })()}
           {tpl.builtIn && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary">
               Built-in
@@ -239,6 +280,36 @@ function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; s
             <p className="text-xs text-text-tertiary mb-4">
               Click any value to edit it. Changes apply to all projects using this template.
             </p>
+
+            {/* Unit Mix */}
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-brand-50/50 to-blue-50/50 border border-surface-tertiary">
+              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Unit Mix (per plot)</h4>
+              <div className="grid grid-cols-3 gap-4">
+                <UnitStepper
+                  label="Villa Units"
+                  value={tpl.villaUnits}
+                  onChange={(v) => updateTemplate(tpl.id, 'villaUnits', v)}
+                  color="brand"
+                />
+                <UnitStepper
+                  label="Standard Suites"
+                  value={tpl.standardSuites}
+                  onChange={(v) => updateTemplate(tpl.id, 'standardSuites', v)}
+                  color="blue"
+                />
+                <UnitStepper
+                  label="Double Suites"
+                  value={tpl.doubleSuites}
+                  onChange={(v) => updateTemplate(tpl.id, 'doubleSuites', v)}
+                  color="indigo"
+                />
+              </div>
+              <p className="text-[10px] text-text-tertiary mt-2">
+                Total accommodation units per plot: {tpl.villaUnits + tpl.standardSuites + tpl.doubleSuites}
+                {tpl.villaUnits > 0 && tpl.standardSuites + tpl.doubleSuites > 0 && ' (mixed-use)'}
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* CAPEX */}
               <div>
@@ -354,7 +425,7 @@ function ProjectCard({ projId }: { projId: string }) {
     <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full ${tpl?.type === 'villa' ? 'bg-brand-600' : 'bg-info'}`} />
+          <div className={`w-3 h-3 rounded-full ${tpl ? (getPropertyDisplayType(tpl) === 'villa' ? 'bg-brand-600' : getPropertyDisplayType(tpl) === 'mixed' ? 'bg-purple-500' : 'bg-info') : 'bg-gray-400'}`} />
 
           {editingName ? (
             <input
@@ -393,7 +464,7 @@ function ProjectCard({ projId }: { projId: string }) {
             >
               {templates.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} ({t.type})
+                  {t.name} ({getPropertyDisplayType(t)})
                 </option>
               ))}
             </select>
@@ -434,7 +505,7 @@ function ProjectCard({ projId }: { projId: string }) {
       {/* Summary line */}
       {tpl && (
         <div className="px-5 py-2 flex items-center gap-6 text-xs text-text-tertiary border-t border-surface-secondary/30 bg-surface-secondary/20">
-          <span>{tpl.constructionArea}m² &middot; {tpl.type}</span>
+          <span>{tpl.constructionArea}m² &middot; {tpl.villaUnits > 0 ? `${tpl.villaUnits}V` : ''}{tpl.standardSuites > 0 ? `${tpl.villaUnits > 0 ? '+' : ''}${tpl.standardSuites}S` : ''}{tpl.doubleSuites > 0 ? `+${tpl.doubleSuites}D` : ''}</span>
           <span>CAPEX/unit: {formatCurrency(capexPerUnit, true, locale)}</span>
           <span className="font-medium text-text-secondary">
             Total: {formatCurrency(capexPerUnit * proj.count, true, locale)}
@@ -495,7 +566,7 @@ function AddProjectPanel() {
               className="text-left p-4 rounded-xl border border-surface-tertiary hover:border-brand-400 hover:bg-brand-50/50 transition-all group"
             >
               <div className="flex items-center gap-2 mb-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${tpl.type === 'villa' ? 'bg-brand-600' : 'bg-info'}`} />
+                <div className={`w-2.5 h-2.5 rounded-full ${getPropertyDisplayType(tpl) === 'villa' ? 'bg-brand-600' : getPropertyDisplayType(tpl) === 'mixed' ? 'bg-purple-500' : 'bg-info'}`} />
                 <span className="text-sm font-medium text-text-primary group-hover:text-brand-600">
                   {tpl.name}
                 </span>
@@ -670,6 +741,12 @@ export default function AssumptionsPage() {
                 className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
               >
                 + New Suite Template
+              </button>
+              <button
+                onClick={() => addTemplate('mixed')}
+                className="px-5 py-3 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm"
+              >
+                + New Mixed Template
               </button>
             </div>
           </div>

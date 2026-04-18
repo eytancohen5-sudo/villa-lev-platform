@@ -14,6 +14,7 @@ import {
   FinancingComparison,
   FinancingPath,
   PropertyConfig,
+  getPropertyDisplayType,
 } from './types';
 import { DOWNSIDE_FACTORS } from './defaults';
 
@@ -53,7 +54,6 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const portfolioTotal =
     properties.reduce((sum, p) => sum + p.total, 0) + acqLegal;
 
-  // Build category breakdown
   const categoryDefs = [
     {
       name: 'Land acquisition',
@@ -87,7 +87,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
         p.contingencyRate,
     },
     {
-      name: `Acquisition legal & due diligence (×${totalPlots} plots)`,
+      name: `Acquisition legal & due diligence (x${totalPlots} plots)`,
       getPerUnit: () => a.acquisitionLegalPerPlot,
     },
   ];
@@ -245,7 +245,6 @@ function computeDebtService(
     };
   }
 
-  // TEPIX Loan Fund
   if (path === 'tepix-loan') {
     const tp = a.tepixLoan;
     const cap = tp.landCapOnFundContribution;
@@ -302,7 +301,6 @@ function computeDebtService(
     };
   }
 
-  // TEPIX Guarantee Fund
   if (path === 'tepix-guarantee') {
     const tg = a.tepixGuarantee;
     const cap = tg.landCapOnFundContribution;
@@ -465,19 +463,17 @@ function computeScenario(
       : rev.suiteDoubleADR;
     const effEvents = downside ? downside.events : rev.eventsPerYear;
 
-    // Revenue & OPEX per property in portfolio
+    // Revenue & OPEX per property using unit mix
     const propertyBreakdown: PropertyPnLLine[] = a.portfolio.map((prop) => {
       let revenuePerUnit = 0;
       if (year > 2027) {
-        if (prop.type === 'villa') {
-          revenuePerUnit = effVillaNights * effVillaADR * ramp;
-        } else {
-          // suite: 2×standard + 2×double per property
-          revenuePerUnit =
-            (2 * effSuiteNights * effStdADR +
-              2 * effSuiteNights * effDblADR) *
-            ramp;
-        }
+        // Villa revenue: villaUnits x nights x ADR
+        const villaRev = prop.villaUnits * effVillaNights * effVillaADR;
+        // Suite revenue: each room type x nights x ADR
+        const suiteRev =
+          prop.standardSuites * effSuiteNights * effStdADR +
+          prop.doubleSuites * effSuiteNights * effDblADR;
+        revenuePerUnit = (villaRev + suiteRev) * ramp;
       }
 
       const opexPerUnit = computeOpexForProperty(year, prop);
@@ -485,7 +481,10 @@ function computeScenario(
       return {
         id: prop.id,
         name: prop.name,
-        type: prop.type,
+        displayType: getPropertyDisplayType(prop),
+        villaUnits: prop.villaUnits,
+        standardSuites: prop.standardSuites,
+        doubleSuites: prop.doubleSuites,
         count: prop.count,
         revenuePerUnit,
         totalRevenue: revenuePerUnit * prop.count,
@@ -688,7 +687,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   // Financing comparison
   const financingComparison: FinancingComparison[] = [
     {
-      metric: 'Total loan drawn (€)',
+      metric: 'Total loan drawn',
       commercial: commercialDebt.loanAmount,
       rrf: rrfDebt.loanAmount,
       grant: grantDebt.loanAmount,
@@ -696,7 +695,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixGuarantee: tepixGuaranteeDebt.loanAmount,
     },
     {
-      metric: 'Grant received (€)',
+      metric: 'Grant received',
       commercial: 0,
       rrf: 0,
       grant: grantDebt.grantAmount,
@@ -704,7 +703,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixGuarantee: 0,
     },
     {
-      metric: 'Equity required (€)',
+      metric: 'Equity required',
       commercial: commercialDebt.equityRequired,
       rrf: rrfDebt.equityRequired,
       grant: grantDebt.equityRequired,
@@ -712,7 +711,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixGuarantee: tepixGuaranteeDebt.equityRequired,
     },
     {
-      metric: 'Annual debt service (€)',
+      metric: 'Annual debt service',
       commercial: commercialDebt.annualDS,
       rrf: rrfDebt.annualDS,
       grant: grantDebt.annualDS,
@@ -728,7 +727,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixGuarantee: tepixGuaranteeRealistic.stabilisedYear?.dscr ?? 0,
     },
     {
-      metric: 'Supplementary commercial loan (€)',
+      metric: 'Supplementary commercial loan',
       commercial: '—',
       rrf: '—',
       grant: '—',
@@ -776,20 +775,22 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     },
   };
 
-  // Key Metrics
+  // Key Metrics — use unit mix totals across portfolio
   const stab = realistic.stabilisedYear;
 
-  // Compute villa & suite revenue components for break-even
-  const villaCount = a.portfolio.filter((p) => p.type === 'villa').reduce((s, p) => s + p.count, 0);
-  const suiteCount = a.portfolio.filter((p) => p.type === 'suite').reduce((s, p) => s + p.count, 0);
+  const totalVillaUnits = a.portfolio.reduce((s, p) => s + p.villaUnits * p.count, 0);
+  const totalStdSuites = a.portfolio.reduce((s, p) => s + p.standardSuites * p.count, 0);
+  const totalDblSuites = a.portfolio.reduce((s, p) => s + p.doubleSuites * p.count, 0);
+
   const breakEvenDS = activeDebt.annualDS;
-  const breakEvenNights = Math.round(
-    breakEvenDS /
-      (a.revenueRealistic.villaADR * villaCount +
-        (2 * a.revenueRealistic.suiteStandardADR +
-          2 * a.revenueRealistic.suiteDoubleADR) *
-          suiteCount)
-  );
+  const revenuePerNight =
+    a.revenueRealistic.villaADR * totalVillaUnits +
+    a.revenueRealistic.suiteStandardADR * totalStdSuites +
+    a.revenueRealistic.suiteDoubleADR * totalDblSuites;
+  const breakEvenNights = revenuePerNight > 0
+    ? Math.round(breakEvenDS / revenuePerNight)
+    : 0;
+
   const bufferToBreakEven =
     stab && stab.totalRevenue > 0
       ? -((stab.totalRevenue - (breakEvenDS + stab.totalOpex)) /

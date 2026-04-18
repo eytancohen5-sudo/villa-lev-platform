@@ -16,11 +16,15 @@ export interface PropertyOpex {
   accounting: number;
 }
 
+// Unit mix: each property can combine villas + hotel rooms
 export interface PropertyConfig {
   id: string;
   name: string;
-  type: 'villa' | 'suite';
-  count: number;
+  // Unit mix (per property plot)
+  villaUnits: number;      // villa-type accommodation units
+  standardSuites: number;  // standard hotel rooms
+  doubleSuites: number;    // double/premium hotel rooms
+  count: number;           // how many plots of this type
   // CAPEX parameters
   landCost: number;
   constructionArea: number; // m²
@@ -34,13 +38,27 @@ export interface PropertyConfig {
   opex: PropertyOpex;
 }
 
+// Helper: derive display type from unit mix
+export type PropertyDisplayType = 'villa' | 'suite' | 'mixed';
+
+export function getPropertyDisplayType(p: { villaUnits: number; standardSuites: number; doubleSuites: number }): PropertyDisplayType {
+  const hasVilla = p.villaUnits > 0;
+  const hasSuite = (p.standardSuites + p.doubleSuites) > 0;
+  if (hasVilla && hasSuite) return 'mixed';
+  if (hasVilla) return 'villa';
+  return 'suite';
+}
+
 // ── Templates & Projects (UI layer) ──
 
 export interface PropertyTemplate {
   id: string;
   name: string;
-  type: 'villa' | 'suite';
   builtIn?: boolean;
+  // Unit mix
+  villaUnits: number;
+  standardSuites: number;
+  doubleSuites: number;
   // CAPEX parameters
   landCost: number;
   constructionArea: number;
@@ -198,7 +216,10 @@ export interface CapexBreakdown {
 export interface PropertyPnLLine {
   id: string;
   name: string;
-  type: 'villa' | 'suite';
+  displayType: PropertyDisplayType;
+  villaUnits: number;
+  standardSuites: number;
+  doubleSuites: number;
   count: number;
   revenuePerUnit: number;
   totalRevenue: number;
