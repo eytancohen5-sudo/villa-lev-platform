@@ -96,9 +96,15 @@ function loadTemplatesFromStorage(): PropertyTemplate[] {
 function saveTemplatesToStorage(templates: PropertyTemplate[]) {
   if (typeof window === 'undefined') return;
   try {
-    // Only save custom templates (non-built-in)
+    // Save custom templates + any modified built-in templates
     const custom = templates.filter((t) => !t.builtIn);
-    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(custom));
+    const modifiedBuiltIns = templates.filter((t) => {
+      if (!t.builtIn) return false;
+      const original = BUILT_IN_TEMPLATES.find((bt) => bt.id === t.id);
+      if (!original) return false;
+      return JSON.stringify(t) !== JSON.stringify(original);
+    });
+    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify([...custom, ...modifiedBuiltIns]));
   } catch { /* storage full */ }
 }
 
@@ -357,11 +363,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   init: () => {
     const configs = loadFromStorage();
-    const customTemplates = loadTemplatesFromStorage();
-    // Merge built-in + custom templates
+    const savedTemplates = loadTemplatesFromStorage();
+    // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
-      ...BUILT_IN_TEMPLATES,
-      ...customTemplates.filter((ct) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === ct.id)),
+      ...BUILT_IN_TEMPLATES.map((bt) => {
+        const saved = savedTemplates.find((st) => st.id === bt.id);
+        return saved ? { ...saved, builtIn: true as const } : bt;
+      }),
+      ...savedTemplates.filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id)),
     ];
     set({ savedConfigs: configs, templates: allTemplates });
     get().recompute();
@@ -429,13 +438,16 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   deleteTemplate: (id: string) => {
     const tpl = get().templates.find((t) => t.id === id);
     if (!tpl || tpl.builtIn) return; // Can't delete built-in
-    // Check if any project uses this template
-    const projects = get().projects;
-    const inUse = projects.some((p) => p.templateId === id);
-    if (inUse) return; // Can't delete template in use
+    // Remove any projects using this template
+    const projects = get().projects.filter((p) => p.templateId !== id);
+    // Ensure at least one project remains
+    if (projects.length === 0) {
+      projects.push({ id: generateId('proj'), templateId: 'tpl-twin-villa', name: 'Twin Villas', count: 1 });
+    }
     const templates = get().templates.filter((t) => t.id !== id);
-    set({ templates });
+    set({ templates, projects, activeConfigId: null });
     saveTemplatesToStorage(templates);
+    get().recompute();
   },
 
   // ── Project Management ──
@@ -518,7 +530,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       id,
       name,
       assumptions: JSON.parse(JSON.stringify(state.assumptions)),
-      templates: JSON.parse(JSON.stringify(state.templates.filter((t) => !t.builtIn))),
+      templates: JSON.parse(JSON.stringify(state.templates)),
       projects: JSON.parse(JSON.stringify(state.projects)),
       savedAt: Date.now(),
     };
@@ -533,10 +545,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
     // If config has templates+projects, use them
     if (config.projects && config.projects.length > 0) {
-      const customTemplates = config.templates ?? [];
+      const savedTemplates = config.templates ?? [];
       const allTemplates = [
-        ...BUILT_IN_TEMPLATES,
-        ...customTemplates.filter((ct) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === ct.id)),
+        ...BUILT_IN_TEMPLATES.map((bt) => {
+          const saved = savedTemplates.find((st) => st.id === bt.id);
+          return saved ? { ...saved, builtIn: true as const } : bt;
+        }),
+        ...savedTemplates.filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id)),
       ];
       set({
         templates: allTemplates,

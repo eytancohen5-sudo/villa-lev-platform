@@ -7,7 +7,7 @@ import {
   formatMultiple,
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { FinancingPath, PropertyTemplate, getPropertyDisplayType } from "@/lib/engine/types";
 
 // ── Shared Components ──
@@ -151,13 +151,20 @@ function UnitStepper({
 
 // ── Template Card ──
 
-function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; startExpanded?: boolean }) {
+function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: PropertyTemplate; startExpanded?: boolean; highlight?: boolean }) {
   const { locale } = useTranslation();
   const { updateTemplate, renameTemplate, duplicateTemplate, deleteTemplate, projects } =
     useModelStore();
   const [expanded, setExpanded] = useState(startExpanded);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(tpl.name);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (highlight && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlight]);
 
   const inUse = projects.some((p) => p.templateId === tpl.id);
   const projectCount = projects.filter((p) => p.templateId === tpl.id).length;
@@ -174,9 +181,9 @@ function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; s
   const totalOpex = Object.values(tpl.opex).reduce((s, v) => s + v, 0);
 
   return (
-    <div className={`bg-white rounded-xl border overflow-hidden transition-all ${
+    <div ref={cardRef} className={`bg-white rounded-xl border overflow-hidden transition-all ${
       tpl.builtIn ? 'border-surface-tertiary' : 'border-brand-300 shadow-sm'
-    }`}>
+    } ${highlight ? 'ring-2 ring-brand-500 ring-offset-2 animate-pulse' : ''}`}>
       {/* Header — clickable to expand/collapse */}
       <button
         onClick={() => setExpanded(!expanded)}
@@ -264,9 +271,17 @@ function TemplateCard({ tpl, startExpanded = false }: { tpl: PropertyTemplate; s
               >
                 Duplicate as Custom
               </button>
-              {!tpl.builtIn && !inUse && (
+              {!tpl.builtIn && (
                 <button
-                  onClick={() => deleteTemplate(tpl.id)}
+                  onClick={() => {
+                    if (inUse) {
+                      if (confirm(`This template is used by ${projectCount} project(s). Remove them and delete the template?`)) {
+                        deleteTemplate(tpl.id);
+                      }
+                    } else {
+                      deleteTemplate(tpl.id);
+                    }
+                  }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-negative hover:bg-red-100 transition-colors"
                 >
                   Delete
@@ -493,10 +508,10 @@ function ProjectCard({ projId }: { projId: string }) {
           {canRemove && (
             <button
               onClick={() => removeProject(proj.id)}
-              className="text-xs text-negative/50 hover:text-negative transition-colors px-1"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-negative hover:bg-red-100 transition-colors"
               title="Remove project"
             >
-              ✕
+              Remove
             </button>
           )}
         </div>
@@ -604,6 +619,23 @@ export default function AssumptionsPage() {
   const [tab, setTab] = useState<
     "portfolio" | "templates" | "general" | "revenue" | "financing"
   >("portfolio");
+  const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
+
+  // Clear highlight after animation
+  useEffect(() => {
+    if (newTemplateId) {
+      const timer = setTimeout(() => setNewTemplateId(null), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [newTemplateId]);
+
+  const handleAddTemplate = useCallback((type: 'villa' | 'suite' | 'mixed') => {
+    addTemplate(type);
+    // The newest template is always the last one
+    const latest = useModelStore.getState().templates;
+    const newId = latest[latest.length - 1]?.id;
+    if (newId) setNewTemplateId(newId);
+  }, [addTemplate]);
 
   if (!model) return null;
 
@@ -731,19 +763,19 @@ export default function AssumptionsPage() {
             </p>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => addTemplate('villa')}
+                onClick={() => handleAddTemplate('villa')}
                 className="px-5 py-3 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors shadow-sm"
               >
                 + New Villa Template
               </button>
               <button
-                onClick={() => addTemplate('suite')}
+                onClick={() => handleAddTemplate('suite')}
                 className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
               >
                 + New Suite Template
               </button>
               <button
-                onClick={() => addTemplate('mixed')}
+                onClick={() => handleAddTemplate('mixed')}
                 className="px-5 py-3 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm"
               >
                 + New Mixed Template
@@ -761,7 +793,7 @@ export default function AssumptionsPage() {
             </p>
             <div className="space-y-3">
               {templates.map((tpl) => (
-                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={!tpl.builtIn} />
+                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={!tpl.builtIn || tpl.id === newTemplateId} highlight={tpl.id === newTemplateId} />
               ))}
             </div>
           </div>
