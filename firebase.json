@@ -2,16 +2,12 @@
   "hosting": {
     "site": "villa-lev-finance",
     "public": "out",
+    "cleanUrls": true,
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
     ],
     "headers": [
       {
