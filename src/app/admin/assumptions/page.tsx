@@ -107,7 +107,7 @@ function AssumptionRow({
 
 export default function AssumptionsPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPath, resetToDefaults } =
+  const { model, assumptions, setAssumption, setFinancingPath, resetToDefaults } =
     useModelStore();
   const [tab, setTab] = useState<
     "general" | "revenue" | "opex" | "financing" | "capex"
@@ -134,6 +134,65 @@ export default function AssumptionsPage() {
         >
           {t('as.resetDefaults')}
         </button>
+      </div>
+
+      {/* Portfolio Configuration — Property Count */}
+      <div className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
+        <h3 className="font-display text-base text-text-primary mb-4">Portfolio Configuration</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Property A — Twin Villas</label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => a.numberOfPropertyA > 0 && setAssumption('numberOfPropertyA', a.numberOfPropertyA - 1)}
+                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
+              >
+                &minus;
+              </button>
+              <div className="w-12 h-9 rounded-lg border border-surface-tertiary bg-white flex items-center justify-center font-mono text-lg font-semibold text-text-primary">
+                {a.numberOfPropertyA}
+              </div>
+              <button
+                onClick={() => setAssumption('numberOfPropertyA', a.numberOfPropertyA + 1)}
+                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Property B — Boutique Suites</label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => a.numberOfPropertyB > 0 && setAssumption('numberOfPropertyB', a.numberOfPropertyB - 1)}
+                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
+              >
+                &minus;
+              </button>
+              <div className="w-12 h-9 rounded-lg border border-surface-tertiary bg-white flex items-center justify-center font-mono text-lg font-semibold text-text-primary">
+                {a.numberOfPropertyB}
+              </div>
+              <button
+                onClick={() => setAssumption('numberOfPropertyB', a.numberOfPropertyB + 1)}
+                className="w-9 h-9 rounded-lg border border-surface-tertiary bg-surface-secondary/50 text-text-secondary hover:bg-surface-tertiary flex items-center justify-center text-lg font-medium transition-colors"
+              >
+                +
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Total Properties</label>
+            <div className="h-9 flex items-center font-mono text-2xl font-bold text-brand-600">
+              {a.numberOfPropertyA + a.numberOfPropertyB}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1.5">Total CAPEX</label>
+            <div className="h-9 flex items-center font-mono text-lg font-semibold text-text-primary">
+              {formatCurrency(model.capex.portfolioTotal, true, locale)}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
