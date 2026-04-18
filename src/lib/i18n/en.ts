@@ -36,10 +36,10 @@ export const en: TranslationDictionary = {
   'path.grantDesc': '60% non-plot costs as non-repayable grant',
   'path.tepixLoan': 'TEPIX III Loan Fund',
   'path.tepixLoanShort': 'TEPIX Loan',
-  'path.tepixLoanDesc': '90% coverage · 40% HDB interest-free + 60% bank · 12yr total · 2yr grace',
+  'path.tepixLoanDesc': '40% interest-free HDB + 60% bank · 12+2yr · open 4th cycle (Apr 2026)',
   'path.tepixGuarantee': 'TEPIX III Guarantee Fund',
   'path.tepixGuaranteeShort': 'TEPIX Guar.',
-  'path.tepixGuaranteeDesc': '90% coverage · 70% guarantee · bank loan · 30% collateral cap',
+  'path.tepixGuaranteeDesc': '100% bank @ 5% · 70% HDB guarantee · 30% collateral cap · 12+2yr',
 
   'scenario.realistic': 'Realistic',
   'scenario.upside': 'Upside',

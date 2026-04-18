@@ -467,7 +467,7 @@ export default function AssumptionsPage() {
                     label={t('field.tepixTotalTerm')}
                     value={a.tepixLoan.totalTermYears}
                     path="tepixLoan.totalTermYears"
-                    note="Including grace period"
+                    note="12 years amortization + 2 years grace = 14 total"
                   />
                   <AssumptionRow
                     label={t('field.tepixGrace')}
@@ -520,7 +520,7 @@ export default function AssumptionsPage() {
                     label={t('field.tepixTotalTerm')}
                     value={a.tepixGuarantee.totalTermYears}
                     path="tepixGuarantee.totalTermYears"
-                    note="Including grace period"
+                    note="12 years amortization + 2 years grace = 14 total"
                   />
                   <AssumptionRow
                     label={t('field.tepixGrace')}

@@ -36,10 +36,10 @@ export const el: TranslationDictionary = {
   'path.grantDesc': '60% των μη γήπεδων δαπανών ως μη επιστρεπτέα επιχορήγηση',
   'path.tepixLoan': 'ΤΕΠΙΧ ΙΙΙ Ταμείο Δανείων',
   'path.tepixLoanShort': 'ΤΕΠΙΧ Δάνειο',
-  'path.tepixLoanDesc': '90% κάλυψη · 40% ΕΑΤ άτοκο + 60% τράπεζα · 12 έτη · χάρη 2 ετών',
+  'path.tepixLoanDesc': '40% άτοκα ΕΑΤ + 60% τράπεζα · 12+2 έτη · ανοικτός 4ος κύκλος (Απρ 2026)',
   'path.tepixGuarantee': 'ΤΕΠΙΧ ΙΙΙ Ταμείο Εγγυοδοσίας',
   'path.tepixGuaranteeShort': 'ΤΕΠΙΧ Εγγ.',
-  'path.tepixGuaranteeDesc': '90% κάλυψη · 70% εγγύηση · τραπεζικό δάνειο · πλαφόν εξασφαλίσεων 30%',
+  'path.tepixGuaranteeDesc': '100% τράπεζα @ 5% · 70% εγγύηση ΕΑΤ · 30% όριο εξασφαλίσεων · 12+2 έτη',
 
   'scenario.realistic': 'Ρεαλιστικό',
   'scenario.upside': 'Αισιόδοξο',

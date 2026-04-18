@@ -126,7 +126,7 @@ export const BASE_CASE: ModelAssumptions = {
     bankInterestRate: 0.05,
     interestSubsidy: 0.02,
     subsidyDurationYears: 2,
-    totalTermYears: 12,
+    totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
     gracePeriodYears: 2,
   },
 
@@ -137,7 +137,7 @@ export const BASE_CASE: ModelAssumptions = {
     bankInterestRate: 0.05,
     interestSubsidy: 0.02,
     subsidyDurationYears: 2,
-    totalTermYears: 12,
+    totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
     gracePeriodYears: 2,
     collateralCapRate: 0.30,
   },

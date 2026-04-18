@@ -36,10 +36,10 @@ export const he: TranslationDictionary = {
   'path.grantDesc': '60% מעלויות שאינן קרקע כמענק שאינו להחזר',
   'path.tepixLoan': 'TEPIX III קרן הלוואות',
   'path.tepixLoanShort': 'TEPIX הלוואה',
-  'path.tepixLoanDesc': '90% כיסוי · 40% HDB ללא ריבית + 60% בנק · 12 שנים · גרייס 2 שנים',
+  'path.tepixLoanDesc': '40% ללא ריבית HDB + 60% בנק · 12+2 שנה · מחזור 4 פתוח (אפריל 2026)',
   'path.tepixGuarantee': 'TEPIX III קרן ערבויות',
   'path.tepixGuaranteeShort': 'TEPIX ערב.',
-  'path.tepixGuaranteeDesc': '90% כיסוי · 70% ערבות · הלוואה בנקאית · תקרת בטוחות 30%',
+  'path.tepixGuaranteeDesc': '100% בנק @ 5% · ערבות HDB 70% · תקרת בטוחות 30% · 12+2 שנה',
 
   'scenario.realistic': 'ריאליסטי',
   'scenario.upside': 'אופטימי',

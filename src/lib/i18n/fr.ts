@@ -36,10 +36,10 @@ export const fr: TranslationDictionary = {
   'path.grantDesc': '60 % des coûts hors terrain en subvention non remboursable',
   'path.tepixLoan': 'TEPIX III Fonds de Prêt',
   'path.tepixLoanShort': 'TEPIX Prêt',
-  'path.tepixLoanDesc': '90 % couverture · 40 % HDB sans intérêt + 60 % banque · 12 ans · grâce 2 ans',
+  'path.tepixLoanDesc': '40 % sans intérêt HDB + 60 % banque · 12+2 ans · 4e cycle ouvert (avr. 2026)',
   'path.tepixGuarantee': 'TEPIX III Fonds de Garantie',
   'path.tepixGuaranteeShort': 'TEPIX Gar.',
-  'path.tepixGuaranteeDesc': '90 % couverture · 70 % garantie · prêt bancaire · plafond 30 % de garantie',
+  'path.tepixGuaranteeDesc': '100 % banque @ 5 % · garantie HDB 70 % · plafond collatéral 30 % · 12+2 ans',
 
   'scenario.realistic': 'Réaliste',
   'scenario.upside': 'Optimiste',
