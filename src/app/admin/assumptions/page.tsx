@@ -169,7 +169,7 @@ export default function AssumptionsPage() {
           </p>
 
           {/* Financing path selector */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
             {(
               [
                 {
@@ -178,6 +178,8 @@ export default function AssumptionsPage() {
                   desc: t('path.commercialDesc'),
                   highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.commercial as number, true, locale)}/yr`,
                   color: "brand",
+                  borderColor: "#8B6914",
+                  bgColor: "#FAF7F0",
                 },
                 {
                   id: "rrf" as FinancingPath,
@@ -185,6 +187,8 @@ export default function AssumptionsPage() {
                   desc: t('path.rrfDesc'),
                   highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.rrf as number, true, locale)}/yr`,
                   color: "info",
+                  borderColor: "#4A6A8B",
+                  bgColor: "#F0F4F8",
                 },
                 {
                   id: "grant" as FinancingPath,
@@ -192,6 +196,26 @@ export default function AssumptionsPage() {
                   desc: t('path.grantDesc'),
                   highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.grant as number, true, locale)}/yr`,
                   color: "positive",
+                  borderColor: "#4A7C3F",
+                  bgColor: "#F0F8EF",
+                },
+                {
+                  id: "tepix-loan" as FinancingPath,
+                  title: t('path.tepixLoan'),
+                  desc: t('path.tepixLoanDesc'),
+                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.tepixLoan as number, true, locale)}/yr`,
+                  color: "tepix",
+                  borderColor: "#7B5EA7",
+                  bgColor: "#F5F0FA",
+                },
+                {
+                  id: "tepix-guarantee" as FinancingPath,
+                  title: t('path.tepixGuarantee'),
+                  desc: t('path.tepixGuaranteeDesc'),
+                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.tepixGuarantee as number, true, locale)}/yr`,
+                  color: "tepixg",
+                  borderColor: "#C4754B",
+                  bgColor: "#FDF5F0",
                 },
               ] as const
             ).map((path) => {
@@ -208,18 +232,8 @@ export default function AssumptionsPage() {
                   style={
                     isActive
                       ? {
-                          borderColor:
-                            path.color === "brand"
-                              ? "#8B6914"
-                              : path.color === "info"
-                                ? "#4A6A8B"
-                                : "#4A7C3F",
-                          backgroundColor:
-                            path.color === "brand"
-                              ? "#FAF7F0"
-                              : path.color === "info"
-                                ? "#F0F4F8"
-                                : "#F0F8EF",
+                          borderColor: path.borderColor,
+                          backgroundColor: path.bgColor,
                         }
                       : {}
                   }
@@ -228,12 +242,7 @@ export default function AssumptionsPage() {
                     <div
                       className={`w-3 h-3 rounded-full ${isActive ? "ring-2 ring-offset-2" : ""}`}
                       style={{
-                        backgroundColor:
-                          path.color === "brand"
-                            ? "#8B6914"
-                            : path.color === "info"
-                              ? "#4A6A8B"
-                              : "#4A7C3F",
+                        backgroundColor: path.borderColor,
                       }}
                     />
                     <h3 className="font-medium text-text-primary">
@@ -405,6 +414,126 @@ export default function AssumptionsPage() {
                     value={a.commercialLoan.repaymentTermYears}
                     path="commercialLoan.repaymentTermYears"
                     note="13 years from 2029"
+                  />
+                </tbody>
+              </table>
+            )}
+
+            {a.financingPath === "tepix-loan" && (
+              <table className="w-full">
+                <tbody>
+                  <AssumptionRow
+                    label={t('field.tepixCoverage')}
+                    value={a.tepixLoan.coverageRate}
+                    path="tepixLoan.coverageRate"
+                    format="percent"
+                    note="90% — 10% equity"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixHdbShare')}
+                    value={a.tepixLoan.hdbShareOfLoan}
+                    path="tepixLoan.hdbShareOfLoan"
+                    format="percent"
+                    note="40% interest-free from HDB/EAT"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixBankShare')}
+                    value={a.tepixLoan.bankShareOfLoan}
+                    path="tepixLoan.bankShareOfLoan"
+                    format="percent"
+                    note="60% from partner bank"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixBankRate')}
+                    value={a.tepixLoan.bankInterestRate}
+                    path="tepixLoan.bankInterestRate"
+                    format="percent"
+                    note="Indicative bank rate"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixSubsidy')}
+                    value={a.tepixLoan.interestSubsidy}
+                    path="tepixLoan.interestSubsidy"
+                    format="percent"
+                    note="2pp — South Aegean (verified HDB)"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixSubsidyDuration')}
+                    value={a.tepixLoan.subsidyDurationYears}
+                    path="tepixLoan.subsidyDurationYears"
+                    note="From first disbursement"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixTotalTerm')}
+                    value={a.tepixLoan.totalTermYears}
+                    path="tepixLoan.totalTermYears"
+                    note="Including grace period"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixGrace')}
+                    value={a.tepixLoan.gracePeriodYears}
+                    path="tepixLoan.gracePeriodYears"
+                    note="Within total term"
+                  />
+                </tbody>
+              </table>
+            )}
+
+            {a.financingPath === "tepix-guarantee" && (
+              <table className="w-full">
+                <tbody>
+                  <AssumptionRow
+                    label={t('field.tepixCoverage')}
+                    value={a.tepixGuarantee.coverageRate}
+                    path="tepixGuarantee.coverageRate"
+                    format="percent"
+                    note="90% — 10% equity"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixGuaranteeRate')}
+                    value={a.tepixGuarantee.guaranteeRate}
+                    path="tepixGuarantee.guaranteeRate"
+                    format="percent"
+                    note="70% — General Entrepreneurship"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixBankRate')}
+                    value={a.tepixGuarantee.bankInterestRate}
+                    path="tepixGuarantee.bankInterestRate"
+                    format="percent"
+                    note="Full loan at bank rate"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixSubsidy')}
+                    value={a.tepixGuarantee.interestSubsidy}
+                    path="tepixGuarantee.interestSubsidy"
+                    format="percent"
+                    note="2pp — South Aegean"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixSubsidyDuration')}
+                    value={a.tepixGuarantee.subsidyDurationYears}
+                    path="tepixGuarantee.subsidyDurationYears"
+                    note="From first disbursement"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixTotalTerm')}
+                    value={a.tepixGuarantee.totalTermYears}
+                    path="tepixGuarantee.totalTermYears"
+                    note="Including grace period"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixGrace')}
+                    value={a.tepixGuarantee.gracePeriodYears}
+                    path="tepixGuarantee.gracePeriodYears"
+                    note="Within total term"
+                  />
+                  <AssumptionRow
+                    label={t('field.tepixCollateralCap')}
+                    value={a.tepixGuarantee.collateralCapRate}
+                    path="tepixGuarantee.collateralCapRate"
+                    format="percent"
+                    note="30% of loan principal (statutory)"
                   />
                 </tbody>
               </table>

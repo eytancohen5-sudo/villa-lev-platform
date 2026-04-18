@@ -20,6 +20,7 @@ import {
   Legend,
   ComposedChart,
   ReferenceLine,
+  Cell,
 } from "recharts";
 
 function KPICard({
@@ -77,7 +78,11 @@ export default function DashboardPage() {
       ? t('path.grant')
       : assumptions.financingPath === "rrf"
         ? t('path.rrf')
-        : t('path.commercial');
+        : assumptions.financingPath === "tepix-loan"
+          ? t('path.tepixLoan')
+          : assumptions.financingPath === "tepix-guarantee"
+            ? t('path.tepixGuarantee')
+            : t('path.commercial');
 
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
 
@@ -101,6 +106,48 @@ export default function DashboardPage() {
       Upside: Number(d.upside.toFixed(2)),
       Downside: Number(d.downside.toFixed(2)),
       Grant: Number(d.grant.toFixed(2)),
+      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+      "TEPIX Guarantee": Number(d.tepixGuarantee.toFixed(2)),
+    }));
+
+  // Financing comparison chart data
+  const compPaths = [
+    { key: 'commercial', label: t('path.commercialShort'), color: '#8B6914' },
+    { key: 'rrf', label: t('path.rrfShort'), color: '#4A6A8B' },
+    { key: 'grant', label: t('path.grantShort'), color: '#4A7C3F' },
+    { key: 'tepixLoan', label: t('path.tepixLoanShort'), color: '#7B5EA7' },
+    { key: 'tepixGuarantee', label: t('path.tepixGuaranteeShort'), color: '#C4754B' },
+  ];
+
+  const capitalStructureData = compPaths.map((p) => ({
+    name: p.label,
+    Loan: model.financingComparison[0]?.[p.key as keyof typeof model.financingComparison[0]] as number || 0,
+    Equity: model.financingComparison[2]?.[p.key as keyof typeof model.financingComparison[0]] as number || 0,
+    Grant: model.financingComparison[1]?.[p.key as keyof typeof model.financingComparison[0]] as number || 0,
+  }));
+
+  const annualDSData = compPaths.map((p) => ({
+    name: p.label,
+    DS: model.financingComparison[3]?.[p.key as keyof typeof model.financingComparison[0]] as number || 0,
+    color: p.color,
+  }));
+
+  const stabilisedDSCRData = compPaths.map((p) => ({
+    name: p.label,
+    DSCR: model.financingComparison[4]?.[p.key as keyof typeof model.financingComparison[0]] as number || 0,
+    color: p.color,
+  }));
+
+  // DSCR trajectory for all paths
+  const dscrTrajectoryData = model.dscrByYear
+    .filter((d) => d.year >= 2028)
+    .map((d) => ({
+      year: d.year,
+      Commercial: Number(d.realistic.toFixed(2)),
+      RRF: Number((d.year >= 2028 ? model.dscrByYear.find(r => r.year === d.year)?.realistic ?? 0 : 0).toFixed(2)),
+      Grant: Number(d.grant.toFixed(2)),
+      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+      "TEPIX Guarantee": Number(d.tepixGuarantee.toFixed(2)),
     }));
 
   return (
@@ -409,8 +456,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Financing Comparison */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+      {/* Financing Comparison Table */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-8">
         <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
           {t('dash.financingComparison')}
         </h3>
@@ -421,53 +468,128 @@ export default function DashboardPage() {
                 <th className="text-left py-2 pr-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
                   {t('common.metric')}
                 </th>
-                <th className="text-right py-2 px-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('path.commercial')}
+                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
+                  {t('path.commercialShort')}
                 </th>
-                <th className="text-right py-2 px-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  + {t('path.rrfShort')}
+                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
+                  {t('path.rrfShort')}
                 </th>
-                <th className="text-right py-2 px-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  + {t('path.grantShort')}
+                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
+                  {t('path.grantShort')}
+                </th>
+                <th className="text-right py-2 px-3 font-medium text-xs uppercase tracking-wider" style={{ color: '#7B5EA7' }}>
+                  {t('path.tepixLoanShort')}
+                </th>
+                <th className="text-right py-2 px-3 font-medium text-xs uppercase tracking-wider" style={{ color: '#C4754B' }}>
+                  {t('path.tepixGuaranteeShort')}
                 </th>
               </tr>
             </thead>
             <tbody>
-              {model.financingComparison.map((row, i) => (
-                <tr
-                  key={i}
-                  className={
-                    i % 2 === 0 ? "bg-surface-secondary/30" : ""
-                  }
-                >
-                  <td className="py-2 pr-4 text-text-secondary">
-                    {row.metric}
-                  </td>
-                  <td className="text-right py-2 px-4 data-cell">
-                    {typeof row.commercial === "number"
-                      ? row.metric.includes("DSCR")
-                        ? formatMultiple(row.commercial)
-                        : formatCurrency(row.commercial, true, locale)
-                      : row.commercial}
-                  </td>
-                  <td className="text-right py-2 px-4 data-cell">
-                    {typeof row.rrf === "number"
-                      ? row.metric.includes("DSCR")
-                        ? formatMultiple(row.rrf)
-                        : formatCurrency(row.rrf, true, locale)
-                      : row.rrf}
-                  </td>
-                  <td className="text-right py-2 px-4 data-cell text-positive font-medium">
-                    {typeof row.grant === "number"
-                      ? row.metric.includes("DSCR")
-                        ? formatMultiple(row.grant)
-                        : formatCurrency(row.grant, true, locale)
-                      : row.grant}
-                  </td>
-                </tr>
-              ))}
+              {model.financingComparison.map((row, i) => {
+                const formatVal = (val: string | number) =>
+                  typeof val === "number"
+                    ? row.metric.includes("DSCR")
+                      ? formatMultiple(val)
+                      : formatCurrency(val, true, locale)
+                    : val;
+                return (
+                  <tr key={i} className={i % 2 === 0 ? "bg-surface-secondary/30" : ""}>
+                    <td className="py-2 pr-4 text-text-secondary">{row.metric}</td>
+                    <td className="text-right py-2 px-3 data-cell">{formatVal(row.commercial)}</td>
+                    <td className="text-right py-2 px-3 data-cell">{formatVal(row.rrf)}</td>
+                    <td className="text-right py-2 px-3 data-cell text-positive font-medium">{formatVal(row.grant)}</td>
+                    <td className="text-right py-2 px-3 data-cell" style={{ color: '#7B5EA7' }}>{formatVal(row.tepixLoan)}</td>
+                    <td className="text-right py-2 px-3 data-cell" style={{ color: '#C4754B' }}>{formatVal(row.tepixGuarantee)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Financing Path Comparison Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Capital Structure */}
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+            {t('dash.capitalStructureChart')}
+          </h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={capitalStructureData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1_000_000).toFixed(1)}M`} />
+              <Tooltip formatter={(value) => formatCurrency(Number(value), true, locale)} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <Bar dataKey="Loan" name={t('inv.loan')} stackId="a" fill="#8B6914" />
+              <Bar dataKey="Equity" name={t('kpi.equityRequired')} stackId="a" fill="#6B7A3D" />
+              <Bar dataKey="Grant" name={t('path.grantShort')} stackId="a" fill="#4A6A8B" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Annual DS */}
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+            {t('dash.annualDSChart')}
+          </h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={annualDSData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(value) => formatCurrency(Number(value), false, locale)} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
+              <Bar dataKey="DS" name={t('kpi.annualDS')} radius={[4, 4, 0, 0]}>
+                {annualDSData.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Stabilised DSCR */}
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+            {t('dash.stabilisedDSCRChart')}
+          </h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={stabilisedDSCRData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} />
+              <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
+              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× min", fontSize: 10 }} />
+              <Bar dataKey="DSCR" name={t('term.dscr')} radius={[4, 4, 0, 0]}>
+                {stabilisedDSCRData.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
+                ))}
+              </Bar>
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* DSCR Trajectory */}
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+            {t('dash.dscrTrajectory')}
+          </h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={dscrTrajectoryData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} />
+              <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25×", fontSize: 10 }} />
+              <Line type="monotone" dataKey="Commercial" name={t('path.commercialShort')} stroke="#8B6914" strokeWidth={2} />
+              <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.5} strokeDasharray="4 2" />
+              <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
+              <Line type="monotone" dataKey="TEPIX Guarantee" name={t('path.tepixGuaranteeShort')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>

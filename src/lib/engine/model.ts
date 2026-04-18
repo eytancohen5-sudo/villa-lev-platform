@@ -253,6 +253,69 @@ function computeDebtService(
     };
   }
 
+  // TEPIX Loan Fund — 40% HDB interest-free + 60% bank
+  if (path === 'tepix-loan') {
+    const tp = a.tepixLoan;
+    const loanAmount = totalCost * tp.coverageRate;
+    const equity = totalCost - loanAmount;
+    const amortYears = tp.totalTermYears - tp.gracePeriodYears; // 10
+    const hdbPortion = loanAmount * tp.hdbShareOfLoan;
+    const bankPortion = loanAmount * tp.bankShareOfLoan;
+    // HDB portion is interest-free, amortized over amortYears
+    const hdbAnnual = hdbPortion / amortYears;
+    // Bank portion at bankInterestRate, amortized over amortYears
+    const bankAnnual = pmt(tp.bankInterestRate, amortYears, bankPortion);
+    const annualDS = hdbAnnual + bankAnnual;
+
+    return {
+      annualDS,
+      loanAmount,
+      equityRequired: equity,
+      grantAmount: 0,
+      getDS: (year: number) => {
+        // Grace years: interest only on bank portion (subsidised in Y1-Y2)
+        if (year === 2026 || year === 2027) {
+          const subsidisedRate = Math.max(0, tp.bankInterestRate - tp.interestSubsidy);
+          return bankPortion * subsidisedRate;
+        }
+        if (year === 2028) {
+          // Grace year 3 if applicable, or first amortization year
+          // Grace is 2 years (2026-2027), so 2028 = first amortization year
+          return annualDS;
+        }
+        if (year >= 2029) return annualDS;
+        return 0;
+      },
+    };
+  }
+
+  // TEPIX Guarantee Fund — full bank loan, 70% guarantee
+  if (path === 'tepix-guarantee') {
+    const tg = a.tepixGuarantee;
+    const loanAmount = totalCost * tg.coverageRate;
+    const equity = totalCost - loanAmount;
+    const amortYears = tg.totalTermYears - tg.gracePeriodYears; // 10
+    // Full loan at bank interest rate
+    const annualDS = pmt(tg.bankInterestRate, amortYears, loanAmount);
+
+    return {
+      annualDS,
+      loanAmount,
+      equityRequired: equity,
+      grantAmount: 0,
+      getDS: (year: number) => {
+        // Grace years: interest only (subsidised in Y1-Y2)
+        if (year === 2026 || year === 2027) {
+          const subsidisedRate = Math.max(0, tg.bankInterestRate - tg.interestSubsidy);
+          return loanAmount * subsidisedRate;
+        }
+        if (year === 2028) return annualDS;
+        if (year >= 2029) return annualDS;
+        return 0;
+      },
+    };
+  }
+
   // fallback
   return {
     annualDS: 0,
@@ -459,6 +522,8 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   const commercialDebt = computeDebtService(a, capex, 'commercial');
   const grantDebt = computeDebtService(a, capex, 'grant');
   const rrfDebt = computeDebtService(a, capex, 'rrf');
+  const tepixLoanDebt = computeDebtService(a, capex, 'tepix-loan');
+  const tepixGuaranteeDebt = computeDebtService(a, capex, 'tepix-guarantee');
 
   // Active debt based on selected path
   const activeDebt =
@@ -466,7 +531,11 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       ? grantDebt
       : a.financingPath === 'rrf'
         ? rrfDebt
-        : commercialDebt;
+        : a.financingPath === 'tepix-loan'
+          ? tepixLoanDebt
+          : a.financingPath === 'tepix-guarantee'
+            ? tepixGuaranteeDebt
+            : commercialDebt;
 
   // Compute all scenarios with active financing
   const realistic = computeScenario(
@@ -557,12 +626,28 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     }
   );
 
+  // TEPIX realistic scenarios for DSCR tracking
+  const tepixLoanRealistic = computeScenario(
+    'tepixLoan',
+    a,
+    a.revenueRealistic,
+    tepixLoanDebt
+  );
+  const tepixGuaranteeRealistic = computeScenario(
+    'tepixGuarantee',
+    a,
+    a.revenueRealistic,
+    tepixGuaranteeDebt
+  );
+
   const dscrByYear = realistic.pnl.map((p, i) => ({
     year: p.year,
     realistic: commercialRealistic.pnl[i].dscr,
     upside: commercialUpside.pnl[i].dscr,
     downside: commercialDownside.pnl[i].dscr,
     grant: grantScenario.pnl[i].dscr,
+    tepixLoan: tepixLoanRealistic.pnl[i].dscr,
+    tepixGuarantee: tepixGuaranteeRealistic.pnl[i].dscr,
   }));
 
   // Financing comparison table
@@ -572,24 +657,32 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       commercial: commercialDebt.loanAmount,
       rrf: rrfDebt.loanAmount,
       grant: grantDebt.loanAmount,
+      tepixLoan: tepixLoanDebt.loanAmount,
+      tepixGuarantee: tepixGuaranteeDebt.loanAmount,
     },
     {
       metric: 'Grant received (€)',
       commercial: 0,
       rrf: 0,
       grant: grantDebt.grantAmount,
+      tepixLoan: 0,
+      tepixGuarantee: 0,
     },
     {
       metric: 'Equity required (€)',
       commercial: commercialDebt.equityRequired,
       rrf: rrfDebt.equityRequired,
       grant: grantDebt.equityRequired,
+      tepixLoan: tepixLoanDebt.equityRequired,
+      tepixGuarantee: tepixGuaranteeDebt.equityRequired,
     },
     {
       metric: 'Annual debt service (€)',
       commercial: commercialDebt.annualDS,
       rrf: rrfDebt.annualDS,
       grant: grantDebt.annualDS,
+      tepixLoan: tepixLoanDebt.annualDS,
+      tepixGuarantee: tepixGuaranteeDebt.annualDS,
     },
     {
       metric: 'DSCR — Realistic (2031)',
@@ -597,6 +690,8 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
         commercialRealistic.stabilisedYear?.dscr ?? 0,
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
       grant: grantScenario.stabilisedYear?.dscr ?? 0,
+      tepixLoan: tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
+      tepixGuarantee: tepixGuaranteeRealistic.stabilisedYear?.dscr ?? 0,
     },
     {
       metric: 'Equity saving vs. commercial',
@@ -605,6 +700,10 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
         commercialDebt.equityRequired - rrfDebt.equityRequired,
       grant:
         commercialDebt.equityRequired - grantDebt.equityRequired,
+      tepixLoan:
+        commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
+      tepixGuarantee:
+        commercialDebt.equityRequired - tepixGuaranteeDebt.equityRequired,
     },
   ];
 

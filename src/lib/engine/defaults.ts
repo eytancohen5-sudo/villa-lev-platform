@@ -118,6 +118,30 @@ export const BASE_CASE: ModelAssumptions = {
     annualDS: 439700,
   },
 
+  tepixLoan: {
+    enabled: false,
+    coverageRate: 0.90,
+    hdbShareOfLoan: 0.40,
+    bankShareOfLoan: 0.60,
+    bankInterestRate: 0.05,
+    interestSubsidy: 0.02,
+    subsidyDurationYears: 2,
+    totalTermYears: 12,
+    gracePeriodYears: 2,
+  },
+
+  tepixGuarantee: {
+    enabled: false,
+    coverageRate: 0.90,
+    guaranteeRate: 0.70,
+    bankInterestRate: 0.05,
+    interestSubsidy: 0.02,
+    subsidyDurationYears: 2,
+    totalTermYears: 12,
+    gracePeriodYears: 2,
+    collateralCapRate: 0.30,
+  },
+
   tax: {
     corporateIncomeTaxRate: 0.22,
     netVATRate: 0.07,

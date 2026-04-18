@@ -47,6 +47,12 @@ export interface TranslationDictionary {
   'path.grant': string;
   'path.grantShort': string;
   'path.grantDesc': string;
+  'path.tepixLoan': string;
+  'path.tepixLoanShort': string;
+  'path.tepixLoanDesc': string;
+  'path.tepixGuarantee': string;
+  'path.tepixGuaranteeShort': string;
+  'path.tepixGuaranteeDesc': string;
 
   // ── Scenarios ──
   'scenario.realistic': string;
@@ -256,6 +262,22 @@ export interface TranslationDictionary {
   'field.contingencyRate': string;
   'field.acqLegalPerPlot': string;
   'field.numPropA': string;
+  'field.tepixCoverage': string;
+  'field.tepixHdbShare': string;
+  'field.tepixBankShare': string;
+  'field.tepixBankRate': string;
+  'field.tepixSubsidy': string;
+  'field.tepixSubsidyDuration': string;
+  'field.tepixTotalTerm': string;
+  'field.tepixGrace': string;
+  'field.tepixGuaranteeRate': string;
+  'field.tepixCollateralCap': string;
+
+  // ── Dashboard extras ──
+  'dash.capitalStructureChart': string;
+  'dash.annualDSChart': string;
+  'dash.stabilisedDSCRChart': string;
+  'dash.dscrTrajectory': string;
 
   // ── Sensitivity ──
   'sens.title': string;

@@ -14,6 +14,8 @@ const financingPaths: { id: FinancingPath; shortKey: keyof TranslationDictionary
   { id: "commercial", shortKey: "path.commercialShort", color: "#8B6914" },
   { id: "rrf", shortKey: "path.rrfShort", color: "#4A6A8B" },
   { id: "grant", shortKey: "path.grantShort", color: "#4A7C3F" },
+  { id: "tepix-loan", shortKey: "path.tepixLoanShort", color: "#7B5EA7" },
+  { id: "tepix-guarantee", shortKey: "path.tepixGuaranteeShort", color: "#C4754B" },
 ];
 
 export default function AdminLayout({

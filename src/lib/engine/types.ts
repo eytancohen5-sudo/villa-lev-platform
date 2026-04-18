@@ -97,7 +97,31 @@ export interface RRFParams {
   annualDS: number; // €439,700
 }
 
-export type FinancingPath = 'commercial' | 'grant' | 'rrf';
+export interface TepixLoanFundParams {
+  enabled: boolean;
+  coverageRate: number;        // 90% — 10% equity
+  hdbShareOfLoan: number;      // 40% interest-free from HDB
+  bankShareOfLoan: number;     // 60% from partner bank
+  bankInterestRate: number;    // 5% indicative
+  interestSubsidy: number;     // 2pp — South Aegean verified against HDB
+  subsidyDurationYears: number;// 2 — first 2 years from disbursement
+  totalTermYears: number;      // 12 total (grace inside)
+  gracePeriodYears: number;    // 2 within the 12
+}
+
+export interface TepixGuaranteeFundParams {
+  enabled: boolean;
+  coverageRate: number;        // 90%
+  guaranteeRate: number;       // 70% — General Entrepreneurship
+  bankInterestRate: number;    // 5%
+  interestSubsidy: number;     // 2pp
+  subsidyDurationYears: number;// 2
+  totalTermYears: number;      // 12
+  gracePeriodYears: number;    // 2
+  collateralCapRate: number;   // 30% of loan principal (statutory)
+}
+
+export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan' | 'tepix-guarantee';
 
 export interface TaxAssumptions {
   corporateIncomeTaxRate: number; // 22%
@@ -116,6 +140,8 @@ export interface ModelAssumptions {
   commercialLoan: CommercialLoanParams;
   grant: GrantParams;
   rrf: RRFParams;
+  tepixLoan: TepixLoanFundParams;
+  tepixGuarantee: TepixGuaranteeFundParams;
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number; // €50,000 × 3
   numberOfPropertyA: number; // 2
@@ -177,6 +203,8 @@ export interface FinancingComparison {
   commercial: string | number;
   rrf: string | number;
   grant: string | number;
+  tepixLoan: string | number;
+  tepixGuarantee: string | number;
 }
 
 export interface ModelOutput {
@@ -211,6 +239,8 @@ export interface ModelOutput {
     upside: number;
     downside: number;
     grant: number;
+    tepixLoan: number;
+    tepixGuarantee: number;
   }[];
   collateral: {
     builtSurface: number;
