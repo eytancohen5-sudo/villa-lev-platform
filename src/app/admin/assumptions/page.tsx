@@ -419,7 +419,7 @@ export default function AssumptionsPage() {
               </table>
             )}
 
-            {a.financingPath === "tepix-loan" && (
+            {a.financingPath === "tepix-loan" && (<>
               <table className="w-full">
                 <tbody>
                   <AssumptionRow
@@ -475,11 +475,44 @@ export default function AssumptionsPage() {
                     path="tepixLoan.gracePeriodYears"
                     note="Within total term"
                   />
+                  <AssumptionRow
+                    label={t('field.tepixLandCap')}
+                    value={a.tepixLoan.landCapOnFundContribution}
+                    path="tepixLoan.landCapOnFundContribution"
+                    format="percent"
+                    note={t('field.tepixLandCapNote')}
+                  />
                 </tbody>
               </table>
-            )}
+              {/* Combined Structure Panel */}
+              <div className="mt-4 rounded-lg border border-purple-300 bg-purple-50 p-4">
+                <h4 className="text-sm font-semibold text-[#7B5EA7] mb-3">{t('field.tepixCombinedStructure')}</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixLandGap')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-purple-200">
+                    <span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span>
+                    <div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div>
+                  </div>
+                </div>
+              </div>
+            </>)}
 
-            {a.financingPath === "tepix-guarantee" && (
+            {a.financingPath === "tepix-guarantee" && (<>
               <table className="w-full">
                 <tbody>
                   <AssumptionRow
@@ -535,9 +568,42 @@ export default function AssumptionsPage() {
                     format="percent"
                     note="30% of loan principal (statutory)"
                   />
+                  <AssumptionRow
+                    label={t('field.tepixLandCap')}
+                    value={a.tepixGuarantee.landCapOnFundContribution}
+                    path="tepixGuarantee.landCapOnFundContribution"
+                    format="percent"
+                    note={t('field.tepixLandCapNote')}
+                  />
                 </tbody>
               </table>
-            )}
+              {/* Combined Structure Panel */}
+              <div className="mt-4 rounded-lg border border-orange-300 bg-orange-50 p-4">
+                <h4 className="text-sm font-semibold text-[#C4754B] mb-3">{t('field.tepixCombinedStructure')}</h4>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div>
+                  </div>
+                  <div>
+                    <span className="text-text-tertiary">{t('field.tepixLandGap')}</span>
+                    <div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-orange-200">
+                    <span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span>
+                    <div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div>
+                  </div>
+                </div>
+              </div>
+            </>)}
           </div>
 
           {/* Impact Summary */}

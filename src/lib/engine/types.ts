@@ -105,8 +105,9 @@ export interface TepixLoanFundParams {
   bankInterestRate: number;    // 5% indicative
   interestSubsidy: number;     // 2pp — South Aegean verified against HDB
   subsidyDurationYears: number;// 2 — first 2 years from disbursement
-  totalTermYears: number;      // 12 total (grace inside)
-  gracePeriodYears: number;    // 2 within the 12
+  totalTermYears: number;      // 14 (12yr amort + 2yr grace)
+  gracePeriodYears: number;    // 2
+  landCapOnFundContribution: number; // 0.10 — statutory 10% rule
 }
 
 export interface TepixGuaranteeFundParams {
@@ -116,9 +117,10 @@ export interface TepixGuaranteeFundParams {
   bankInterestRate: number;    // 5%
   interestSubsidy: number;     // 2pp
   subsidyDurationYears: number;// 2
-  totalTermYears: number;      // 12
+  totalTermYears: number;      // 14
   gracePeriodYears: number;    // 2
   collateralCapRate: number;   // 30% of loan principal (statutory)
+  landCapOnFundContribution: number; // 0.10 — statutory 10% rule
 }
 
 export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan' | 'tepix-guarantee';
@@ -232,6 +234,10 @@ export interface ModelOutput {
     portfolioValue: number;
     breakEvenNights: number;
     bufferToBreakEven: number;
+    primaryLoan: number;
+    supplementaryLoan: number;
+    landFundedByTepix: number;
+    landFundedByCommercial: number;
   };
   dscrByYear: {
     year: number;

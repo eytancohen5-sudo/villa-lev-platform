@@ -272,6 +272,15 @@ export interface TranslationDictionary {
   'field.tepixGrace': string;
   'field.tepixGuaranteeRate': string;
   'field.tepixCollateralCap': string;
+  'field.tepixLandCap': string;
+  'field.tepixLandCapNote': string;
+  'field.tepixPrimaryLoan': string;
+  'field.tepixSuppLoan': string;
+  'field.tepixLandFundedByTepix': string;
+  'field.tepixLandGap': string;
+  'field.tepixCombinedDS': string;
+  'field.tepixCombinedStructure': string;
+  'comp.suppCommercialLoan': string;
 
   // ── Dashboard extras ──
   'dash.capitalStructureChart': string;

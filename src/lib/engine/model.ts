@@ -141,6 +141,12 @@ interface DebtServiceResult {
   equityRequired: number;
   getDS: (year: number) => number;
   grantAmount: number;
+  // Exposed for UI breakdown (TEPIX paths)
+  primaryLoan?: number;
+  supplementaryLoan?: number;
+  supplementaryAnnualDS?: number;
+  landFundedByTepix?: number;
+  landFundedByCommercial?: number;
 }
 
 function computeDebtService(
@@ -253,64 +259,141 @@ function computeDebtService(
     };
   }
 
-  // TEPIX Loan Fund — 40% HDB interest-free + 60% bank
+  // TEPIX Loan Fund — 40% HDB interest-free + 60% bank + land cap
   if (path === 'tepix-loan') {
     const tp = a.tepixLoan;
-    const loanAmount = totalCost * tp.coverageRate;
-    const equity = totalCost - loanAmount;
-    const amortYears = tp.totalTermYears - tp.gracePeriodYears; // 10
-    const hdbPortion = loanAmount * tp.hdbShareOfLoan;
-    const bankPortion = loanAmount * tp.bankShareOfLoan;
-    // HDB portion is interest-free, amortized over amortYears
+    const cap = tp.landCapOnFundContribution; // 0.10
+
+    // Land / non-land split
+    const totalLand =
+      a.properties.propertyA.landCost * a.numberOfPropertyA +
+      a.properties.propertyB.landCost;
+    const acqLegal = a.acquisitionLegalPerPlot * 3;
+    const nonLandCost = totalCost - totalLand - acqLegal;
+
+    // Primary TEPIX loan (non-land eligible costs at 90% coverage)
+    const nonLandLoan = nonLandCost * tp.coverageRate;
+
+    // Recursive land cap: landPortion = cap × nonLandLoan / (1 − cap)
+    const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
+    const primaryLoan = nonLandLoan + landFundedByTepix;
+
+    // Land gap = total land − land funded by TEPIX
+    const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
+
+    // Supplementary commercial loan for land gap (Phase 1 terms)
+    const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
+    const suppEquity = landGap - suppLoanAmount;
+    const suppAnnualDS = pmt(
+      a.commercialLoan.interestRate,
+      a.commercialLoan.repaymentTermYears,
+      suppLoanAmount
+    );
+
+    // TEPIX primary loan debt service
+    const amortYears = tp.totalTermYears - tp.gracePeriodYears; // 12
+    const hdbPortion = primaryLoan * tp.hdbShareOfLoan;
+    const bankPortion = primaryLoan * tp.bankShareOfLoan;
     const hdbAnnual = hdbPortion / amortYears;
-    // Bank portion at bankInterestRate, amortized over amortYears
     const bankAnnual = pmt(tp.bankInterestRate, amortYears, bankPortion);
-    const annualDS = hdbAnnual + bankAnnual;
+    const primaryAnnualDS = hdbAnnual + bankAnnual;
+
+    // Primary equity = non-land equity (10% of non-land cost)
+    const primaryEquity = nonLandCost - nonLandLoan;
+    const totalEquity = primaryEquity + suppEquity;
+    const totalLoanDrawn = primaryLoan + suppLoanAmount;
+    const combinedDS = primaryAnnualDS + suppAnnualDS;
 
     return {
-      annualDS,
-      loanAmount,
-      equityRequired: equity,
+      annualDS: combinedDS,
+      loanAmount: totalLoanDrawn,
+      equityRequired: totalEquity,
       grantAmount: 0,
+      primaryLoan,
+      supplementaryLoan: suppLoanAmount,
+      supplementaryAnnualDS: suppAnnualDS,
+      landFundedByTepix,
+      landFundedByCommercial: landGap,
       getDS: (year: number) => {
-        // Grace years: interest only on bank portion (subsidised in Y1-Y2)
+        // Grace years: interest only on bank portions (subsidised in Y1-Y2)
         if (year === 2026 || year === 2027) {
           const subsidisedRate = Math.max(0, tp.bankInterestRate - tp.interestSubsidy);
-          return bankPortion * subsidisedRate;
+          const tepixInterest = bankPortion * subsidisedRate;
+          // Supplementary loan also in grace during construction
+          const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
+          return tepixInterest + suppInterest;
         }
         if (year === 2028) {
-          // Grace year 3 if applicable, or first amortization year
-          // Grace is 2 years (2026-2027), so 2028 = first amortization year
-          return annualDS;
+          // First full DS year for both loans
+          return combinedDS;
         }
-        if (year >= 2029) return annualDS;
+        if (year >= 2029) return combinedDS;
         return 0;
       },
     };
   }
 
-  // TEPIX Guarantee Fund — full bank loan, 70% guarantee
+  // TEPIX Guarantee Fund — full bank loan, 70% guarantee + land cap
   if (path === 'tepix-guarantee') {
     const tg = a.tepixGuarantee;
-    const loanAmount = totalCost * tg.coverageRate;
-    const equity = totalCost - loanAmount;
-    const amortYears = tg.totalTermYears - tg.gracePeriodYears; // 10
-    // Full loan at bank interest rate
-    const annualDS = pmt(tg.bankInterestRate, amortYears, loanAmount);
+    const cap = tg.landCapOnFundContribution; // 0.10
+
+    // Land / non-land split
+    const totalLand =
+      a.properties.propertyA.landCost * a.numberOfPropertyA +
+      a.properties.propertyB.landCost;
+    const acqLegal = a.acquisitionLegalPerPlot * 3;
+    const nonLandCost = totalCost - totalLand - acqLegal;
+
+    // Primary TEPIX loan (non-land eligible costs at 90% coverage)
+    const nonLandLoan = nonLandCost * tg.coverageRate;
+
+    // Recursive land cap: landPortion = cap × nonLandLoan / (1 − cap)
+    const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
+    const primaryLoan = nonLandLoan + landFundedByTepix;
+
+    // Land gap = total land − land funded by TEPIX
+    const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
+
+    // Supplementary commercial loan for land gap (Phase 1 terms)
+    const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
+    const suppEquity = landGap - suppLoanAmount;
+    const suppAnnualDS = pmt(
+      a.commercialLoan.interestRate,
+      a.commercialLoan.repaymentTermYears,
+      suppLoanAmount
+    );
+
+    // TEPIX primary loan debt service
+    const amortYears = tg.totalTermYears - tg.gracePeriodYears; // 12
+    const annualDSTepix = pmt(tg.bankInterestRate, amortYears, primaryLoan);
+
+    // Primary equity = non-land equity (10% of non-land cost)
+    const primaryEquity = nonLandCost - nonLandLoan;
+    const totalEquity = primaryEquity + suppEquity;
+    const totalLoanDrawn = primaryLoan + suppLoanAmount;
+    const combinedDS = annualDSTepix + suppAnnualDS;
 
     return {
-      annualDS,
-      loanAmount,
-      equityRequired: equity,
+      annualDS: combinedDS,
+      loanAmount: totalLoanDrawn,
+      equityRequired: totalEquity,
       grantAmount: 0,
+      primaryLoan,
+      supplementaryLoan: suppLoanAmount,
+      supplementaryAnnualDS: suppAnnualDS,
+      landFundedByTepix,
+      landFundedByCommercial: landGap,
       getDS: (year: number) => {
         // Grace years: interest only (subsidised in Y1-Y2)
         if (year === 2026 || year === 2027) {
           const subsidisedRate = Math.max(0, tg.bankInterestRate - tg.interestSubsidy);
-          return loanAmount * subsidisedRate;
+          const tepixInterest = primaryLoan * subsidisedRate;
+          const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
+          return tepixInterest + suppInterest;
         }
-        if (year === 2028) return annualDS;
-        if (year >= 2029) return annualDS;
+        if (year === 2028) return combinedDS;
+        if (year >= 2029) return combinedDS;
         return 0;
       },
     };
@@ -694,6 +777,14 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixGuarantee: tepixGuaranteeRealistic.stabilisedYear?.dscr ?? 0,
     },
     {
+      metric: 'Supplementary commercial loan (€)',
+      commercial: '—',
+      rrf: '—',
+      grant: '—',
+      tepixLoan: tepixLoanDebt.supplementaryLoan ?? 0,
+      tepixGuarantee: tepixGuaranteeDebt.supplementaryLoan ?? 0,
+    },
+    {
       metric: 'Equity saving vs. commercial',
       commercial: '—',
       rrf:
@@ -764,6 +855,10 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     portfolioValue: collateral.market.value,
     breakEvenNights,
     bufferToBreakEven: Math.abs(bufferToBreakEven),
+    primaryLoan: activeDebt.primaryLoan ?? activeDebt.loanAmount,
+    supplementaryLoan: activeDebt.supplementaryLoan ?? 0,
+    landFundedByTepix: activeDebt.landFundedByTepix ?? 0,
+    landFundedByCommercial: activeDebt.landFundedByCommercial ?? 0,
   };
 
   const computeTimeMs = performance.now() - startTime;

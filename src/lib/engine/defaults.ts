@@ -128,6 +128,7 @@ export const BASE_CASE: ModelAssumptions = {
     subsidyDurationYears: 2,
     totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
     gracePeriodYears: 2,
+    landCapOnFundContribution: 0.10,
   },
 
   tepixGuarantee: {
@@ -140,6 +141,7 @@ export const BASE_CASE: ModelAssumptions = {
     totalTermYears: 14,          // 12yr amortization + 2yr grace (Ministry reading)
     gracePeriodYears: 2,
     collateralCapRate: 0.30,
+    landCapOnFundContribution: 0.10,
   },
 
   tax: {
