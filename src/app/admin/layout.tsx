@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
@@ -46,8 +46,12 @@ export default function AdminLayout({
     { id: "breakeven", labelKey: "scenario.breakeven" },
   ];
 
+  const initialized = useRef(false);
   useEffect(() => {
-    init();
+    if (!initialized.current) {
+      initialized.current = true;
+      init();
+    }
   }, [init]);
 
   return (

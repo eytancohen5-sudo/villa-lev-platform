@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -10,8 +10,12 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
   const { t } = useTranslation();
   const { init } = useModelStore();
 
+  const initialized = useRef(false);
   useEffect(() => {
-    init();
+    if (!initialized.current) {
+      initialized.current = true;
+      init();
+    }
   }, [init]);
 
   return (
