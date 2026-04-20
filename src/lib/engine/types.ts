@@ -187,20 +187,7 @@ export interface TepixLoanFundParams {
   landCapOnFundContribution: number;
 }
 
-export interface TepixGuaranteeFundParams {
-  enabled: boolean;
-  coverageRate: number;
-  guaranteeRate: number;
-  bankInterestRate: number;
-  interestSubsidy: number;
-  subsidyDurationYears: number;
-  totalTermYears: number;
-  gracePeriodYears: number;
-  collateralCapRate: number;
-  landCapOnFundContribution: number;
-}
-
-export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan' | 'tepix-guarantee';
+export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan';
 
 export interface TaxAssumptions {
   corporateIncomeTaxRate: number;
@@ -218,7 +205,6 @@ export interface ModelAssumptions {
   grant: GrantParams;
   rrf: RRFParams;
   tepixLoan: TepixLoanFundParams;
-  tepixGuarantee: TepixGuaranteeFundParams;
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
   financingPath: FinancingPath;
@@ -294,7 +280,6 @@ export interface FinancingComparison {
   rrf: string | number;
   grant: string | number;
   tepixLoan: string | number;
-  tepixGuarantee: string | number;
 }
 
 export interface ModelOutput {
@@ -334,7 +319,6 @@ export interface ModelOutput {
     downside: number;
     grant: number;
     tepixLoan: number;
-    tepixGuarantee: number;
   }[];
   collateral: {
     builtSurface: number;

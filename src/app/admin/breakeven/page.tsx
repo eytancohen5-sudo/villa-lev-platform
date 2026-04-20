@@ -112,7 +112,7 @@ export default function BreakEvenPage() {
     }
 
     // Break-even across financing paths
-    const paths = (["commercial", "rrf", "grant", "tepix-loan", "tepix-guarantee"] as const).map((path) => {
+    const paths = (["commercial", "rrf", "grant", "tepix-loan"] as const).map((path) => {
       const m = computeModel({ ...assumptions, financingPath: path });
       const ds = m.keyMetrics.annualDS;
       const beRev = ds + totalOpex;
@@ -129,9 +129,7 @@ export default function BreakEvenPage() {
             ? t('path.rrfShort')
             : path === "grant"
               ? t('path.grantShort')
-              : path === "tepix-loan"
-                ? t('path.tepixLoanShort')
-                : t('path.tepixGuaranteeShort'),
+              : t('path.tepixLoanShort'),
         annualDS: ds,
         breakEvenRevenue: beRev,
         breakEvenNights: beNights,
@@ -145,8 +143,7 @@ export default function BreakEvenPage() {
         color: path === "commercial" ? "#8B6914"
           : path === "rrf" ? "#4A6A8B"
           : path === "grant" ? "#4A7C3F"
-          : path === "tepix-loan" ? "#7B5EA7"
-          : "#C4754B",
+          : "#7B5EA7",
       };
     });
 
@@ -229,7 +226,6 @@ export default function BreakEvenPage() {
         assumptions.financingPath === "grant" ? "grant"
         : assumptions.financingPath === "rrf" ? "rrf"
         : assumptions.financingPath === "tepix-loan" ? "tepix"
-        : assumptions.financingPath === "tepix-guarantee" ? "guarantee"
         : "commercial"
       )
   ) ?? analysis.paths[0];

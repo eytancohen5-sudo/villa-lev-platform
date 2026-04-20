@@ -2,7 +2,89 @@
 // VILLA LEV GROUP — Default Assumptions (from Excel BP v4)
 // ============================================================
 
-import { ModelAssumptions, PropertyConfig, PropertyTemplate, ProjectAllocation } from './types';
+import {
+  ModelAssumptions,
+  PropertyConfig,
+  PropertyTemplate,
+  ProjectAllocation,
+  RoomAreaBreakdown,
+  computeTotalArea,
+} from './types';
+
+// ── Default Room Area Breakdowns (m²) ──
+
+const TWIN_VILLA_ROOMS: RoomAreaBreakdown = {
+  villaUnitArea: 80,
+  standardSuiteArea: 0,
+  doubleSuiteArea: 0,
+  kitchen: 40,
+  livingRoom: 60,
+  utilityRoom: 15,
+  staffRoom: 10,
+  corridors: 25,
+  outdoor: 120,
+};
+
+const BOUTIQUE_SUITE_ROOMS: RoomAreaBreakdown = {
+  villaUnitArea: 0,
+  standardSuiteArea: 25,
+  doubleSuiteArea: 35,
+  kitchen: 15,
+  livingRoom: 30,
+  utilityRoom: 10,
+  staffRoom: 8,
+  corridors: 20,
+  outdoor: 47,
+};
+
+const LUXURY_VILLA_ROOMS: RoomAreaBreakdown = {
+  villaUnitArea: 120,
+  standardSuiteArea: 0,
+  doubleSuiteArea: 0,
+  kitchen: 60,
+  livingRoom: 90,
+  utilityRoom: 20,
+  staffRoom: 15,
+  corridors: 35,
+  outdoor: 160,
+};
+
+const COMPACT_STUDIO_ROOMS: RoomAreaBreakdown = {
+  villaUnitArea: 0,
+  standardSuiteArea: 30,
+  doubleSuiteArea: 0,
+  kitchen: 15,
+  livingRoom: 20,
+  utilityRoom: 8,
+  staffRoom: 5,
+  corridors: 12,
+  outdoor: 30,
+};
+
+const MIXED_RESORT_ROOMS: RoomAreaBreakdown = {
+  villaUnitArea: 80,
+  standardSuiteArea: 30,
+  doubleSuiteArea: 40,
+  kitchen: 45,
+  livingRoom: 55,
+  utilityRoom: 15,
+  staffRoom: 10,
+  corridors: 25,
+  outdoor: 90,
+};
+
+// Sensible fallback for migrations / custom templates missing roomAreas
+export const DEFAULT_ROOM_AREAS: RoomAreaBreakdown = {
+  villaUnitArea: 80,
+  standardSuiteArea: 30,
+  doubleSuiteArea: 40,
+  kitchen: 30,
+  livingRoom: 40,
+  utilityRoom: 10,
+  staffRoom: 8,
+  corridors: 20,
+  outdoor: 50,
+};
 
 // ── Built-in Property Templates ──
 
@@ -14,8 +96,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     villaUnits: 1,
     standardSuites: 0,
     doubleSuites: 0,
+    roomAreas: TWIN_VILLA_ROOMS,
     landCost: 400000,
-    constructionArea: 350,
+    constructionArea: computeTotalArea(TWIN_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
     constructionCostPerM2: 4000,
     ffeCost: 120000,
     legalFees: 20000,
@@ -41,8 +124,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     villaUnits: 0,
     standardSuites: 2,
     doubleSuites: 2,
+    roomAreas: BOUTIQUE_SUITE_ROOMS,
     landCost: 400000,
-    constructionArea: 250,
+    constructionArea: computeTotalArea(BOUTIQUE_SUITE_ROOMS, { villaUnits: 0, standardSuites: 2, doubleSuites: 2 }),
     constructionCostPerM2: 4000,
     ffeCost: 100000,
     legalFees: 15000,
@@ -68,8 +152,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     villaUnits: 1,
     standardSuites: 0,
     doubleSuites: 0,
+    roomAreas: LUXURY_VILLA_ROOMS,
     landCost: 600000,
-    constructionArea: 500,
+    constructionArea: computeTotalArea(LUXURY_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
     constructionCostPerM2: 5000,
     ffeCost: 200000,
     legalFees: 25000,
@@ -95,8 +180,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     villaUnits: 0,
     standardSuites: 2,
     doubleSuites: 0,
+    roomAreas: COMPACT_STUDIO_ROOMS,
     landCost: 250000,
-    constructionArea: 150,
+    constructionArea: computeTotalArea(COMPACT_STUDIO_ROOMS, { villaUnits: 0, standardSuites: 2, doubleSuites: 0 }),
     constructionCostPerM2: 3500,
     ffeCost: 60000,
     legalFees: 12000,
@@ -122,8 +208,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     villaUnits: 1,
     standardSuites: 2,
     doubleSuites: 1,
+    roomAreas: MIXED_RESORT_ROOMS,
     landCost: 500000,
-    constructionArea: 420,
+    constructionArea: computeTotalArea(MIXED_RESORT_ROOMS, { villaUnits: 1, standardSuites: 2, doubleSuites: 1 }),
     constructionCostPerM2: 4200,
     ffeCost: 160000,
     legalFees: 22000,
@@ -160,6 +247,14 @@ export function resolvePortfolio(
     .map((proj) => {
       const tpl = templates.find((t) => t.id === proj.templateId);
       if (!tpl) return null;
+      const roomAreas: RoomAreaBreakdown = tpl.roomAreas
+        ? { ...tpl.roomAreas }
+        : { ...DEFAULT_ROOM_AREAS };
+      const constructionArea = computeTotalArea(roomAreas, {
+        villaUnits: tpl.villaUnits,
+        standardSuites: tpl.standardSuites,
+        doubleSuites: tpl.doubleSuites,
+      });
       return {
         id: proj.id,
         name: proj.name,
@@ -167,8 +262,9 @@ export function resolvePortfolio(
         standardSuites: tpl.standardSuites,
         doubleSuites: tpl.doubleSuites,
         count: proj.count,
+        roomAreas,
         landCost: tpl.landCost,
-        constructionArea: tpl.constructionArea,
+        constructionArea,
         constructionCostPerM2: tpl.constructionCostPerM2,
         ffeCost: tpl.ffeCost,
         legalFees: tpl.legalFees,
@@ -189,8 +285,9 @@ export const DEFAULT_VILLA: PropertyConfig = {
   standardSuites: 0,
   doubleSuites: 0,
   count: 2,
+  roomAreas: TWIN_VILLA_ROOMS,
   landCost: 400000,
-  constructionArea: 350,
+  constructionArea: computeTotalArea(TWIN_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
   constructionCostPerM2: 4000,
   ffeCost: 120000,
   legalFees: 20000,
@@ -217,8 +314,9 @@ export const DEFAULT_SUITE: PropertyConfig = {
   standardSuites: 2,
   doubleSuites: 2,
   count: 1,
+  roomAreas: BOUTIQUE_SUITE_ROOMS,
   landCost: 400000,
-  constructionArea: 250,
+  constructionArea: computeTotalArea(BOUTIQUE_SUITE_ROOMS, { villaUnits: 0, standardSuites: 2, doubleSuites: 2 }),
   constructionCostPerM2: 4000,
   ffeCost: 100000,
   legalFees: 15000,
@@ -271,8 +369,8 @@ export const BASE_CASE: ModelAssumptions = {
   },
 
   portfolio: [
-    { ...DEFAULT_VILLA },
-    { ...DEFAULT_SUITE },
+    { ...DEFAULT_VILLA, roomAreas: { ...DEFAULT_VILLA.roomAreas } },
+    { ...DEFAULT_SUITE, roomAreas: { ...DEFAULT_SUITE.roomAreas } },
   ],
 
   commercialLoan: {
@@ -317,19 +415,6 @@ export const BASE_CASE: ModelAssumptions = {
     subsidyDurationYears: 2,
     totalTermYears: 14,
     gracePeriodYears: 2,
-    landCapOnFundContribution: 0.10,
-  },
-
-  tepixGuarantee: {
-    enabled: false,
-    coverageRate: 0.90,
-    guaranteeRate: 0.70,
-    bankInterestRate: 0.05,
-    interestSubsidy: 0.02,
-    subsidyDurationYears: 2,
-    totalTermYears: 14,
-    gracePeriodYears: 2,
-    collateralCapRate: 0.30,
     landCapOnFundContribution: 0.10,
   },
 

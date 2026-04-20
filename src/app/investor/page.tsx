@@ -46,9 +46,7 @@ export default function InvestorPage() {
         ? t('path.rrf')
         : assumptions.financingPath === "tepix-loan"
           ? t('path.tepixLoan')
-          : assumptions.financingPath === "tepix-guarantee"
-            ? t('path.tepixGuarantee')
-            : t('path.commercial');
+          : t('path.commercial');
 
   // Capital structure pie
   const grantAmount =
@@ -265,7 +263,6 @@ export default function InvestorPage() {
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('path.rrfShort')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-positive font-medium">{t('path.grantShort')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider font-medium" style={{ color: '#7B5EA7' }}>{t('path.tepixLoanShort')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider font-medium" style={{ color: '#C4754B' }}>{t('path.tepixGuaranteeShort')}</th>
               </tr>
             </thead>
             <tbody>
@@ -281,7 +278,6 @@ export default function InvestorPage() {
                     <td className="text-right py-2.5 px-3 data-cell">{formatVal(row.rrf)}</td>
                     <td className="text-right py-2.5 px-3 data-cell text-positive font-medium">{formatVal(row.grant)}</td>
                     <td className="text-right py-2.5 px-3 data-cell" style={{ color: '#7B5EA7' }}>{formatVal(row.tepixLoan)}</td>
-                    <td className="text-right py-2.5 px-3 data-cell" style={{ color: '#C4754B' }}>{formatVal(row.tepixGuarantee)}</td>
                   </tr>
                 );
               })}
@@ -301,7 +297,6 @@ export default function InvestorPage() {
             Commercial: Number(d.realistic.toFixed(2)),
             Grant: Number(d.grant.toFixed(2)),
             "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
-            "TEPIX Guarantee": Number(d.tepixGuarantee.toFixed(2)),
           }))}>
             <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
             <XAxis dataKey="year" tick={{ fontSize: 12 }} />
@@ -312,7 +307,6 @@ export default function InvestorPage() {
             <Line type="monotone" dataKey="Commercial" name={t('path.commercialShort')} stroke="#8B6914" strokeWidth={2} />
             <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.5} strokeDasharray="4 2" />
             <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
-            <Line type="monotone" dataKey="TEPIX Guarantee" name={t('path.tepixGuaranteeShort')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" />
           </LineChart>
         </ResponsiveContainer>
       </div>

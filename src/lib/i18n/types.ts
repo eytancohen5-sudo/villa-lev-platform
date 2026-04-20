@@ -50,9 +50,6 @@ export interface TranslationDictionary {
   'path.tepixLoan': string;
   'path.tepixLoanShort': string;
   'path.tepixLoanDesc': string;
-  'path.tepixGuarantee': string;
-  'path.tepixGuaranteeShort': string;
-  'path.tepixGuaranteeDesc': string;
 
   // ── Scenarios ──
   'scenario.realistic': string;
@@ -268,8 +265,6 @@ export interface TranslationDictionary {
   'field.tepixSubsidyDuration': string;
   'field.tepixTotalTerm': string;
   'field.tepixGrace': string;
-  'field.tepixGuaranteeRate': string;
-  'field.tepixCollateralCap': string;
   'field.tepixLandCap': string;
   'field.tepixLandCapNote': string;
   'field.tepixPrimaryLoan': string;

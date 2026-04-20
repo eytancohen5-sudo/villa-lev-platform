@@ -80,9 +80,7 @@ export default function DashboardPage() {
         ? t('path.rrf')
         : assumptions.financingPath === "tepix-loan"
           ? t('path.tepixLoan')
-          : assumptions.financingPath === "tepix-guarantee"
-            ? t('path.tepixGuarantee')
-            : t('path.commercial');
+          : t('path.commercial');
 
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
 
@@ -107,7 +105,6 @@ export default function DashboardPage() {
       Downside: Number(d.downside.toFixed(2)),
       Grant: Number(d.grant.toFixed(2)),
       "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
-      "TEPIX Guarantee": Number(d.tepixGuarantee.toFixed(2)),
     }));
 
   // Financing comparison chart data
@@ -116,7 +113,6 @@ export default function DashboardPage() {
     { key: 'rrf', label: t('path.rrfShort'), color: '#4A6A8B' },
     { key: 'grant', label: t('path.grantShort'), color: '#4A7C3F' },
     { key: 'tepixLoan', label: t('path.tepixLoanShort'), color: '#7B5EA7' },
-    { key: 'tepixGuarantee', label: t('path.tepixGuaranteeShort'), color: '#C4754B' },
   ];
 
   const capitalStructureData = compPaths.map((p) => ({
@@ -147,7 +143,6 @@ export default function DashboardPage() {
       RRF: Number((d.year >= 2028 ? model.dscrByYear.find(r => r.year === d.year)?.realistic ?? 0 : 0).toFixed(2)),
       Grant: Number(d.grant.toFixed(2)),
       "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
-      "TEPIX Guarantee": Number(d.tepixGuarantee.toFixed(2)),
     }));
 
   return (
@@ -480,9 +475,6 @@ export default function DashboardPage() {
                 <th className="text-right py-2 px-3 font-medium text-xs uppercase tracking-wider" style={{ color: '#7B5EA7' }}>
                   {t('path.tepixLoanShort')}
                 </th>
-                <th className="text-right py-2 px-3 font-medium text-xs uppercase tracking-wider" style={{ color: '#C4754B' }}>
-                  {t('path.tepixGuaranteeShort')}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -500,7 +492,6 @@ export default function DashboardPage() {
                     <td className="text-right py-2 px-3 data-cell">{formatVal(row.rrf)}</td>
                     <td className="text-right py-2 px-3 data-cell text-positive font-medium">{formatVal(row.grant)}</td>
                     <td className="text-right py-2 px-3 data-cell" style={{ color: '#7B5EA7' }}>{formatVal(row.tepixLoan)}</td>
-                    <td className="text-right py-2 px-3 data-cell" style={{ color: '#C4754B' }}>{formatVal(row.tepixGuarantee)}</td>
                   </tr>
                 );
               })}
@@ -587,7 +578,6 @@ export default function DashboardPage() {
               <Line type="monotone" dataKey="Commercial" name={t('path.commercialShort')} stroke="#8B6914" strokeWidth={2} />
               <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.5} strokeDasharray="4 2" />
               <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
-              <Line type="monotone" dataKey="TEPIX Guarantee" name={t('path.tepixGuaranteeShort')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" />
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -15,15 +15,26 @@ import {
   FinancingPath,
   PropertyConfig,
   getPropertyDisplayType,
+  computeTotalArea,
 } from './types';
-import { DOWNSIDE_FACTORS } from './defaults';
+import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS } from './defaults';
+
+function areaOf(prop: PropertyConfig): number {
+  const rooms = prop.roomAreas ?? DEFAULT_ROOM_AREAS;
+  return computeTotalArea(rooms, {
+    villaUnits: prop.villaUnits,
+    standardSuites: prop.standardSuites,
+    doubleSuites: prop.doubleSuites,
+  });
+}
 
 // ────────────────────────────────────────────
 // CAPEX
 // ────────────────────────────────────────────
 
 function computeCapexPerUnit(prop: PropertyConfig): number {
-  const construction = prop.constructionArea * prop.constructionCostPerM2;
+  const area = areaOf(prop);
+  const construction = area * prop.constructionCostPerM2;
   const contingency = (construction + prop.ffeCost) * prop.contingencyRate;
   return (
     prop.landCost +
@@ -62,7 +73,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     {
       name: 'Construction',
       getPerUnit: (p: PropertyConfig) =>
-        p.constructionArea * p.constructionCostPerM2,
+        areaOf(p) * p.constructionCostPerM2,
     },
     {
       name: 'FF&E',
@@ -83,7 +94,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     {
       name: 'Contingency (10% of construction + FF&E)',
       getPerUnit: (p: PropertyConfig) =>
-        (p.constructionArea * p.constructionCostPerM2 + p.ffeCost) *
+        (areaOf(p) * p.constructionCostPerM2 + p.ffeCost) *
         p.contingencyRate,
     },
     {
@@ -301,58 +312,6 @@ function computeDebtService(
     };
   }
 
-  if (path === 'tepix-guarantee') {
-    const tg = a.tepixGuarantee;
-    const cap = tg.landCapOnFundContribution;
-
-    const totalLand = computeTotalLand(a);
-    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
-    const nonLandCost = totalCost - totalLand - acqLegal;
-
-    const nonLandLoan = nonLandCost * tg.coverageRate;
-    const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
-    const primaryLoan = nonLandLoan + landFundedByTepix;
-
-    const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
-    const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
-    const suppEquity = landGap - suppLoanAmount;
-    const suppAnnualDS = pmt(
-      a.commercialLoan.interestRate,
-      a.commercialLoan.repaymentTermYears,
-      suppLoanAmount
-    );
-
-    const amortYears = tg.totalTermYears - tg.gracePeriodYears;
-    const annualDSTepix = pmt(tg.bankInterestRate, amortYears, primaryLoan);
-
-    const primaryEquity = nonLandCost - nonLandLoan;
-    const totalEquity = primaryEquity + suppEquity;
-    const totalLoanDrawn = primaryLoan + suppLoanAmount;
-    const combinedDS = annualDSTepix + suppAnnualDS;
-
-    return {
-      annualDS: combinedDS,
-      loanAmount: totalLoanDrawn,
-      equityRequired: totalEquity,
-      grantAmount: 0,
-      primaryLoan,
-      supplementaryLoan: suppLoanAmount,
-      supplementaryAnnualDS: suppAnnualDS,
-      landFundedByTepix,
-      landFundedByCommercial: landGap,
-      getDS: (year: number) => {
-        if (year === 2026 || year === 2027) {
-          const subsidisedRate = Math.max(0, tg.bankInterestRate - tg.interestSubsidy);
-          const tepixInterest = primaryLoan * subsidisedRate;
-          const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
-          return tepixInterest + suppInterest;
-        }
-        if (year >= 2028) return combinedDS;
-        return 0;
-      },
-    };
-  }
-
   return {
     annualDS: 0,
     loanAmount: 0,
@@ -390,7 +349,7 @@ function computeOpexForProperty(
 ): number {
   if (year <= 2027) return 0;
 
-  const constructionCost = prop.constructionArea * prop.constructionCostPerM2;
+  const constructionCost = areaOf(prop) * prop.constructionCostPerM2;
 
   let maintenanceRate: number;
   if (year <= 2029) maintenanceRate = 0.005;
@@ -561,7 +520,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   const grantDebt = computeDebtService(a, capex, 'grant');
   const rrfDebt = computeDebtService(a, capex, 'rrf');
   const tepixLoanDebt = computeDebtService(a, capex, 'tepix-loan');
-  const tepixGuaranteeDebt = computeDebtService(a, capex, 'tepix-guarantee');
 
   const activeDebt =
     a.financingPath === 'grant'
@@ -570,9 +528,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
         ? rrfDebt
         : a.financingPath === 'tepix-loan'
           ? tepixLoanDebt
-          : a.financingPath === 'tepix-guarantee'
-            ? tepixGuaranteeDebt
-            : commercialDebt;
+          : commercialDebt;
 
   const realistic = computeScenario(
     'Realistic',
@@ -667,12 +623,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     a.revenueRealistic,
     tepixLoanDebt
   );
-  const tepixGuaranteeRealistic = computeScenario(
-    'tepixGuarantee',
-    a,
-    a.revenueRealistic,
-    tepixGuaranteeDebt
-  );
 
   const dscrByYear = realistic.pnl.map((p, i) => ({
     year: p.year,
@@ -681,7 +631,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     downside: commercialDownside.pnl[i].dscr,
     grant: grantScenario.pnl[i].dscr,
     tepixLoan: tepixLoanRealistic.pnl[i].dscr,
-    tepixGuarantee: tepixGuaranteeRealistic.pnl[i].dscr,
   }));
 
   // Financing comparison
@@ -692,7 +641,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: rrfDebt.loanAmount,
       grant: grantDebt.loanAmount,
       tepixLoan: tepixLoanDebt.loanAmount,
-      tepixGuarantee: tepixGuaranteeDebt.loanAmount,
     },
     {
       metric: 'Grant received',
@@ -700,7 +648,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: 0,
       grant: grantDebt.grantAmount,
       tepixLoan: 0,
-      tepixGuarantee: 0,
     },
     {
       metric: 'Equity required',
@@ -708,7 +655,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: rrfDebt.equityRequired,
       grant: grantDebt.equityRequired,
       tepixLoan: tepixLoanDebt.equityRequired,
-      tepixGuarantee: tepixGuaranteeDebt.equityRequired,
     },
     {
       metric: 'Annual debt service',
@@ -716,7 +662,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: rrfDebt.annualDS,
       grant: grantDebt.annualDS,
       tepixLoan: tepixLoanDebt.annualDS,
-      tepixGuarantee: tepixGuaranteeDebt.annualDS,
     },
     {
       metric: 'DSCR — Realistic (2031)',
@@ -724,7 +669,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
       grant: grantScenario.stabilisedYear?.dscr ?? 0,
       tepixLoan: tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
-      tepixGuarantee: tepixGuaranteeRealistic.stabilisedYear?.dscr ?? 0,
     },
     {
       metric: 'Supplementary commercial loan',
@@ -732,7 +676,6 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       rrf: '—',
       grant: '—',
       tepixLoan: tepixLoanDebt.supplementaryLoan ?? 0,
-      tepixGuarantee: tepixGuaranteeDebt.supplementaryLoan ?? 0,
     },
     {
       metric: 'Equity saving vs. commercial',
@@ -741,15 +684,12 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       grant: commercialDebt.equityRequired - grantDebt.equityRequired,
       tepixLoan:
         commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
-      tepixGuarantee:
-        commercialDebt.equityRequired -
-        tepixGuaranteeDebt.equityRequired,
     },
   ];
 
   // Collateral
   const builtSurface = a.portfolio.reduce(
-    (sum, p) => sum + p.constructionArea * p.count,
+    (sum, p) => sum + areaOf(p) * p.count,
     0
   );
   const loan = activeDebt.loanAmount;

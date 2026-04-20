@@ -8,7 +8,7 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FinancingPath, PropertyTemplate, getPropertyDisplayType } from "@/lib/engine/types";
+import { FinancingPath, PropertyTemplate, getPropertyDisplayType, computeTotalArea } from "@/lib/engine/types";
 
 // ── Shared Components ──
 
@@ -99,7 +99,7 @@ function AssumptionRow({
         <EditableCell
           value={value}
           format={format}
-          onChange={(v) => setAssumption(path, v)}
+          onChange={(v) => setAssumption(path, v, label)}
         />
       </td>
       <td className="py-2 pl-4 text-xs text-text-tertiary">{note}</td>
@@ -169,14 +169,21 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
   const inUse = projects.some((p) => p.templateId === tpl.id);
   const projectCount = projects.filter((p) => p.templateId === tpl.id).length;
 
+  const totalArea = computeTotalArea(tpl.roomAreas, {
+    villaUnits: tpl.villaUnits,
+    standardSuites: tpl.standardSuites,
+    doubleSuites: tpl.doubleSuites,
+  });
+  const constructionCost = totalArea * tpl.constructionCostPerM2;
+  const contingencyAmount = (constructionCost + tpl.ffeCost) * tpl.contingencyRate;
   const capexPerUnit =
     tpl.landCost +
-    tpl.constructionArea * tpl.constructionCostPerM2 +
+    constructionCost +
     tpl.ffeCost +
     tpl.legalFees +
     tpl.architectFees +
     tpl.civilEngineerFees +
-    (tpl.constructionArea * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate;
+    contingencyAmount;
 
   const totalOpex = Object.values(tpl.opex).reduce((s, v) => s + v, 0);
 
@@ -232,7 +239,7 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
           {/* Action bar */}
           <div className="px-5 py-3 bg-surface-secondary/20 flex items-center justify-between border-b border-surface-secondary/30">
             <div className="flex items-center gap-4 text-xs text-text-tertiary">
-              <span>{tpl.constructionArea}m² &middot; {formatCurrency(tpl.constructionCostPerM2, false, locale)}/m²</span>
+              <span>{totalArea}m² &middot; {formatCurrency(tpl.constructionCostPerM2, false, locale)}/m²</span>
               <span>Land: {formatCurrency(tpl.landCost, false, locale)}</span>
               <span>OPEX/yr: {formatCurrency(totalOpex, true, locale)}</span>
             </div>
@@ -325,6 +332,68 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
               </p>
             </div>
 
+            {/* Space Distribution */}
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-emerald-50/60 to-teal-50/60 border border-surface-tertiary">
+              <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Space Distribution (m² per plot)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Accommodation rooms */}
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 mb-2">Accommodation Rooms</p>
+                  <table className="w-full">
+                    <tbody>
+                      {tpl.villaUnits > 0 && (
+                        <TemplateRow
+                          label={`Villa bedroom (×${tpl.villaUnits})`}
+                          value={tpl.roomAreas.villaUnitArea}
+                          tplId={tpl.id}
+                          path="roomAreas.villaUnitArea"
+                        />
+                      )}
+                      {tpl.standardSuites > 0 && (
+                        <TemplateRow
+                          label={`Standard suite (×${tpl.standardSuites})`}
+                          value={tpl.roomAreas.standardSuiteArea}
+                          tplId={tpl.id}
+                          path="roomAreas.standardSuiteArea"
+                        />
+                      )}
+                      {tpl.doubleSuites > 0 && (
+                        <TemplateRow
+                          label={`Double suite (×${tpl.doubleSuites})`}
+                          value={tpl.roomAreas.doubleSuiteArea}
+                          tplId={tpl.id}
+                          path="roomAreas.doubleSuiteArea"
+                        />
+                      )}
+                      {tpl.villaUnits + tpl.standardSuites + tpl.doubleSuites === 0 && (
+                        <tr>
+                          <td className="py-2 text-xs text-text-tertiary italic">No accommodation units in this template</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Common spaces */}
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mb-2">Common Spaces</p>
+                  <table className="w-full">
+                    <tbody>
+                      <TemplateRow label="Kitchen" value={tpl.roomAreas.kitchen} tplId={tpl.id} path="roomAreas.kitchen" />
+                      <TemplateRow label="Living / lounge" value={tpl.roomAreas.livingRoom} tplId={tpl.id} path="roomAreas.livingRoom" />
+                      <TemplateRow label="Utility / storage" value={tpl.roomAreas.utilityRoom} tplId={tpl.id} path="roomAreas.utilityRoom" />
+                      <TemplateRow label="Staff quarters" value={tpl.roomAreas.staffRoom} tplId={tpl.id} path="roomAreas.staffRoom" />
+                      <TemplateRow label="Corridors / lobby" value={tpl.roomAreas.corridors} tplId={tpl.id} path="roomAreas.corridors" />
+                      <TemplateRow label="Outdoor / terrace" value={tpl.roomAreas.outdoor} tplId={tpl.id} path="roomAreas.outdoor" />
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-emerald-200/60 flex justify-between items-baseline text-sm">
+                <span className="font-medium text-text-secondary">Total built area</span>
+                <span className="font-mono font-bold text-emerald-700 text-lg">{totalArea.toLocaleString()}m²</span>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* CAPEX */}
               <div>
@@ -332,13 +401,30 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                 <table className="w-full">
                   <tbody>
                     <TemplateRow label="Land cost" value={tpl.landCost} tplId={tpl.id} path="landCost" format="currency" />
-                    <TemplateRow label="Construction area (m²)" value={tpl.constructionArea} tplId={tpl.id} path="constructionArea" />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary">Total area (m²)</td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary">
+                        {totalArea.toLocaleString()}
+                      </td>
+                    </tr>
                     <TemplateRow label="Cost per m²" value={tpl.constructionCostPerM2} tplId={tpl.id} path="constructionCostPerM2" format="currency" />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary">Construction cost</td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary">
+                        {formatCurrency(constructionCost, false, locale)}
+                      </td>
+                    </tr>
                     <TemplateRow label="FF&E" value={tpl.ffeCost} tplId={tpl.id} path="ffeCost" format="currency" />
                     <TemplateRow label="Legal & notary" value={tpl.legalFees} tplId={tpl.id} path="legalFees" format="currency" />
                     <TemplateRow label="Architect + design" value={tpl.architectFees} tplId={tpl.id} path="architectFees" format="currency" />
                     <TemplateRow label="Civil engineer" value={tpl.civilEngineerFees} tplId={tpl.id} path="civilEngineerFees" format="currency" />
                     <TemplateRow label="Contingency rate" value={tpl.contingencyRate} tplId={tpl.id} path="contingencyRate" format="percent" />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary italic">Contingency amount</td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary italic">
+                        {formatCurrency(contingencyAmount, false, locale)}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
                 <div className="mt-2 pt-2 border-t border-surface-secondary/50 flex justify-between text-xs">
@@ -398,7 +484,7 @@ function TemplateRow({
         <EditableCell
           value={value}
           format={format}
-          onChange={(v) => updateTemplate(tplId, path, v)}
+          onChange={(v) => updateTemplate(tplId, path, v, label)}
         />
       </td>
     </tr>
@@ -426,14 +512,17 @@ function ProjectCard({ projId }: { projId: string }) {
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState(proj.name);
 
+  const tplArea = tpl
+    ? computeTotalArea(tpl.roomAreas, { villaUnits: tpl.villaUnits, standardSuites: tpl.standardSuites, doubleSuites: tpl.doubleSuites })
+    : 0;
   const capexPerUnit = tpl
     ? tpl.landCost +
-      tpl.constructionArea * tpl.constructionCostPerM2 +
+      tplArea * tpl.constructionCostPerM2 +
       tpl.ffeCost +
       tpl.legalFees +
       tpl.architectFees +
       tpl.civilEngineerFees +
-      (tpl.constructionArea * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate
+      (tplArea * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate
     : 0;
 
   return (
@@ -520,7 +609,7 @@ function ProjectCard({ projId }: { projId: string }) {
       {/* Summary line */}
       {tpl && (
         <div className="px-5 py-2 flex items-center gap-6 text-xs text-text-tertiary border-t border-surface-secondary/30 bg-surface-secondary/20">
-          <span>{tpl.constructionArea}m² &middot; {tpl.villaUnits > 0 ? `${tpl.villaUnits}V` : ''}{tpl.standardSuites > 0 ? `${tpl.villaUnits > 0 ? '+' : ''}${tpl.standardSuites}S` : ''}{tpl.doubleSuites > 0 ? `+${tpl.doubleSuites}D` : ''}</span>
+          <span>{tplArea}m² &middot; {tpl.villaUnits > 0 ? `${tpl.villaUnits}V` : ''}{tpl.standardSuites > 0 ? `${tpl.villaUnits > 0 ? '+' : ''}${tpl.standardSuites}S` : ''}{tpl.doubleSuites > 0 ? `+${tpl.doubleSuites}D` : ''}</span>
           <span>CAPEX/unit: {formatCurrency(capexPerUnit, true, locale)}</span>
           <span className="font-medium text-text-secondary">
             Total: {formatCurrency(capexPerUnit * proj.count, true, locale)}
@@ -562,14 +651,15 @@ function AddProjectPanel() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {templates.map((tpl) => {
+          const area = computeTotalArea(tpl.roomAreas, { villaUnits: tpl.villaUnits, standardSuites: tpl.standardSuites, doubleSuites: tpl.doubleSuites });
           const capex =
             tpl.landCost +
-            tpl.constructionArea * tpl.constructionCostPerM2 +
+            area * tpl.constructionCostPerM2 +
             tpl.ffeCost +
             tpl.legalFees +
             tpl.architectFees +
             tpl.civilEngineerFees +
-            (tpl.constructionArea * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate;
+            (area * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate;
 
           return (
             <button
@@ -587,7 +677,7 @@ function AddProjectPanel() {
                 </span>
               </div>
               <div className="text-xs text-text-tertiary">
-                {tpl.constructionArea}m² &middot; {formatCurrency(capex, true, locale)}/unit
+                {area}m² &middot; {formatCurrency(capex, true, locale)}/unit
               </div>
               {tpl.builtIn && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-tertiary text-text-tertiary mt-1 inline-block">
@@ -683,7 +773,7 @@ export default function AssumptionsPage() {
           <div>
             <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Built Surface</label>
             <div className="font-mono text-lg font-semibold text-text-primary">
-              {a.portfolio.reduce((s, p) => s + p.constructionArea * p.count, 0).toLocaleString()}m²
+              {a.portfolio.reduce((s, p) => s + computeTotalArea(p.roomAreas, { villaUnits: p.villaUnits, standardSuites: p.standardSuites, doubleSuites: p.doubleSuites }) * p.count, 0).toLocaleString()}m²
             </div>
           </div>
           <div>
@@ -808,7 +898,7 @@ export default function AssumptionsPage() {
           </p>
 
           {/* Financing path selector */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {(
               [
                 {
@@ -842,14 +932,6 @@ export default function AssumptionsPage() {
                   highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.tepixLoan as number, true, locale)}/yr`,
                   borderColor: "#7B5EA7",
                   bgColor: "#F5F0FA",
-                },
-                {
-                  id: "tepix-guarantee" as FinancingPath,
-                  title: t('path.tepixGuarantee'),
-                  desc: t('path.tepixGuaranteeDesc'),
-                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.tepixGuarantee as number, true, locale)}/yr`,
-                  borderColor: "#C4754B",
-                  bgColor: "#FDF5F0",
                 },
               ] as const
             ).map((path) => {
@@ -978,31 +1060,6 @@ export default function AssumptionsPage() {
               </div>
             </>)}
 
-            {a.financingPath === "tepix-guarantee" && (<>
-              <table className="w-full">
-                <tbody>
-                  <AssumptionRow label={t('field.tepixCoverage')} value={a.tepixGuarantee.coverageRate} path="tepixGuarantee.coverageRate" format="percent" note="90% coverage" />
-                  <AssumptionRow label={t('field.tepixGuaranteeRate')} value={a.tepixGuarantee.guaranteeRate} path="tepixGuarantee.guaranteeRate" format="percent" note="70% guarantee" />
-                  <AssumptionRow label={t('field.tepixBankRate')} value={a.tepixGuarantee.bankInterestRate} path="tepixGuarantee.bankInterestRate" format="percent" />
-                  <AssumptionRow label={t('field.tepixSubsidy')} value={a.tepixGuarantee.interestSubsidy} path="tepixGuarantee.interestSubsidy" format="percent" note="2pp subsidy" />
-                  <AssumptionRow label={t('field.tepixSubsidyDuration')} value={a.tepixGuarantee.subsidyDurationYears} path="tepixGuarantee.subsidyDurationYears" />
-                  <AssumptionRow label={t('field.tepixTotalTerm')} value={a.tepixGuarantee.totalTermYears} path="tepixGuarantee.totalTermYears" />
-                  <AssumptionRow label={t('field.tepixGrace')} value={a.tepixGuarantee.gracePeriodYears} path="tepixGuarantee.gracePeriodYears" />
-                  <AssumptionRow label={t('field.tepixCollateralCap')} value={a.tepixGuarantee.collateralCapRate} path="tepixGuarantee.collateralCapRate" format="percent" />
-                  <AssumptionRow label={t('field.tepixLandCap')} value={a.tepixGuarantee.landCapOnFundContribution} path="tepixGuarantee.landCapOnFundContribution" format="percent" note={t('field.tepixLandCapNote')} />
-                </tbody>
-              </table>
-              <div className="mt-4 rounded-lg border border-orange-300 bg-orange-50 p-4">
-                <h4 className="text-sm font-semibold text-[#C4754B] mb-3">{t('field.tepixCombinedStructure')}</h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-text-tertiary">{t('field.tepixPrimaryLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.primaryLoan, true, locale)}</div></div>
-                  <div><span className="text-text-tertiary">{t('field.tepixSuppLoan')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.supplementaryLoan, true, locale)}</div></div>
-                  <div><span className="text-text-tertiary">{t('field.tepixLandFundedByTepix')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByTepix, true, locale)}</div></div>
-                  <div><span className="text-text-tertiary">{t('field.tepixLandGap')}</span><div className="font-mono font-semibold">{formatCurrency(model.keyMetrics.landFundedByCommercial, true, locale)}</div></div>
-                  <div className="col-span-2 pt-2 border-t border-orange-200"><span className="text-text-tertiary">{t('field.tepixCombinedDS')}</span><div className="font-mono font-semibold text-lg">{formatCurrency(model.keyMetrics.annualDS, true, locale)}/yr</div></div>
-                </div>
-              </div>
-            </>)}
           </div>
 
           {/* Impact Summary */}
@@ -1078,8 +1135,144 @@ export default function AssumptionsPage() {
         </div>
       )}
 
+      {/* ── Change History ── */}
+      <HistoryPanel />
+
       {/* ── Saved Configurations ── */}
       <ConfigPanel />
+    </div>
+  );
+}
+
+function formatValue(v: unknown): string {
+  if (v === null || v === undefined) return '—';
+  if (typeof v === 'number') {
+    if (Math.abs(v) >= 1000) return v.toLocaleString();
+    if (!Number.isInteger(v)) return v.toFixed(4).replace(/\.?0+$/, '');
+    return v.toString();
+  }
+  if (typeof v === 'string') return v;
+  return JSON.stringify(v);
+}
+
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function HistoryPanel() {
+  const { history, currentUser, setCurrentUser, revertChange, clearHistory } = useModelStore();
+  const [expanded, setExpanded] = useState(false);
+  const [editingUser, setEditingUser] = useState(false);
+  const [userInput, setUserInput] = useState(currentUser);
+
+  const visible = expanded ? history.slice().reverse() : history.slice(-10).reverse();
+  const activeCount = history.filter((h) => !h.superseded && !h.reverted).length;
+
+  return (
+    <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-display text-lg text-text-primary">Change History</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            {history.length} {history.length === 1 ? 'change' : 'changes'}
+            {activeCount > 0 && ` · ${activeCount} revertable`}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-text-tertiary">Working as:</span>
+            {editingUser ? (
+              <input
+                type="text"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+                onBlur={() => { setCurrentUser(userInput); setEditingUser(false); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { setCurrentUser(userInput); setEditingUser(false); }
+                  if (e.key === 'Escape') { setUserInput(currentUser); setEditingUser(false); }
+                }}
+                autoFocus
+                className="px-2 py-0.5 rounded border border-brand-500/30 text-xs focus:outline-none w-28"
+              />
+            ) : (
+              <button
+                onClick={() => { setUserInput(currentUser); setEditingUser(true); }}
+                className="px-2 py-0.5 rounded-md bg-brand-600/10 text-brand-700 font-medium hover:bg-brand-600/20 transition-colors"
+              >
+                {currentUser} ✎
+              </button>
+            )}
+          </div>
+          {history.length > 0 && (
+            <button
+              onClick={() => { if (confirm('Clear all change history? This cannot be undone.')) clearHistory(); }}
+              className="text-xs text-text-tertiary hover:text-negative transition-colors"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {history.length === 0 ? (
+        <p className="text-sm text-text-tertiary text-center py-6">No changes yet. Edit any value to start tracking.</p>
+      ) : (
+        <>
+          <div className="space-y-1.5">
+            {visible.map((entry) => {
+              const isInactive = entry.superseded || entry.reverted;
+              return (
+                <div
+                  key={entry.id}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors ${
+                    isInactive ? 'bg-surface-secondary/20 opacity-60' : 'bg-surface-secondary/40 hover:bg-surface-secondary/60'
+                  }`}
+                >
+                  <span className="text-text-tertiary whitespace-nowrap">{timeAgo(entry.timestamp)}</span>
+                  <span className="font-medium text-brand-700 whitespace-nowrap">{entry.user}</span>
+                  <span className="flex-1 min-w-0 truncate">
+                    {entry.scopeLabel && <span className="text-text-tertiary">{entry.scopeLabel} — </span>}
+                    <span className="text-text-secondary">{entry.label}:</span>{' '}
+                    <span className="font-mono text-text-tertiary">{formatValue(entry.before)}</span>
+                    <span className="text-text-tertiary mx-1">→</span>
+                    <span className="font-mono text-text-primary">{formatValue(entry.after)}</span>
+                  </span>
+                  {entry.reverted && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary whitespace-nowrap">Reverted</span>
+                  )}
+                  {entry.superseded && !entry.reverted && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary whitespace-nowrap">Superseded</span>
+                  )}
+                  {!isInactive && (
+                    <button
+                      onClick={() => revertChange(entry.id)}
+                      className="px-2 py-0.5 rounded-md bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors whitespace-nowrap font-medium"
+                    >
+                      Revert
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {history.length > 10 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="mt-3 text-xs text-brand-600 hover:text-brand-700 font-medium"
+            >
+              {expanded ? 'Show last 10' : `Show all ${history.length}`}
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }

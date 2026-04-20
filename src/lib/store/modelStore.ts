@@ -7,16 +7,28 @@ import {
   ProjectAllocation,
   PropertyConfig,
   PropertyOpex,
+  RoomAreaBreakdown,
 } from '../engine/types';
 import {
   BASE_CASE,
   BUILT_IN_TEMPLATES,
   DEFAULT_PROJECTS,
+  DEFAULT_ROOM_AREAS,
   DEFAULT_VILLA,
   DEFAULT_SUITE,
   resolvePortfolio,
 } from '../engine/defaults';
 import { computeModel } from '../engine/model';
+
+// Ensure a template has a roomAreas object (migration for pre-roomAreas saves)
+function ensureRoomAreas(tpl: PropertyTemplate): PropertyTemplate {
+  if (tpl.roomAreas) return tpl;
+  const builtIn = BUILT_IN_TEMPLATES.find((bt) => bt.id === tpl.id);
+  const roomAreas: RoomAreaBreakdown = builtIn
+    ? { ...builtIn.roomAreas }
+    : { ...DEFAULT_ROOM_AREAS };
+  return { ...tpl, roomAreas };
+}
 
 // ── Helpers ──
 
@@ -53,6 +65,55 @@ function setNestedValue(obj: Record<string, unknown>, path: string, value: unkno
   return result;
 }
 
+function readNestedValue(obj: Record<string, unknown>, path: string): unknown {
+  const keys = path.split('.');
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current === null || current === undefined) return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+// pushHistory records a single change, marks earlier same-(scope,scopeId,path) entries superseded,
+// and persists the trimmed history to localStorage.
+function pushHistory(
+  getState: () => { history: ChangeEntry[]; currentUser: string },
+  setState: (partial: { history: ChangeEntry[] }) => void,
+  entry: { scope: ChangeScope; scopeId?: string; scopeLabel?: string; path: string; label: string; before: unknown; after: unknown }
+) {
+  // Skip no-op changes
+  if (JSON.stringify(entry.before) === JSON.stringify(entry.after)) return;
+
+  const state = getState();
+  const newEntry: ChangeEntry = {
+    id: generateId('chg'),
+    timestamp: Date.now(),
+    user: state.currentUser,
+    scope: entry.scope,
+    scopeId: entry.scopeId,
+    scopeLabel: entry.scopeLabel,
+    path: entry.path,
+    label: entry.label,
+    before: entry.before,
+    after: entry.after,
+  };
+
+  // Mark previous non-superseded entries for same (scope, scopeId, path) as superseded
+  const updatedHistory = state.history.map((h) =>
+    !h.superseded &&
+    h.scope === entry.scope &&
+    h.scopeId === entry.scopeId &&
+    h.path === entry.path
+      ? { ...h, superseded: true }
+      : h
+  );
+
+  const next = [...updatedHistory, newEntry].slice(-HISTORY_MAX);
+  setState({ history: next });
+  saveHistoryToStorage(next);
+}
+
 let idCounter = 0;
 function generateId(prefix: string): string {
   idCounter++;
@@ -63,6 +124,9 @@ function generateId(prefix: string): string {
 
 const STORAGE_KEY = 'villa-lev-saved-configs';
 const TEMPLATES_STORAGE_KEY = 'villa-lev-templates';
+const HISTORY_STORAGE_KEY = 'villa-lev-history';
+const USER_STORAGE_KEY = 'villa-lev-current-user';
+const HISTORY_MAX = 200;
 
 function loadFromStorage(): SavedConfiguration[] {
   if (typeof window === 'undefined') return [];
@@ -108,6 +172,40 @@ function saveTemplatesToStorage(templates: PropertyTemplate[]) {
   } catch { /* storage full */ }
 }
 
+function loadHistoryFromStorage(): ChangeEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveHistoryToStorage(history: ChangeEntry[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history.slice(-HISTORY_MAX)));
+  } catch { /* storage full */ }
+}
+
+function loadUserFromStorage(): string {
+  if (typeof window === 'undefined') return 'You';
+  try {
+    return localStorage.getItem(USER_STORAGE_KEY) || 'You';
+  } catch {
+    return 'You';
+  }
+}
+
+function saveUserToStorage(user: string) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, user);
+  } catch { /* storage full */ }
+}
+
 // ── Migration ──
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -132,6 +230,7 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
       standardSuites: 0,
       doubleSuites: 0,
       count: raw.numberOfPropertyA ?? 2,
+      roomAreas: { ...DEFAULT_VILLA.roomAreas },
       landCost: oldA.landCost ?? DEFAULT_VILLA.landCost,
       constructionArea: oldA.constructionArea ?? DEFAULT_VILLA.constructionArea,
       constructionCostPerM2: oldA.constructionCostPerM2 ?? DEFAULT_VILLA.constructionCostPerM2,
@@ -164,6 +263,7 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
       standardSuites: 2,
       doubleSuites: 2,
       count: raw.numberOfPropertyB ?? 1,
+      roomAreas: { ...DEFAULT_SUITE.roomAreas },
       landCost: oldB.landCost ?? DEFAULT_SUITE.landCost,
       constructionArea: oldB.constructionArea ?? DEFAULT_SUITE.constructionArea,
       constructionCostPerM2: oldB.constructionCostPerM2 ?? DEFAULT_SUITE.constructionCostPerM2,
@@ -200,7 +300,6 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
     grant: raw.grant ? deepMerge(BASE_CASE.grant as unknown as Record<string, unknown>, raw.grant) as unknown as typeof BASE_CASE.grant : BASE_CASE.grant,
     rrf: raw.rrf ? deepMerge(BASE_CASE.rrf as unknown as Record<string, unknown>, raw.rrf) as unknown as typeof BASE_CASE.rrf : BASE_CASE.rrf,
     tepixLoan: raw.tepixLoan ? deepMerge(BASE_CASE.tepixLoan as unknown as Record<string, unknown>, raw.tepixLoan) as unknown as typeof BASE_CASE.tepixLoan : BASE_CASE.tepixLoan,
-    tepixGuarantee: raw.tepixGuarantee ? deepMerge(BASE_CASE.tepixGuarantee as unknown as Record<string, unknown>, raw.tepixGuarantee) as unknown as typeof BASE_CASE.tepixGuarantee : BASE_CASE.tepixGuarantee,
     tax: raw.tax ? deepMerge(BASE_CASE.tax as unknown as Record<string, unknown>, raw.tax) as unknown as typeof BASE_CASE.tax : BASE_CASE.tax,
     acquisitionLegalPerPlot: raw.acquisitionLegalPerPlot ?? BASE_CASE.acquisitionLegalPerPlot,
     financingPath: raw.financingPath ?? BASE_CASE.financingPath,
@@ -212,6 +311,23 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
 // ── Types ──
 
 export type ScenarioName = 'realistic' | 'upside' | 'downside' | 'breakeven';
+
+export type ChangeScope = 'assumption' | 'template' | 'project' | 'portfolio';
+
+export interface ChangeEntry {
+  id: string;
+  timestamp: number;
+  user: string;
+  scope: ChangeScope;
+  scopeId?: string;   // templateId or projectId when relevant
+  scopeLabel?: string; // e.g. "Twin Villas" — the template/project name
+  path: string;        // e.g. "commercialLoan.interestRate" or "roomAreas.kitchen"
+  label: string;       // human-readable field label
+  before: unknown;
+  after: unknown;
+  superseded?: boolean;
+  reverted?: boolean;
+}
 
 export interface SavedConfiguration {
   id: string;
@@ -238,8 +354,15 @@ interface ModelStore {
   activeConfigId: string | null;
   activeConfigName: string | null;
 
+  // Change history + user attribution
+  history: ChangeEntry[];
+  currentUser: string;
+  setCurrentUser: (name: string) => void;
+  revertChange: (id: string) => void;
+  clearHistory: () => void;
+
   // Core actions
-  setAssumption: (path: string, value: unknown) => void;
+  setAssumption: (path: string, value: unknown, label?: string) => void;
   setFinancingPath: (path: FinancingPath) => void;
   setActiveScenario: (scenario: ScenarioName) => void;
   toggleGrant: (enabled: boolean) => void;
@@ -250,7 +373,7 @@ interface ModelStore {
 
   // Template management
   addTemplate: (type: 'villa' | 'suite' | 'mixed') => void;
-  updateTemplate: (id: string, path: string, value: unknown) => void;
+  updateTemplate: (id: string, path: string, value: unknown, label?: string) => void;
   renameTemplate: (id: string, newName: string) => void;
   duplicateTemplate: (id: string) => void;
   deleteTemplate: (id: string) => void;
@@ -288,15 +411,99 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   savedConfigs: [],
   activeConfigId: null,
   activeConfigName: null,
+  history: [],
+  currentUser: 'You',
 
-  setAssumption: (path: string, value: unknown) => {
+  setCurrentUser: (name: string) => {
+    const trimmed = name.trim() || 'You';
+    set({ currentUser: trimmed });
+    saveUserToStorage(trimmed);
+  },
+
+  revertChange: (id: string) => {
+    const state = get();
+    const entry = state.history.find((h) => h.id === id);
+    if (!entry || entry.superseded || entry.reverted) return;
+
+    if (entry.scope === 'assumption') {
+      const updated = setNestedValue(
+        state.assumptions as unknown as Record<string, unknown>,
+        entry.path,
+        entry.before
+      ) as unknown as ModelAssumptions;
+      set({ assumptions: updated });
+    } else if (entry.scope === 'template' && entry.scopeId) {
+      const templates = state.templates.map((tpl) => {
+        if (tpl.id !== entry.scopeId) return tpl;
+        if (entry.path.includes('.')) {
+          const [root, key] = entry.path.split('.');
+          if (root === 'opex') {
+            return { ...tpl, opex: { ...tpl.opex, [key]: entry.before } as PropertyOpex };
+          }
+          if (root === 'roomAreas') {
+            const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+            return { ...tpl, roomAreas: { ...rooms, [key]: entry.before } as RoomAreaBreakdown };
+          }
+          return tpl;
+        }
+        return { ...tpl, [entry.path]: entry.before };
+      });
+      set({ templates });
+      saveTemplatesToStorage(templates);
+    } else if (entry.scope === 'project' && entry.scopeId) {
+      const projects = state.projects.map((p) =>
+        p.id === entry.scopeId ? { ...p, [entry.path]: entry.before } : p
+      );
+      set({ projects });
+    } else if (entry.scope === 'portfolio' && entry.path === 'financingPath') {
+      set((s) => ({ assumptions: { ...s.assumptions, financingPath: entry.before as FinancingPath } }));
+    }
+
+    // Mark entry reverted; create a revert-note entry
+    const revertEntry: ChangeEntry = {
+      id: generateId('chg'),
+      timestamp: Date.now(),
+      user: state.currentUser,
+      scope: entry.scope,
+      scopeId: entry.scopeId,
+      scopeLabel: entry.scopeLabel,
+      path: entry.path,
+      label: `Revert: ${entry.label}`,
+      before: entry.after,
+      after: entry.before,
+    };
+    const history = state.history.map((h) =>
+      h.id === id ? { ...h, reverted: true, superseded: true } : h
+    );
+    // Also mark older entries for same (scope, scopeId, path) as superseded already — unchanged.
+    // The new revertEntry becomes the latest non-superseded entry for this field.
+    const newHistory = [...history, revertEntry].slice(-HISTORY_MAX);
+    set({ history: newHistory, activeConfigId: null });
+    saveHistoryToStorage(newHistory);
+    get().recompute();
+  },
+
+  clearHistory: () => {
+    set({ history: [] });
+    saveHistoryToStorage([]);
+  },
+
+  setAssumption: (path: string, value: unknown, label?: string) => {
     const current = get().assumptions;
+    const before = readNestedValue(current as unknown as Record<string, unknown>, path);
     const updated = setNestedValue(
       current as unknown as Record<string, unknown>,
       path,
       value
     ) as unknown as ModelAssumptions;
     set({ assumptions: updated, activeConfigId: null });
+    pushHistory(get, set, {
+      scope: 'assumption',
+      path,
+      label: label ?? path,
+      before,
+      after: value,
+    });
     get().recompute();
   },
 
@@ -305,10 +512,18 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
 
   setFinancingPath: (path: FinancingPath) => {
+    const before = get().assumptions.financingPath;
     set((state) => ({
       assumptions: { ...state.assumptions, financingPath: path },
       activeConfigId: null,
     }));
+    pushHistory(get, set, {
+      scope: 'portfolio',
+      path: 'financingPath',
+      label: 'Financing path',
+      before,
+      after: path,
+    });
     get().recompute();
   },
 
@@ -364,15 +579,19 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   init: () => {
     const configs = loadFromStorage();
     const savedTemplates = loadTemplatesFromStorage();
+    const history = loadHistoryFromStorage();
+    const currentUser = loadUserFromStorage();
     // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
       ...BUILT_IN_TEMPLATES.map((bt) => {
         const saved = savedTemplates.find((st) => st.id === bt.id);
-        return saved ? { ...saved, builtIn: true as const } : bt;
+        return saved ? ensureRoomAreas({ ...saved, builtIn: true as const }) : bt;
       }),
-      ...savedTemplates.filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id)),
+      ...savedTemplates
+        .filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id))
+        .map(ensureRoomAreas),
     ];
-    set({ savedConfigs: configs, templates: allTemplates });
+    set({ savedConfigs: configs, templates: allTemplates, history, currentUser });
     get().recompute();
   },
 
@@ -389,19 +608,37 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       name: `Custom ${label} ${existingCount + 1}`,
       builtIn: false,
       opex: { ...base.opex },
+      roomAreas: { ...base.roomAreas },
     };
     const updated = [...templates, newTemplate];
     set({ templates: updated });
     saveTemplatesToStorage(updated);
   },
 
-  updateTemplate: (id: string, path: string, value: unknown) => {
-    const templates = get().templates.map((tpl) => {
+  updateTemplate: (id: string, path: string, value: unknown, label?: string) => {
+    const state = get();
+    const prevTpl = state.templates.find((t) => t.id === id);
+    let before: unknown = undefined;
+    if (prevTpl) {
+      if (path.includes('.')) {
+        const [root, key] = path.split('.');
+        if (root === 'opex') before = prevTpl.opex[key as keyof PropertyOpex];
+        else if (root === 'roomAreas') before = prevTpl.roomAreas?.[key as keyof RoomAreaBreakdown];
+      } else {
+        before = (prevTpl as unknown as Record<string, unknown>)[path];
+      }
+    }
+
+    const templates = state.templates.map((tpl) => {
       if (tpl.id !== id) return tpl;
       if (path.includes('.')) {
         const keys = path.split('.');
         if (keys[0] === 'opex') {
           return { ...tpl, opex: { ...tpl.opex, [keys[1]]: value } as PropertyOpex };
+        }
+        if (keys[0] === 'roomAreas') {
+          const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+          return { ...tpl, roomAreas: { ...rooms, [keys[1]]: value } as RoomAreaBreakdown };
         }
         return tpl;
       }
@@ -409,6 +646,15 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     set({ templates, activeConfigId: null });
     saveTemplatesToStorage(templates);
+    pushHistory(get, set, {
+      scope: 'template',
+      scopeId: id,
+      scopeLabel: prevTpl?.name,
+      path,
+      label: label ?? path,
+      before,
+      after: value,
+    });
     get().recompute();
   },
 
@@ -429,6 +675,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       name: `${tpl.name} (copy)`,
       builtIn: false,
       opex: { ...tpl.opex },
+      roomAreas: tpl.roomAreas ? { ...tpl.roomAreas } : { ...DEFAULT_ROOM_AREAS },
     };
     const templates = [...get().templates, copy];
     set({ templates });
@@ -475,10 +722,22 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   updateProjectCount: (id: string, count: number) => {
     if (count < 0) return;
-    const projects = get().projects.map((p) =>
+    const state = get();
+    const prev = state.projects.find((p) => p.id === id);
+    const before = prev?.count;
+    const projects = state.projects.map((p) =>
       p.id === id ? { ...p, count } : p
     );
     set({ projects, activeConfigId: null });
+    pushHistory(get, set, {
+      scope: 'project',
+      scopeId: id,
+      scopeLabel: prev?.name,
+      path: 'count',
+      label: 'Project unit count',
+      before,
+      after: count,
+    });
     get().recompute();
   },
 
@@ -549,9 +808,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       const allTemplates = [
         ...BUILT_IN_TEMPLATES.map((bt) => {
           const saved = savedTemplates.find((st) => st.id === bt.id);
-          return saved ? { ...saved, builtIn: true as const } : bt;
+          return saved ? ensureRoomAreas({ ...saved, builtIn: true as const }) : bt;
         }),
-        ...savedTemplates.filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id)),
+        ...savedTemplates
+          .filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id))
+          .map(ensureRoomAreas),
       ];
       set({
         templates: allTemplates,
