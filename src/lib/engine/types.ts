@@ -16,6 +16,37 @@ export interface PropertyOpex {
   accounting: number;
 }
 
+// Per-room-type area breakdown (m²)
+export interface RoomAreaBreakdown {
+  // Accommodation rooms (multiplied by unit count)
+  villaUnitArea: number;       // m² per villa unit (bedroom + ensuite)
+  standardSuiteArea: number;   // m² per standard suite
+  doubleSuiteArea: number;     // m² per double/premium suite
+  // Common/shared spaces (fixed per property, not multiplied)
+  kitchen: number;             // m² kitchen
+  livingRoom: number;          // m² living / lounge area
+  utilityRoom: number;         // m² laundry, storage, mechanical
+  staffRoom: number;           // m² staff quarters / back-of-house
+  corridors: number;           // m² hallways, lobby, circulation
+  outdoor: number;             // m² terrace, pool deck, covered outdoor
+}
+
+// Compute total construction area from room breakdown + unit counts
+export function computeTotalArea(rooms: RoomAreaBreakdown, units: { villaUnits: number; standardSuites: number; doubleSuites: number }): number {
+  const accommodationArea =
+    units.villaUnits * rooms.villaUnitArea +
+    units.standardSuites * rooms.standardSuiteArea +
+    units.doubleSuites * rooms.doubleSuiteArea;
+  const commonArea =
+    rooms.kitchen +
+    rooms.livingRoom +
+    rooms.utilityRoom +
+    rooms.staffRoom +
+    rooms.corridors +
+    rooms.outdoor;
+  return accommodationArea + commonArea;
+}
+
 // Unit mix: each property can combine villas + hotel rooms
 export interface PropertyConfig {
   id: string;
@@ -25,9 +56,11 @@ export interface PropertyConfig {
   standardSuites: number;  // standard hotel rooms
   doubleSuites: number;    // double/premium hotel rooms
   count: number;           // how many plots of this type
+  // Room areas (m²)
+  roomAreas: RoomAreaBreakdown;
   // CAPEX parameters
   landCost: number;
-  constructionArea: number; // m²
+  constructionArea: number; // m² — computed from roomAreas, kept for backward compat
   constructionCostPerM2: number;
   ffeCost: number;
   legalFees: number;
@@ -59,9 +92,11 @@ export interface PropertyTemplate {
   villaUnits: number;
   standardSuites: number;
   doubleSuites: number;
+  // Room areas (m²)
+  roomAreas: RoomAreaBreakdown;
   // CAPEX parameters
   landCost: number;
-  constructionArea: number;
+  constructionArea: number; // computed from roomAreas — kept for display
   constructionCostPerM2: number;
   ffeCost: number;
   legalFees: number;
