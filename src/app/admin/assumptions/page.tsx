@@ -1229,15 +1229,23 @@ function HistoryPanel() {
           <div className="space-y-1.5">
             {visible.map((entry) => {
               const isInactive = entry.superseded || entry.reverted;
+              const canRevert = !isInactive && !entry.isRevert;
               return (
                 <div
                   key={entry.id}
                   className={`flex items-center gap-3 px-3 py-2 rounded-lg text-xs transition-colors ${
-                    isInactive ? 'bg-surface-secondary/20 opacity-60' : 'bg-surface-secondary/40 hover:bg-surface-secondary/60'
+                    isInactive
+                      ? 'bg-surface-secondary/20 opacity-60'
+                      : entry.isRevert
+                        ? 'bg-amber-50/70'
+                        : 'bg-surface-secondary/40 hover:bg-surface-secondary/60'
                   }`}
                 >
                   <span className="text-text-tertiary whitespace-nowrap">{timeAgo(entry.timestamp)}</span>
                   <span className="font-medium text-brand-700 whitespace-nowrap">{entry.user}</span>
+                  {entry.isRevert && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 whitespace-nowrap font-medium">Revert</span>
+                  )}
                   <span className="flex-1 min-w-0 truncate">
                     {entry.scopeLabel && <span className="text-text-tertiary">{entry.scopeLabel} — </span>}
                     <span className="text-text-secondary">{entry.label}:</span>{' '}
@@ -1248,10 +1256,10 @@ function HistoryPanel() {
                   {entry.reverted && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary whitespace-nowrap">Reverted</span>
                   )}
-                  {entry.superseded && !entry.reverted && (
+                  {entry.superseded && !entry.reverted && !entry.isRevert && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary whitespace-nowrap">Superseded</span>
                   )}
-                  {!isInactive && (
+                  {canRevert && (
                     <button
                       onClick={() => revertChange(entry.id)}
                       className="px-2 py-0.5 rounded-md bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors whitespace-nowrap font-medium"

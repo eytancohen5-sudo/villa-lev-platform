@@ -327,6 +327,7 @@ export interface ChangeEntry {
   after: unknown;
   superseded?: boolean;
   reverted?: boolean;
+  isRevert?: boolean;  // true if this entry was created by a revert action (not revertable)
 }
 
 export interface SavedConfiguration {
@@ -459,7 +460,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       set((s) => ({ assumptions: { ...s.assumptions, financingPath: entry.before as FinancingPath } }));
     }
 
-    // Mark entry reverted; create a revert-note entry
+    // Mark entry reverted; create a revert-note entry (not itself revertable)
     const revertEntry: ChangeEntry = {
       id: generateId('chg'),
       timestamp: Date.now(),
@@ -468,9 +469,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       scopeId: entry.scopeId,
       scopeLabel: entry.scopeLabel,
       path: entry.path,
-      label: `Revert: ${entry.label}`,
+      label: `Reverted: ${entry.label}`,
       before: entry.after,
       after: entry.before,
+      isRevert: true,
     };
     const history = state.history.map((h) =>
       h.id === id ? { ...h, reverted: true, superseded: true } : h
