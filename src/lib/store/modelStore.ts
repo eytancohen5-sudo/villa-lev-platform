@@ -512,18 +512,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
 
   setFinancingPath: (path: FinancingPath) => {
-    const before = get().assumptions.financingPath;
+    // Not recorded in history: financing path is trivially toggleable via the top bar.
     set((state) => ({
       assumptions: { ...state.assumptions, financingPath: path },
       activeConfigId: null,
     }));
-    pushHistory(get, set, {
-      scope: 'portfolio',
-      path: 'financingPath',
-      label: 'Financing path',
-      before,
-      after: path,
-    });
     get().recompute();
   },
 
