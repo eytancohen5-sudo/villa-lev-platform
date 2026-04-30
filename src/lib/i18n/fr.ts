@@ -272,6 +272,7 @@ export const fr: TranslationDictionary = {
   'field.wcSelfLiquidating': 'Auto-liquidant chaque pic',
   'field.wcDsra': 'Convertir 124 K€ en DSRA',
   'field.wcDsraLock': 'Montant verrouillé DSRA (€)',
+  'field.wcInternalBuffer': 'Réserve de trésorerie interne (€)',
   'field.landCost': 'Coût du terrain',
   'field.constructionArea': 'Surface de construction (m²)',
   'field.costPerM2': 'Coût au m²',

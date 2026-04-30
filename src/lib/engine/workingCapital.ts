@@ -60,7 +60,12 @@ export function computeWorkingCapital(
   termRate: number,
   startYear: number,
   endYear: number,
-  isDownside: boolean = false
+  isDownside: boolean = false,
+  // Map of year → cumulative net-cash-flow-post-tax through end of that year,
+  // computed in a baseline pass without WC interest. Used to gate the seasonal
+  // draw: when prior-year cum cash exceeds `internalCashBuffer`, the surplus
+  // replaces drawn revolver 1-for-1.
+  cumulativeCashByYear: Map<number, number> = new Map()
 ): WorkingCapitalSchedule {
   if (!params.active) return EMPTY_SCHEDULE;
 
@@ -70,9 +75,18 @@ export function computeWorkingCapital(
 
   const seasonalMult = isDownside ? DOWNSIDE_FACTORS.wcSeasonalDrawMultiplier : 1;
   const repaymentRatio = isDownside ? DOWNSIDE_FACTORS.wcRepaymentRatio : 1;
-  const seasonalDraw = params.seasonalDrawPerCycle * seasonalMult;
+  const baseSeasonalDraw = params.seasonalDrawPerCycle * seasonalMult;
 
   const preOpenPerQuarter = params.preOpeningTotalDraw / 4;
+
+  // Helper: given a draw amount for year y, reduce by the prior-year surplus
+  // above the safety buffer.
+  const gateDrawByCash = (year: number, draw: number): number => {
+    const priorCum = cumulativeCashByYear.get(year - 1) ?? -Infinity;
+    if (priorCum === -Infinity) return draw;
+    const surplus = Math.max(0, priorCum - params.internalCashBuffer);
+    return Math.max(0, draw - surplus);
+  };
 
   const quarters: WorkingCapitalQuarter[] = [];
   let balance = 0;
@@ -93,13 +107,17 @@ export function computeWorkingCapital(
       }
 
       // Seasonal draw: Q4 of every operational year (2028+).
+      // Gated by prior-year cumulative cash — once the company has built up
+      // surplus above its internal cash buffer, the revolver stops drawing.
       if (y >= 2028 && q === 4) {
-        draws += seasonalDraw;
+        draws += gateDrawByCash(y, baseSeasonalDraw);
       }
 
       // Y2 ramp buffer top-up: drawn alongside Q4-2028 seasonal cycle.
+      // Same cash-gating applies (in 2028 cum cash is negative, so this
+      // typically draws in full — but kept consistent for symmetry).
       if (y === 2028 && q === 4) {
-        draws += params.y2RampBufferTopup;
+        draws += gateDrawByCash(y, params.y2RampBufferTopup);
       }
 
       // Self-liquidating repayment: Q3 each operational year.

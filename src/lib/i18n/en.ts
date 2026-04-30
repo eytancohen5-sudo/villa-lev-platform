@@ -272,6 +272,7 @@ export const en: TranslationDictionary = {
   'field.wcSelfLiquidating': 'Self-liquidating each peak',
   'field.wcDsra': 'Convert €124K to DSRA escrow',
   'field.wcDsraLock': 'DSRA lock amount (€)',
+  'field.wcInternalBuffer': 'Internal cash buffer (€)',
   'field.landCost': 'Land cost',
   'field.constructionArea': 'Construction area (m²)',
   'field.costPerM2': 'Cost per m²',

@@ -1126,6 +1126,7 @@ export default function AssumptionsPage() {
                 <ToggleRow label={t('field.wcSelfLiquidating')} value={a.workingCapital.selfLiquidating} path="workingCapital.selfLiquidating" note="Repay outstanding each Q3" />
                 <ToggleRow label={t('field.wcDsra')} value={a.workingCapital.dsraConversionEnabled} path="workingCapital.dsraConversionEnabled" note="Locks DSRA share, reduces flex" />
                 <AssumptionRow label={t('field.wcDsraLock')} value={a.workingCapital.dsraLockAmount} path="workingCapital.dsraLockAmount" format="currency" note="Locked when DSRA enabled" />
+                <AssumptionRow label={t('field.wcInternalBuffer')} value={a.workingCapital.internalCashBuffer} path="workingCapital.internalCashBuffer" format="currency" note="Cash kept on hand; surplus above this offsets WC draws" />
               </tbody>
             </table>
           </div>

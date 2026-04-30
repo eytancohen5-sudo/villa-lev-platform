@@ -279,6 +279,7 @@ export interface TranslationDictionary {
   'field.wcSelfLiquidating': string;
   'field.wcDsra': string;
   'field.wcDsraLock': string;
+  'field.wcInternalBuffer': string;
   'field.landCost': string;
   'field.constructionArea': string;
   'field.costPerM2': string;

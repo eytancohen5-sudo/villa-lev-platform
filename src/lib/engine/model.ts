@@ -388,17 +388,16 @@ function computeScenario(
   downside?: { occupancyFactor: number; adrFactor: number; events: number }
 ): ScenarioOutput {
   const years = Array.from({ length: 11 }, (_, i) => 2026 + i);
-  let cumulativeNCF = 0;
 
-  const wcSchedule = computeWorkingCapital(
-    a.workingCapital,
-    a.commercialLoan.interestRate,
-    2026,
-    2036,
-    !!downside
-  );
-
-  const pnl: AnnualPnL[] = years.map((year) => {
+  // Per-year P&L compute, parameterised by the year's WC interest expense.
+  // Run twice: once with zero WC interest to derive cumulative cash for the
+  // WC drawdown decisions, then again with the resulting WC schedule applied.
+  // The interest delta between passes is small (~€5K/yr at most) so the
+  // single-iteration approximation is well within rounding noise.
+  const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
+    'cumulativeNCF' | 'wcAvgBalance' | 'wcPeakBalance' | 'wcTroughBalance' |
+    'wcNetContribution' | 'wcSelfLiquidatingViolation'
+  > => {
     const villaNights = computeNights(
       year,
       rev.villaBaseNights,
@@ -488,8 +487,6 @@ function computeScenario(
       0
     );
 
-    const wcAnnual = wcSchedule.annual.get(year);
-    const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
     // Decision A1: WC interest sits inside OPEX, reducing EBITDA.
     const totalOpex = propertyOpex + wcInterestExpense;
 
@@ -507,7 +504,6 @@ function computeScenario(
     const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
-    cumulativeNCF += ncfPostVAT;
     const dscr = ds > 0 ? ebitda / ds : 0;
     // Fully-loaded DSCR: same numerator (EBITDA already nets WC interest under
     // A1), but adds WC interest into the debt-service denominator. When WC is
@@ -531,19 +527,53 @@ function computeScenario(
       ebitdaMargin,
       debtService: ds,
       netCashFlow: ncf,
-      cumulativeNCF,
       vatPayable: vat,
       citPayable: cit,
       profitAfterTax,
       netCashFlowPostVAT: ncfPostVAT,
       dscr,
+      wcInterestExpense,
+      dscrLoaded,
+    };
+  };
+
+  // Pass 1: baseline P&L without WC interest. Build cumulative-cash map for
+  // gating the seasonal draw decisions.
+  const baselineCumByYear = new Map<number, number>();
+  {
+    let cum = 0;
+    for (const year of years) {
+      const baseline = computePnLYear(year, 0);
+      cum += baseline.netCashFlowPostVAT;
+      baselineCumByYear.set(year, cum);
+    }
+  }
+
+  // Compute WC schedule with cash-aware seasonal drawdowns.
+  const wcSchedule = computeWorkingCapital(
+    a.workingCapital,
+    a.commercialLoan.interestRate,
+    2026,
+    2036,
+    !!downside,
+    baselineCumByYear
+  );
+
+  // Pass 2: final P&L with WC interest threaded into OPEX.
+  let cumulativeNCF = 0;
+  const pnl: AnnualPnL[] = years.map((year) => {
+    const wcAnnual = wcSchedule.annual.get(year);
+    const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
+    const yearPnL = computePnLYear(year, wcInterestExpense);
+    cumulativeNCF += yearPnL.netCashFlowPostVAT;
+    return {
+      ...yearPnL,
+      cumulativeNCF,
       wcAvgBalance: wcAnnual?.avgBalance ?? 0,
       wcPeakBalance: wcAnnual?.peakBalance ?? 0,
       wcTroughBalance: wcAnnual?.troughBalance ?? 0,
-      wcInterestExpense,
       wcNetContribution: wcAnnual?.netContribution ?? 0,
       wcSelfLiquidatingViolation: wcAnnual?.selfLiquidatingViolation ?? false,
-      dscrLoaded,
     };
   });
 

@@ -272,6 +272,7 @@ export const he: TranslationDictionary = {
   'field.wcSelfLiquidating': 'מתאזן בכל שיא',
   'field.wcDsra': 'המרת €124K ל-DSRA',
   'field.wcDsraLock': 'סכום נעול DSRA (€)',
+  'field.wcInternalBuffer': 'רזרבת מזומן פנימית (€)',
   'field.landCost': 'עלות קרקע',
   'field.constructionArea': 'שטח בנייה (מ"ר)',
   'field.costPerM2': 'עלות למ"ר',

@@ -162,6 +162,10 @@ export interface WorkingCapitalParams {
   // reducing the effective revolver headroom.
   dsraConversionEnabled: boolean;
   dsraLockAmount: number;
+  // Cash kept on hand before WC draws are offset by internal funds. When
+  // prior-year cumulative cash exceeds this buffer, the surplus replaces the
+  // seasonal draw 1-for-1 (a fully-cashed company stops drawing the revolver).
+  internalCashBuffer: number;
 }
 
 // ── Financing Parameters ──

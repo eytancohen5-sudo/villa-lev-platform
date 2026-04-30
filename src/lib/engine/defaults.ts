@@ -441,6 +441,7 @@ export const BASE_CASE: ModelAssumptions = {
     selfLiquidating: true,
     dsraConversionEnabled: false,
     dsraLockAmount: 124000,
+    internalCashBuffer: 100000,
   },
 };
 

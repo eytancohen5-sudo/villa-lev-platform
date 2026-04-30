@@ -272,6 +272,7 @@ export const el: TranslationDictionary = {
   'field.wcSelfLiquidating': 'Αυτο-εκκαθαριζόμενο κάθε αιχμή',
   'field.wcDsra': 'Μετατροπή 124K€ σε DSRA',
   'field.wcDsraLock': 'Δεσμευμένο DSRA (€)',
+  'field.wcInternalBuffer': 'Εσωτερικό απόθεμα μετρητών (€)',
   'field.landCost': 'Κόστος γης',
   'field.constructionArea': 'Επιφάνεια κατασκευής (τ.μ.)',
   'field.costPerM2': 'Κόστος ανά τ.μ.',
