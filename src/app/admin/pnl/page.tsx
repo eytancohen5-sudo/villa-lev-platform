@@ -28,10 +28,10 @@ export default function PnLPage() {
   const portfolioShape = sampleYear?.propertyBreakdown ?? [];
 
   // Build rows dynamically based on portfolio
-  const rows: RowDef[] = [
-    { label: t('pnl.villaNights'), getValue: (p) => p.villaNights, format: "number" },
-    { label: t('pnl.suiteNights'), getValue: (p) => p.suiteNights, format: "number" },
-  ];
+  // Order: revenue lines → Total Revenue → opex lines → Total OPEX → EBITDA →
+  // EBITDA margin → Debt Service → NCF (pre-tax) → VAT → CIT → NCF post-tax →
+  // Cumulative NCF → DSCR
+  const rows: RowDef[] = [];
 
   // Revenue rows — one per property in portfolio
   for (const prop of portfolioShape) {
@@ -59,17 +59,25 @@ export default function PnLPage() {
     }
   }
 
+  const ancillaryEverCapped = pnl.some((p) => p.revenueAncillaryCapped);
+
   rows.push(
     { label: t('pnl.events'), getValue: (p) => p.revenueEvents, format: "currency", indent: true },
-    { label: t('pnl.ancillary'), getValue: (p) => p.revenueAncillary, format: "currency", indent: true },
+    {
+      label: ancillaryEverCapped ? t('pnl.ancillaryCapped') : t('pnl.ancillary'),
+      getValue: (p) => p.revenueAncillary,
+      format: "currency",
+      indent: true,
+    },
     { label: t('pnl.totalRevenue'), getValue: (p) => p.totalRevenue, format: "currency", bold: true },
   );
 
-  // OPEX rows — one per property
+  // OPEX rows — one per property (label matches the revenue side)
   for (const prop of portfolioShape) {
     const propId = prop.id;
+    const label = prop.count > 1 ? `${prop.name} (×${prop.count})` : prop.name;
     rows.push({
-      label: `OPEX ${prop.name}`,
+      label,
       getValue: (p) => {
         const pb = p.propertyBreakdown.find((b) => b.id === propId);
         return pb ? pb.totalOpex : 0;
@@ -80,15 +88,22 @@ export default function PnLPage() {
   }
 
   rows.push(
+    { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", indent: true },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
     { label: t('term.ebitda'), getValue: (p) => p.ebitda, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
     { label: t('pnl.debtService'), getValue: (p) => p.debtService, format: "currency", color: "negative" },
-    { label: t('kpi.netCashFlow'), getValue: (p) => p.netCashFlow, format: "currency", bold: true, color: "dynamic" },
-    { label: t('pnl.cumulativeNCF'), getValue: (p) => p.cumulativeNCF, format: "currency", color: "dynamic" },
+    { label: t('term.ncfFull'), getValue: (p) => p.netCashFlow, format: "currency", bold: true, color: "dynamic" },
     { label: t('term.vatPayable'), getValue: (p) => p.vatPayable, format: "currency", color: "negative" },
+    { label: t('term.citPayable'), getValue: (p) => p.citPayable, format: "currency", color: "negative" },
+    { label: t('pnl.profitAfterTax'), getValue: (p) => p.profitAfterTax, format: "currency", bold: true, color: "dynamic" },
     { label: t('pnl.ncfPostVAT'), getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
+    { label: t('pnl.cumulativeNCF'), getValue: (p) => p.cumulativeNCF, format: "currency", color: "dynamic" },
     { label: t('term.dscr'), getValue: (p) => p.dscr, format: "multiple" },
+    { label: t('term.dscrLoaded'), getValue: (p) => p.dscrLoaded, format: "multiple" },
+    { label: t('pnl.wcAvg'), getValue: (p) => p.wcAvgBalance, format: "currency" },
+    { label: t('pnl.wcPeak'), getValue: (p) => p.wcPeakBalance, format: "currency" },
+    { label: t('pnl.wcNetContribution'), getValue: (p) => p.wcNetContribution, format: "currency", color: "dynamic" },
   );
 
   return (
@@ -112,10 +127,22 @@ export default function PnLPage() {
                   </th>
                 ))}
               </tr>
-              <tr className="border-b border-surface-tertiary">
+              <tr>
                 <td className="py-1.5 px-5 text-xs text-text-tertiary sticky left-0 bg-white z-10">{t('pnl.phase')}</td>
                 {pnl.map((p) => (
                   <td key={p.year} className="text-right py-1.5 px-3 text-xs text-text-tertiary">{p.phase}</td>
+                ))}
+              </tr>
+              <tr>
+                <td className="py-1.5 px-5 text-xs text-text-tertiary sticky left-0 bg-white z-10">{t('pnl.villaNights')}</td>
+                {pnl.map((p) => (
+                  <td key={p.year} className="text-right py-1.5 px-3 text-xs text-text-tertiary font-mono">{p.villaNights > 0 ? p.villaNights.toLocaleString() : '—'}</td>
+                ))}
+              </tr>
+              <tr className="border-b border-surface-tertiary">
+                <td className="py-1.5 px-5 text-xs text-text-tertiary sticky left-0 bg-white z-10">{t('pnl.suiteNights')}</td>
+                {pnl.map((p) => (
+                  <td key={p.year} className="text-right py-1.5 px-3 text-xs text-text-tertiary font-mono">{p.suiteNights > 0 ? p.suiteNights.toLocaleString() : '—'}</td>
                 ))}
               </tr>
             </thead>

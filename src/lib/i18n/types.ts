@@ -63,6 +63,7 @@ export interface TranslationDictionary {
   'term.ebitdaMargin': string;
   'term.dscr': string;
   'term.dscrFull': string;
+  'term.dscrLoaded': string;
   'term.opex': string;
   'term.capex': string;
   'term.ltv': string;
@@ -71,6 +72,8 @@ export interface TranslationDictionary {
   'term.ncfFull': string;
   'term.vat': string;
   'term.vatPayable': string;
+  'term.cit': string;
+  'term.citPayable': string;
   'term.adr': string;
   'term.adrFull': string;
   'term.ds': string;
@@ -99,6 +102,16 @@ export interface TranslationDictionary {
   'kpi.bufferBreakEvenSub': string;
   'kpi.ofTotal': string;
   'kpi.margin': string;
+  'kpi.wcFacility': string;
+  'kpi.wcFacilitySub': string;
+  'kpi.wcY2Peak': string;
+  'kpi.wcY2PeakSub': string;
+  'kpi.wcInterest': string;
+  'kpi.wcInterestSub': string;
+  'kpi.wcSelfLiq': string;
+  'kpi.wcSelfLiqOk': string;
+  'kpi.wcSelfLiqFail': string;
+  'kpi.wcSelfLiqSub': string;
 
   // ── Dashboard ──
   'dash.title': string;
@@ -119,6 +132,13 @@ export interface TranslationDictionary {
   'pnl.propB': string;
   'pnl.events': string;
   'pnl.ancillary': string;
+  'pnl.ancillaryCapped': string;
+  'pnl.profitAfterTax': string;
+  'pnl.wcInterest': string;
+  'pnl.wcAvg': string;
+  'pnl.wcPeak': string;
+  'pnl.wcNetContribution': string;
+  'pnl.wcSection': string;
   'pnl.totalRevenue': string;
   'pnl.opexA': string;
   'pnl.opexB': string;
@@ -212,6 +232,7 @@ export interface TranslationDictionary {
   'as.tax': string;
   'as.realisticScenario': string;
   'as.upsideScenario': string;
+  'as.workingCapital': string;
   'as.propAOpex': string;
   'as.propBOpex': string;
   'as.propATwinVillas': string;
@@ -248,6 +269,16 @@ export interface TranslationDictionary {
   'field.profitPerEvent': string;
   'field.ancillaryProfit': string;
   'field.ancillaryGrowth': string;
+  'field.ancillaryGrowthYears': string;
+  'field.wcActive': string;
+  'field.wcFacility': string;
+  'field.wcSpread': string;
+  'field.wcPreOpening': string;
+  'field.wcSeasonal': string;
+  'field.wcY2Buffer': string;
+  'field.wcSelfLiquidating': string;
+  'field.wcDsra': string;
+  'field.wcDsraLock': string;
   'field.landCost': string;
   'field.constructionArea': string;
   'field.costPerM2': string;
@@ -280,6 +311,23 @@ export interface TranslationDictionary {
   'dash.annualDSChart': string;
   'dash.stabilisedDSCRChart': string;
   'dash.dscrTrajectory': string;
+  'dash.heroDscr': string;
+  'dash.heroDscrSub': string;
+  'dash.section.operating': string;
+  'dash.section.capital': string;
+  'dash.section.workingCapital': string;
+  'dash.section.collateral': string;
+  'dash.wcPanelSub': string;
+  'dash.wcSparkLabel': string;
+  'dash.wcQuarterly': string;
+  'dash.wcPeak': string;
+  'dash.wcAvg': string;
+  'dash.wcTrough': string;
+  'dash.wcInterestAnnual': string;
+  'dash.kpi.dscrThreshold': string;
+  'dash.kpi.ltvThreshold': string;
+  'dash.kpi.acThreshold': string;
+  'bar.deltaR': string;
 
   // ── Sensitivity ──
   'sens.title': string;
@@ -289,6 +337,9 @@ export interface TranslationDictionary {
   'sens.interestSensitivity': string;
   'sens.change': string;
   'sens.base': string;
+  'sens.wcSensitivity': string;
+  'sens.facility': string;
+  'sens.wcY2Trough': string;
 
   // ── Investor ──
   'inv.portfolioExpansion': string;

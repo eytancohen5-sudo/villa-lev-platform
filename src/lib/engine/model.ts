@@ -18,6 +18,7 @@ import {
   computeTotalArea,
 } from './types';
 import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS } from './defaults';
+import { computeWorkingCapital } from './workingCapital';
 
 function areaOf(prop: PropertyConfig): number {
   const rooms = prop.roomAreas ?? DEFAULT_ROOM_AREAS;
@@ -389,6 +390,14 @@ function computeScenario(
   const years = Array.from({ length: 11 }, (_, i) => 2026 + i);
   let cumulativeNCF = 0;
 
+  const wcSchedule = computeWorkingCapital(
+    a.workingCapital,
+    a.commercialLoan.interestRate,
+    2026,
+    2036,
+    !!downside
+  );
+
   const pnl: AnnualPnL[] = years.map((year) => {
     const villaNights = computeNights(
       year,
@@ -454,32 +463,58 @@ function computeScenario(
 
     const revenueEvents =
       year <= 2027 ? 0 : effEvents * rev.netProfitPerEvent * ramp;
+    const ancillaryYearOffset = year - 2028;
+    const ancillaryGrowthExponent = Math.min(
+      Math.max(0, ancillaryYearOffset),
+      Math.max(0, rev.ancillaryGrowthYears)
+    );
     const revenueAncillary =
       year < 2028
         ? 0
         : rev.ancillaryBaseProfit *
-          Math.pow(1 + rev.ancillaryGrowthRate, year - 2028);
+          Math.pow(1 + rev.ancillaryGrowthRate, ancillaryGrowthExponent);
+    const revenueAncillaryCapped =
+      year >= 2028 &&
+      rev.ancillaryGrowthRate > 0 &&
+      ancillaryYearOffset >= rev.ancillaryGrowthYears;
 
     const totalRevenue =
       propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0) +
       revenueEvents +
       revenueAncillary;
 
-    const totalOpex = propertyBreakdown.reduce(
+    const propertyOpex = propertyBreakdown.reduce(
       (sum, p) => sum + p.totalOpex,
       0
     );
+
+    const wcAnnual = wcSchedule.annual.get(year);
+    const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
+    // Decision A1: WC interest sits inside OPEX, reducing EBITDA.
+    const totalOpex = propertyOpex + wcInterestExpense;
 
     const ebitda = totalRevenue - totalOpex;
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
 
     const ds = debtResult.getDS(year);
     const ncf = ebitda - ds;
-    cumulativeNCF += ncf;
 
     const vat = year <= 2027 ? 0 : -(totalRevenue * a.tax.netVATRate);
-    const ncfPostVAT = ncf + vat;
+    // CIT (corporate income tax) is applied to pre-VAT NCF as a cash-proxy for
+    // taxable profit. This approximates taxable income in the absence of an
+    // explicit depreciation + interest-only split. Floor at zero — no credits.
+    const taxableProfit = Math.max(0, ebitda - ds);
+    const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
+    const profitAfterTax = ncf + cit;
+    const ncfPostVAT = ncf + vat + cit;
+    cumulativeNCF += ncfPostVAT;
     const dscr = ds > 0 ? ebitda / ds : 0;
+    // Fully-loaded DSCR: same numerator (EBITDA already nets WC interest under
+    // A1), but adds WC interest into the debt-service denominator. When WC is
+    // inactive this collapses back to the headline DSCR.
+    const dscrLoaded = ds + wcInterestExpense > 0
+      ? ebitda / (ds + wcInterestExpense)
+      : 0;
 
     return {
       year,
@@ -489,6 +524,7 @@ function computeScenario(
       propertyBreakdown,
       revenueEvents,
       revenueAncillary,
+      revenueAncillaryCapped,
       totalRevenue,
       totalOpex,
       ebitda,
@@ -497,14 +533,30 @@ function computeScenario(
       netCashFlow: ncf,
       cumulativeNCF,
       vatPayable: vat,
+      citPayable: cit,
+      profitAfterTax,
       netCashFlowPostVAT: ncfPostVAT,
       dscr,
+      wcAvgBalance: wcAnnual?.avgBalance ?? 0,
+      wcPeakBalance: wcAnnual?.peakBalance ?? 0,
+      wcTroughBalance: wcAnnual?.troughBalance ?? 0,
+      wcInterestExpense,
+      wcNetContribution: wcAnnual?.netContribution ?? 0,
+      wcSelfLiquidatingViolation: wcAnnual?.selfLiquidatingViolation ?? false,
+      dscrLoaded,
     };
   });
 
   const stabilisedYear = pnl.find((p) => p.year === 2031) ?? null;
 
-  return { name, pnl, stabilisedYear };
+  return {
+    name,
+    pnl,
+    stabilisedYear,
+    wcQuarters: wcSchedule.quarters,
+    wcEffectiveFacility: wcSchedule.effectiveFacility,
+    wcRate: wcSchedule.rate,
+  };
 }
 
 // ────────────────────────────────────────────
@@ -553,9 +605,13 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   const realisticStab = realistic.stabilisedYear;
   let breakevenFactor = 1;
   if (realisticStab && realisticStab.ebitda > 0) {
+    const ancillary2031Exponent = Math.min(
+      3,
+      Math.max(0, a.revenueRealistic.ancillaryGrowthYears)
+    );
     const ancillary2031 =
       a.revenueRealistic.ancillaryBaseProfit *
-      Math.pow(1 + a.revenueRealistic.ancillaryGrowthRate, 3);
+      Math.pow(1 + a.revenueRealistic.ancillaryGrowthRate, ancillary2031Exponent);
     const occLinkedRev = realisticStab.totalRevenue - ancillary2031;
     const targetOccLinkedRev =
       activeDebt.annualDS + realisticStab.totalOpex - ancillary2031;

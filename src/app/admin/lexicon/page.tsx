@@ -161,8 +161,9 @@ export default function LexiconPage() {
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">Ancillary Revenue:</p>
             <Formula>
-              Ancillary(year) = Base Profit &times; (1 + Growth Rate)<sup>year - 2028</sup>
+              Ancillary(year) = Base Profit &times; (1 + Growth Rate)<sup>min(year - 2028, Growth Years)</sup>
             </Formula>
+            <Variable name="Growth Years" desc="Years of compounding from 2028 before the trajectory flatlines (default: 5)" />
           </div>
         </Section>
 

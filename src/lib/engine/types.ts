@@ -126,6 +126,11 @@ export interface RevenueAssumptions {
   netProfitPerEvent: number;
   ancillaryBaseProfit: number;
   ancillaryGrowthRate: number;
+  // Number of years from 2028 over which ancillaryGrowthRate compounds.
+  // After 2028 + ancillaryGrowthYears, ancillary revenue stays flat at the
+  // capped value. 0 disables compounding entirely; a large value (>=10)
+  // restores the original "grow forever" behavior across the projection.
+  ancillaryGrowthYears: number;
 }
 
 export interface RampAssumptions {
@@ -133,6 +138,30 @@ export interface RampAssumptions {
   year2RampFactor: number;
   nightsGrowthPerYear: number;
   nightsCap: number;
+}
+
+// ── Working Capital ──
+// Revolving facility sized to cover pre-opening costs and seasonal cash gaps.
+// Modeled at quarterly granularity inside the engine; surfaced as annual peak /
+// trough / average / interest expense on AnnualPnL.
+
+export interface WorkingCapitalParams {
+  active: boolean;
+  facilitySize: number;
+  // Spread above the term-loan rate, in decimal (0.01 = 100 bps).
+  spreadOverTermRate: number;
+  // Pre-opening total drawn over Q3-2027 → Q2-2028 (4 equal quarterly slugs).
+  preOpeningTotalDraw: number;
+  // Drawn each Q4 of an operational year, repaid the following Q3.
+  seasonalDrawPerCycle: number;
+  // Additional one-shot top-up drawn alongside the Q4-2028 seasonal cycle.
+  y2RampBufferTopup: number;
+  // True: each Q3 (peak-season end) repays the outstanding balance.
+  selfLiquidating: boolean;
+  // If true, lock `dsraLockAmount` of the facility as a formal DSRA escrow,
+  // reducing the effective revolver headroom.
+  dsraConversionEnabled: boolean;
+  dsraLockAmount: number;
 }
 
 // ── Financing Parameters ──
@@ -208,6 +237,7 @@ export interface ModelAssumptions {
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
   financingPath: FinancingPath;
+  workingCapital: WorkingCapitalParams;
 }
 
 // ============================================================
@@ -256,6 +286,9 @@ export interface AnnualPnL {
   propertyBreakdown: PropertyPnLLine[];
   revenueEvents: number;
   revenueAncillary: number;
+  // True for years where the ancillary growth cap has flattened the trajectory
+  // (i.e. year - 2028 >= ancillaryGrowthYears, with growth rate > 0).
+  revenueAncillaryCapped: boolean;
   totalRevenue: number;
   totalOpex: number;
   ebitda: number;
@@ -264,14 +297,43 @@ export interface AnnualPnL {
   netCashFlow: number;
   cumulativeNCF: number;
   vatPayable: number;
+  citPayable: number;
+  // Profit after corporate income tax: NCF (= EBITDA − Debt Service) + CIT.
+  // Excludes VAT, which is a balance-sheet pass-through, not an income expense.
+  profitAfterTax: number;
   netCashFlowPostVAT: number;
   dscr: number;
+  // ── Working Capital (quarterly compute, annual aggregates) ──
+  wcAvgBalance: number;
+  wcPeakBalance: number;
+  wcTroughBalance: number;
+  wcInterestExpense: number;
+  // drawsTotal − repaymentsTotal (positive = net cash drawn IN this year).
+  wcNetContribution: number;
+  // True when the trough quarter ends above the self-liquidating threshold.
+  wcSelfLiquidatingViolation: boolean;
+  // Fully-loaded DSCR: EBITDA / (term-DS + WC interest). Same numerator as
+  // headline DSCR; larger denominator. Equals headline DSCR when WC inactive.
+  dscrLoaded: number;
+}
+
+export interface WorkingCapitalQuarter {
+  year: number;
+  quarter: 1 | 2 | 3 | 4;
+  openingBalance: number;
+  draws: number;
+  repayments: number;
+  closingBalance: number;
+  interestAccrual: number;
 }
 
 export interface ScenarioOutput {
   name: string;
   pnl: AnnualPnL[];
   stabilisedYear: AnnualPnL | null;
+  wcQuarters: WorkingCapitalQuarter[];
+  wcEffectiveFacility: number;
+  wcRate: number;
 }
 
 export interface FinancingComparison {

@@ -12,6 +12,8 @@ import {
   Bar,
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -23,31 +25,109 @@ import {
   Cell,
 } from "recharts";
 
+// ── Shared bits ─────────────────────────────────────────────
+
+function SectionHeader({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="flex items-baseline justify-between mb-3 mt-8 first:mt-0 px-1">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
+        {title}
+      </h2>
+      {sub && <span className="text-[11px] text-text-tertiary">{sub}</span>}
+    </div>
+  );
+}
+
+function StatusChip({
+  label,
+  ok,
+}: {
+  label: string;
+  ok: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${
+        ok
+          ? "bg-positive/15 text-positive"
+          : "bg-warning/15 text-warning"
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-positive" : "bg-warning"}`} />
+      {label}
+    </span>
+  );
+}
+
 function KPICard({
   label,
   value,
   sublabel,
+  threshold,
+  chip,
   accent = false,
+  tone,
 }: {
   label: string;
   value: string;
   sublabel?: string;
+  threshold?: string;
+  chip?: { label: string; ok: boolean };
   accent?: boolean;
+  tone?: "positive" | "warning" | "neutral";
 }) {
+  const valueColor =
+    tone === "positive" ? "text-positive" : tone === "warning" ? "text-warning" : "text-text-primary";
   return (
     <div
-      className={`rounded-xl border p-5 ${accent ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"}`}
+      className={`relative rounded-xl border p-5 ${
+        accent ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"
+      }`}
     >
-      <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">
-        {label}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+          {label}
+        </div>
+        {chip && <StatusChip label={chip.label} ok={chip.ok} />}
       </div>
-      <div className="kpi-value text-text-primary">{value}</div>
-      {sublabel && (
-        <div className="text-xs text-text-tertiary mt-1">{sublabel}</div>
+      <div className={`kpi-value ${valueColor}`}>{value}</div>
+      {sublabel && <div className="text-xs text-text-tertiary mt-1">{sublabel}</div>}
+      {threshold && (
+        <div className="text-[11px] text-text-tertiary/80 mt-1.5 pt-1.5 border-t border-surface-tertiary/50">
+          {threshold}
+        </div>
       )}
     </div>
   );
 }
+
+// Compact stat for use inside the WC panel
+function MiniStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "positive" | "warning" | "neutral";
+}) {
+  const valueColor =
+    tone === "positive"
+      ? "text-positive"
+      : tone === "warning"
+        ? "text-warning"
+        : "text-text-primary";
+  return (
+    <div>
+      <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-0.5">
+        {label}
+      </div>
+      <div className={`font-display text-xl ${valueColor}`}>{value}</div>
+    </div>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const { t, locale } = useTranslation();
@@ -61,8 +141,15 @@ export default function DashboardPage() {
     );
   }
 
-  const activePnL = model.scenarios[activeScenario].pnl;
-  const stab = model.scenarios[activeScenario].stabilisedYear;
+  const activeScenarioOutput = model.scenarios[activeScenario];
+  const activePnL = activeScenarioOutput.pnl;
+  const stab = activeScenarioOutput.stabilisedYear;
+  const wcY2 = activePnL.find((p) => p.year === 2029);
+
+  // Worst (highest) trough across operational years for the active scenario
+  const worstTrough = activePnL
+    .filter((p) => p.year >= 2028)
+    .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
 
   const km = {
     ...model.keyMetrics,
@@ -71,6 +158,13 @@ export default function DashboardPage() {
     stabilisedEBITDAMargin: stab?.ebitdaMargin ?? 0,
     stabilisedDSCR: stab?.dscr ?? 0,
     stabilisedNCF: stab?.netCashFlowPostVAT ?? 0,
+    wcActive: assumptions.workingCapital.active,
+    wcEffectiveFacility: activeScenarioOutput.wcEffectiveFacility,
+    wcY2Peak: wcY2?.wcPeakBalance ?? 0,
+    wcStabilisedAvg: stab?.wcAvgBalance ?? 0,
+    wcStabilisedInterest: stab?.wcInterestExpense ?? 0,
+    wcWorstTrough: worstTrough,
+    wcSelfLiqViolation: activePnL.some((p) => p.wcSelfLiquidatingViolation),
   };
 
   const pathLabel =
@@ -84,36 +178,22 @@ export default function DashboardPage() {
 
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
 
-  // Chart data
-  const revenueChartData = activePnL
-    .filter((p) => p.year >= 2028)
-    .map((p) => ({
-      year: p.year,
-      Revenue: Math.round(p.totalRevenue),
-      OPEX: Math.round(p.totalOpex),
-      EBITDA: Math.round(p.ebitda),
-      "Debt Service": Math.round(p.debtService),
-      NCF: Math.round(p.netCashFlow),
-    }));
-
-  const dscrData = model.dscrByYear
-    .filter((d) => d.year >= 2028)
-    .map((d) => ({
-      year: d.year,
-      Realistic: Number(d.realistic.toFixed(2)),
-      Upside: Number(d.upside.toFixed(2)),
-      Downside: Number(d.downside.toFixed(2)),
-      Grant: Number(d.grant.toFixed(2)),
-      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
-    }));
-
-  // Financing comparison chart data
+  // ── Chart data ────────────────────────────────────────────
   const compPaths = [
     { key: 'commercial', label: t('path.commercialShort'), color: '#8B6914' },
     { key: 'rrf', label: t('path.rrfShort'), color: '#4A6A8B' },
     { key: 'grant', label: t('path.grantShort'), color: '#4A7C3F' },
     { key: 'tepixLoan', label: t('path.tepixLoanShort'), color: '#7B5EA7' },
   ];
+
+  const dscrTrajectoryData = model.dscrByYear
+    .filter((d) => d.year >= 2028)
+    .map((d) => ({
+      year: d.year,
+      Commercial: Number(d.realistic.toFixed(2)),
+      Grant: Number(d.grant.toFixed(2)),
+      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+    }));
 
   const capitalStructureData = compPaths.map((p) => ({
     name: p.label,
@@ -134,33 +214,60 @@ export default function DashboardPage() {
     color: p.color,
   }));
 
-  // DSCR trajectory for all paths
-  const dscrTrajectoryData = model.dscrByYear
-    .filter((d) => d.year >= 2028)
-    .map((d) => ({
-      year: d.year,
-      Commercial: Number(d.realistic.toFixed(2)),
-      RRF: Number((d.year >= 2028 ? model.dscrByYear.find(r => r.year === d.year)?.realistic ?? 0 : 0).toFixed(2)),
-      Grant: Number(d.grant.toFixed(2)),
-      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+  // WC quarterly balance (from 2027 onward — 2026 is empty)
+  const wcSparkData = activeScenarioOutput.wcQuarters
+    .filter((q) => q.year >= 2027)
+    .map((q) => ({
+      label: `${q.year}Q${q.quarter}`,
+      balance: Math.round(q.closingBalance),
     }));
+
+  // Threshold helpers
+  const dscrTone =
+    km.stabilisedDSCR >= 1.5 ? "positive" : km.stabilisedDSCR >= 1.25 ? undefined : "warning";
+  const ltvTone = km.ltv <= 0.75 ? "positive" : "warning";
+  const acTone =
+    km.assetCoverage >= 1.5 ? "positive" : km.assetCoverage >= 1.3 ? undefined : "warning";
 
   return (
     <div>
       {/* Header */}
       <div className="flex items-baseline justify-between mb-6">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">
-            {t('dash.title')}
-          </h1>
+          <h1 className="font-display text-2xl text-text-primary">{t('dash.title')}</h1>
           <p className="text-sm text-text-secondary mt-1">
             {pathLabel} &middot; {scenarioLabel} &middot; {t('dash.stabilisedYear')}
           </p>
         </div>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* HERO — DSCR trajectory full-width */}
+      <div className="bg-white rounded-2xl border border-surface-tertiary p-5 mb-2 shadow-sm">
+        <div className="flex items-baseline justify-between mb-3">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+            {t('dash.heroDscr')}
+          </h3>
+          <span className="text-[11px] text-text-tertiary">{t('dash.heroDscrSub')}</span>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={dscrTrajectoryData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0, 'dataMax + 0.5']} />
+            <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }} />
+            <ReferenceLine y={1.50} stroke="#6B7A3D" strokeDasharray="3 3" label={{ value: "1.50× comfort", fontSize: 10, fill: "#6B7A3D" }} />
+            <Line type="monotone" dataKey="Commercial" name={t('path.commercialShort')} stroke="#8B6914" strokeWidth={2.5} />
+            <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.8} strokeDasharray="4 2" />
+            <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Section 1 — Operating Performance */}
+      <SectionHeader title={t('dash.section.operating')} sub={t('dash.stabilisedYear')} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           label={t('kpi.totalInvestment')}
           value={formatCurrency(km.totalCapex, true, locale)}
@@ -182,11 +289,15 @@ export default function DashboardPage() {
           label={t('term.dscr')}
           value={formatMultiple(km.stabilisedDSCR)}
           sublabel={t('kpi.debtServiceCoverage')}
+          threshold={t('dash.kpi.dscrThreshold')}
+          tone={dscrTone}
           accent={km.stabilisedDSCR >= 1.5}
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Section 2 — Capital Structure */}
+      <SectionHeader title={t('dash.section.capital')} sub={pathLabel} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           label={t('kpi.loanAmount')}
           value={formatCurrency(km.loanAmount, true, locale)}
@@ -209,7 +320,97 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* Section 3 — Working Capital (single panel with sparkline) */}
+      {km.wcActive && (
+        <>
+          <SectionHeader
+            title={t('dash.section.workingCapital')}
+            sub={t('dash.wcPanelSub')}
+          />
+          <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              {/* Left: 4 mini stats */}
+              <div className="lg:col-span-5 grid grid-cols-2 gap-x-6 gap-y-4">
+                <MiniStat
+                  label={t('dash.wcPeak')}
+                  value={formatCurrency(km.wcY2Peak, true, locale)}
+                />
+                <MiniStat
+                  label={t('dash.wcAvg')}
+                  value={formatCurrency(km.wcStabilisedAvg, true, locale)}
+                />
+                <MiniStat
+                  label={t('dash.wcTrough')}
+                  value={formatCurrency(km.wcWorstTrough, true, locale)}
+                  tone={km.wcSelfLiqViolation ? "warning" : "positive"}
+                />
+                <MiniStat
+                  label={t('dash.wcInterestAnnual')}
+                  value={formatCurrency(km.wcStabilisedInterest, true, locale)}
+                />
+                <div className="col-span-2 flex items-center gap-3 pt-2 border-t border-surface-tertiary/50">
+                  <StatusChip
+                    label={
+                      km.wcSelfLiqViolation
+                        ? t('kpi.wcSelfLiqFail')
+                        : t('kpi.wcSelfLiqOk')
+                    }
+                    ok={!km.wcSelfLiqViolation}
+                  />
+                  <span className="text-[11px] text-text-tertiary">
+                    {t('kpi.wcSelfLiqSub')} · {t('kpi.wcFacility')}{" "}
+                    {formatCurrency(km.wcEffectiveFacility, true, locale)}
+                  </span>
+                </div>
+              </div>
+              {/* Right: sparkline */}
+              <div className="lg:col-span-7">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+                  {t('dash.wcSparkLabel')}
+                </div>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={wcSparkData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="wcGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8B6914" stopOpacity={0.45} />
+                        <stop offset="100%" stopColor="#8B6914" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 9 }}
+                      interval={3}
+                      tickFormatter={(v: string) => v.split('Q')[0]}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
+                      width={50}
+                    />
+                    <Tooltip
+                      formatter={(value) => formatCurrency(Number(value), true, locale)}
+                      labelFormatter={(label) => `${t('dash.wcQuarterly')} ${label}`}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="balance"
+                      stroke="#8B6914"
+                      strokeWidth={1.8}
+                      fill="url(#wcGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Section 4 — Collateral & Buffers */}
+      <SectionHeader title={t('dash.section.collateral')} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPICard
           label={t('kpi.portfolioValue')}
           value={formatCurrency(km.portfolioValue, true, locale)}
@@ -219,11 +420,15 @@ export default function DashboardPage() {
           label={t('term.ltv')}
           value={formatPercent(km.ltv)}
           sublabel={t('kpi.ltvAtCompletion')}
+          threshold={t('dash.kpi.ltvThreshold')}
+          tone={ltvTone}
         />
         <KPICard
           label={t('kpi.assetCoverage')}
           value={formatMultiple(km.assetCoverage)}
           sublabel={t('kpi.assetCoverageSub')}
+          threshold={t('dash.kpi.acThreshold')}
+          tone={acTone}
         />
         <KPICard
           label={t('kpi.bufferBreakEven')}
@@ -232,113 +437,13 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Revenue & EBITDA Chart */}
-        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
-          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
-            {t('dash.revenueEbitda')}
+      {/* Compact P&L Snapshot — 3 rows */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-8">
+        <div className="flex items-baseline justify-between mb-4">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+            {t('dash.pnlSummary')} — {scenarioLabel}
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={revenueChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value), false, locale)}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #EDE6D5",
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="Revenue" name={t('pnl.totalRevenue')} fill="#C4A55E" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="EBITDA" name={t('term.ebitda')} fill="#6B7A3D" radius={[4, 4, 0, 0]} />
-              <Line
-                type="monotone"
-                dataKey="Debt Service"
-                name={t('pnl.debtService')}
-                stroke="#9E3B3B"
-                strokeWidth={2}
-                dot={false}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
         </div>
-
-        {/* DSCR Chart */}
-        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
-          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
-            {t('dash.dscrByScenario')}
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={dscrData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 11 }}
-                tickFormatter={(v: number) => `${v.toFixed(1)}×`}
-              />
-              <Tooltip
-                formatter={(value) => `${Number(value).toFixed(2)}×`}
-                contentStyle={{
-                  borderRadius: 8,
-                  border: "1px solid #EDE6D5",
-                  fontSize: 12,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine
-                y={1.25}
-                stroke="#9E3B3B"
-                strokeDasharray="5 5"
-                label={{ value: "1.25× min", fontSize: 10 }}
-              />
-              <Line
-                type="monotone"
-                dataKey="Realistic"
-                name={t('scenario.realistic')}
-                stroke="#8B6914"
-                strokeWidth={2}
-              />
-              <Line
-                type="monotone"
-                dataKey="Upside"
-                name={t('scenario.upside')}
-                stroke="#6B7A3D"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-              />
-              <Line
-                type="monotone"
-                dataKey="Downside"
-                name={t('scenario.downside')}
-                stroke="#C4754B"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-              />
-              <Line
-                type="monotone"
-                dataKey="Grant"
-                name={t('scenario.grantPath')}
-                stroke="#4A6A8B"
-                strokeWidth={1.5}
-                strokeDasharray="4 2"
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Cash Flow Table */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-8">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
-          {t('dash.pnlSummary')} — {scenarioLabel}
-        </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -357,79 +462,29 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-surface-secondary">
-                <td className="py-2 pr-4 text-text-secondary text-xs">
-                  {t('pnl.phase')}
-                </td>
+              <tr className="font-medium border-t border-surface-tertiary/50">
+                <td className="py-2 pr-4">{t('pnl.ncfPostVAT')}</td>
                 {activePnL.map((p) => (
                   <td
                     key={p.year}
-                    className="text-right py-2 px-2 text-text-tertiary text-xs"
+                    className={`text-right py-2 px-2 data-cell ${p.netCashFlowPostVAT >= 0 ? "text-positive" : "text-negative"}`}
                   >
-                    {p.phase}
+                    {formatCurrency(p.netCashFlowPostVAT, true, locale)}
                   </td>
                 ))}
               </tr>
-              <tr>
-                <td className="py-2 pr-4 font-medium">{t('pnl.totalRevenue')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell">
-                    {p.totalRevenue > 0
-                      ? formatCurrency(p.totalRevenue, true, locale)
-                      : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.totalOpex')}</td>
+              <tr className="border-t border-surface-secondary/50">
+                <td className="py-2 pr-4 text-text-secondary">{t('pnl.cumulativeNCF')}</td>
                 {activePnL.map((p) => (
                   <td
                     key={p.year}
-                    className="text-right py-2 px-2 data-cell text-text-secondary"
+                    className={`text-right py-2 px-2 data-cell ${p.cumulativeNCF >= 0 ? "text-positive" : "text-negative"}`}
                   >
-                    {p.totalOpex > 0
-                      ? formatCurrency(p.totalOpex, true, locale)
-                      : "—"}
+                    {formatCurrency(p.cumulativeNCF, true, locale)}
                   </td>
                 ))}
               </tr>
-              <tr className="font-medium bg-surface-secondary/50">
-                <td className="py-2 pr-4">{t('term.ebitda')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell">
-                    {p.ebitda !== 0
-                      ? formatCurrency(p.ebitda, true, locale)
-                      : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="py-2 pr-4 text-text-secondary">
-                  {t('pnl.debtService')}
-                </td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className="text-right py-2 px-2 data-cell text-negative"
-                  >
-                    {p.debtService > 0
-                      ? formatCurrency(p.debtService, true, locale)
-                      : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="font-medium border-t border-surface-tertiary">
-                <td className="py-2 pr-4">{t('kpi.netCashFlow')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${p.netCashFlow >= 0 ? "text-positive" : "text-negative"}`}
-                  >
-                    {formatCurrency(p.netCashFlow, true, locale)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
+              <tr className="border-t border-surface-secondary/50">
                 <td className="py-2 pr-4 text-text-secondary">{t('term.dscr')}</td>
                 {activePnL.map((p) => (
                   <td
@@ -452,7 +507,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Financing Comparison Table */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-6">
         <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
           {t('dash.financingComparison')}
         </h3>
@@ -500,14 +555,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Financing Path Comparison Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Capital Structure */}
+      {/* Bottom charts grid (3 charts in 2-col, last row spans) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
             {t('dash.capitalStructureChart')}
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={capitalStructureData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
@@ -521,12 +575,11 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Annual DS */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
             {t('dash.annualDSChart')}
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={260}>
             <BarChart data={annualDSData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
@@ -541,44 +594,24 @@ export default function DashboardPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Stabilised DSCR */}
-        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5 lg:col-span-2">
           <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
             {t('dash.stabilisedDSCRChart')}
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={240}>
             <ComposedChart data={stabilisedDSCRData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
               <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× min", fontSize: 10 }} />
+              <ReferenceLine y={1.50} stroke="#6B7A3D" strokeDasharray="3 3" label={{ value: "1.50× comfort", fontSize: 10 }} />
               <Bar dataKey="DSCR" name={t('term.dscr')} radius={[4, 4, 0, 0]}>
                 {stabilisedDSCRData.map((entry, index) => (
                   <Cell key={index} fill={entry.color} />
                 ))}
               </Bar>
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* DSCR Trajectory */}
-        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
-          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
-            {t('dash.dscrTrajectory')}
-          </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={dscrTrajectoryData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} />
-              <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25×", fontSize: 10 }} />
-              <Line type="monotone" dataKey="Commercial" name={t('path.commercialShort')} stroke="#8B6914" strokeWidth={2} />
-              <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.5} strokeDasharray="4 2" />
-              <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
-            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>

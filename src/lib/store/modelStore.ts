@@ -126,6 +126,9 @@ const STORAGE_KEY = 'villa-lev-saved-configs';
 const TEMPLATES_STORAGE_KEY = 'villa-lev-templates';
 const HISTORY_STORAGE_KEY = 'villa-lev-history';
 const USER_STORAGE_KEY = 'villa-lev-current-user';
+const ASSUMPTIONS_STORAGE_KEY = 'villa-lev-assumptions';
+const PROJECTS_STORAGE_KEY = 'villa-lev-projects';
+const SCENARIO_STORAGE_KEY = 'villa-lev-active-scenario';
 const HISTORY_MAX = 200;
 
 function loadFromStorage(): SavedConfiguration[] {
@@ -204,6 +207,76 @@ function saveUserToStorage(user: string) {
   try {
     localStorage.setItem(USER_STORAGE_KEY, user);
   } catch { /* storage full */ }
+}
+
+// Persist current assumption edits (rate, loan coverage, financing path, ramp,
+// revenue, tax, etc.) — everything except `portfolio`, which is rebuilt from
+// templates + projects on every recompute().
+function loadAssumptionsFromStorage(): Partial<ModelAssumptions> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(ASSUMPTIONS_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+function saveAssumptionsToStorage(assumptions: ModelAssumptions) {
+  if (typeof window === 'undefined') return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { portfolio: _portfolio, ...persistable } = assumptions;
+    localStorage.setItem(ASSUMPTIONS_STORAGE_KEY, JSON.stringify(persistable));
+  } catch { /* storage full */ }
+}
+
+function loadProjectsFromStorage(): ProjectAllocation[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveProjectsToStorage(projects: ProjectAllocation[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
+  } catch { /* storage full */ }
+}
+
+function loadScenarioFromStorage(): ScenarioName | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = localStorage.getItem(SCENARIO_STORAGE_KEY);
+    if (saved === 'realistic' || saved === 'upside' || saved === 'downside' || saved === 'breakeven') return saved;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function saveScenarioToStorage(scenario: ScenarioName) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SCENARIO_STORAGE_KEY, scenario);
+  } catch { /* storage full */ }
+}
+
+function clearPersistedState() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(ASSUMPTIONS_STORAGE_KEY);
+    localStorage.removeItem(PROJECTS_STORAGE_KEY);
+    localStorage.removeItem(TEMPLATES_STORAGE_KEY);
+    localStorage.removeItem(SCENARIO_STORAGE_KEY);
+  } catch { /* ignore */ }
 }
 
 // ── Migration ──
@@ -433,6 +506,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         entry.before
       ) as unknown as ModelAssumptions;
       set({ assumptions: updated });
+      saveAssumptionsToStorage(updated);
     } else if (entry.scope === 'template' && entry.scopeId) {
       const templates = state.templates.map((tpl) => {
         if (tpl.id !== entry.scopeId) return tpl;
@@ -456,8 +530,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         p.id === entry.scopeId ? { ...p, [entry.path]: entry.before } : p
       );
       set({ projects });
+      saveProjectsToStorage(projects);
     } else if (entry.scope === 'portfolio' && entry.path === 'financingPath') {
-      set((s) => ({ assumptions: { ...s.assumptions, financingPath: entry.before as FinancingPath } }));
+      const updated: ModelAssumptions = { ...state.assumptions, financingPath: entry.before as FinancingPath };
+      set({ assumptions: updated });
+      saveAssumptionsToStorage(updated);
     }
 
     // Mark entry reverted; create a revert-note entry (not itself revertable)
@@ -499,6 +576,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       value
     ) as unknown as ModelAssumptions;
     set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
     pushHistory(get, set, {
       scope: 'assumption',
       path,
@@ -511,42 +589,43 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   setActiveScenario: (scenario: ScenarioName) => {
     set({ activeScenario: scenario });
+    saveScenarioToStorage(scenario);
   },
 
   setFinancingPath: (path: FinancingPath) => {
     // Not recorded in history: financing path is trivially toggleable via the top bar.
-    set((state) => ({
-      assumptions: { ...state.assumptions, financingPath: path },
-      activeConfigId: null,
-    }));
+    const updated: ModelAssumptions = { ...get().assumptions, financingPath: path };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
     get().recompute();
   },
 
   toggleGrant: (enabled: boolean) => {
-    set((state) => ({
-      assumptions: {
-        ...state.assumptions,
-        financingPath: enabled ? 'grant' : 'commercial',
-        grant: { ...state.assumptions.grant, enabled },
-      },
-      activeConfigId: null,
-    }));
+    const state = get();
+    const updated: ModelAssumptions = {
+      ...state.assumptions,
+      financingPath: enabled ? 'grant' : 'commercial',
+      grant: { ...state.assumptions.grant, enabled },
+    };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
     get().recompute();
   },
 
   toggleRRF: (enabled: boolean) => {
-    set((state) => ({
-      assumptions: {
-        ...state.assumptions,
-        financingPath: enabled ? 'rrf' : 'commercial',
-        rrf: { ...state.assumptions.rrf, enabled },
-      },
-      activeConfigId: null,
-    }));
+    const state = get();
+    const updated: ModelAssumptions = {
+      ...state.assumptions,
+      financingPath: enabled ? 'rrf' : 'commercial',
+      rrf: { ...state.assumptions.rrf, enabled },
+    };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
     get().recompute();
   },
 
   resetToDefaults: () => {
+    clearPersistedState();
     set({
       assumptions: {
         ...BASE_CASE,
@@ -556,6 +635,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
       activeConfigId: null,
       activeConfigName: null,
+      activeScenario: 'realistic',
     });
     get().recompute();
   },
@@ -576,6 +656,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const savedTemplates = loadTemplatesFromStorage();
     const history = loadHistoryFromStorage();
     const currentUser = loadUserFromStorage();
+    const savedAssumptions = loadAssumptionsFromStorage();
+    const savedProjects = loadProjectsFromStorage();
+    const savedScenario = loadScenarioFromStorage();
+
     // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
       ...BUILT_IN_TEMPLATES.map((bt) => {
@@ -586,7 +670,31 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         .filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id))
         .map(ensureRoomAreas),
     ];
-    set({ savedConfigs: configs, templates: allTemplates, history, currentUser });
+
+    // Rebuild assumptions from BASE_CASE + persisted edits. Deep-merge so
+    // fields added to the schema after the user's last save get defaults.
+    let assumptions: ModelAssumptions = {
+      ...BASE_CASE,
+      portfolio: BASE_CASE.portfolio.map((p) => ({ ...p, opex: { ...p.opex } })),
+    };
+    if (savedAssumptions) {
+      assumptions = deepMerge(
+        assumptions as unknown as Record<string, unknown>,
+        savedAssumptions as Record<string, unknown>
+      ) as unknown as ModelAssumptions;
+    }
+
+    const projects = savedProjects ?? DEFAULT_PROJECTS.map((p) => ({ ...p }));
+
+    set({
+      assumptions,
+      savedConfigs: configs,
+      templates: allTemplates,
+      projects,
+      history,
+      currentUser,
+      ...(savedScenario ? { activeScenario: savedScenario } : {}),
+    });
     get().recompute();
   },
 
@@ -705,13 +813,16 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     };
     const projects = [...get().projects, newProject];
     set({ projects, activeConfigId: null });
+    saveProjectsToStorage(projects);
     get().recompute();
   },
 
   removeProject: (id: string) => {
     const projects = get().projects;
     if (projects.length <= 1) return;
-    set({ projects: projects.filter((p) => p.id !== id), activeConfigId: null });
+    const next = projects.filter((p) => p.id !== id);
+    set({ projects: next, activeConfigId: null });
+    saveProjectsToStorage(next);
     get().recompute();
   },
 
@@ -724,6 +835,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       p.id === id ? { ...p, count } : p
     );
     set({ projects, activeConfigId: null });
+    saveProjectsToStorage(projects);
     pushHistory(get, set, {
       scope: 'project',
       scopeId: id,
@@ -743,6 +855,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       p.id === id ? { ...p, templateId, name: tpl.name } : p
     );
     set({ projects, activeConfigId: null });
+    saveProjectsToStorage(projects);
     get().recompute();
   },
 
@@ -751,6 +864,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       p.id === id ? { ...p, name: newName } : p
     );
     set({ projects, activeConfigId: null });
+    saveProjectsToStorage(projects);
   },
 
   // ── Legacy Portfolio Methods (backward compat) ──
@@ -810,12 +924,15 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           .map(ensureRoomAreas),
       ];
       set({
+        assumptions: config.assumptions,
         templates: allTemplates,
         projects: config.projects,
         activeConfigId: id,
         activeConfigName: config.name,
       });
       saveTemplatesToStorage(allTemplates);
+      saveAssumptionsToStorage(config.assumptions);
+      saveProjectsToStorage(config.projects);
     } else {
       // Legacy config: migrate portfolio to projects
       const migrated = migrateToPortfolio(config.assumptions);
@@ -831,6 +948,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         activeConfigId: id,
         activeConfigName: config.name,
       });
+      saveAssumptionsToStorage(migrated);
+      saveProjectsToStorage(projects);
     }
     get().recompute();
   },

@@ -79,7 +79,33 @@ export default function SensitivityPage() {
       };
     });
 
-    return { adrRows, nightsRows, rateRows };
+    // Working capital facility-size sensitivity
+    const wcFacilities = [300000, 400000, 500000];
+    const wcRows = wcFacilities.map((size) => {
+      const modified = {
+        ...assumptions,
+        workingCapital: {
+          ...assumptions.workingCapital,
+          active: true,
+          facilitySize: size,
+        },
+      };
+      const result = computeModel(modified);
+      const real = result.scenarios.realistic;
+      const stab = real.stabilisedYear;
+      const y2 = real.pnl.find((p) => p.year === 2029);
+      return {
+        label: `€${(size / 1000).toFixed(0)}K`,
+        size,
+        wcY2Peak: y2?.wcPeakBalance ?? 0,
+        wcY2Trough: y2?.wcTroughBalance ?? 0,
+        wcInterest: stab?.wcInterestExpense ?? 0,
+        ncf: stab?.netCashFlowPostVAT ?? 0,
+        isBase: size === assumptions.workingCapital.facilitySize,
+      };
+    });
+
+    return { adrRows, nightsRows, rateRows, wcRows };
   }, [assumptions]);
 
   return (
@@ -181,6 +207,43 @@ export default function SensitivityPage() {
                   <td className="text-right py-2 px-3 data-cell">{formatCurrency(row.ds, true, locale)}</td>
                   <td className={`text-right py-2 px-3 data-cell ${row.dscr >= 1.25 ? "text-positive" : "text-warning"}`}>
                     {formatMultiple(row.dscr)}
+                  </td>
+                  <td className={`text-right py-2 px-3 data-cell ${row.ncf >= 0 ? "text-positive" : "text-negative"}`}>
+                    {formatCurrency(row.ncf, true, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Working Capital Sensitivity */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-6">
+        <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+          {t('sens.wcSensitivity')} ({t('sens.base')}: {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)})
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-tertiary">
+                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.facility')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.wcPeak')} (Y2)</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.wcY2Trough')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.wcInterest')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sensitivityData.wcRows.map((row) => (
+                <tr key={row.label} className={`border-b border-surface-secondary/50 ${row.isBase ? "bg-brand-50/50 font-medium" : ""}`}>
+                  <td className="py-2 pr-4">{row.label}</td>
+                  <td className="text-right py-2 px-3 data-cell">{formatCurrency(row.wcY2Peak, true, locale)}</td>
+                  <td className={`text-right py-2 px-3 data-cell ${row.wcY2Trough <= 50000 ? "text-positive" : "text-warning"}`}>
+                    {formatCurrency(row.wcY2Trough, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell text-negative">
+                    {formatCurrency(row.wcInterest, true, locale)}
                   </td>
                   <td className={`text-right py-2 px-3 data-cell ${row.ncf >= 0 ? "text-positive" : "text-negative"}`}>
                     {formatCurrency(row.ncf, true, locale)}

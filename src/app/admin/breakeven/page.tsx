@@ -35,9 +35,13 @@ export default function BreakEvenPage() {
     const a = assumptions.revenueRealistic;
     const revenuePerVillaNight = a.villaADR * nVilla;
     const revenuePerSuiteNight = a.suiteStandardADR * nStdSuite + a.suiteDoubleADR * nDblSuite;
+    const ancillaryExponent = Math.min(
+      3,
+      Math.max(0, a.ancillaryGrowthYears)
+    );
     const fixedRevenue =
       a.eventsPerYear * a.netProfitPerEvent +
-      a.ancillaryBaseProfit * Math.pow(1 + a.ancillaryGrowthRate, 3);
+      a.ancillaryBaseProfit * Math.pow(1 + a.ancillaryGrowthRate, ancillaryExponent);
 
     const revenuePerNight = revenuePerVillaNight + revenuePerSuiteNight;
     const breakEvenNights = Math.ceil(

@@ -107,6 +107,39 @@ function AssumptionRow({
   );
 }
 
+function ToggleRow({
+  label,
+  value,
+  path,
+  note,
+}: {
+  label: string;
+  value: boolean;
+  path: string;
+  note?: string;
+}) {
+  const { setAssumption } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/50">
+      <td className="py-2 pr-4 text-sm text-text-secondary">{label}</td>
+      <td className="py-2 w-36">
+        <button
+          type="button"
+          onClick={() => setAssumption(path, !value, label)}
+          className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+            value
+              ? "bg-positive/10 text-positive hover:bg-positive/20"
+              : "bg-surface-tertiary text-text-tertiary hover:bg-surface-tertiary/70"
+          }`}
+        >
+          {value ? "ON" : "OFF"}
+        </button>
+      </td>
+      <td className="py-2 pl-4 text-xs text-text-tertiary">{note}</td>
+    </tr>
+  );
+}
+
 // ── Unit Stepper ──
 
 function UnitStepper({
@@ -707,7 +740,7 @@ export default function AssumptionsPage() {
     addTemplate,
   } = useModelStore();
   const [tab, setTab] = useState<
-    "portfolio" | "templates" | "general" | "revenue" | "financing"
+    "portfolio" | "templates" | "general" | "revenue" | "opex" | "financing"
   >("portfolio");
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
 
@@ -794,6 +827,7 @@ export default function AssumptionsPage() {
             { id: "financing", label: t('as.financingPaths') },
             { id: "general", label: t('as.general') },
             { id: "revenue", label: t('as.revenue') },
+            { id: "opex", label: t('as.opexTab') },
           ] as const
         ).map((tabDef) => (
           <button
@@ -1077,6 +1111,24 @@ export default function AssumptionsPage() {
               <div className="kpi-value text-text-primary text-2xl">{formatMultiple(model.keyMetrics.stabilisedDSCR)}</div>
             </div>
           </div>
+
+          {/* Working Capital subsection */}
+          <div className="mt-8 bg-white rounded-xl border border-surface-tertiary p-6">
+            <SectionHeader title={t('as.workingCapital')} />
+            <table className="w-full">
+              <tbody>
+                <ToggleRow label={t('field.wcActive')} value={a.workingCapital.active} path="workingCapital.active" note="Toggle off to model without WC" />
+                <AssumptionRow label={t('field.wcFacility')} value={a.workingCapital.facilitySize} path="workingCapital.facilitySize" format="currency" note="Revolving facility" />
+                <AssumptionRow label={t('field.wcSpread')} value={a.workingCapital.spreadOverTermRate} path="workingCapital.spreadOverTermRate" format="percent" note="Above term-loan rate" />
+                <AssumptionRow label={t('field.wcPreOpening')} value={a.workingCapital.preOpeningTotalDraw} path="workingCapital.preOpeningTotalDraw" format="currency" note="Q3-2027 → Q2-2028" />
+                <AssumptionRow label={t('field.wcSeasonal')} value={a.workingCapital.seasonalDrawPerCycle} path="workingCapital.seasonalDrawPerCycle" format="currency" note="Drawn Q4, repaid Q3 next year" />
+                <AssumptionRow label={t('field.wcY2Buffer')} value={a.workingCapital.y2RampBufferTopup} path="workingCapital.y2RampBufferTopup" format="currency" note="Extra Y2 ramp buffer" />
+                <ToggleRow label={t('field.wcSelfLiquidating')} value={a.workingCapital.selfLiquidating} path="workingCapital.selfLiquidating" note="Repay outstanding each Q3" />
+                <ToggleRow label={t('field.wcDsra')} value={a.workingCapital.dsraConversionEnabled} path="workingCapital.dsraConversionEnabled" note="Locks DSRA share, reduces flex" />
+                <AssumptionRow label={t('field.wcDsraLock')} value={a.workingCapital.dsraLockAmount} path="workingCapital.dsraLockAmount" format="currency" note="Locked when DSRA enabled" />
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1118,6 +1170,7 @@ export default function AssumptionsPage() {
               <AssumptionRow label={t('field.profitPerEvent')} value={a.revenueRealistic.netProfitPerEvent} path="revenueRealistic.netProfitPerEvent" format="currency" />
               <AssumptionRow label={t('field.ancillaryProfit')} value={a.revenueRealistic.ancillaryBaseProfit} path="revenueRealistic.ancillaryBaseProfit" format="currency" note="Chef, boat, car rentals" />
               <AssumptionRow label={t('field.ancillaryGrowth')} value={a.revenueRealistic.ancillaryGrowthRate} path="revenueRealistic.ancillaryGrowthRate" format="percent" note="+10%/yr from 2028" />
+              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueRealistic.ancillaryGrowthYears} path="revenueRealistic.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
             </tbody>
           </table>
 
@@ -1130,8 +1183,55 @@ export default function AssumptionsPage() {
               <AssumptionRow label="Double Suite ADR — upside" value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" />
               <AssumptionRow label="Suite nights — upside" value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" />
               <AssumptionRow label="Events — upside" value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" />
+              <AssumptionRow label="Ancillary growth years — upside (cap)" value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* ── OPEX TAB ── */}
+      {tab === "opex" && (
+        <div className="bg-white rounded-xl border border-surface-tertiary p-6">
+          <p className="text-sm text-text-secondary mb-6">
+            Annual operating expenses per unit, by template. Click any value to edit. Changes apply to all projects using that template and recalculate the model instantly.
+          </p>
+
+          {templates.map((tpl) => {
+            const totalOpex = Object.values(tpl.opex).reduce((s, v) => s + v, 0);
+            const projectCount = projects.filter((p) => p.templateId === tpl.id).length;
+            return (
+              <div key={tpl.id} className="mb-8 last:mb-0">
+                <div className="flex items-baseline justify-between mb-3 pb-2 border-b border-surface-tertiary">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${getPropertyDisplayType(tpl) === 'villa' ? 'bg-brand-600' : getPropertyDisplayType(tpl) === 'mixed' ? 'bg-purple-500' : 'bg-info'}`} />
+                    <h3 className="font-display text-lg text-text-primary">{tpl.name}</h3>
+                    {projectCount > 0 && (
+                      <span className="text-xs text-positive bg-positive/10 px-2 py-0.5 rounded-full">
+                        Used in {projectCount} project{projectCount > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-text-tertiary font-mono">
+                    Total: {formatCurrency(totalOpex, true, locale)}/yr
+                  </span>
+                </div>
+                <table className="w-full">
+                  <tbody>
+                    {Object.entries(tpl.opex).map(([key, val]) => (
+                      <TemplateRow
+                        key={key}
+                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                        value={val}
+                        tplId={tpl.id}
+                        path={`opex.${key}`}
+                        format="currency"
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })}
         </div>
       )}
 

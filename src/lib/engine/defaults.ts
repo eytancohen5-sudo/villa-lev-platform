@@ -354,6 +354,7 @@ export const BASE_CASE: ModelAssumptions = {
     netProfitPerEvent: 6000,
     ancillaryBaseProfit: 75000,
     ancillaryGrowthRate: 0.10,
+    ancillaryGrowthYears: 5,
   },
 
   revenueUpside: {
@@ -366,6 +367,7 @@ export const BASE_CASE: ModelAssumptions = {
     netProfitPerEvent: 6000,
     ancillaryBaseProfit: 75000,
     ancillaryGrowthRate: 0.10,
+    ancillaryGrowthYears: 5,
   },
 
   portfolio: [
@@ -425,10 +427,29 @@ export const BASE_CASE: ModelAssumptions = {
 
   acquisitionLegalPerPlot: 50000,
   financingPath: 'commercial',
+
+  workingCapital: {
+    active: true,
+    facilitySize: 400000,
+    spreadOverTermRate: 0.01,
+    preOpeningTotalDraw: 200000,
+    seasonalDrawPerCycle: 150000,
+    y2RampBufferTopup: 100000,
+    selfLiquidating: true,
+    dsraConversionEnabled: false,
+    dsraLockAmount: 124000,
+  },
 };
 
 export const DOWNSIDE_FACTORS = {
   occupancyReduction: 0.10,
   adrReduction: 0.05,
   eventsPerYear: 4,
+  // Working capital under stress: bigger draws, partial repayments.
+  wcSeasonalDrawMultiplier: 1.5,
+  wcRepaymentRatio: 0.7,
 };
+
+// Self-liquidating threshold: trough quarter must close ≤ this amount or the
+// engine flags a violation on AnnualPnL.wcSelfLiquidatingViolation.
+export const WC_TROUGH_THRESHOLD = 50000;

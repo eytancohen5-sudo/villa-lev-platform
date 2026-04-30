@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
@@ -17,14 +17,73 @@ const financingPaths: { id: FinancingPath; shortKey: keyof TranslationDictionary
   { id: "tepix-loan", shortKey: "path.tepixLoanShort", color: "#7B5EA7" },
 ];
 
+function PercentInput({
+  value,
+  onCommit,
+  decimals,
+  step,
+}: {
+  value: number;
+  onCommit: (next: number) => void;
+  decimals: number;
+  step: number;
+}) {
+  const formatted = (value * 100).toFixed(decimals);
+  const [local, setLocal] = useState(formatted);
+  useEffect(() => {
+    setLocal(formatted);
+  }, [formatted]);
+
+  const commit = (raw: string) => {
+    const parsed = parseFloat(raw);
+    if (!isNaN(parsed) && parsed / 100 !== value) onCommit(parsed / 100);
+    else setLocal(formatted);
+  };
+
+  return (
+    <input
+      type="number"
+      step={step}
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={(e) => commit(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") {
+          setLocal(formatted);
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className="w-16 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+    />
+  );
+}
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { init, model, computeTimeMs, assumptions, setFinancingPath, activeScenario, setActiveScenario } =
+  const { init, model, computeTimeMs, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
+
+  const rateLoanConfig =
+    assumptions.financingPath === "tepix-loan"
+      ? {
+          rate: assumptions.tepixLoan.bankInterestRate,
+          coverage: assumptions.tepixLoan.coverageRate,
+          ratePath: "tepixLoan.bankInterestRate",
+          coveragePath: "tepixLoan.coverageRate",
+        }
+      : assumptions.financingPath === "commercial" || assumptions.financingPath === "grant"
+        ? {
+            rate: assumptions.commercialLoan.interestRate,
+            coverage: assumptions.commercialLoan.loanCoverageRate,
+            ratePath: "commercialLoan.interestRate",
+            coveragePath: "commercialLoan.loanCoverageRate",
+          }
+        : null;
   const { t, locale } = useTranslation();
 
   const navItems: { href: string; labelKey: keyof TranslationDictionary }[] = [
@@ -101,7 +160,7 @@ export default function AdminLayout({
       <main className="flex-1 overflow-y-auto h-screen">
         {/* Prominent toggles — always visible */}
         <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary">
-          <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-6">
+          <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
             {/* Financing path */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
@@ -155,34 +214,88 @@ export default function AdminLayout({
               </div>
             </div>
 
+            {/* Rate / Loan coverage inputs (per active path) */}
+            {rateLoanConfig && (
+              <>
+                <div className="w-px h-6 bg-surface-tertiary" />
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+                      Rate
+                    </span>
+                    <PercentInput
+                      value={rateLoanConfig.rate}
+                      decimals={2}
+                      step={0.05}
+                      onCommit={(v) => setAssumption(rateLoanConfig.ratePath, v, "Interest rate")}
+                    />
+                    <span className="text-xs text-text-tertiary">%</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+                      Loan
+                    </span>
+                    <PercentInput
+                      value={rateLoanConfig.coverage}
+                      decimals={0}
+                      step={1}
+                      onCommit={(v) => setAssumption(rateLoanConfig.coveragePath, v, "Loan coverage")}
+                    />
+                    <span className="text-xs text-text-tertiary">%</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Live KPIs + Language toggle */}
             <div className="ms-auto flex items-center gap-4 text-xs text-text-tertiary">
-              {model && (
-                <>
-                  <span>
-                    {t("bar.ds")}:{" "}
-                    <span className="font-mono font-medium text-text-primary">
-                      {formatCurrency(model.keyMetrics.annualDS, true, locale)}
+              {model && (() => {
+                const activeStab = model.scenarios[activeScenario].stabilisedYear;
+                const realStab = model.scenarios.realistic.stabilisedYear;
+                const dscr = activeStab?.dscr ?? 0;
+                const ncf = activeStab?.netCashFlowPostVAT ?? 0;
+                const dscrDelta = activeScenario === 'realistic' ? null : dscr - (realStab?.dscr ?? 0);
+                const ncfDelta = activeScenario === 'realistic' ? null : ncf - (realStab?.netCashFlowPostVAT ?? 0);
+                const fmtSign = (n: number) => (n >= 0 ? '+' : '');
+                return (
+                  <>
+                    <span>
+                      {t("bar.ds")}:{" "}
+                      <span className="font-mono font-medium text-text-primary">
+                        {formatCurrency(model.keyMetrics.annualDS, true, locale)}
+                      </span>
                     </span>
-                  </span>
-                  <span>
-                    {t("bar.dscr")}:{" "}
-                    <span className="font-mono font-medium text-text-primary">
-                      {(model.scenarios[activeScenario].stabilisedYear?.dscr ?? 0).toFixed(2)}×
-                    </span>
-                  </span>
-                  <span>
-                    {t("bar.ncf")}:{" "}
-                    <span className="font-mono font-medium text-text-primary">
-                      {formatCurrency(
-                        model.scenarios[activeScenario].stabilisedYear?.netCashFlowPostVAT ?? 0,
-                        true,
-                        locale
+                    <span>
+                      {t("bar.dscr")}:{" "}
+                      <span className="font-mono font-medium text-text-primary">
+                        {dscr.toFixed(2)}×
+                      </span>
+                      {dscrDelta !== null && Math.abs(dscrDelta) >= 0.005 && (
+                        <span
+                          className={`ms-1 font-mono text-[10px] ${dscrDelta >= 0 ? 'text-positive' : 'text-warning'}`}
+                          title={t('bar.deltaR')}
+                        >
+                          ({fmtSign(dscrDelta)}{dscrDelta.toFixed(2)}×)
+                        </span>
                       )}
                     </span>
-                  </span>
-                </>
-              )}
+                    <span>
+                      {t("bar.ncf")}:{" "}
+                      <span className="font-mono font-medium text-text-primary">
+                        {formatCurrency(ncf, true, locale)}
+                      </span>
+                      {ncfDelta !== null && Math.abs(ncfDelta) >= 1000 && (
+                        <span
+                          className={`ms-1 font-mono text-[10px] ${ncfDelta >= 0 ? 'text-positive' : 'text-warning'}`}
+                          title={t('bar.deltaR')}
+                        >
+                          ({fmtSign(ncfDelta)}{formatCurrency(ncfDelta, true, locale)})
+                        </span>
+                      )}
+                    </span>
+                  </>
+                );
+              })()}
               <div className="w-px h-4 bg-surface-tertiary" />
               <LanguageToggle />
             </div>
