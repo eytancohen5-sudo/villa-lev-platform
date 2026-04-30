@@ -346,10 +346,10 @@ export const BASE_CASE: ModelAssumptions = {
 
   revenueRealistic: {
     villaADR: 3500,
-    villaBaseNights: 95,
+    villaBaseNights: 87,
     suiteStandardADR: 650,
     suiteDoubleADR: 920,
-    suiteBaseNights: 100,
+    suiteBaseNights: 87,
     eventsPerYear: 10,
     netProfitPerEvent: 6000,
     ancillaryBaseProfit: 75000,
@@ -376,22 +376,25 @@ export const BASE_CASE: ModelAssumptions = {
   ],
 
   commercialLoan: {
-    loanCoverageRate: 0.75,
-    interestRate: 0.05,
+    loanCoverageRate: 0.80,
+    interestRate: 0.04,
     gracePeriodYears: 2,
     repaymentTermYears: 13,
     workingCapitalFacility: 400000,
-    interest2026: 50625,
-    interest2027: 110544,
-    interest2028: 216402,
+    // Phased grace-period interest scaled from prior 5% × 75% LTC calibration
+    // by 0.853 = (4/5) × (4,939,200 / 4,630,500) — preserves drawdown shape.
+    interest2026: 43200,
+    interest2027: 94300,
+    interest2028: 184600,
   },
 
   grant: {
     enabled: false,
     grantRate: 0.60,
-    interest2026: 50625,
-    interest2027: 110544,
-    interest2028: 114109,
+    // Same 0.853 scaling applied to grant-path grace interest for parity.
+    interest2026: 43200,
+    interest2027: 94300,
+    interest2028: 97300,
   },
 
   rrf: {
