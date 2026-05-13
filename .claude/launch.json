@@ -5,7 +5,29 @@
       "name": "villa-lev",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "port": 3000,
+      "autoPort": false
+    },
+    {
+      "name": "villa-lev-recover-52575",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "52575"],
+      "port": 52575,
+      "autoPort": false
+    },
+    {
+      "name": "villa-lev-recover-54322",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "54322"],
+      "port": 54322,
+      "autoPort": false
+    },
+    {
+      "name": "villa-lev-recover-54284",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "54284"],
+      "port": 54284,
+      "autoPort": false
     }
   ]
 }

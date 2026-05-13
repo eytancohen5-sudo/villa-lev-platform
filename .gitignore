@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .next-old*
+
+# server-side scenario store (shared saved scenarios — environment-specific)
+/data/

@@ -84,15 +84,16 @@ export default function LexiconPage() {
       {/* Quick nav */}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
-          { id: 'capex', label: 'CAPEX' },
-          { id: 'revenue', label: 'Revenue' },
-          { id: 'opex', label: 'OPEX' },
-          { id: 'ebitda', label: 'EBITDA' },
-          { id: 'pmt', label: 'PMT' },
-          { id: 'dscr', label: 'DSCR' },
-          { id: 'breakeven', label: 'Break-Even' },
-          { id: 'collateral', label: 'Collateral' },
-          { id: 'paths', label: 'Financing' },
+          { id: 'capex', label: t('lex.capex') },
+          { id: 'revenue', label: t('lex.revenue') },
+          { id: 'opex', label: t('lex.opex') },
+          { id: 'ebitda', label: t('lex.ebitda') },
+          { id: 'exit', label: t('lex.exit') },
+          { id: 'pmt', label: t('lex.pmt') },
+          { id: 'dscr', label: t('lex.dscr') },
+          { id: 'breakeven', label: t('lex.breakeven') },
+          { id: 'collateral', label: t('lex.collateral') },
+          { id: 'paths', label: t('lex.paths') },
         ].map((s) => (
           <a
             key={s.id}
@@ -196,6 +197,26 @@ export default function LexiconPage() {
           <p>EBITDA is the numerator in the DSCR calculation and represents the cash available to service debt obligations.</p>
         </Section>
 
+        {/* Exit EBITDA Multiple */}
+        <Section id="exit" title={t('lex.exit')} open={openSections.has('exit')} onToggle={() => toggle('exit')}>
+          <p>Terminal value at the end of the projection horizon, used in the levered (equity) and unlevered (project) IRR calculations. The model assumes a notional sale or refinance valued at a multiple of stabilised EBITDA.</p>
+          <Formula>
+            Terminal Asset Value = Stabilised EBITDA &times; Exit Multiple
+          </Formula>
+          <Formula>
+            Terminal Equity Value = max(0, Terminal Asset Value &minus; Remaining Loan Balance)
+          </Formula>
+          <Formula>
+            Equity IRR = IRR( [&minus;Equity, NCF&#x2081;, NCF&#x2082;, ..., NCF&#x2099; + Terminal Equity] )
+          </Formula>
+          <div className="mt-3">
+            <Variable name="Stabilised EBITDA" desc="EBITDA in the first stabilised year (2031), with Y1/Y2 ramp completed and ancillary growth applied." />
+            <Variable name="Exit Multiple" desc="Editable on Assumptions → General → Exit Assumption. Default 10× ≈ implied 10% cap rate. Higher multiple = higher implied IRR." />
+            <Variable name="Remaining Loan Balance" desc="Term-loan principal outstanding at the end of the projection (declines as DS amortises)." />
+          </div>
+          <p className="mt-3">The IRR includes this synthetic exit cash flow — without it, the projection's NCF stream alone does not return the equity by the model's end. Stress the multiple downward (e.g. 8×) to see equity IRR sensitivity.</p>
+        </Section>
+
         {/* PMT */}
         <Section id="pmt" title={t('lex.pmt')} open={openSections.has('pmt')} onToggle={() => toggle('pmt')}>
           <p>The PMT (Payment) function calculates the fixed periodic payment required to fully amortise a loan. This matches the Excel PMT function.</p>
@@ -274,7 +295,7 @@ export default function LexiconPage() {
           <div className="mt-3">
             <Variable name="Stress" desc="Conservative valuation — distressed market conditions" />
             <Variable name="Market" desc="Current comparable market valuation" />
-            <Variable name="Optimistic" desc="Premium positioning reflecting brand value" />
+            <Variable name="Positive" desc="Premium positioning reflecting brand value" />
           </div>
         </Section>
 

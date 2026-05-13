@@ -3,11 +3,15 @@
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { PageSkeleton } from "@/components/Skeleton";
+import { SCENARIOS_TOUR } from "@/lib/tours/configs";
 
 export default function ScenariosPage() {
   const { t, locale } = useTranslation();
   const { model } = useModelStore();
-  if (!model) return null;
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(SCENARIOS_TOUR.storageKey);
+  if (!model) return <PageSkeleton variant="grid" />;
 
   const { realistic, upside, downside } = model.scenarios;
   const grant = model.grantScenario;
@@ -40,10 +44,15 @@ export default function ScenariosPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-text-primary mb-1">{t('sc.title')}</h1>
-      <p className="text-sm text-text-secondary mb-6">{t('sc.subtitle')}</p>
+      <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl text-text-primary mb-1">{t('sc.title')}</h1>
+          <p className="text-sm text-text-secondary">{t('sc.subtitle')}</p>
+        </div>
+        <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+      </div>
 
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto">
+      <div id="sc-stabilised" className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto scroll-mt-24">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-tertiary">
@@ -70,7 +79,7 @@ export default function ScenariosPage() {
 
       {/* DSCR Year-by-Year */}
       <h2 className="font-display text-lg text-text-primary mt-8 mb-4">{t('sc.dscrByYear')}</h2>
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto">
+      <div id="sc-dscrByYear" className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto scroll-mt-24">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-tertiary">
@@ -105,7 +114,7 @@ export default function ScenariosPage() {
 
       {/* Collateral */}
       <h2 className="font-display text-lg text-text-primary mt-8 mb-4">{t('sc.collateral')}</h2>
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto">
+      <div id="sc-collateral" className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto scroll-mt-24">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-tertiary">
@@ -138,6 +147,8 @@ export default function ScenariosPage() {
         </table>
         <p className="text-xs text-text-tertiary mt-3">{t('sc.builtSurface')}: {model.collateral.builtSurface}m² &middot; {t('sc.loanOutstanding')}: {formatCurrency(model.keyMetrics.loanAmount, false, locale)}</p>
       </div>
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={SCENARIOS_TOUR} />
     </div>
   );
 }

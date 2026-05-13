@@ -17,24 +17,51 @@ export interface PropertyOpex {
 }
 
 // Per-room-type area breakdown (m²)
+export interface CustomSpace {
+  id: string;
+  name: string;
+  area: number;
+}
+
+// One room inside a single villa (e.g. 4 bedrooms × 20m²). The combined
+// per-villa area is then multiplied by the template's villaUnits count.
+export interface VillaRoom {
+  id: string;
+  name: string;
+  count: number;
+  area: number;
+}
+
 export interface RoomAreaBreakdown {
   // Accommodation rooms (multiplied by unit count)
-  villaUnitArea: number;       // m² per villa unit (bedroom + ensuite)
+  villaUnitArea: number;       // m² per villa unit — used when villaRooms is absent/empty
   standardSuiteArea: number;   // m² per standard suite
   doubleSuiteArea: number;     // m² per double/premium suite
+  // Per-villa room breakdown — when present (non-empty), drives villa area
+  // instead of villaUnitArea. Total per villa = Σ(count × area).
+  villaRooms?: VillaRoom[];
   // Common/shared spaces (fixed per property, not multiplied)
   kitchen: number;             // m² kitchen
   livingRoom: number;          // m² living / lounge area
   utilityRoom: number;         // m² laundry, storage, mechanical
   staffRoom: number;           // m² staff quarters / back-of-house
   corridors: number;           // m² hallways, lobby, circulation
-  outdoor: number;             // m² terrace, pool deck, covered outdoor
+  // User-defined common spaces (counted once per plot)
+  customSpaces?: CustomSpace[];
+}
+
+// Per-villa interior area: sum of villaRooms when defined, else legacy bulk.
+export function computeVillaUnitArea(rooms: RoomAreaBreakdown): number {
+  if (rooms.villaRooms && rooms.villaRooms.length > 0) {
+    return rooms.villaRooms.reduce((s, r) => s + (r.count || 0) * (r.area || 0), 0);
+  }
+  return rooms.villaUnitArea || 0;
 }
 
 // Compute total construction area from room breakdown + unit counts
 export function computeTotalArea(rooms: RoomAreaBreakdown, units: { villaUnits: number; standardSuites: number; doubleSuites: number }): number {
   const accommodationArea =
-    units.villaUnits * rooms.villaUnitArea +
+    units.villaUnits * computeVillaUnitArea(rooms) +
     units.standardSuites * rooms.standardSuiteArea +
     units.doubleSuites * rooms.doubleSuiteArea;
   const commonArea =
@@ -42,9 +69,9 @@ export function computeTotalArea(rooms: RoomAreaBreakdown, units: { villaUnits: 
     rooms.livingRoom +
     rooms.utilityRoom +
     rooms.staffRoom +
-    rooms.corridors +
-    rooms.outdoor;
-  return accommodationArea + commonArea;
+    rooms.corridors;
+  const customArea = (rooms.customSpaces ?? []).reduce((s, c) => s + (c.area || 0), 0);
+  return accommodationArea + commonArea + customArea;
 }
 
 // Unit mix: each property can combine villas + hotel rooms
@@ -242,6 +269,9 @@ export interface ModelAssumptions {
   acquisitionLegalPerPlot: number;
   financingPath: FinancingPath;
   workingCapital: WorkingCapitalParams;
+  // Multiple applied to stabilised EBITDA to produce a terminal asset value
+  // for IRR calculations. e.g. 10 means terminal value = 10 × stabilised EBITDA.
+  exitEbitdaMultiple: number;
 }
 
 // ============================================================
@@ -306,6 +336,23 @@ export interface AnnualPnL {
   // Excludes VAT, which is a balance-sheet pass-through, not an income expense.
   profitAfterTax: number;
   netCashFlowPostVAT: number;
+  // Annual cash-on-cash yield: netCashFlowPostVAT / initial equity required for
+  // the active financing path. Zero before operations and when equity is zero.
+  yieldOnInitialEquity: number;
+  // Running sum of yieldOnInitialEquity through this year. Final-year value is
+  // the projection-wide cumulative yield (multiple of initial equity returned).
+  cumulativeYieldOnInitialEquity: number;
+  // Term-loan amortisation breakdown for the active financing path. Interest-
+  // only during the grace period; full amortisation thereafter.
+  termLoanInterest: number;
+  termLoanPrincipal: number;
+  termLoanBalance: number;       // closing balance for the year
+  // EBITDA / interest-only term loan service. Zero before interest accrues.
+  interestCoverageRatio: number;
+  // Cash flow available for debt service. CFADS ≈ EBITDA + CIT (CIT stored
+  // negative). Used as numerator in LLCR/PLCR and as unlevered FCF for
+  // project IRR.
+  cfads: number;
   dscr: number;
   // ── Working Capital (quarterly compute, annual aggregates) ──
   wcAvgBalance: number;
@@ -338,9 +385,42 @@ export interface ScenarioOutput {
   wcQuarters: WorkingCapitalQuarter[];
   wcEffectiveFacility: number;
   wcRate: number;
+  // Aggregated bank-underwriting metrics for the active path under this scenario
+  llcr: number;                       // Loan Life Coverage Ratio
+  plcr: number;                       // Project Life Coverage Ratio
+  icrStabilised: number;              // EBITDA / interest, stabilised year
+  minDSCRLoanLife: number;            // min DSCR across operational years (≥2029)
+  dscrCovenantHeadroom: number;       // (minDSCR - 1.25) / 1.25
+  peakDebtOutstanding: number;        // max(termLoanBalance + wcPeakBalance)
+  gracePeriodInterestTotal: number;   // sum of interest paid 2026+2027+2028
+  netLeverage: number;                // loan / stabilised EBITDA
+  // Returns
+  yieldStabilised: number;            // yieldOnInitialEquity at stabilised year
+  cumulativeYieldFinal: number;       // cumulative yield at end of projection
+  equityPaybackYears: number | null;  // first year cum yield ≥ 100%, else null
+  equityIRR: number;                  // levered IRR with terminal equity value
+  projectIRR: number;                 // unlevered IRR with terminal asset value
+  roic: number;                       // (EBITDA + CIT) / total CapEx, stabilised
+  terminalAssetValue: number;         // stabilised EBITDA × exit multiple
+  terminalEquityValue: number;        // terminal asset value − loan balance
+  exitEbitdaMultiple: number;         // multiple applied to stabilised EBITDA
 }
 
+// Stable identifier for each comparison row, locale-independent. Add cases
+// here when new rows land in computeFinancingComparison.
+export type FinancingMetricKey =
+  | 'totalLoanDrawn'
+  | 'grantReceived'
+  | 'equityRequired'
+  | 'annualDebtService'
+  | 'stabilisedDSCR'
+  | 'supplementaryLoan'
+  | 'equitySavingVsCommercial';
+
 export interface FinancingComparison {
+  // Locale-independent identifier — use this for any conditional logic.
+  key: FinancingMetricKey;
+  // Localised, human-readable label for the row.
   metric: string;
   commercial: string | number;
   rrf: string | number;

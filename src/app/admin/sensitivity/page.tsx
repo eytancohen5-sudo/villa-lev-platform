@@ -1,14 +1,192 @@
 "use client";
 
 import { useModelStore } from "@/lib/store/modelStore";
-import { formatCurrency, formatMultiple } from "@/lib/hooks/useModel";
+import { formatCurrency, formatMultiple, formatPercent } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel } from "@/lib/engine/model";
+import type { ModelAssumptions } from "@/lib/engine/types";
 import { useMemo } from "react";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { SENSITIVITY_TOUR } from "@/lib/tours/configs";
+
+// ── Tornado helpers ────────────────────────────────────────────────────
+// Tornado chart: vary one input at a time around the baseline, capture how
+// equity IRR moves, sort by absolute swing. The bar farthest from zero on
+// the chart is the input with the most leverage on returns.
+
+interface TornadoInput {
+  label: string;
+  // Apply the variation to a fresh copy of `a`. `side` is 'low' or 'high'.
+  vary: (a: ModelAssumptions, side: 'low' | 'high') => ModelAssumptions;
+  lowLabel: string;
+  highLabel: string;
+}
+
+interface TornadoBarData {
+  label: string;
+  baseIRR: number;     // baseline equity IRR
+  lowIRR: number;      // IRR at the low side
+  highIRR: number;     // IRR at the high side
+  lowLabel: string;
+  highLabel: string;
+  // Signed deltas from baseline (in IRR percentage points). lowDelta is usually
+  // negative, highDelta positive — but for inputs like interest rate, "low"
+  // (lower rate) actually improves IRR so the signs flip.
+  lowDelta: number;
+  highDelta: number;
+  // Absolute swing — used for sorting (largest at top of tornado).
+  swing: number;
+}
+
+function clone<T>(x: T): T {
+  return JSON.parse(JSON.stringify(x));
+}
+
+function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; baseIRR: number; maxSwing: number } {
+  const baseIRR = computeModel(baseline).scenarios.realistic.equityIRR;
+
+  const inputs: TornadoInput[] = [
+    {
+      label: 'Villa ADR',
+      vary: (a, s) => { a.revenueRealistic.villaADR *= s === 'low' ? 0.9 : 1.1; return a; },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'Suite ADR (std + dbl)',
+      vary: (a, s) => {
+        const f = s === 'low' ? 0.9 : 1.1;
+        a.revenueRealistic.suiteStandardADR *= f;
+        a.revenueRealistic.suiteDoubleADR *= f;
+        return a;
+      },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'Villa nights / yr',
+      vary: (a, s) => { a.revenueRealistic.villaBaseNights = Math.round(a.revenueRealistic.villaBaseNights * (s === 'low' ? 0.9 : 1.1)); return a; },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'Suite nights / yr',
+      vary: (a, s) => { a.revenueRealistic.suiteBaseNights = Math.round(a.revenueRealistic.suiteBaseNights * (s === 'low' ? 0.9 : 1.1)); return a; },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'Interest rate',
+      // Rates: ±100bps absolute, NOT ±10%, since 10% of 5% (50bps) is too small to be meaningful in stress-tests.
+      vary: (a, s) => { a.commercialLoan.interestRate += s === 'low' ? -0.01 : 0.01; return a; },
+      lowLabel: '−100bp', highLabel: '+100bp',
+    },
+    {
+      label: 'Loan coverage rate',
+      // ±5pp absolute — same reason; small loan-coverage moves shift equity meaningfully.
+      vary: (a, s) => { a.commercialLoan.loanCoverageRate += s === 'low' ? -0.05 : 0.05; return a; },
+      lowLabel: '−5pp', highLabel: '+5pp',
+    },
+    {
+      label: 'Exit EBITDA multiple',
+      vary: (a, s) => { a.exitEbitdaMultiple *= s === 'low' ? 0.8 : 1.2; return a; },
+      lowLabel: '−20%', highLabel: '+20%',
+    },
+    {
+      label: 'Construction €/m²',
+      vary: (a, s) => {
+        const f = s === 'low' ? 0.9 : 1.1;
+        a.portfolio.forEach((p) => { p.constructionCostPerM2 *= f; });
+        return a;
+      },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'FF&E per unit',
+      vary: (a, s) => {
+        const f = s === 'low' ? 0.9 : 1.1;
+        a.portfolio.forEach((p) => { p.ffeCost *= f; });
+        return a;
+      },
+      lowLabel: '−10%', highLabel: '+10%',
+    },
+    {
+      label: 'Acquisition legal / plot',
+      vary: (a, s) => { a.acquisitionLegalPerPlot *= s === 'low' ? 0.8 : 1.2; return a; },
+      lowLabel: '−20%', highLabel: '+20%',
+    },
+  ];
+
+  const bars: TornadoBarData[] = inputs.map((input) => {
+    const low = computeModel(input.vary(clone(baseline), 'low')).scenarios.realistic.equityIRR;
+    const high = computeModel(input.vary(clone(baseline), 'high')).scenarios.realistic.equityIRR;
+    return {
+      label: input.label,
+      baseIRR,
+      lowIRR: low,
+      highIRR: high,
+      lowLabel: input.lowLabel,
+      highLabel: input.highLabel,
+      lowDelta: low - baseIRR,
+      highDelta: high - baseIRR,
+      swing: Math.abs(high - low),
+    };
+  });
+
+  bars.sort((a, b) => b.swing - a.swing);
+  const maxSwing = Math.max(...bars.map((b) => Math.max(Math.abs(b.lowDelta), Math.abs(b.highDelta))));
+  return { bars, baseIRR, maxSwing };
+}
+
+function TornadoBar({ bar, maxSwing }: { bar: TornadoBarData; maxSwing: number }) {
+  // Percentage of the half-width to use for each side, scaled to the global max.
+  const lowPct = maxSwing > 0 ? (Math.abs(bar.lowDelta) / maxSwing) * 100 : 0;
+  const highPct = maxSwing > 0 ? (Math.abs(bar.highDelta) / maxSwing) * 100 : 0;
+  // Color: red side = whichever direction lowers IRR; green side = the other.
+  const lowColor = bar.lowDelta < 0 ? 'bg-negative/70' : 'bg-positive/70';
+  const highColor = bar.highDelta > 0 ? 'bg-positive/70' : 'bg-negative/70';
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <div className="w-44 text-xs text-text-secondary text-right truncate" title={bar.label}>
+        {bar.label}
+      </div>
+      <div className="flex-1 grid grid-cols-2 relative">
+        {/* Centerline (baseline IRR) */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-text-tertiary/40 z-10" />
+        {/* Left half (low side) */}
+        <div className="flex justify-end pr-px">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-text-tertiary font-mono">
+              {(bar.lowIRR * 100).toFixed(1)}%
+            </span>
+            <div
+              className={`h-5 ${lowColor} rounded-l`}
+              style={{ width: `max(${lowPct}%, 2px)` }}
+              title={`${bar.lowLabel}: equity IRR ${(bar.lowIRR * 100).toFixed(2)}% (Δ ${bar.lowDelta >= 0 ? '+' : ''}${(bar.lowDelta * 100).toFixed(2)}pp)`}
+            />
+          </div>
+        </div>
+        {/* Right half (high side) */}
+        <div className="flex justify-start pl-px">
+          <div className="flex items-center gap-1">
+            <div
+              className={`h-5 ${highColor} rounded-r`}
+              style={{ width: `max(${highPct}%, 2px)` }}
+              title={`${bar.highLabel}: equity IRR ${(bar.highIRR * 100).toFixed(2)}% (Δ ${bar.highDelta >= 0 ? '+' : ''}${(bar.highDelta * 100).toFixed(2)}pp)`}
+            />
+            <span className="text-[10px] text-text-tertiary font-mono">
+              {(bar.highIRR * 100).toFixed(1)}%
+            </span>
+          </div>
+        </div>
+      </div>
+      <div className="w-20 text-[10px] text-text-tertiary font-mono text-right tabular-nums">
+        {(bar.swing * 100).toFixed(2)}pp
+      </div>
+    </div>
+  );
+}
 
 export default function SensitivityPage() {
   const { t, locale } = useTranslation();
   const { assumptions } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(SENSITIVITY_TOUR.storageKey);
 
   const sensitivityData = useMemo(() => {
     // ADR sensitivity
@@ -108,13 +286,54 @@ export default function SensitivityPage() {
     return { adrRows, nightsRows, rateRows, wcRows };
   }, [assumptions]);
 
+  // Tornado is its own memo — 20+ engine runs, only redo when assumptions change.
+  const tornado = useMemo(() => computeTornado(assumptions), [assumptions]);
+
   return (
     <div>
-      <h1 className="font-display text-2xl text-text-primary mb-1">{t('sens.title')}</h1>
-      <p className="text-sm text-text-secondary mb-6">{t('sens.subtitle')}</p>
+      <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl text-text-primary mb-1">{t('sens.title')}</h1>
+          <p className="text-sm text-text-secondary">{t('sens.subtitle')}</p>
+        </div>
+        <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+      </div>
+
+      {/* Tornado — which inputs move equity IRR the most. */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6">
+        <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+            Tornado — equity IRR sensitivity
+          </h3>
+          <div className="text-xs text-text-tertiary">
+            Baseline: <span className="font-mono text-text-primary">{formatPercent(tornado.baseIRR, 1)}</span>{' '}
+            · {tornado.bars.length} inputs · ranked by absolute swing
+          </div>
+        </div>
+
+        {/* Centered axis label row */}
+        <div className="flex items-center gap-3 mb-2 text-[10px] uppercase tracking-wider text-text-tertiary">
+          <div className="w-44 text-right">Input</div>
+          <div className="flex-1 grid grid-cols-2">
+            <div className="text-right pr-2">↓ lower equity IRR</div>
+            <div className="pl-2">higher equity IRR ↑</div>
+          </div>
+          <div className="w-20 text-right">Swing</div>
+        </div>
+
+        <div className="border-t border-surface-secondary/50 pt-2">
+          {tornado.bars.map((bar) => (
+            <TornadoBar key={bar.label} bar={bar} maxSwing={tornado.maxSwing} />
+          ))}
+        </div>
+
+        <p className="mt-4 text-[11px] text-text-tertiary leading-relaxed">
+          Each row varies one input ± while everything else stays at the baseline, then captures equity IRR. Bars on the red side mean the variation drops IRR; green side means IRR goes up. Inputs near the top have the most leverage on returns; inputs near the bottom barely move the needle. <strong>Rates ±100bp absolute, loan coverage ±5pp absolute, exit multiple ±20%, everything else ±10%.</strong>
+        </p>
+      </div>
 
       {/* ADR Sensitivity */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6">
+      <div id="sens-occupancy" className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6 scroll-mt-24">
         <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
           {t('sens.adrSensitivity')} ({t('sens.base')}: €{assumptions.revenueRealistic.villaADR})
         </h3>
@@ -158,7 +377,7 @@ export default function SensitivityPage() {
             <thead>
               <tr className="border-b border-surface-tertiary">
                 <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.change')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Nights</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('field.nights')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.ebitda')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.dscr')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
@@ -184,7 +403,7 @@ export default function SensitivityPage() {
       </div>
 
       {/* Interest Rate Sensitivity */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+      <div id="sens-rate" className="bg-white rounded-xl border border-surface-tertiary p-5 scroll-mt-24">
         <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
           {t('sens.interestSensitivity')} ({t('sens.base')}: {(assumptions.commercialLoan.interestRate * 100).toFixed(1)}%)
         </h3>
@@ -193,7 +412,7 @@ export default function SensitivityPage() {
             <thead>
               <tr className="border-b border-surface-tertiary">
                 <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.change')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Rate</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('field.rate')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('kpi.annualDS')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.dscr')}</th>
                 <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
@@ -254,6 +473,8 @@ export default function SensitivityPage() {
           </table>
         </div>
       </div>
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={SENSITIVITY_TOUR} />
     </div>
   );
 }

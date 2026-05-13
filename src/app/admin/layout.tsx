@@ -7,6 +7,7 @@ import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
 import { LanguageToggle } from "@/components/LanguageToggle";
+import { AssumptionPrompts } from "@/components/AssumptionPrompts";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
 
@@ -159,7 +160,7 @@ export default function AdminLayout({
       {/* Main content */}
       <main className="flex-1 overflow-y-auto h-screen">
         {/* Prominent toggles — always visible */}
-        <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary">
+        <div id="control-bar" className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary scroll-mt-24">
           <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
             {/* Financing path */}
             <div className="flex items-center gap-2">
@@ -304,6 +305,7 @@ export default function AdminLayout({
 
         <div className="max-w-7xl mx-auto p-6">{children}</div>
       </main>
+      <AssumptionPrompts />
     </div>
   );
 }

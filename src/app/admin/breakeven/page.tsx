@@ -5,6 +5,9 @@ import { formatCurrency, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel } from "@/lib/engine/model";
 import { useMemo } from "react";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { PageSkeleton } from "@/components/Skeleton";
+import { BREAKEVEN_TOUR } from "@/lib/tours/configs";
 import {
   LineChart,
   Line,
@@ -19,6 +22,7 @@ import {
 export default function BreakEvenPage() {
   const { t, locale } = useTranslation();
   const { assumptions, model } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(BREAKEVEN_TOUR.storageKey);
 
   const analysis = useMemo(() => {
     if (!model) return null;
@@ -127,6 +131,9 @@ export default function BreakEvenPage() {
         (beRev - suiteRevAtBase - fixedRevenue) / (nVilla * baseNights)
       ) : 0;
       return {
+        // Stable identifier for matching against assumptions.financingPath —
+        // do NOT use `path` (the localised label) for any conditional logic.
+        key: path,
         path: path === "commercial"
           ? t('path.commercialShort')
           : path === "rrf"
@@ -181,6 +188,11 @@ export default function BreakEvenPage() {
     const beComboSuiteRev = (beComboStdADR * nStdSuite + beComboDblADR * nDblSuite) * beComboNights;
     const beComboRev = beComboVillaRev + beComboSuiteRev + fixedRevenue;
 
+    // The three break-even sub-scenarios are by construction at NCF = 0 and
+    // DSCR = 1 (Math.ceil rounding may push the modeled value slightly above
+    // those exact targets). The cell renderer relies on these fields existing.
+    const beNcf = (rev: number) => rev - totalOpex - annualDS;
+    const beDscr = (rev: number) => annualDS > 0 ? (rev - totalOpex) / annualDS : 0;
     const breakEvenScenario = {
       nightsOnly: {
         nights: beNightsOnlyNights, villaADR: a.villaADR,
@@ -188,6 +200,7 @@ export default function BreakEvenPage() {
         villaRev: beNightsOnlyVillaRev, suiteRev: beNightsOnlySuiteRev,
         fixedRev: fixedRevenue, revenue: beNightsOnlyRev,
         ebitda: beNightsOnlyRev - totalOpex, dropPct: (1 - nightsFactor) * 100,
+        ncf: beNcf(beNightsOnlyRev), dscr: beDscr(beNightsOnlyRev),
       },
       adrOnly: {
         nights: baseNights, villaADR: beADROnlyVillaADR,
@@ -195,6 +208,7 @@ export default function BreakEvenPage() {
         villaRev: beADROnlyVillaRev, suiteRev: beADROnlySuiteRev,
         fixedRev: fixedRevenue, revenue: beADROnlyRev,
         ebitda: beADROnlyRev - totalOpex, dropPct: (1 - adrFactor) * 100,
+        ncf: beNcf(beADROnlyRev), dscr: beDscr(beADROnlyRev),
       },
       proportional: {
         nights: beComboNights, villaADR: beComboVillaADR,
@@ -202,6 +216,7 @@ export default function BreakEvenPage() {
         villaRev: beComboVillaRev, suiteRev: beComboSuiteRev,
         fixedRev: fixedRevenue, revenue: beComboRev,
         ebitda: beComboRev - totalOpex, dropPct: (1 - combinedFactor) * 100,
+        ncf: beNcf(beComboRev), dscr: beDscr(beComboRev),
       },
       current: {
         nights: baseNights, villaADR: a.villaADR,
@@ -222,25 +237,24 @@ export default function BreakEvenPage() {
     };
   }, [assumptions, model, t]);
 
-  if (!model || !analysis) return null;
+  if (!model || !analysis) return <PageSkeleton variant="grid" />;
 
-  const activePath = analysis.paths.find(
-    (p) =>
-      p.path.toLowerCase().includes(
-        assumptions.financingPath === "grant" ? "grant"
-        : assumptions.financingPath === "rrf" ? "rrf"
-        : assumptions.financingPath === "tepix-loan" ? "tepix"
-        : "commercial"
-      )
-  ) ?? analysis.paths[0];
+  // Match on the financing-path enum, not the translated label — locale change
+  // would otherwise silently fall back to the first (commercial) row.
+  const activePath = analysis.paths.find((p) => p.key === assumptions.financingPath) ?? analysis.paths[0];
 
   return (
     <div>
-      <h1 className="font-display text-2xl text-text-primary mb-1">{t('be.title')}</h1>
-      <p className="text-sm text-text-secondary mb-6">{t('be.subtitle')}</p>
+      <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl text-text-primary mb-1">{t('be.title')}</h1>
+          <p className="text-sm text-text-secondary">{t('be.subtitle')}</p>
+        </div>
+        <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+      </div>
 
       {/* Hero KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div id="be-buffer" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 scroll-mt-24">
         <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">{t('be.nights')}</div>
           <div className="kpi-value text-text-primary">{activePath.breakEvenNights}</div>
@@ -320,15 +334,29 @@ export default function BreakEvenPage() {
                   </tr>
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">{t('be.stdSuiteADR')}</td>
-                    {cols.map((c) => (
-                      <td key={c.key} className="text-right py-2.5 px-4 data-cell font-mono">{formatCurrency(get(c.key).stdADR, false, locale)}</td>
-                    ))}
+                    {cols.map((c) => {
+                      const d = get(c.key);
+                      const changed = be.current.stdADR > 0 && d.stdADR !== be.current.stdADR;
+                      return (
+                        <td key={c.key} className={`text-right py-2.5 px-4 data-cell font-mono ${changed ? c.color + " font-medium" : ""}`}>
+                          {formatCurrency(d.stdADR, false, locale)}
+                          {changed && <span className="text-xs ml-1">(-{((1 - d.stdADR / be.current.stdADR) * 100).toFixed(0)}%)</span>}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">{t('be.dblSuiteADR')}</td>
-                    {cols.map((c) => (
-                      <td key={c.key} className="text-right py-2.5 px-4 data-cell font-mono">{formatCurrency(get(c.key).dblADR, false, locale)}</td>
-                    ))}
+                    {cols.map((c) => {
+                      const d = get(c.key);
+                      const changed = be.current.dblADR > 0 && d.dblADR !== be.current.dblADR;
+                      return (
+                        <td key={c.key} className={`text-right py-2.5 px-4 data-cell font-mono ${changed ? c.color + " font-medium" : ""}`}>
+                          {formatCurrency(d.dblADR, false, locale)}
+                          {changed && <span className="text-xs ml-1">(-{((1 - d.dblADR / be.current.dblADR) * 100).toFixed(0)}%)</span>}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr className="border-b border-surface-secondary/50 bg-surface-secondary/20">
                     <td className="py-2.5 pr-4 text-text-tertiary text-xs pl-2">Villa revenue ({analysis.nVilla} unit{analysis.nVilla !== 1 ? 's' : ''})</td>
@@ -374,17 +402,29 @@ export default function BreakEvenPage() {
                   </tr>
                   <tr className="border-b border-surface-secondary/50 font-medium">
                     <td className="py-2.5 pr-4">{t('kpi.netCashFlow')}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-positive font-mono">{formatCurrency(be.current.ncf, true, locale)}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">~{formatCurrency(0, false, locale)}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">~{formatCurrency(0, false, locale)}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">~{formatCurrency(0, false, locale)}</td>
+                    {cols.map((c) => {
+                      const d = get(c.key);
+                      const isCurrent = c.key === 'current';
+                      const tone = isCurrent ? 'text-positive' : Math.abs(d.ncf) < 1 ? 'text-warning' : d.ncf < 0 ? 'text-negative' : 'text-positive';
+                      return (
+                        <td key={c.key} className={`text-right py-2.5 px-4 data-cell font-mono ${tone}`}>
+                          {isCurrent || Math.abs(d.ncf) >= 1 ? formatCurrency(d.ncf, true, locale) : `~${formatCurrency(0, false, locale)}`}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr className="bg-surface-secondary/30 font-medium">
                     <td className="py-2.5 pr-4">{t('term.dscr')}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-positive font-mono">{formatMultiple(be.current.dscr)}</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">1.00&times;</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">1.00&times;</td>
-                    <td className="text-right py-2.5 px-4 data-cell text-warning font-mono">1.00&times;</td>
+                    {cols.map((c) => {
+                      const d = get(c.key);
+                      const isCurrent = c.key === 'current';
+                      const tone = isCurrent ? 'text-positive' : Math.abs(d.dscr - 1) < 0.05 ? 'text-warning' : d.dscr < 1 ? 'text-negative' : 'text-positive';
+                      return (
+                        <td key={c.key} className={`text-right py-2.5 px-4 data-cell font-mono ${tone}`}>
+                          {formatMultiple(d.dscr)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 </tbody>
               </table>
@@ -471,7 +511,7 @@ export default function BreakEvenPage() {
 
       {/* Heatmap */}
       <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-8">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">{t('be.dscrMatrix')}</h3>
+        <h3 id="be-matrix" className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4 scroll-mt-24">{t('be.dscrMatrix')}</h3>
         <p className="text-xs text-text-secondary mb-4">{t('be.dscrMatrixDesc')}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -512,6 +552,8 @@ export default function BreakEvenPage() {
           <span className="flex items-center gap-1"><span className="w-3 h-3 rounded ring-2 ring-brand-500" /> Current</span>
         </div>
       </div>
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BREAKEVEN_TOUR} />
     </div>
   );
 }

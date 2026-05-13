@@ -17,8 +17,100 @@ import {
   getPropertyDisplayType,
   computeTotalArea,
 } from './types';
-import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS } from './defaults';
+import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS, DEFAULT_EXIT_EBITDA_MULTIPLE } from './defaults';
 import { computeWorkingCapital } from './workingCapital';
+
+// ────────────────────────────────────────────
+// Numeric helpers — IRR / NPV / amortisation
+// ────────────────────────────────────────────
+
+function npv(rate: number, cashFlows: number[]): number {
+  let total = 0;
+  for (let t = 0; t < cashFlows.length; t++) {
+    total += cashFlows[t] / Math.pow(1 + rate, t);
+  }
+  return total;
+}
+
+// Newton-Raphson IRR. Returns NaN if the series has no sign change or fails to
+// converge — caller should null-coalesce for display.
+function irr(cashFlows: number[], guess = 0.1): number {
+  const hasNeg = cashFlows.some((cf) => cf < 0);
+  const hasPos = cashFlows.some((cf) => cf > 0);
+  if (!hasNeg || !hasPos) return NaN;
+
+  let r = guess;
+  for (let i = 0; i < 200; i++) {
+    const f = npv(r, cashFlows);
+    const dr = 1e-6;
+    const fPrime = (npv(r + dr, cashFlows) - f) / dr;
+    if (Math.abs(fPrime) < 1e-14) break;
+    const newR = r - f / fPrime;
+    if (!isFinite(newR)) break;
+    if (Math.abs(newR - r) < 1e-9) return newR;
+    r = newR;
+  }
+  // Fallback: bisection between -0.99 and 5.0
+  let lo = -0.99;
+  let hi = 5.0;
+  let fLo = npv(lo, cashFlows);
+  let fHi = npv(hi, cashFlows);
+  if (fLo * fHi > 0) return NaN;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npv(mid, cashFlows);
+    if (Math.abs(fMid) < 1e-6) return mid;
+    if (fLo * fMid < 0) {
+      hi = mid;
+      fHi = fMid;
+    } else {
+      lo = mid;
+      fLo = fMid;
+    }
+  }
+  return (lo + hi) / 2;
+}
+
+// Amortisation schedule for a term loan with grace period. During grace years,
+// interest-only via getDS(year). After grace, opening×rate is interest, the
+// remainder of annualDS is principal.
+interface AmortYear {
+  opening: number;
+  interest: number;
+  principal: number;
+  closing: number;
+}
+
+function buildAmortSchedule(
+  loanAmount: number,
+  rate: number,
+  annualDS: number,
+  getDS: (year: number) => number,
+  startYear: number,
+  endYear: number,
+  graceEndYear: number
+): Map<number, AmortYear> {
+  const map = new Map<number, AmortYear>();
+  let balance = loanAmount;
+  for (let year = startYear; year <= endYear; year++) {
+    const opening = balance;
+    let interest = 0;
+    let principal = 0;
+    if (loanAmount > 0) {
+      if (year <= graceEndYear) {
+        interest = Math.max(0, getDS(year));
+        principal = 0;
+      } else {
+        interest = opening * rate;
+        principal = Math.max(0, Math.min(opening, annualDS - interest));
+      }
+    }
+    const closing = Math.max(0, opening - principal);
+    map.set(year, { opening, interest, principal, closing });
+    balance = closing;
+  }
+  return map;
+}
 
 function areaOf(prop: PropertyConfig): number {
   const rooms = prop.roomAreas ?? DEFAULT_ROOM_AREAS;
@@ -142,6 +234,11 @@ interface DebtServiceResult {
   equityRequired: number;
   getDS: (year: number) => number;
   grantAmount: number;
+  // Effective amortising interest rate for the path. Used by the amortisation
+  // schedule and as the discount rate for LLCR/PLCR.
+  effectiveInterestRate: number;
+  // Amortising term length post-grace (years).
+  repaymentTermYears: number;
   primaryLoan?: number;
   supplementaryLoan?: number;
   supplementaryAnnualDS?: number;
@@ -175,6 +272,8 @@ function computeDebtService(
       loanAmount,
       equityRequired: equity,
       grantAmount: 0,
+      effectiveInterestRate: a.commercialLoan.interestRate,
+      repaymentTermYears: a.commercialLoan.repaymentTermYears,
       getDS: (year: number) => {
         if (year === 2026) return a.commercialLoan.interest2026;
         if (year === 2027) return a.commercialLoan.interest2027;
@@ -213,6 +312,8 @@ function computeDebtService(
       loanAmount: remainingLoan,
       equityRequired: equity,
       grantAmount: grantAmt,
+      effectiveInterestRate: a.commercialLoan.interestRate,
+      repaymentTermYears: a.commercialLoan.repaymentTermYears,
       getDS: (year: number) => {
         if (year === 2026) return a.grant.interest2026 ?? 50625;
         if (year === 2027) return a.grant.interest2027 ?? 110544;
@@ -242,11 +343,16 @@ function computeDebtService(
     );
     const computedDS = rrfAnnualDS + commAnnualDS;
 
+    const rrfBlendedRate =
+      a.rrf.rrfShareOfLoan * a.rrf.rrfInterestRate +
+      a.rrf.commercialShareRate * a.rrf.commercialInterestRate;
     return {
       annualDS: computedDS || annualDS,
       loanAmount: totalLoan,
       equityRequired: equity,
       grantAmount: 0,
+      effectiveInterestRate: rrfBlendedRate,
+      repaymentTermYears: a.rrf.repaymentTermYears,
       getDS: (year: number) => {
         if (year === 2026) return a.commercialLoan.interest2026;
         if (year === 2027) return a.commercialLoan.interest2027;
@@ -290,11 +396,21 @@ function computeDebtService(
     const totalLoanDrawn = primaryLoan + suppLoanAmount;
     const combinedDS = primaryAnnualDS + suppAnnualDS;
 
+    // Blended rate across HDB (0%) + bank portion of primary, weighted by the
+    // overall loan share each portion represents (primary + supplementary).
+    const tepixBlendedRate =
+      totalLoanDrawn > 0
+        ? (bankPortion * tp.bankInterestRate +
+            suppLoanAmount * a.commercialLoan.interestRate) /
+          totalLoanDrawn
+        : 0;
     return {
       annualDS: combinedDS,
       loanAmount: totalLoanDrawn,
       equityRequired: totalEquity,
       grantAmount: 0,
+      effectiveInterestRate: tepixBlendedRate,
+      repaymentTermYears: amortYears,
       primaryLoan,
       supplementaryLoan: suppLoanAmount,
       supplementaryAnnualDS: suppAnnualDS,
@@ -318,6 +434,8 @@ function computeDebtService(
     loanAmount: 0,
     equityRequired: 0,
     grantAmount: 0,
+    effectiveInterestRate: a.commercialLoan.interestRate,
+    repaymentTermYears: a.commercialLoan.repaymentTermYears,
     getDS: () => 0,
   };
 }
@@ -395,8 +513,11 @@ function computeScenario(
   // The interest delta between passes is small (~€5K/yr at most) so the
   // single-iteration approximation is well within rounding noise.
   const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
-    'cumulativeNCF' | 'wcAvgBalance' | 'wcPeakBalance' | 'wcTroughBalance' |
-    'wcNetContribution' | 'wcSelfLiquidatingViolation'
+    'cumulativeNCF' | 'cumulativeYieldOnInitialEquity' |
+    'termLoanInterest' | 'termLoanPrincipal' | 'termLoanBalance' |
+    'interestCoverageRatio' | 'wcAvgBalance' |
+    'wcPeakBalance' | 'wcTroughBalance' | 'wcNetContribution' |
+    'wcSelfLiquidatingViolation'
   > => {
     const villaNights = computeNights(
       year,
@@ -504,6 +625,14 @@ function computeScenario(
     const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
+    // CFADS for LLCR/PLCR + project IRR. CIT is stored negative, so adding it
+    // subtracts the tax bill from EBITDA. VAT is excluded — it is a balance-
+    // sheet pass-through, not an income-statement item.
+    const cfads = ebitda + cit;
+    const yieldOnInitialEquity =
+      debtResult.equityRequired > 0 && year >= 2028
+        ? ncfPostVAT / debtResult.equityRequired
+        : 0;
     const dscr = ds > 0 ? ebitda / ds : 0;
     // Fully-loaded DSCR: same numerator (EBITDA already nets WC interest under
     // A1), but adds WC interest into the debt-service denominator. When WC is
@@ -531,6 +660,8 @@ function computeScenario(
       citPayable: cit,
       profitAfterTax,
       netCashFlowPostVAT: ncfPostVAT,
+      yieldOnInitialEquity,
+      cfads,
       dscr,
       wcInterestExpense,
       dscrLoaded,
@@ -559,16 +690,41 @@ function computeScenario(
     baselineCumByYear
   );
 
-  // Pass 2: final P&L with WC interest threaded into OPEX.
+  // Build amortisation schedule for the active path. Grace period spans
+  // 2026–2028 (interest-only via getDS); amortisation starts 2029.
+  const amortSchedule = buildAmortSchedule(
+    debtResult.loanAmount,
+    debtResult.effectiveInterestRate,
+    debtResult.annualDS,
+    debtResult.getDS,
+    2026,
+    2036,
+    2028
+  );
+
+  // Pass 2: final P&L with WC interest threaded into OPEX, amort merged in.
   let cumulativeNCF = 0;
+  let cumulativeYieldOnInitialEquity = 0;
   const pnl: AnnualPnL[] = years.map((year) => {
     const wcAnnual = wcSchedule.annual.get(year);
     const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
     const yearPnL = computePnLYear(year, wcInterestExpense);
     cumulativeNCF += yearPnL.netCashFlowPostVAT;
+    cumulativeYieldOnInitialEquity += yearPnL.yieldOnInitialEquity;
+    const amort = amortSchedule.get(year);
+    const termLoanInterest = amort?.interest ?? 0;
+    const termLoanPrincipal = amort?.principal ?? 0;
+    const termLoanBalance = amort?.closing ?? 0;
+    const interestCoverageRatio =
+      termLoanInterest > 0 ? yearPnL.ebitda / termLoanInterest : 0;
     return {
       ...yearPnL,
       cumulativeNCF,
+      cumulativeYieldOnInitialEquity,
+      termLoanInterest,
+      termLoanPrincipal,
+      termLoanBalance,
+      interestCoverageRatio,
       wcAvgBalance: wcAnnual?.avgBalance ?? 0,
       wcPeakBalance: wcAnnual?.peakBalance ?? 0,
       wcTroughBalance: wcAnnual?.troughBalance ?? 0,
@@ -579,6 +735,99 @@ function computeScenario(
 
   const stabilisedYear = pnl.find((p) => p.year === 2031) ?? null;
 
+  // ── Scenario-level bank metrics ────────────────────────────
+  const stab = stabilisedYear;
+  const finalYear = pnl[pnl.length - 1] ?? null;
+  const totalCapex =
+    debtResult.equityRequired +
+    debtResult.loanAmount +
+    debtResult.grantAmount;
+
+  const gracePeriodInterestTotal =
+    debtResult.getDS(2026) + debtResult.getDS(2027) + debtResult.getDS(2028);
+
+  // Min DSCR is measured *post-ramp* (2031+). Including 2029-2030 picks up
+  // ramp-year troughs that aren't representative of sustained coverage and
+  // banks typically don't covenant-test during the ramp window anyway.
+  // The covenant headroom is computed against this post-ramp minimum.
+  const operationalDscrs = pnl
+    .filter((p) => p.year >= 2031 && p.dscr > 0)
+    .map((p) => p.dscr);
+  const minDSCRLoanLife = operationalDscrs.length
+    ? Math.min(...operationalDscrs)
+    : 0;
+  const dscrCovenantHeadroom =
+    minDSCRLoanLife > 0 ? (minDSCRLoanLife - 1.25) / 1.25 : 0;
+
+  const peakDebtOutstanding = Math.max(
+    0,
+    ...pnl.map((p) => p.termLoanBalance + p.wcPeakBalance)
+  );
+
+  const netLeverage =
+    stab && stab.ebitda > 0 ? debtResult.loanAmount / stab.ebitda : 0;
+
+  const icrStabilised = stab?.interestCoverageRatio ?? 0;
+
+  // Terminal values via EBITDA multiple exit on stabilised EBITDA.
+  const exitMultiple = a.exitEbitdaMultiple ?? DEFAULT_EXIT_EBITDA_MULTIPLE;
+  const stabEbitda = stab?.ebitda ?? 0;
+  const terminalAssetValue = stabEbitda > 0 ? stabEbitda * exitMultiple : 0;
+  const remainingDebt = finalYear?.termLoanBalance ?? 0;
+  const terminalEquityValue = Math.max(0, terminalAssetValue - remainingDebt);
+
+  // Equity IRR: -equity at t=0, NCF post-tax stream, terminal equity at end.
+  const equityCFs: number[] = [-debtResult.equityRequired];
+  pnl.forEach((p, i) => {
+    const cf =
+      i === pnl.length - 1
+        ? p.netCashFlowPostVAT + terminalEquityValue
+        : p.netCashFlowPostVAT;
+    equityCFs.push(cf);
+  });
+  const equityIRRRaw = irr(equityCFs);
+  const equityIRR = isFinite(equityIRRRaw) ? equityIRRRaw : 0;
+
+  // Project IRR: -CapEx at t=0, unlevered CFADS stream, terminal asset value.
+  const projectCFs: number[] = [-totalCapex];
+  pnl.forEach((p, i) => {
+    const cf =
+      i === pnl.length - 1 ? p.cfads + terminalAssetValue : p.cfads;
+    projectCFs.push(cf);
+  });
+  const projectIRRRaw = irr(projectCFs);
+  const projectIRR = isFinite(projectIRRRaw) ? projectIRRRaw : 0;
+
+  // ROIC stabilised: NOPAT proxy / total CapEx. EBITDA + CIT ≈ post-tax
+  // operating cash; treats D&A as ignored (cash proxy).
+  const roic =
+    totalCapex > 0 && stab ? (stab.ebitda + stab.citPayable) / totalCapex : 0;
+
+  // LLCR / PLCR — NPV(CFADS) / debt outstanding at financial close (2029).
+  const lcrStartYear = 2029;
+  const lcrDebt = amortSchedule.get(lcrStartYear)?.opening ?? debtResult.loanAmount;
+  const stabilisedCFADS = stab?.cfads ?? 0;
+  const computeLCR = (periods: number): number => {
+    if (lcrDebt <= 0 || debtResult.effectiveInterestRate <= 0) return 0;
+    let total = 0;
+    for (let t = 1; t <= periods; t++) {
+      const yr = lcrStartYear + t - 1;
+      const yearPnL = pnl.find((p) => p.year === yr);
+      const cf = yearPnL ? yearPnL.cfads : stabilisedCFADS;
+      total += cf / Math.pow(1 + debtResult.effectiveInterestRate, t);
+    }
+    return total / lcrDebt;
+  };
+  const llcr = computeLCR(debtResult.repaymentTermYears);
+  const plcr = computeLCR(debtResult.repaymentTermYears + 10);
+
+  // Equity payback: first year cumulative yield ≥ 100%; null if never.
+  const paybackHit = pnl.find((p) => p.cumulativeYieldOnInitialEquity >= 1);
+  const equityPaybackYears = paybackHit ? paybackHit.year - 2026 : null;
+
+  const yieldStabilised = stab?.yieldOnInitialEquity ?? 0;
+  const cumulativeYieldFinal = finalYear?.cumulativeYieldOnInitialEquity ?? 0;
+
   return {
     name,
     pnl,
@@ -586,6 +835,23 @@ function computeScenario(
     wcQuarters: wcSchedule.quarters,
     wcEffectiveFacility: wcSchedule.effectiveFacility,
     wcRate: wcSchedule.rate,
+    llcr,
+    plcr,
+    icrStabilised,
+    minDSCRLoanLife,
+    dscrCovenantHeadroom,
+    peakDebtOutstanding,
+    gracePeriodInterestTotal,
+    netLeverage,
+    yieldStabilised,
+    cumulativeYieldFinal,
+    equityPaybackYears,
+    equityIRR,
+    projectIRR,
+    roic,
+    terminalAssetValue,
+    terminalEquityValue,
+    exitEbitdaMultiple: exitMultiple,
   };
 }
 
@@ -722,6 +988,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   // Financing comparison
   const financingComparison: FinancingComparison[] = [
     {
+      key: 'totalLoanDrawn',
       metric: 'Total loan drawn',
       commercial: commercialDebt.loanAmount,
       rrf: rrfDebt.loanAmount,
@@ -729,6 +996,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: tepixLoanDebt.loanAmount,
     },
     {
+      key: 'grantReceived',
       metric: 'Grant received',
       commercial: 0,
       rrf: 0,
@@ -736,6 +1004,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: 0,
     },
     {
+      key: 'equityRequired',
       metric: 'Equity required',
       commercial: commercialDebt.equityRequired,
       rrf: rrfDebt.equityRequired,
@@ -743,6 +1012,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: tepixLoanDebt.equityRequired,
     },
     {
+      key: 'annualDebtService',
       metric: 'Annual debt service',
       commercial: commercialDebt.annualDS,
       rrf: rrfDebt.annualDS,
@@ -750,6 +1020,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: tepixLoanDebt.annualDS,
     },
     {
+      key: 'stabilisedDSCR',
       metric: 'DSCR — Realistic (2031)',
       commercial: commercialRealistic.stabilisedYear?.dscr ?? 0,
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
@@ -757,6 +1028,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
     },
     {
+      key: 'supplementaryLoan',
       metric: 'Supplementary commercial loan',
       commercial: '—',
       rrf: '—',
@@ -764,6 +1036,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan: tepixLoanDebt.supplementaryLoan ?? 0,
     },
     {
+      key: 'equitySavingVsCommercial',
       metric: 'Equity saving vs. commercial',
       commercial: '—',
       rrf: commercialDebt.equityRequired - rrfDebt.equityRequired,

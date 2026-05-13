@@ -8,7 +8,7 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { FinancingPath, PropertyTemplate, getPropertyDisplayType, computeTotalArea } from "@/lib/engine/types";
+import { FinancingPath, PropertyTemplate, VillaRoom, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea } from "@/lib/engine/types";
 
 // ── Shared Components ──
 
@@ -315,9 +315,13 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                 <button
                   onClick={() => {
                     if (inUse) {
-                      if (confirm(`This template is used by ${projectCount} project(s). Remove them and delete the template?`)) {
-                        deleteTemplate(tpl.id);
-                      }
+                      useModelStore.getState().requestConfirm({
+                        title: `Delete ${tpl.name}?`,
+                        message: `This template is used by ${projectCount} project${projectCount > 1 ? 's' : ''}. Removing the template will also delete those project${projectCount > 1 ? 's' : ''} from the portfolio. This cannot be undone.`,
+                        confirmLabel: 'Delete template & projects',
+                        danger: true,
+                        onConfirm: () => deleteTemplate(tpl.id),
+                      });
                     } else {
                       deleteTemplate(tpl.id);
                     }
@@ -372,16 +376,42 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                 {/* Accommodation rooms */}
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-700 mb-2">Accommodation Rooms</p>
+                  {tpl.villaUnits > 0 && (
+                    <div className="mb-3">
+                      <p className="text-[11px] text-text-tertiary mb-1">Per villa (×{tpl.villaUnits} {tpl.villaUnits > 1 ? 'villas' : 'villa'})</p>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="text-[10px] uppercase tracking-wider text-text-tertiary">
+                            <th className="text-left font-medium py-1 pr-2">Room</th>
+                            <th className="text-right font-medium py-1 w-14">Qty</th>
+                            <th className="text-right font-medium py-1 w-24">m² each</th>
+                            <th className="w-6"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(tpl.roomAreas.villaRooms ?? []).map((vr) => (
+                            <VillaRoomRow key={vr.id} tplId={tpl.id} room={vr} />
+                          ))}
+                          {(tpl.roomAreas.villaRooms ?? []).length === 0 && (
+                            <tr><td colSpan={4} className="py-2 text-xs text-text-tertiary italic">No rooms defined — add one to break the villa down.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                      <div className="mt-1 flex items-baseline justify-between text-[11px]">
+                        <button
+                          onClick={() => useModelStore.getState().addVillaRoom(tpl.id)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        >
+                          + Add room
+                        </button>
+                        <span className="text-text-tertiary">
+                          Per villa: <span className="font-mono font-semibold text-text-primary">{computeVillaUnitArea(tpl.roomAreas).toLocaleString()}m²</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                   <table className="w-full">
                     <tbody>
-                      {tpl.villaUnits > 0 && (
-                        <TemplateRow
-                          label={`Villa bedroom (×${tpl.villaUnits})`}
-                          value={tpl.roomAreas.villaUnitArea}
-                          tplId={tpl.id}
-                          path="roomAreas.villaUnitArea"
-                        />
-                      )}
                       {tpl.standardSuites > 0 && (
                         <TemplateRow
                           label={`Standard suite (×${tpl.standardSuites})`}
@@ -416,9 +446,17 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                       <TemplateRow label="Utility / storage" value={tpl.roomAreas.utilityRoom} tplId={tpl.id} path="roomAreas.utilityRoom" />
                       <TemplateRow label="Staff quarters" value={tpl.roomAreas.staffRoom} tplId={tpl.id} path="roomAreas.staffRoom" />
                       <TemplateRow label="Corridors / lobby" value={tpl.roomAreas.corridors} tplId={tpl.id} path="roomAreas.corridors" />
-                      <TemplateRow label="Outdoor / terrace" value={tpl.roomAreas.outdoor} tplId={tpl.id} path="roomAreas.outdoor" />
+                      {(tpl.roomAreas.customSpaces ?? []).map((cs) => (
+                        <CustomSpaceRow key={cs.id} tplId={tpl.id} space={cs} />
+                      ))}
                     </tbody>
                   </table>
+                  <button
+                    onClick={() => useModelStore.getState().addCustomSpace(tpl.id)}
+                    className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                  >
+                    + Add custom space
+                  </button>
                 </div>
               </div>
               <div className="mt-3 pt-3 border-t border-emerald-200/60 flex justify-between items-baseline text-sm">
@@ -448,6 +486,7 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                       </td>
                     </tr>
                     <TemplateRow label="FF&E" value={tpl.ffeCost} tplId={tpl.id} path="ffeCost" format="currency" />
+                    <FfePerM2Row tpl={tpl} totalArea={totalArea} />
                     <TemplateRow label="Legal & notary" value={tpl.legalFees} tplId={tpl.id} path="legalFees" format="currency" />
                     <TemplateRow label="Architect + design" value={tpl.architectFees} tplId={tpl.id} path="architectFees" format="currency" />
                     <TemplateRow label="Civil engineer" value={tpl.civilEngineerFees} tplId={tpl.id} path="civilEngineerFees" format="currency" />
@@ -519,6 +558,103 @@ function TemplateRow({
           format={format}
           onChange={(v) => updateTemplate(tplId, path, v, label)}
         />
+      </td>
+    </tr>
+  );
+}
+
+// FF&E per m² — derived from ffeCost / totalArea. Editing it back-computes
+// ffeCost = perM² × totalArea so the engine still reads a single ffeCost field.
+function FfePerM2Row({ tpl, totalArea }: { tpl: PropertyTemplate; totalArea: number }) {
+  const { updateTemplate } = useModelStore();
+  const perM2 = totalArea > 0 ? tpl.ffeCost / totalArea : 0;
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-3 text-xs text-text-tertiary italic">FF&E per m²</td>
+      <td className="py-1.5 w-28">
+        <EditableCell
+          value={perM2}
+          format="currency"
+          onChange={(v) => {
+            if (totalArea <= 0) return;
+            updateTemplate(tpl.id, 'ffeCost', Math.round(v * totalArea), 'FF&E per m²');
+          }}
+        />
+      </td>
+    </tr>
+  );
+}
+
+// Editable row for one type of room inside a single villa — name + count + m² each + remove button.
+function VillaRoomRow({ tplId, room }: { tplId: string; room: VillaRoom }) {
+  const { updateVillaRoom, removeVillaRoom } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-2">
+        <input
+          type="text"
+          value={room.name}
+          onChange={(e) => updateVillaRoom(tplId, room.id, 'name', e.target.value)}
+          className="w-full px-2 py-1 text-xs bg-emerald-50/40 border border-emerald-200/60 rounded focus:outline-none focus:border-emerald-400"
+          placeholder="Room name"
+        />
+      </td>
+      <td className="py-1.5 w-14">
+        <EditableCell
+          value={room.count}
+          format="number"
+          onChange={(v) => updateVillaRoom(tplId, room.id, 'count', Math.max(0, Math.round(v)))}
+        />
+      </td>
+      <td className="py-1.5 w-24">
+        <EditableCell
+          value={room.area}
+          format="number"
+          onChange={(v) => updateVillaRoom(tplId, room.id, 'area', v)}
+        />
+      </td>
+      <td className="py-1.5 pl-2 w-6">
+        <button
+          onClick={() => removeVillaRoom(tplId, room.id)}
+          className="w-6 h-6 rounded text-text-tertiary hover:bg-red-50 hover:text-negative transition-colors text-sm"
+          title="Remove room"
+        >
+          &times;
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// Editable row for a user-named common space — name + m² + remove button.
+function CustomSpaceRow({ tplId, space }: { tplId: string; space: { id: string; name: string; area: number } }) {
+  const { updateCustomSpace, removeCustomSpace } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-3">
+        <input
+          type="text"
+          value={space.name}
+          onChange={(e) => updateCustomSpace(tplId, space.id, 'name', e.target.value)}
+          className="w-full px-2 py-1 text-xs bg-emerald-50/40 border border-emerald-200/60 rounded focus:outline-none focus:border-emerald-400"
+          placeholder="Space name"
+        />
+      </td>
+      <td className="py-1.5 w-28">
+        <EditableCell
+          value={space.area}
+          format="number"
+          onChange={(v) => updateCustomSpace(tplId, space.id, 'area', v)}
+        />
+      </td>
+      <td className="py-1.5 pl-2 w-6">
+        <button
+          onClick={() => removeCustomSpace(tplId, space.id)}
+          className="w-6 h-6 rounded text-text-tertiary hover:bg-red-50 hover:text-negative transition-colors text-sm"
+          title="Remove space"
+        >
+          &times;
+        </button>
       </td>
     </tr>
   );
@@ -777,7 +913,15 @@ export default function AssumptionsPage() {
           </p>
         </div>
         <button
-          onClick={resetToDefaults}
+          onClick={() => {
+            useModelStore.getState().requestConfirm({
+              title: 'Reset all assumptions to defaults?',
+              message: 'This cannot be undone. Your current edits to assumptions, templates, and projects will be lost. Saved scenarios are not affected — you can reload one from the Scenarios panel.',
+              confirmLabel: 'Reset everything',
+              danger: true,
+              onConfirm: resetToDefaults,
+            });
+          }}
           className="text-sm text-text-tertiary hover:text-negative transition-colors"
         >
           {t('as.resetDefaults')}
@@ -872,6 +1016,21 @@ export default function AssumptionsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Exit assumption */}
+          <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-4">
+            <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Exit Assumption</h4>
+            <table className="w-full">
+              <tbody>
+                <AssumptionRow
+                  label="Exit EBITDA multiple"
+                  value={a.exitEbitdaMultiple}
+                  path="exitEbitdaMultiple"
+                  note="Terminal asset value = stabilised EBITDA × this multiple. Used in levered & project IRR."
+                />
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -916,8 +1075,10 @@ export default function AssumptionsPage() {
               Click any template to expand it and edit its CAPEX/OPEX values. Click any number to change it.
             </p>
             <div className="space-y-3">
+              {/* Only auto-expand the freshly-created template; everything else
+                  starts collapsed so the page is scannable instead of a wall of forms. */}
               {templates.map((tpl) => (
-                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={!tpl.builtIn || tpl.id === newTemplateId} highlight={tpl.id === newTemplateId} />
+                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={tpl.id === newTemplateId} highlight={tpl.id === newTemplateId} />
               ))}
             </div>
           </div>
@@ -1164,8 +1325,8 @@ export default function AssumptionsPage() {
             <tbody>
               <AssumptionRow label={t('field.villaADR')} value={a.revenueRealistic.villaADR} path="revenueRealistic.villaADR" format="currency" note="Net of all commissions" />
               <AssumptionRow label={t('field.villaNights')} value={a.revenueRealistic.villaBaseNights} path="revenueRealistic.villaBaseNights" note="Per project" />
-              <AssumptionRow label={t('field.stdSuiteADR')} value={a.revenueRealistic.suiteStandardADR} path="revenueRealistic.suiteStandardADR" format="currency" note="x2 suites" />
-              <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueRealistic.suiteDoubleADR} path="revenueRealistic.suiteDoubleADR" format="currency" note="x2 suites" />
+              <AssumptionRow label={t('field.stdSuiteADR')} value={a.revenueRealistic.suiteStandardADR} path="revenueRealistic.suiteStandardADR" format="currency" note={`Per suite / night · ${a.portfolio.reduce((s, p) => s + p.standardSuites * p.count, 0)} in portfolio`} />
+              <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueRealistic.suiteDoubleADR} path="revenueRealistic.suiteDoubleADR" format="currency" note={`Per suite / night · ${a.portfolio.reduce((s, p) => s + p.doubleSuites * p.count, 0)} in portfolio`} />
               <AssumptionRow label={t('field.suiteNights')} value={a.revenueRealistic.suiteBaseNights} path="revenueRealistic.suiteBaseNights" />
               <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueRealistic.eventsPerYear} path="revenueRealistic.eventsPerYear" />
               <AssumptionRow label={t('field.profitPerEvent')} value={a.revenueRealistic.netProfitPerEvent} path="revenueRealistic.netProfitPerEvent" format="currency" />
@@ -1314,7 +1475,13 @@ function HistoryPanel() {
           </div>
           {history.length > 0 && (
             <button
-              onClick={() => { if (confirm('Clear all change history? This cannot be undone.')) clearHistory(); }}
+              onClick={() => useModelStore.getState().requestConfirm({
+                title: 'Clear change history?',
+                message: 'This removes the audit trail of edits made in this session. Your current assumptions, templates, projects, and saved scenarios are not affected.',
+                confirmLabel: 'Clear history',
+                danger: true,
+                onConfirm: clearHistory,
+              })}
               className="text-xs text-text-tertiary hover:text-negative transition-colors"
             >
               Clear
@@ -1390,11 +1557,13 @@ function ConfigPanel() {
   const { t } = useTranslation();
   const {
     savedConfigs, activeConfigId, activeConfigName,
-    saveConfig, loadConfig, deleteConfig, renameConfig,
+    lastSavedConfigId, lastSavedConfigName, editsSinceLastSave,
+    saveConfig, updateConfig, loadConfig, deleteConfig, renameConfig, importConfigs,
   } = useModelStore();
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
     if (!newName.trim()) return;
@@ -1402,14 +1571,103 @@ function ConfigPanel() {
     setNewName('');
   };
 
+  const handleExport = () => {
+    if (savedConfigs.length === 0) return;
+    const json = JSON.stringify({ version: 1, savedAt: Date.now(), configs: savedConfigs }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.download = `villa-lev-scenarios-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const store = useModelStore.getState();
+      try {
+        const text = String(reader.result ?? '');
+        const parsed = JSON.parse(text);
+        // Accept both wrapped { configs: [...] } and bare array forms.
+        const incoming = Array.isArray(parsed) ? parsed : (parsed?.configs ?? []);
+        if (!Array.isArray(incoming) || incoming.length === 0) {
+          store.requestAlert({
+            title: 'No scenarios in this file',
+            message: 'The file parsed correctly but did not contain any scenarios. Make sure you exported it via the "Export backup" button.',
+            tone: 'warning',
+          });
+          return;
+        }
+        const { added, updated } = importConfigs(incoming);
+        const unchanged = incoming.length - added - updated;
+        store.requestAlert({
+          title: 'Import complete',
+          message: `${added} new scenario${added !== 1 ? 's' : ''} added, ${updated} updated, ${unchanged} unchanged. They are now visible in the list below and shared with everyone connecting.`,
+          tone: 'success',
+        });
+      } catch (err) {
+        store.requestAlert({
+          title: 'Import failed',
+          message: 'Could not parse the file as scenario JSON.\n\n' + (err as Error).message,
+          tone: 'error',
+        });
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
-      <h3 className="font-display text-lg text-text-primary mb-4">{t('config.savedConfigs')}</h3>
+      <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
+        <h3 className="font-display text-lg text-text-primary">{t('config.savedConfigs')}</h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={savedConfigs.length === 0}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-surface-secondary text-text-secondary hover:bg-surface-tertiary disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title="Download all saved scenarios as a JSON backup"
+          >
+            ⬇ Export backup
+          </button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
+            title="Restore scenarios from a previously exported JSON file"
+          >
+            ⬆ Import backup
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImportFile(file);
+              if (fileInputRef.current) fileInputRef.current.value = '';
+            }}
+          />
+        </div>
+      </div>
 
-      {activeConfigName && (
+      {/* Active scenario indicator. The "Unsaved" pill triggers whenever there
+          are pending edits OR no scenario has been loaded yet, so the user
+          always sees their persistence state — not just after loading one. */}
+      {(activeConfigName || lastSavedConfigName || editsSinceLastSave > 0) && (
         <div className="mb-4 flex items-center gap-2 text-sm">
-          <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
-          <span className="text-text-secondary">{t('config.active')}: <strong>{activeConfigName}</strong></span>
+          <span className={`w-2 h-2 rounded-full ${activeConfigId ? 'bg-positive animate-pulse' : 'bg-warning'}`} />
+          {activeConfigName ? (
+            <span className="text-text-secondary">{t('config.active')}: <strong>{activeConfigName}</strong></span>
+          ) : lastSavedConfigName ? (
+            <span className="text-text-secondary">Last saved: <strong>{lastSavedConfigName}</strong></span>
+          ) : (
+            <span className="text-text-secondary">No scenario loaded — current edits live only in your browser.</span>
+          )}
           {!activeConfigId && (
             <span className="text-xs text-warning bg-warning/10 px-2 py-0.5 rounded-full">{t('config.unsaved')}</span>
           )}
@@ -1470,8 +1728,31 @@ function ConfigPanel() {
               )}
               <div className="flex items-center gap-1.5">
                 <button onClick={() => loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
+                <button
+                  onClick={() => useModelStore.getState().requestConfirm({
+                    title: `Overwrite "${config.name}"?`,
+                    message: 'The saved state for this scenario will be replaced with your current assumptions, templates, and projects. Other scenarios in the list are not affected.',
+                    confirmLabel: 'Overwrite',
+                    danger: true,
+                    onConfirm: () => updateConfig(config.id),
+                  })}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
+                  title="Save current state on top of this scenario"
+                >
+                  Save here
+                </button>
                 <button onClick={() => { setEditingId(config.id); setEditName(config.name); }} className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors" title={t('config.rename')}>&#9998;</button>
-                <button onClick={() => deleteConfig(config.id)} className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors" title={t('config.delete')}>&times;</button>
+                <button
+                  onClick={() => useModelStore.getState().requestConfirm({
+                    title: `Delete "${config.name}"?`,
+                    message: 'This removes the scenario from the shared list. Anyone connecting will no longer see it. This cannot be undone — export a backup first if you might want it back.',
+                    confirmLabel: 'Delete scenario',
+                    danger: true,
+                    onConfirm: () => deleteConfig(config.id),
+                  })}
+                  className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
+                  title={t('config.delete')}
+                >&times;</button>
               </div>
             </div>
           ))}

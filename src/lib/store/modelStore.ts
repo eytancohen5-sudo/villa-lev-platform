@@ -20,14 +20,41 @@ import {
 } from '../engine/defaults';
 import { computeModel } from '../engine/model';
 
-// Ensure a template has a roomAreas object (migration for pre-roomAreas saves)
+// Backfill fields added after a template was saved, so older saved scenarios
+// load without crashing the UI: roomAreas, and unit counts (villaUnits,
+// standardSuites, doubleSuites). For built-in IDs we copy the canonical values;
+// otherwise we fall back to zeros / DEFAULT_ROOM_AREAS.
 function ensureRoomAreas(tpl: PropertyTemplate): PropertyTemplate {
-  if (tpl.roomAreas) return tpl;
   const builtIn = BUILT_IN_TEMPLATES.find((bt) => bt.id === tpl.id);
-  const roomAreas: RoomAreaBreakdown = builtIn
-    ? { ...builtIn.roomAreas }
-    : { ...DEFAULT_ROOM_AREAS };
-  return { ...tpl, roomAreas };
+  const baseRooms: RoomAreaBreakdown = tpl.roomAreas
+    ? tpl.roomAreas
+    : builtIn
+      ? { ...builtIn.roomAreas }
+      : { ...DEFAULT_ROOM_AREAS };
+  // Older saves don't have villaRooms — synthesize a single bulk entry from
+  // villaUnitArea so users see something editable instead of a hidden field.
+  const villaUnitsCount = tpl.villaUnits ?? builtIn?.villaUnits ?? 0;
+  const roomAreas: RoomAreaBreakdown =
+    villaUnitsCount > 0 && (!baseRooms.villaRooms || baseRooms.villaRooms.length === 0)
+      ? {
+          ...baseRooms,
+          villaRooms: [
+            {
+              id: 'vr-legacy-' + tpl.id,
+              name: 'Villa interior',
+              count: 1,
+              area: baseRooms.villaUnitArea || 0,
+            },
+          ],
+        }
+      : baseRooms;
+  return {
+    ...tpl,
+    roomAreas,
+    villaUnits: villaUnitsCount,
+    standardSuites: tpl.standardSuites ?? builtIn?.standardSuites ?? 0,
+    doubleSuites: tpl.doubleSuites ?? builtIn?.doubleSuites ?? 0,
+  };
 }
 
 // ── Helpers ──
@@ -120,6 +147,42 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${idCounter}`;
 }
 
+// Threshold for when to suggest saving — keeps the prompt from firing on every keystroke.
+const SAVE_PROMPT_THRESHOLD = 3;
+
+// Called from every assumption/template/project mutator after the change lands.
+// Fires the name modal on the very first edit (when user is still the default
+// "You"), and the save modal once a small batch of edits has accumulated.
+function bumpEditCounter(
+  getState: () => {
+    currentUser: string;
+    userHasSetName: boolean;
+    savePromptDismissed: boolean;
+    savePromptDisabled: boolean;
+    nameModalOpen: boolean;
+    saveModalOpen: boolean;
+    editsSinceLastSave: number;
+  },
+  setState: (partial: { editsSinceLastSave?: number; nameModalOpen?: boolean; saveModalOpen?: boolean }) => void
+) {
+  const s = getState();
+  const nextCount = s.editsSinceLastSave + 1;
+  setState({ editsSinceLastSave: nextCount });
+
+  if (s.currentUser === 'You' && !s.userHasSetName && !s.nameModalOpen) {
+    setState({ nameModalOpen: true });
+    return; // Don't stack the save modal on top — show it after name confirm.
+  }
+  if (
+    !s.saveModalOpen &&
+    !s.savePromptDismissed &&
+    !s.savePromptDisabled &&
+    nextCount >= SAVE_PROMPT_THRESHOLD
+  ) {
+    setState({ saveModalOpen: true });
+  }
+}
+
 // ── Storage ──
 
 const STORAGE_KEY = 'villa-lev-saved-configs';
@@ -129,7 +192,105 @@ const USER_STORAGE_KEY = 'villa-lev-current-user';
 const ASSUMPTIONS_STORAGE_KEY = 'villa-lev-assumptions';
 const PROJECTS_STORAGE_KEY = 'villa-lev-projects';
 const SCENARIO_STORAGE_KEY = 'villa-lev-active-scenario';
+const SAVE_PROMPT_DISABLED_KEY = 'villa-lev-save-prompt-disabled';
+const LAST_SAVED_CONFIG_KEY = 'villa-lev-last-saved-config';
 const HISTORY_MAX = 200;
+
+// ── Server-side scenario sync (Firestore) ──
+// Saved scenarios live in Firestore so every browser opening the deployed app
+// sees the same list. localStorage is kept as a write-through cache for
+// instant first paint and offline tolerance. No auth — anyone reaching the
+// app can read/write; tighten firestore.rules if scope changes.
+
+import { getDb, SCENARIOS_COLLECTION } from '@/lib/firebase';
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc,
+  writeBatch,
+} from 'firebase/firestore';
+
+async function fetchServerConfigs(): Promise<SavedConfiguration[] | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    const snap = await getDocs(collection(db, SCENARIOS_COLLECTION));
+    const out: SavedConfiguration[] = [];
+    snap.forEach((d) => out.push(d.data() as SavedConfiguration));
+    return out;
+  } catch (err) {
+    console.warn('[scenarios] fetch failed; using local cache', err);
+    return null;
+  }
+}
+
+async function pushServerConfig(config: SavedConfiguration): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await setDoc(doc(db, SCENARIOS_COLLECTION, config.id), config);
+  } catch (err) {
+    console.warn('[scenarios] push failed; will rely on local cache', err);
+  }
+}
+
+async function deleteServerConfig(id: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await deleteDoc(doc(db, SCENARIOS_COLLECTION, id));
+  } catch (err) {
+    console.warn('[scenarios] delete failed; will rely on local cache', err);
+  }
+}
+
+async function bulkServerConfigs(configs: SavedConfiguration[]): Promise<SavedConfiguration[] | null> {
+  const db = getDb();
+  if (!db) return null;
+  try {
+    // Firestore batch caps at 500 ops; chunk to be safe.
+    const CHUNK = 400;
+    for (let i = 0; i < configs.length; i += CHUNK) {
+      const batch = writeBatch(db);
+      for (const cfg of configs.slice(i, i + CHUNK)) {
+        if (!cfg?.id) continue;
+        batch.set(doc(db, SCENARIOS_COLLECTION, cfg.id), cfg);
+      }
+      await batch.commit();
+    }
+    return configs;
+  } catch (err) {
+    console.warn('[scenarios] bulk push failed', err);
+    return null;
+  }
+}
+
+function loadSavePromptDisabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(SAVE_PROMPT_DISABLED_KEY) === '1';
+}
+function saveSavePromptDisabled(disabled: boolean) {
+  if (typeof window === 'undefined') return;
+  if (disabled) localStorage.setItem(SAVE_PROMPT_DISABLED_KEY, '1');
+  else localStorage.removeItem(SAVE_PROMPT_DISABLED_KEY);
+}
+
+function loadLastSavedConfig(): { id: string; name: string } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LAST_SAVED_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function saveLastSavedConfig(value: { id: string; name: string } | null) {
+  if (typeof window === 'undefined') return;
+  if (value) localStorage.setItem(LAST_SAVED_CONFIG_KEY, JSON.stringify(value));
+  else localStorage.removeItem(LAST_SAVED_CONFIG_KEY);
+}
 
 function loadFromStorage(): SavedConfiguration[] {
   if (typeof window === 'undefined') return [];
@@ -412,6 +573,28 @@ export interface SavedConfiguration {
   savedAt: number;
 }
 
+export interface ConfirmOpts {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  danger?: boolean;       // styles the confirm button red for destructive actions
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
+export interface AlertOpts {
+  title: string;
+  message: string;
+  okLabel?: string;
+  tone?: 'success' | 'warning' | 'error' | 'neutral';
+  onClose?: () => void;
+}
+
+export type UiPrompt =
+  | ({ kind: 'confirm' } & ConfirmOpts)
+  | ({ kind: 'alert' } & AlertOpts);
+
 interface ModelStore {
   assumptions: ModelAssumptions;
   model: ModelOutput | null;
@@ -427,6 +610,10 @@ interface ModelStore {
   savedConfigs: SavedConfiguration[];
   activeConfigId: string | null;
   activeConfigName: string | null;
+  // Last saved/loaded config — survives edits, used to offer "Update existing"
+  // in the save modal. Cleared only via deleteConfig of that same id.
+  lastSavedConfigId: string | null;
+  lastSavedConfigName: string | null;
 
   // Change history + user attribution
   history: ChangeEntry[];
@@ -434,6 +621,28 @@ interface ModelStore {
   setCurrentUser: (name: string) => void;
   revertChange: (id: string) => void;
   clearHistory: () => void;
+
+  // Prompt state — drives the "enter your name" and "save scenario?" modals
+  nameModalOpen: boolean;
+  saveModalOpen: boolean;
+  editsSinceLastSave: number;
+  userHasSetName: boolean;       // true when user confirmed a name this session
+  savePromptDismissed: boolean;  // session flag — don't re-nag after explicit dismiss
+  savePromptDisabled: boolean;   // persistent — user opted out across sessions
+  confirmUserName: (name: string) => void;
+  dismissNameModal: () => void;
+  acceptSaveSuggestion: (name: string) => void;
+  acceptUpdateExisting: () => void;
+  dismissSaveModal: (disablePermanently?: boolean) => void;
+  setSavePromptDisabled: (disabled: boolean) => void;
+
+  // Generic confirmation / message modal — replaces native alert()/confirm()
+  // for in-app prompts. `kind: 'confirm'` shows two buttons; `kind: 'alert'`
+  // shows one. Use via `requestConfirm({ ... })` / `requestAlert({ ... })`.
+  uiPrompt: UiPrompt | null;
+  requestConfirm: (opts: ConfirmOpts) => void;
+  requestAlert: (opts: AlertOpts) => void;
+  resolveUiPrompt: (confirmed: boolean) => void;
 
   // Core actions
   setAssumption: (path: string, value: unknown, label?: string) => void;
@@ -451,6 +660,14 @@ interface ModelStore {
   renameTemplate: (id: string, newName: string) => void;
   duplicateTemplate: (id: string) => void;
   deleteTemplate: (id: string) => void;
+  // Custom-named common spaces on a template's roomAreas
+  addCustomSpace: (tplId: string) => void;
+  updateCustomSpace: (tplId: string, csId: string, key: 'name' | 'area', value: string | number) => void;
+  removeCustomSpace: (tplId: string, csId: string) => void;
+  // Per-villa interior rooms (bedrooms, bathrooms, etc. inside one villa)
+  addVillaRoom: (tplId: string) => void;
+  updateVillaRoom: (tplId: string, roomId: string, key: 'name' | 'count' | 'area', value: string | number) => void;
+  removeVillaRoom: (tplId: string, roomId: string) => void;
 
   // Project management
   addProject: (templateId: string) => void;
@@ -467,9 +684,11 @@ interface ModelStore {
 
   // Config management
   saveConfig: (name: string) => void;
+  updateConfig: (id: string) => void;
   loadConfig: (id: string) => void;
   deleteConfig: (id: string) => void;
   renameConfig: (id: string, newName: string) => void;
+  importConfigs: (incoming: SavedConfiguration[]) => { added: number; updated: number };
 }
 
 // ── Store ──
@@ -483,15 +702,100 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   templates: [...BUILT_IN_TEMPLATES],
   projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
   savedConfigs: [],
+  uiPrompt: null,
   activeConfigId: null,
   activeConfigName: null,
+  lastSavedConfigId: null,
+  lastSavedConfigName: null,
   history: [],
   currentUser: 'You',
+  nameModalOpen: false,
+  saveModalOpen: false,
+  editsSinceLastSave: 0,
+  userHasSetName: false,
+  savePromptDismissed: false,
+  savePromptDisabled: false,
 
   setCurrentUser: (name: string) => {
     const trimmed = name.trim() || 'You';
     set({ currentUser: trimmed });
     saveUserToStorage(trimmed);
+  },
+
+  // Called from the name modal once the user submits their name.
+  // Also retroactively re-attributes any "You" entries from this edit burst.
+  confirmUserName: (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const state = get();
+    set({ currentUser: trimmed, userHasSetName: true, nameModalOpen: false });
+    saveUserToStorage(trimmed);
+    // Re-attribute the latest contiguous batch of "You" entries to the new name
+    // so audit history reflects who actually made these edits.
+    const updated = [...state.history];
+    for (let i = updated.length - 1; i >= 0; i--) {
+      if (updated[i].user === 'You') updated[i] = { ...updated[i], user: trimmed };
+      else break;
+    }
+    set({ history: updated });
+    saveHistoryToStorage(updated);
+    // After the user identifies themselves, follow up with the save suggestion.
+    if (!state.savePromptDismissed) {
+      set({ saveModalOpen: true });
+    }
+  },
+
+  dismissNameModal: () => {
+    set({ nameModalOpen: false, userHasSetName: true });
+  },
+
+  acceptSaveSuggestion: (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    get().saveConfig(trimmed);
+    set({ saveModalOpen: false, editsSinceLastSave: 0 });
+  },
+
+  acceptUpdateExisting: () => {
+    const { lastSavedConfigId } = get();
+    if (!lastSavedConfigId) return;
+    get().updateConfig(lastSavedConfigId);
+    set({ saveModalOpen: false, editsSinceLastSave: 0 });
+  },
+
+  dismissSaveModal: (disablePermanently?: boolean) => {
+    if (disablePermanently) {
+      saveSavePromptDisabled(true);
+      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true, savePromptDisabled: true });
+    } else {
+      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true });
+    }
+  },
+
+  setSavePromptDisabled: (disabled: boolean) => {
+    saveSavePromptDisabled(disabled);
+    set({ savePromptDisabled: disabled, ...(disabled ? { savePromptDismissed: true } : {}) });
+  },
+
+  // ── UI Prompts ────────────────────────────────────────────────────
+  // Used to replace native confirm()/alert(). The render lives in
+  // src/components/AssumptionPrompts.tsx.
+  requestConfirm: (opts) => {
+    set({ uiPrompt: { kind: 'confirm', ...opts } });
+  },
+  requestAlert: (opts) => {
+    set({ uiPrompt: { kind: 'alert', ...opts } });
+  },
+  resolveUiPrompt: (confirmed: boolean) => {
+    const p = get().uiPrompt;
+    set({ uiPrompt: null });
+    if (!p) return;
+    if (p.kind === 'confirm') {
+      if (confirmed) p.onConfirm();
+      else p.onCancel?.();
+    } else {
+      p.onClose?.();
+    }
   },
 
   revertChange: (id: string) => {
@@ -584,6 +888,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       before,
       after: value,
     });
+    bumpEditCounter(get, set);
     get().recompute();
   },
 
@@ -686,6 +991,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
     const projects = savedProjects ?? DEFAULT_PROJECTS.map((p) => ({ ...p }));
 
+    const savePromptDisabled = loadSavePromptDisabled();
+    const lastSaved = loadLastSavedConfig();
+    // Don't restore lastSaved if that config no longer exists
+    const stillExists = lastSaved && configs.some((c) => c.id === lastSaved.id);
+
     set({
       assumptions,
       savedConfigs: configs,
@@ -693,9 +1003,45 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       projects,
       history,
       currentUser,
+      userHasSetName: currentUser !== 'You',
+      savePromptDisabled,
+      lastSavedConfigId: stillExists ? lastSaved!.id : null,
+      lastSavedConfigName: stillExists ? lastSaved!.name : null,
       ...(savedScenario ? { activeScenario: savedScenario } : {}),
     });
     get().recompute();
+
+    // Background-fetch shared scenarios from the server and merge them in.
+    // Server wins for matching ids when its savedAt is newer; otherwise local
+    // entries are preserved. After merge we push the union back so the server
+    // ends up holding any local-only entries the user had.
+    fetchServerConfigs().then(async (serverConfigs) => {
+      if (!serverConfigs) return;
+      const local = get().savedConfigs;
+      const byId = new Map(local.map((c) => [c.id, c]));
+      let changed = false;
+      for (const sc of serverConfigs) {
+        const cur = byId.get(sc.id);
+        if (!cur) {
+          byId.set(sc.id, sc);
+          changed = true;
+        } else if ((sc.savedAt ?? 0) > (cur.savedAt ?? 0)) {
+          byId.set(sc.id, sc);
+          changed = true;
+        }
+      }
+      const merged = Array.from(byId.values());
+      if (changed) {
+        set({ savedConfigs: merged });
+        saveToStorage(merged);
+      }
+      // Push any local-only entries up to the server so everyone connecting sees them.
+      const serverIds = new Set(serverConfigs.map((c) => c.id));
+      const localOnly = local.filter((c) => !serverIds.has(c.id));
+      if (localOnly.length > 0) {
+        await bulkServerConfigs(merged);
+      }
+    });
   },
 
   // ── Template Management ──
@@ -758,6 +1104,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       before,
       after: value,
     });
+    bumpEditCounter(get, set);
     get().recompute();
   },
 
@@ -797,6 +1144,98 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const templates = get().templates.filter((t) => t.id !== id);
     set({ templates, projects, activeConfigId: null });
     saveTemplatesToStorage(templates);
+    get().recompute();
+  },
+
+  // ── Custom Spaces ──
+
+  addCustomSpace: (tplId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const customSpaces = [
+        ...(rooms.customSpaces ?? []),
+        { id: generateId('cs'), name: 'Custom space', area: 0 },
+      ];
+      return { ...tpl, roomAreas: { ...rooms, customSpaces } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updateCustomSpace: (tplId: string, csId: string, key: 'name' | 'area', value: string | number) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const customSpaces = (rooms.customSpaces ?? []).map((c) =>
+        c.id === csId ? { ...c, [key]: value } : c
+      );
+      return { ...tpl, roomAreas: { ...rooms, customSpaces } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removeCustomSpace: (tplId: string, csId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const customSpaces = (rooms.customSpaces ?? []).filter((c) => c.id !== csId);
+      return { ...tpl, roomAreas: { ...rooms, customSpaces } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  // ── Villa Rooms ──
+
+  addVillaRoom: (tplId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const villaRooms = [
+        ...(rooms.villaRooms ?? []),
+        { id: generateId('vr'), name: 'Room', count: 1, area: 0 },
+      ];
+      return { ...tpl, roomAreas: { ...rooms, villaRooms } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updateVillaRoom: (tplId: string, roomId: string, key: 'name' | 'count' | 'area', value: string | number) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const villaRooms = (rooms.villaRooms ?? []).map((r) =>
+        r.id === roomId ? { ...r, [key]: value } : r
+      );
+      return { ...tpl, roomAreas: { ...rooms, villaRooms } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removeVillaRoom: (tplId: string, roomId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
+      const villaRooms = (rooms.villaRooms ?? []).filter((r) => r.id !== roomId);
+      return { ...tpl, roomAreas: { ...rooms, villaRooms } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
     get().recompute();
   },
 
@@ -845,6 +1284,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       before,
       after: count,
     });
+    bumpEditCounter(get, set);
     get().recompute();
   },
 
@@ -903,13 +1343,57 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       savedAt: Date.now(),
     };
     const configs = [...state.savedConfigs, config];
-    set({ savedConfigs: configs, activeConfigId: id, activeConfigName: name });
+    set({
+      savedConfigs: configs,
+      activeConfigId: id,
+      activeConfigName: name,
+      lastSavedConfigId: id,
+      lastSavedConfigName: name,
+      editsSinceLastSave: 0,
+    });
     saveToStorage(configs);
+    saveLastSavedConfig({ id, name });
+    pushServerConfig(config);
+  },
+
+  updateConfig: (id: string) => {
+    const state = get();
+    const existing = state.savedConfigs.find((c) => c.id === id);
+    if (!existing) return;
+    const updated: SavedConfiguration = {
+      ...existing,
+      assumptions: JSON.parse(JSON.stringify(state.assumptions)),
+      templates: JSON.parse(JSON.stringify(state.templates)),
+      projects: JSON.parse(JSON.stringify(state.projects)),
+      savedAt: Date.now(),
+    };
+    const configs = state.savedConfigs.map((c) => (c.id === id ? updated : c));
+    set({
+      savedConfigs: configs,
+      activeConfigId: id,
+      activeConfigName: existing.name,
+      lastSavedConfigId: id,
+      lastSavedConfigName: existing.name,
+      editsSinceLastSave: 0,
+    });
+    saveToStorage(configs);
+    saveLastSavedConfig({ id, name: existing.name });
+    pushServerConfig(updated);
   },
 
   loadConfig: (id: string) => {
     const config = get().savedConfigs.find((c) => c.id === id);
     if (!config) return;
+
+    // Backfill schema fields added since the config was saved (e.g. exitEbitdaMultiple),
+    // mirroring the init() merge so old scenarios don't render with undefined props.
+    const mergedAssumptions = deepMerge(
+      {
+        ...BASE_CASE,
+        portfolio: BASE_CASE.portfolio.map((p) => ({ ...p, opex: { ...p.opex } })),
+      } as unknown as Record<string, unknown>,
+      (config.assumptions ?? {}) as unknown as Record<string, unknown>,
+    ) as unknown as ModelAssumptions;
 
     // If config has templates+projects, use them
     if (config.projects && config.projects.length > 0) {
@@ -924,18 +1408,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           .map(ensureRoomAreas),
       ];
       set({
-        assumptions: config.assumptions,
+        assumptions: mergedAssumptions,
         templates: allTemplates,
         projects: config.projects,
         activeConfigId: id,
         activeConfigName: config.name,
+        lastSavedConfigId: id,
+        lastSavedConfigName: config.name,
       });
       saveTemplatesToStorage(allTemplates);
-      saveAssumptionsToStorage(config.assumptions);
+      saveAssumptionsToStorage(mergedAssumptions);
       saveProjectsToStorage(config.projects);
+      saveLastSavedConfig({ id, name: config.name });
     } else {
       // Legacy config: migrate portfolio to projects
-      const migrated = migrateToPortfolio(config.assumptions);
+      const migrated = migrateToPortfolio(mergedAssumptions);
       const projects: ProjectAllocation[] = migrated.portfolio.map((p) => ({
         id: p.id || generateId('proj'),
         templateId: p.villaUnits > 0 ? 'tpl-twin-villa' : 'tpl-boutique-suite',
@@ -947,31 +1434,72 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         projects,
         activeConfigId: id,
         activeConfigName: config.name,
+        lastSavedConfigId: id,
+        lastSavedConfigName: config.name,
       });
       saveAssumptionsToStorage(migrated);
       saveProjectsToStorage(projects);
+      saveLastSavedConfig({ id, name: config.name });
     }
     get().recompute();
   },
 
   deleteConfig: (id: string) => {
-    const configs = get().savedConfigs.filter((c) => c.id !== id);
+    const state = get();
+    const configs = state.savedConfigs.filter((c) => c.id !== id);
+    const lastCleared = state.lastSavedConfigId === id;
     set({
       savedConfigs: configs,
-      activeConfigId: get().activeConfigId === id ? null : get().activeConfigId,
-      activeConfigName: get().activeConfigId === id ? null : get().activeConfigName,
+      activeConfigId: state.activeConfigId === id ? null : state.activeConfigId,
+      activeConfigName: state.activeConfigId === id ? null : state.activeConfigName,
+      lastSavedConfigId: lastCleared ? null : state.lastSavedConfigId,
+      lastSavedConfigName: lastCleared ? null : state.lastSavedConfigName,
     });
     saveToStorage(configs);
+    if (lastCleared) saveLastSavedConfig(null);
+    deleteServerConfig(id);
   },
 
   renameConfig: (id: string, newName: string) => {
-    const configs = get().savedConfigs.map((c) =>
+    const state = get();
+    const configs = state.savedConfigs.map((c) =>
       c.id === id ? { ...c, name: newName } : c
     );
+    const lastChanged = state.lastSavedConfigId === id;
     set({
       savedConfigs: configs,
-      activeConfigName: get().activeConfigId === id ? newName : get().activeConfigName,
+      activeConfigName: state.activeConfigId === id ? newName : state.activeConfigName,
+      lastSavedConfigName: lastChanged ? newName : state.lastSavedConfigName,
     });
     saveToStorage(configs);
+    if (lastChanged) saveLastSavedConfig({ id, name: newName });
+    const renamed = configs.find((c) => c.id === id);
+    if (renamed) pushServerConfig(renamed);
+  },
+
+  // Merge incoming saved scenarios into the store. Same id ⇒ overwrite if the
+  // incoming version is newer (by savedAt); different id ⇒ append. Returns
+  // counts so the caller can show feedback.
+  importConfigs: (incoming: SavedConfiguration[]) => {
+    const state = get();
+    const byId = new Map(state.savedConfigs.map((c) => [c.id, c]));
+    let added = 0;
+    let updated = 0;
+    for (const inc of incoming) {
+      if (!inc || typeof inc !== 'object' || !inc.id || !inc.name) continue;
+      const existing = byId.get(inc.id);
+      if (!existing) {
+        byId.set(inc.id, inc);
+        added++;
+      } else if ((inc.savedAt ?? 0) > (existing.savedAt ?? 0)) {
+        byId.set(inc.id, inc);
+        updated++;
+      }
+    }
+    const configs = Array.from(byId.values());
+    set({ savedConfigs: configs });
+    saveToStorage(configs);
+    bulkServerConfigs(configs);
+    return { added, updated };
   },
 }));

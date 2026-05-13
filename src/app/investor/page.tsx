@@ -33,8 +33,22 @@ function HeroKPI({ value, label, sublabel }: { value: string; label: string; sub
 
 export default function InvestorPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions } = useModelStore();
+  const { model, assumptions, projects, activeScenario } = useModelStore();
   if (!model) return <div className="flex items-center justify-center h-96 text-text-tertiary">{t('common.loading')}</div>;
+
+  const handleDownloadXlsx = async () => {
+    const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
+    const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
+    const blob = await exportBusinessPlan(assumptions, model, exportScenario);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   const km = model.keyMetrics;
   const pnl = model.scenarios.realistic.pnl.filter((p) => p.year >= 2028);
@@ -82,7 +96,7 @@ export default function InvestorPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-12">
       {/* Hero Section */}
-      <div className="text-center mb-16">
+      <div className="text-center mb-16 relative">
         <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3">
           {t('inv.portfolioExpansion')}
         </p>
@@ -92,6 +106,15 @@ export default function InvestorPage() {
         <p className="text-text-secondary max-w-xl mx-auto">
           {t('app.loanApp')} &middot; {pathLabel} &middot; {t('app.confidential')}
         </p>
+        <div className="mt-6">
+          <button
+            onClick={handleDownloadXlsx}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
+            title="Download a fully-linked Excel model with editable formulas"
+          >
+            ⬇ Download model (.xlsx)
+          </button>
+        </div>
       </div>
 
       {/* Hero KPIs */}
@@ -99,7 +122,10 @@ export default function InvestorPage() {
         <HeroKPI
           value={formatCurrency(km.totalCapex, true, locale)}
           label={t('kpi.totalInvestment')}
-          sublabel={t('kpi.totalInvestmentSub')}
+          sublabel={(() => {
+            const n = projects.reduce((s, p) => s + p.count, 0);
+            return `${n} ${t(n === 1 ? 'kpi.plotsSingular' : 'kpi.plots')}`;
+          })()}
         />
         <HeroKPI
           value={formatCurrency(km.loanAmount, true, locale)}

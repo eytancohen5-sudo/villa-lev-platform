@@ -2,6 +2,10 @@
 // VILLA LEV GROUP — Default Assumptions (from Excel BP v4)
 // ============================================================
 
+// Default EBITDA multiple for terminal-value calc in equity / project IRR.
+// Editable via assumptions. 10× ≈ 10% implied cap rate.
+export const DEFAULT_EXIT_EBITDA_MULTIPLE = 10;
+
 import {
   ModelAssumptions,
   PropertyConfig,
@@ -15,6 +19,11 @@ import {
 
 const TWIN_VILLA_ROOMS: RoomAreaBreakdown = {
   villaUnitArea: 80,
+  villaRooms: [
+    { id: 'vr-twin-bed', name: 'Bedroom', count: 2, area: 22 },
+    { id: 'vr-twin-bath', name: 'Bathroom', count: 2, area: 8 },
+    { id: 'vr-twin-master', name: 'Master suite', count: 1, area: 20 },
+  ],
   standardSuiteArea: 0,
   doubleSuiteArea: 0,
   kitchen: 40,
@@ -22,7 +31,6 @@ const TWIN_VILLA_ROOMS: RoomAreaBreakdown = {
   utilityRoom: 15,
   staffRoom: 10,
   corridors: 25,
-  outdoor: 120,
 };
 
 const BOUTIQUE_SUITE_ROOMS: RoomAreaBreakdown = {
@@ -34,11 +42,15 @@ const BOUTIQUE_SUITE_ROOMS: RoomAreaBreakdown = {
   utilityRoom: 10,
   staffRoom: 8,
   corridors: 20,
-  outdoor: 47,
 };
 
 const LUXURY_VILLA_ROOMS: RoomAreaBreakdown = {
   villaUnitArea: 120,
+  villaRooms: [
+    { id: 'vr-lux-bed', name: 'Bedroom', count: 3, area: 25 },
+    { id: 'vr-lux-bath', name: 'Bathroom', count: 3, area: 10 },
+    { id: 'vr-lux-dressing', name: 'Walk-in / dressing', count: 1, area: 15 },
+  ],
   standardSuiteArea: 0,
   doubleSuiteArea: 0,
   kitchen: 60,
@@ -46,7 +58,6 @@ const LUXURY_VILLA_ROOMS: RoomAreaBreakdown = {
   utilityRoom: 20,
   staffRoom: 15,
   corridors: 35,
-  outdoor: 160,
 };
 
 const COMPACT_STUDIO_ROOMS: RoomAreaBreakdown = {
@@ -58,11 +69,15 @@ const COMPACT_STUDIO_ROOMS: RoomAreaBreakdown = {
   utilityRoom: 8,
   staffRoom: 5,
   corridors: 12,
-  outdoor: 30,
 };
 
 const MIXED_RESORT_ROOMS: RoomAreaBreakdown = {
   villaUnitArea: 80,
+  villaRooms: [
+    { id: 'vr-mix-bed', name: 'Bedroom', count: 2, area: 22 },
+    { id: 'vr-mix-bath', name: 'Bathroom', count: 2, area: 8 },
+    { id: 'vr-mix-master', name: 'Master suite', count: 1, area: 20 },
+  ],
   standardSuiteArea: 30,
   doubleSuiteArea: 40,
   kitchen: 45,
@@ -70,7 +85,6 @@ const MIXED_RESORT_ROOMS: RoomAreaBreakdown = {
   utilityRoom: 15,
   staffRoom: 10,
   corridors: 25,
-  outdoor: 90,
 };
 
 // Sensible fallback for migrations / custom templates missing roomAreas
@@ -83,7 +97,6 @@ export const DEFAULT_ROOM_AREAS: RoomAreaBreakdown = {
   utilityRoom: 10,
   staffRoom: 8,
   corridors: 20,
-  outdoor: 50,
 };
 
 // ── Built-in Property Templates ──
@@ -430,6 +443,7 @@ export const BASE_CASE: ModelAssumptions = {
 
   acquisitionLegalPerPlot: 50000,
   financingPath: 'commercial',
+  exitEbitdaMultiple: 10,
 
   workingCapital: {
     active: true,
