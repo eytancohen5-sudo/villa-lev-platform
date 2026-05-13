@@ -824,6 +824,19 @@ function computeScenario(
   const equityIRRRaw = irr(equityCFs);
   const equityIRR = isFinite(equityIRRRaw) ? equityIRRRaw : 0;
 
+  // Total MOIC including exit lump sum. Distinct from cumulativeYieldFinal,
+  // which only sums operating distributions (= the "Operating Yield" widget).
+  // Numerator includes terminalEquityValue at exit; denominator is initial
+  // equity required. Returns 0 if equity is zero (avoid divide-by-zero).
+  const operatingDistributions = truncatedPnL.reduce(
+    (sum, p) => sum + p.netCashFlowPostVAT,
+    0,
+  );
+  const totalMOIC =
+    debtResult.equityRequired > 0
+      ? (operatingDistributions + terminalEquityValue) / debtResult.equityRequired
+      : 0;
+
   // Pre-split equity IRR: add OpCo fees back into each year's NCF (i.e. value
   // the all-in equity cash flow if the owner were also the manager). Also
   // recompute terminal equity off the pre-OpCo EBITDA at exit so the exit
@@ -907,6 +920,7 @@ function computeScenario(
     netLeverage,
     yieldStabilised,
     cumulativeYieldFinal,
+    totalMOIC,
     equityPaybackYears,
     equityIRR,
     equityIRRPreOpCo,

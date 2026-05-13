@@ -181,8 +181,15 @@ export interface TranslationDictionary {
   'kpi.equityYieldSub': string;
   'kpi.cumYield': string;
   'kpi.cumYieldSub': string;
+  'kpi.operatingYield': string;
+  'kpi.operatingYieldSub': string;
+  'kpi.operatingYieldNote': string;
+  'kpi.totalMOIC': string;
+  'kpi.totalMOICSub': string;
   'kpi.equityPayback': string;
   'kpi.equityPaybackSub': string;
+  'kpi.equityPaybackNote': string;
+  'kpi.ebitdaMarginNote': string;
   'kpi.equityIRR': string;
   'kpi.equityIRRSub': string;
   'kpi.projectIRR': string;

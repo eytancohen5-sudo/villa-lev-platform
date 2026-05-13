@@ -104,3 +104,8 @@ export const ACTUALS_SOURCE = {
   url: "https://admin.villalevantiparos.com/dashboard",
   pulledAt: "2026-05-14",
 } as const;
+
+// Available nights per villa per season (15 May → 15 Sept). Used by the
+// dashboard's Current vs Building section to compute the planned-portfolio
+// uplift on a like-for-like basis.
+export const SEASON_NIGHTS = 120;

@@ -435,6 +435,11 @@ export interface ScenarioOutput {
   // Returns
   yieldStabilised: number;            // yieldOnInitialEquity at stabilised year
   cumulativeYieldFinal: number;       // cumulative yield at end of projection
+  // Total MOIC INCLUDING the exit lump sum:
+  //   numerator = Σ NCF post-tax post-DS over the truncated window + terminalEquityValue
+  //   denominator = initial equity required
+  // Distinct from cumulativeYieldFinal which is operating distributions only.
+  totalMOIC: number;
   equityPaybackYears: number | null;  // first year cum yield ≥ 100%, else null
   equityIRR: number;                  // levered IRR with terminal equity value
   // Pre-split equity IRR — ignores OpCo fees. Equals `equityIRR` when OpCo

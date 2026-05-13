@@ -11,6 +11,12 @@ import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
 import {
+  ACTUALS_SOURCE,
+  currentSeason,
+  lastCompletedSeason,
+  SEASON_NIGHTS,
+} from "@/lib/data/currentVillaActuals";
+import {
   AreaChart,
   Area,
   LineChart,
@@ -172,6 +178,7 @@ export default function DashboardPage() {
     peakDebtOutstanding: activeScenarioOutput.peakDebtOutstanding,
     yieldStabilised: activeScenarioOutput.yieldStabilised,
     cumulativeYieldFinal: activeScenarioOutput.cumulativeYieldFinal,
+    totalMOIC: activeScenarioOutput.totalMOIC,
     equityPaybackYears: activeScenarioOutput.equityPaybackYears,
     equityIRR: activeScenarioOutput.equityIRR,
     projectIRR: activeScenarioOutput.projectIRR,
@@ -223,42 +230,75 @@ export default function DashboardPage() {
 
   const formatYieldMultiple = (v: number) => `${v.toFixed(2)}×`;
 
-  // ── Current Villa Lev vs Building portfolio comparison ────────
-  // Existing operating villa, runs the 120-night Greek summer season
-  // (15 May → 15 Sept). Service revenue estimates from operator's books;
-  // wire to real data once the running-business feed is connected.
-  const SEASON_NIGHTS = 120;
-  const currentVilla = {
-    villas: 1,
-    nights: SEASON_NIGHTS,
-    adr: assumptions.revenueRealistic.villaADR,
-    chef: 40000,
-    boat: 30000,
-    car: 20000,
-    events: 0,
-  };
-  const currentAccommodation = currentVilla.villas * currentVilla.nights * currentVilla.adr;
-  const currentServices = currentVilla.chef + currentVilla.boat + currentVilla.car;
-  const currentTotalRevenue = currentAccommodation + currentServices + currentVilla.events;
-  // Estimate current EBITDA at a representative single-villa margin.
-  const currentEBITDA = currentTotalRevenue * 0.55;
+  // ── Conservatism Check ─────────────────────────────────────────
+  // Per-villa BP assumptions vs the existing villa's live performance.
+  // Live numbers come from admin.villalevantiparos.com via currentVillaActuals.
+  // Story: every per-villa modeled value is at or below today's actuals, so
+  // the BP is downside-biased — real portfolio outcomes should beat the plan.
+  const rev = assumptions.revenueRealistic;
+  const revUp = assumptions.revenueUpside;
 
-  // Building side — pull stabilised figures from the active scenario/model.
+  // Live per-villa actuals from the operating villa today.
+  const liveADR = currentSeason.netADR;
+  const liveBookedNights = currentSeason.bookedNights;
+  const liveAccommodation = currentSeason.rentalNet;
+  // Services are seasonal — 2025 is the most recently completed full year.
+  const liveServices2025 = lastCompletedSeason.services;
+  const liveTotal2025 = lastCompletedSeason.total;
+
+  // BP per-villa modeled values.
+  const bpADR = rev.villaADR;
+  const bpNights = rev.villaBaseNights;
+  const bpAccommodationPerVilla = bpADR * bpNights;
+  const bpEventsPortfolio = rev.eventsPerYear * rev.netProfitPerEvent;
+  // Ancillary in the BP is a single portfolio-wide line (not per-villa).
+  // To compare apples-to-apples with the existing single villa, divide by
+  // total villa-equivalent units across the planned portfolio.
+  const totalVillaEquivalents =
+    (assumptions.portfolio ?? []).reduce(
+      (s, p) => s + (p.villaUnits + p.standardSuites + p.doubleSuites) * p.count,
+      0,
+    ) || 1;
+  const bpAncillaryBaseTotal = rev.ancillaryBaseProfit;
+  const bpAncillaryStabilisedTotal =
+    rev.ancillaryBaseProfit *
+    Math.pow(1 + rev.ancillaryGrowthRate, rev.ancillaryGrowthYears);
+  const bpAncillaryBasePerVilla = bpAncillaryBaseTotal / totalVillaEquivalents;
+  const bpAncillaryStabilisedPerVilla = bpAncillaryStabilisedTotal / totalVillaEquivalents;
+  const revUpAncillaryStabilisedPerVilla =
+    (revUp.ancillaryBaseProfit *
+      Math.pow(1 + revUp.ancillaryGrowthRate, revUp.ancillaryGrowthYears)) /
+    totalVillaEquivalents;
+
+  // Portfolio totals (stabilised) — kept for the scale-up footer.
   const totalUnits = projects.reduce((s, p) => s + p.count, 0);
-  const buildingAccommodation = (stab?.propertyBreakdown ?? []).reduce(
-    (s, p) => s + p.totalRevenue,
-    0,
-  );
-  const buildingEvents = stab?.revenueEvents ?? 0;
-  // Ancillary revenue stands in for chef/boat/car/concierge services bundle
-  // until those are modelled as separate lines.
-  const buildingServices = stab?.revenueAncillary ?? 0;
   const buildingTotalRevenue = stab?.totalRevenue ?? 0;
   const buildingEBITDA = stab?.ebitda ?? 0;
-  const buildingNights = stab?.villaNights ?? 0;
 
-  const multiple = (current: number, future: number) =>
-    current > 0 ? `${(future / current).toFixed(1)}×` : "—";
+  // Verdict helper: BP value vs live actual, expressed as % gap.
+  // Negative gap = BP below live = conservative (positive tone).
+  const conservatism = (bp: number, live: number) => {
+    if (live <= 0) return { gap: 0, label: "—", tone: "neutral" as const };
+    const gap = (bp / live - 1) * 100;
+    const abs = Math.abs(gap).toFixed(gap === 0 ? 0 : 1);
+    if (gap <= -1.5) return { gap, label: `BP ${abs}% below`, tone: "positive" as const };
+    if (gap >= 1.5) return { gap, label: `BP ${abs}% above`, tone: "warning" as const };
+    return { gap, label: "On par", tone: "neutral" as const };
+  };
+
+  const verdictADR = conservatism(bpADR, liveADR);
+  const verdictNights = conservatism(bpNights, liveBookedNights);
+  const verdictAccommodation = conservatism(bpAccommodationPerVilla, liveAccommodation);
+  // Ancillary: compare BP per-villa-equivalent to live single-villa actual.
+  const verdictAncillaryBase = conservatism(bpAncillaryBasePerVilla, liveServices2025);
+  const verdictAncillaryStabilised = conservatism(bpAncillaryStabilisedPerVilla, liveServices2025);
+
+  const verdictToneClass = (tone: "positive" | "warning" | "neutral") =>
+    tone === "positive"
+      ? "bg-positive/15 text-positive"
+      : tone === "warning"
+        ? "bg-warning/15 text-warning"
+        : "bg-surface-secondary text-text-tertiary";
 
   return (
     <div>
@@ -294,148 +334,211 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section — Current vs Building (top-line comparison) */}
-      <div id="section-current-vs-building" className="scroll-mt-24 mb-6">
+      {/* Section — Conservatism Check */}
+      <div id="section-conservatism" className="scroll-mt-24 mb-6">
         <SectionHeader
-          title="Current vs Building"
-          sub={`Operating villa today vs the planned Villa Lev portfolio · ${SEASON_NIGHTS}-night season (15 May – 15 Sept)`}
+          title="Conservatism Check"
+          sub="Per-villa BP assumptions vs the live single villa we already run today"
         />
+        <div className="rounded-xl border border-positive/30 bg-positive/5 p-4 mb-3 flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-[260px]">
+            <div className="text-sm font-medium text-text-primary">
+              The business plan models per-villa numbers we already exceed today.
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              Live performance from{" "}
+              <a href={ACTUALS_SOURCE.url} target="_blank" rel="noreferrer" className="underline hover:text-text-primary">
+                admin.villalevantiparos.com
+              </a>
+              {" "}(2025 complete, 2026 in progress) sets a floor — actual portfolio outcomes should beat the plan.
+              Refreshed {ACTUALS_SOURCE.pulledAt}.
+            </div>
+          </div>
+          <div className="flex gap-2 text-[11px] flex-wrap">
+            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
+              2026 booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
+            </span>
+            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
+              2025 total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
+            </span>
+          </div>
+        </div>
         <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-tertiary bg-surface-secondary/30">
                   <th className="text-left py-2.5 pl-4 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Metric
-                  </th>
-                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Current Villa Lev
+                    Assumption (per villa)
                   </th>
                   <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-brand-700 font-medium">
-                    Building (Stabilised)
+                    BP Realistic
                   </th>
-                  <th className="text-right py-2.5 px-3 pr-4 text-xs uppercase tracking-wider text-positive font-medium">
-                    Uplift
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    BP Upside
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-secondary font-medium">
+                    Live Villa Lev
+                  </th>
+                  <th className="text-right py-2.5 px-3 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    Verdict
                   </th>
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-4 pr-4 text-text-secondary">Operating villas</td>
-                  <td className="text-right py-2 px-3 data-cell">{currentVilla.villas}</td>
-                  <td className="text-right py-2 px-3 data-cell">{totalUnits}</td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentVilla.villas, totalUnits)}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Peak-season nights
+                    <div className="text-[11px] text-text-tertiary">120 available · 15 May – 15 Sept</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">{bpNights}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{revUp.villaBaseNights}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {liveBookedNights}
+                    <div className="text-[11px] text-text-tertiary">2026 booked, season in progress</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictNights.tone)}`}>
+                      {verdictNights.label}
+                    </span>
                   </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-4 pr-4 text-text-secondary">Total nights / season</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {currentVilla.nights * currentVilla.villas}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    ADR (net, € per night)
+                    <div className="text-[11px] text-text-tertiary">After OTA commissions</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {buildingNights > 0 ? Math.round(buildingNights) * totalUnits : SEASON_NIGHTS * totalUnits}
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpADR, false, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.villaADR, false, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveADR, false, locale)}
+                    <div className="text-[11px] text-text-tertiary">2026 net · gross {formatCurrency(currentSeason.grossADR, false, locale)}</div>
                   </td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentVilla.nights * currentVilla.villas, (buildingNights > 0 ? buildingNights : SEASON_NIGHTS) * totalUnits)}
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictADR.tone)}`}>
+                      {verdictADR.label}
+                    </span>
                   </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-4 pr-4 text-text-secondary">Average daily rate (ADR)</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentVilla.adr, false, locale)}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Accommodation revenue / villa
+                    <div className="text-[11px] text-text-tertiary">Nights × ADR (per villa, per season)</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(assumptions.revenueRealistic.villaADR, false, locale)}
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAccommodationPerVilla, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(revUp.villaADR * revUp.villaBaseNights, true, locale)}
                   </td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-4 pr-4 text-text-secondary">Accommodation revenue</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentAccommodation, true, locale)}
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveAccommodation, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">2026 net rental (in progress)</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(buildingAccommodation, true, locale)}
-                  </td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentAccommodation, buildingAccommodation)}
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAccommodation.tone)}`}>
+                      {verdictAccommodation.label}
+                    </span>
                   </td>
                 </tr>
 
                 <tr className="bg-surface-secondary/20">
-                  <td colSpan={4} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
-                    Services
+                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Services &amp; events — note: BP figures are entire-portfolio totals; the live column is one villa
                   </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-6 pr-4 text-text-secondary">Chef</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentVilla.chef, true, locale)}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Ancillary services — base (year 1)
+                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">
-                    {/* Chef included in ancillary bundle on the build side */}—
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAncillaryBase, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.ancillaryBaseProfit, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveServices2025, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">2025 actual · one villa</div>
                   </td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryBase.tone)}`}>
+                      {verdictAncillaryBase.label}
+                    </span>
+                  </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-6 pr-4 text-text-secondary">Boat rental</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentVilla.boat, true, locale)}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Ancillary services — stabilised
+                    <div className="text-[11px] text-text-tertiary">+{(rev.ancillaryGrowthRate * 100).toFixed(0)}%/yr × {rev.ancillaryGrowthYears}y cap</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">—</td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAncillaryStabilised, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(revUp.ancillaryBaseProfit * Math.pow(1 + revUp.ancillaryGrowthRate, revUp.ancillaryGrowthYears), true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveServices2025, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">single villa today</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryStabilised.tone)}`}>
+                      {verdictAncillaryStabilised.label}
+                    </span>
+                  </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-6 pr-4 text-text-secondary">Car rental</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentVilla.car, true, locale)}
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Events (private hire)
+                    <div className="text-[11px] text-text-tertiary">{rev.eventsPerYear}/yr × {formatCurrency(rev.netProfitPerEvent, false, locale)} net per event</div>
                   </td>
-                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">—</td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2 pl-6 pr-4 text-text-secondary">Services subtotal · events &amp; ancillary</td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(currentServices, true, locale)}
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpEventsPortfolio, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(revUp.eventsPerYear * revUp.netProfitPerEvent, true, locale)}
                   </td>
-                  <td className="text-right py-2 px-3 data-cell">
-                    {formatCurrency(buildingServices + buildingEvents, true, locale)}
-                  </td>
-                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentServices, buildingServices + buildingEvents)}
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-brand-100 text-brand-800">
+                      New revenue line
+                    </span>
                   </td>
                 </tr>
 
-                <tr className="font-medium border-t-2 border-surface-tertiary">
-                  <td className="py-2.5 pl-4 pr-4">Total revenue</td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(currentTotalRevenue, true, locale)}
+                <tr className="font-medium border-t-2 border-surface-tertiary bg-surface-secondary/10">
+                  <td className="py-2.5 pl-4 pr-4">
+                    Portfolio scale-up (stabilised)
+                    <div className="text-[11px] font-normal text-text-tertiary">Conservative per-villa × {totalUnits} units</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell text-brand-700">
                     {formatCurrency(buildingTotalRevenue, true, locale)}
                   </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
+                    {formatCurrency(liveTotal2025, true, locale)}
+                    <div className="text-[11px] font-normal text-text-tertiary">2025 actual · one villa</div>
+                  </td>
                   <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentTotalRevenue, buildingTotalRevenue)}
+                    {(buildingTotalRevenue / liveTotal2025).toFixed(1)}× revenue
                   </td>
                 </tr>
                 <tr className="font-medium">
-                  <td className="py-2.5 pl-4 pr-4">EBITDA</td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(currentEBITDA, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-positive">
+                  <td className="py-2.5 pl-4 pr-4">EBITDA (stabilised)</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
                     {formatCurrency(buildingEBITDA, true, locale)}
                   </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
+                    {formatCurrency(liveTotal2025 * 0.55, true, locale)}
+                    <div className="text-[11px] font-normal text-text-tertiary">~55% of 2025 net</div>
+                  </td>
                   <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
-                    {multiple(currentEBITDA, buildingEBITDA)}
+                    {(buildingEBITDA / (liveTotal2025 * 0.55)).toFixed(1)}× EBITDA
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20">
-            Current-business figures use a {SEASON_NIGHTS}-night season at €{currentVilla.adr.toLocaleString()} ADR; service lines (chef, boat, car) are operator estimates — replace with live numbers once the running-business feed is connected.
+          <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) and <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}). Per-villa scope: villa-type assumptions only ({totalUnits} mixed villa/suite properties in the BP scale-up).
+            </span>
+            <span>
+              Single-villa OpEx — housekeeping, utilities, management — assumed ~55% margin; the operator's reported P&amp;L shows a higher headline net margin (pre corporate-overhead allocation).
+            </span>
           </div>
         </div>
       </div>
@@ -581,6 +684,7 @@ export default function DashboardPage() {
           label={t('term.ebitda')}
           value={formatCurrency(km.stabilisedEBITDA, true, locale)}
           sublabel={`${t('kpi.margin')} ${formatPercent(km.stabilisedEBITDAMargin)}`}
+          threshold={t('kpi.ebitdaMarginNote')}
           accent
         />
         <KPICard
@@ -593,7 +697,7 @@ export default function DashboardPage() {
       {/* Section 3 — Returns to Sponsor */}
       <div id="section-returns" className="scroll-mt-24">
       <SectionHeader title={t('dash.section.returns')} sub={t('dash.returnsSub')} />
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KPICard
           label={t('kpi.equityYield')}
           value={km.yieldStabilised !== 0 ? formatPercent(km.yieldStabilised) : "—"}
@@ -601,11 +705,25 @@ export default function DashboardPage() {
           tone={km.yieldStabilised >= 0.15 ? "positive" : km.yieldStabilised > 0 ? undefined : "warning"}
           accent={km.yieldStabilised >= 0.15}
         />
+        {/* Operating Yield = Σ NCF distributions / equity. Operating only — exit
+            proceeds are NOT included. Renamed from "Cumulative Yield" so it
+            reads honestly alongside Total MOIC below. */}
         <KPICard
-          label={t('kpi.cumYield')}
+          label={t('kpi.operatingYield')}
           value={km.cumulativeYieldFinal !== 0 ? formatYieldMultiple(km.cumulativeYieldFinal) : "—"}
-          sublabel={t('kpi.cumYieldSub')}
+          sublabel={t('kpi.operatingYieldSub')}
           tone={km.cumulativeYieldFinal >= 1 ? "positive" : km.cumulativeYieldFinal > 0 ? undefined : "warning"}
+          threshold={t('kpi.operatingYieldNote')}
+        />
+        {/* Total MOIC = (Σ NCF + terminal equity proceeds) / equity. The
+            "what you actually walk away with" number — surfaced as a peer to
+            Operating Yield to make the relationship explicit. */}
+        <KPICard
+          label={t('kpi.totalMOIC')}
+          value={km.totalMOIC !== 0 ? formatYieldMultiple(km.totalMOIC) : "—"}
+          sublabel={t('kpi.totalMOICSub')}
+          tone={km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
+          accent={km.totalMOIC >= 3}
         />
         <KPICard
           label={t('kpi.equityPayback')}
@@ -622,6 +740,7 @@ export default function DashboardPage() {
                 ? undefined
                 : "warning"
           }
+          threshold={t('kpi.equityPaybackNote')}
         />
         <KPICard
           label={t('kpi.equityIRR')}
