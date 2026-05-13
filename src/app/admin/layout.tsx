@@ -95,6 +95,7 @@ export default function AdminLayout({
     { href: "/admin/scenarios", labelKey: "nav.scenarios" },
     { href: "/admin/assumptions", labelKey: "nav.assumptions" },
     { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
+    { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
     { href: "/admin/lexicon", labelKey: "nav.lexicon" },
   ];
 

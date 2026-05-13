@@ -254,6 +254,25 @@ export interface TaxAssumptions {
   netVATRate: number;
 }
 
+// ── OpCo / PropCo Split ──
+// Optional management company structure. When enabled, OpCo fees are
+// deducted from EBITDA so all downstream PropCo metrics (NCF, DSCR, IRR)
+// reflect the post-fee return to the asset owner.
+//
+//   baseFee       = baseFeeRate × Total Revenue
+//   brandFee      = brandFeeRate × Room Revenue (property revenue, no events/ancillary)
+//   incentiveFee  = incentiveFeeRate × max(0, GOP − baseFee − brandFee − priorityReturn)
+//   priorityReturn = ownerPriorityReturnRate × initial equity
+//
+// GOP for this model ≈ EBITDA before OpCo fees.
+export interface OpCoFeeParams {
+  enabled: boolean;
+  baseFeeRate: number;
+  brandFeeRate: number;
+  incentiveFeeRate: number;
+  ownerPriorityReturnRate: number;
+}
+
 // ── Model Input ──
 
 export interface ModelAssumptions {
@@ -268,10 +287,15 @@ export interface ModelAssumptions {
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
   financingPath: FinancingPath;
+  opCoFee: OpCoFeeParams;
   workingCapital: WorkingCapitalParams;
   // Multiple applied to stabilised EBITDA to produce a terminal asset value
   // for IRR calculations. e.g. 10 means terminal value = 10 × stabilised EBITDA.
   exitEbitdaMultiple: number;
+  // DSCR threshold below which a year fails the lender's covenant test.
+  // Greek/EU commercial real estate loans typically carry 1.20–1.30. Surfaced
+  // on the Coverage sheet of the BP export with a Pass/Fail row.
+  dscrCovenantThreshold: number;
 }
 
 // ============================================================
@@ -325,6 +349,16 @@ export interface AnnualPnL {
   revenueAncillaryCapped: boolean;
   totalRevenue: number;
   totalOpex: number;
+  // EBITDA before OpCo management fees — i.e. GOP available to be split
+  // between owner and manager. Equals `ebitda` when OpCo fees are disabled.
+  ebitdaPreOpCo: number;
+  // OpCo fee breakdown for the year. All zero when OpCo split is disabled.
+  opCoBaseFee: number;
+  opCoBrandFee: number;
+  opCoIncentiveFee: number;
+  opCoTotalFee: number;
+  // PropCo EBITDA — net of OpCo fees. All downstream PropCo metrics
+  // (DSCR, ICR, NCF, IRR, yield) flow from this.
   ebitda: number;
   ebitdaMargin: number;
   debtService: number;
@@ -399,6 +433,11 @@ export interface ScenarioOutput {
   cumulativeYieldFinal: number;       // cumulative yield at end of projection
   equityPaybackYears: number | null;  // first year cum yield ≥ 100%, else null
   equityIRR: number;                  // levered IRR with terminal equity value
+  // Pre-split equity IRR — ignores OpCo fees. Equals `equityIRR` when OpCo
+  // split is disabled. Lets the dashboard show the cost of splitting.
+  equityIRRPreOpCo: number;
+  // Total OpCo earnings in the stabilised year (base + brand + incentive).
+  opCoStabilisedFee: number;
   projectIRR: number;                 // unlevered IRR with terminal asset value
   roic: number;                       // (EBITDA + CIT) / total CapEx, stabilised
   terminalAssetValue: number;         // stabilised EBITDA × exit multiple

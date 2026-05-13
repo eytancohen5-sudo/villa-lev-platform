@@ -512,6 +512,12 @@ function computeScenario(
   // WC drawdown decisions, then again with the resulting WC schedule applied.
   // The interest delta between passes is small (~€5K/yr at most) so the
   // single-iteration approximation is well within rounding noise.
+  const opCo = a.opCoFee;
+  const opCoEnabled = !!opCo?.enabled;
+  const opCoPriorityReturn = opCoEnabled
+    ? (debtResult.equityRequired ?? 0) * (opCo.ownerPriorityReturnRate ?? 0)
+    : 0;
+
   const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
     'cumulativeNCF' | 'cumulativeYieldOnInitialEquity' |
     'termLoanInterest' | 'termLoanPrincipal' | 'termLoanBalance' |
@@ -598,10 +604,8 @@ function computeScenario(
       rev.ancillaryGrowthRate > 0 &&
       ancillaryYearOffset >= rev.ancillaryGrowthYears;
 
-    const totalRevenue =
-      propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0) +
-      revenueEvents +
-      revenueAncillary;
+    const roomRevenue = propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0);
+    const totalRevenue = roomRevenue + revenueEvents + revenueAncillary;
 
     const propertyOpex = propertyBreakdown.reduce(
       (sum, p) => sum + p.totalOpex,
@@ -611,7 +615,21 @@ function computeScenario(
     // Decision A1: WC interest sits inside OPEX, reducing EBITDA.
     const totalOpex = propertyOpex + wcInterestExpense;
 
-    const ebitda = totalRevenue - totalOpex;
+    // EBITDA pre-OpCo (= GOP) before any management-company fees are taken.
+    const ebitdaPreOpCo = totalRevenue - totalOpex;
+
+    // OpCo fees: base on total revenue, brand on room revenue, incentive on
+    // GOP above the owner's priority return on equity (computed once outside).
+    const opCoBaseFee = opCoEnabled ? totalRevenue * opCo.baseFeeRate : 0;
+    const opCoBrandFee = opCoEnabled ? roomRevenue * opCo.brandFeeRate : 0;
+    const opCoIncentiveBase = ebitdaPreOpCo - opCoBaseFee - opCoBrandFee - opCoPriorityReturn;
+    const opCoIncentiveFee = opCoEnabled
+      ? Math.max(0, opCoIncentiveBase) * opCo.incentiveFeeRate
+      : 0;
+    const opCoTotalFee = opCoBaseFee + opCoBrandFee + opCoIncentiveFee;
+
+    // PropCo EBITDA — net of OpCo fees. Drives DSCR, ICR, NCF, IRR.
+    const ebitda = ebitdaPreOpCo - opCoTotalFee;
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
 
     const ds = debtResult.getDS(year);
@@ -652,6 +670,11 @@ function computeScenario(
       revenueAncillaryCapped,
       totalRevenue,
       totalOpex,
+      ebitdaPreOpCo,
+      opCoBaseFee,
+      opCoBrandFee,
+      opCoIncentiveFee,
+      opCoTotalFee,
       ebitda,
       ebitdaMargin,
       debtService: ds,
@@ -756,8 +779,11 @@ function computeScenario(
   const minDSCRLoanLife = operationalDscrs.length
     ? Math.min(...operationalDscrs)
     : 0;
+  const covenantThreshold = a.dscrCovenantThreshold || 1.25;
   const dscrCovenantHeadroom =
-    minDSCRLoanLife > 0 ? (minDSCRLoanLife - 1.25) / 1.25 : 0;
+    minDSCRLoanLife > 0
+      ? (minDSCRLoanLife - covenantThreshold) / covenantThreshold
+      : 0;
 
   const peakDebtOutstanding = Math.max(
     0,
@@ -787,6 +813,31 @@ function computeScenario(
   });
   const equityIRRRaw = irr(equityCFs);
   const equityIRR = isFinite(equityIRRRaw) ? equityIRRRaw : 0;
+
+  // Pre-split equity IRR: add OpCo fees back into each year's NCF (i.e. value
+  // the all-in equity cash flow if the owner were also the manager). Also
+  // recompute terminal equity off the pre-OpCo stabilised EBITDA so the exit
+  // multiple is applied to the un-split GOP. Identical to equityIRR when
+  // OpCo split is disabled (all opCoTotalFee + opCoStabilisedFee are zero).
+  const opCoStabilisedFee = stab?.opCoTotalFee ?? 0;
+  const stabEbitdaPreOpCo = stab?.ebitdaPreOpCo ?? 0;
+  const terminalAssetValuePreOpCo =
+    stabEbitdaPreOpCo > 0 ? stabEbitdaPreOpCo * exitMultiple : 0;
+  const terminalEquityValuePreOpCo = Math.max(
+    0,
+    terminalAssetValuePreOpCo - remainingDebt
+  );
+  const equityCFsPreOpCo: number[] = [-debtResult.equityRequired];
+  pnl.forEach((p, i) => {
+    const addBack = p.opCoTotalFee;
+    const cf =
+      i === pnl.length - 1
+        ? p.netCashFlowPostVAT + addBack + terminalEquityValuePreOpCo
+        : p.netCashFlowPostVAT + addBack;
+    equityCFsPreOpCo.push(cf);
+  });
+  const equityIRRPreOpCoRaw = irr(equityCFsPreOpCo);
+  const equityIRRPreOpCo = isFinite(equityIRRPreOpCoRaw) ? equityIRRPreOpCoRaw : 0;
 
   // Project IRR: -CapEx at t=0, unlevered CFADS stream, terminal asset value.
   const projectCFs: number[] = [-totalCapex];
@@ -847,6 +898,8 @@ function computeScenario(
     cumulativeYieldFinal,
     equityPaybackYears,
     equityIRR,
+    equityIRRPreOpCo,
+    opCoStabilisedFee,
     projectIRR,
     roic,
     terminalAssetValue,

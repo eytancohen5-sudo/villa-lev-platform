@@ -14,6 +14,7 @@ export const en: TranslationDictionary = {
   'nav.scenarios': 'Scenarios',
   'nav.assumptions': 'Assumptions',
   'nav.sensitivity': 'Sensitivity',
+  'nav.opcoSplit': 'OpCo / PropCo',
   'nav.switchAdmin': 'Switch to Admin',
   'nav.switchInvestor': 'Switch to Investor Mode',
 

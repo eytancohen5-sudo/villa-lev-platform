@@ -223,6 +223,43 @@ export default function DashboardPage() {
 
   const formatYieldMultiple = (v: number) => `${v.toFixed(2)}×`;
 
+  // ── Current Villa Lev vs Building portfolio comparison ────────
+  // Existing operating villa, runs the 120-night Greek summer season
+  // (15 May → 15 Sept). Service revenue estimates from operator's books;
+  // wire to real data once the running-business feed is connected.
+  const SEASON_NIGHTS = 120;
+  const currentVilla = {
+    villas: 1,
+    nights: SEASON_NIGHTS,
+    adr: assumptions.revenueRealistic.villaADR,
+    chef: 40000,
+    boat: 30000,
+    car: 20000,
+    events: 0,
+  };
+  const currentAccommodation = currentVilla.villas * currentVilla.nights * currentVilla.adr;
+  const currentServices = currentVilla.chef + currentVilla.boat + currentVilla.car;
+  const currentTotalRevenue = currentAccommodation + currentServices + currentVilla.events;
+  // Estimate current EBITDA at a representative single-villa margin.
+  const currentEBITDA = currentTotalRevenue * 0.55;
+
+  // Building side — pull stabilised figures from the active scenario/model.
+  const totalUnits = projects.reduce((s, p) => s + p.count, 0);
+  const buildingAccommodation = (stab?.propertyBreakdown ?? []).reduce(
+    (s, p) => s + p.totalRevenue,
+    0,
+  );
+  const buildingEvents = stab?.revenueEvents ?? 0;
+  // Ancillary revenue stands in for chef/boat/car/concierge services bundle
+  // until those are modelled as separate lines.
+  const buildingServices = stab?.revenueAncillary ?? 0;
+  const buildingTotalRevenue = stab?.totalRevenue ?? 0;
+  const buildingEBITDA = stab?.ebitda ?? 0;
+  const buildingNights = stab?.villaNights ?? 0;
+
+  const multiple = (current: number, future: number) =>
+    current > 0 ? `${(future / current).toFixed(1)}×` : "—";
+
   return (
     <div>
       {/* Header */}
@@ -254,6 +291,152 @@ export default function DashboardPage() {
             ⬇ Download model (.xlsx)
           </button>
           <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+        </div>
+      </div>
+
+      {/* Section — Current vs Building (top-line comparison) */}
+      <div id="section-current-vs-building" className="scroll-mt-24 mb-6">
+        <SectionHeader
+          title="Current vs Building"
+          sub={`Operating villa today vs the planned Villa Lev portfolio · ${SEASON_NIGHTS}-night season (15 May – 15 Sept)`}
+        />
+        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-tertiary bg-surface-secondary/30">
+                  <th className="text-left py-2.5 pl-4 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    Metric
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    Current Villa Lev
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-brand-700 font-medium">
+                    Building (Stabilised)
+                  </th>
+                  <th className="text-right py-2.5 px-3 pr-4 text-xs uppercase tracking-wider text-positive font-medium">
+                    Uplift
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-4 pr-4 text-text-secondary">Operating villas</td>
+                  <td className="text-right py-2 px-3 data-cell">{currentVilla.villas}</td>
+                  <td className="text-right py-2 px-3 data-cell">{totalUnits}</td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentVilla.villas, totalUnits)}
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-4 pr-4 text-text-secondary">Total nights / season</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {currentVilla.nights * currentVilla.villas}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {buildingNights > 0 ? Math.round(buildingNights) * totalUnits : SEASON_NIGHTS * totalUnits}
+                  </td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentVilla.nights * currentVilla.villas, (buildingNights > 0 ? buildingNights : SEASON_NIGHTS) * totalUnits)}
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-4 pr-4 text-text-secondary">Average daily rate (ADR)</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentVilla.adr, false, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(assumptions.revenueRealistic.villaADR, false, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-4 pr-4 text-text-secondary">Accommodation revenue</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentAccommodation, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(buildingAccommodation, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentAccommodation, buildingAccommodation)}
+                  </td>
+                </tr>
+
+                <tr className="bg-surface-secondary/20">
+                  <td colSpan={4} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Services
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-6 pr-4 text-text-secondary">Chef</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentVilla.chef, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">
+                    {/* Chef included in ancillary bundle on the build side */}—
+                  </td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-6 pr-4 text-text-secondary">Boat rental</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentVilla.boat, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-6 pr-4 text-text-secondary">Car rental</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentVilla.car, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-text-tertiary">—</td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2 pl-6 pr-4 text-text-secondary">Services subtotal · events &amp; ancillary</td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(currentServices, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 data-cell">
+                    {formatCurrency(buildingServices + buildingEvents, true, locale)}
+                  </td>
+                  <td className="text-right py-2 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentServices, buildingServices + buildingEvents)}
+                  </td>
+                </tr>
+
+                <tr className="font-medium border-t-2 border-surface-tertiary">
+                  <td className="py-2.5 pl-4 pr-4">Total revenue</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(currentTotalRevenue, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
+                    {formatCurrency(buildingTotalRevenue, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentTotalRevenue, buildingTotalRevenue)}
+                  </td>
+                </tr>
+                <tr className="font-medium">
+                  <td className="py-2.5 pl-4 pr-4">EBITDA</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(currentEBITDA, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-positive">
+                    {formatCurrency(buildingEBITDA, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
+                    {multiple(currentEBITDA, buildingEBITDA)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20">
+            Current-business figures use a {SEASON_NIGHTS}-night season at €{currentVilla.adr.toLocaleString()} ADR; service lines (chef, boat, car) are operator estimates — replace with live numbers once the running-business feed is connected.
+          </div>
         </div>
       </div>
 

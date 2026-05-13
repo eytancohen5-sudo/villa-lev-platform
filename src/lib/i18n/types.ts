@@ -25,6 +25,7 @@ export interface TranslationDictionary {
   'nav.scenarios': string;
   'nav.assumptions': string;
   'nav.sensitivity': string;
+  'nav.opcoSplit': string;
   'nav.switchAdmin': string;
   'nav.switchInvestor': string;
 

@@ -444,6 +444,19 @@ export const BASE_CASE: ModelAssumptions = {
   acquisitionLegalPerPlot: 50000,
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
+  // Standard Greek/EU commercial real-estate covenant. Editable in the BP
+  // export; drives the Pass/Fail flag on the Coverage sheet.
+  dscrCovenantThreshold: 1.25,
+
+  // OpCo / PropCo split disabled by default. Toggle on the dashboard to see
+  // how a separated owner-and-manager structure shifts equity returns.
+  opCoFee: {
+    enabled: false,
+    baseFeeRate: 0.03,
+    brandFeeRate: 0.02,
+    incentiveFeeRate: 0.10,
+    ownerPriorityReturnRate: 0.08,
+  },
 
   workingCapital: {
     active: true,

@@ -14,6 +14,7 @@ export const he: TranslationDictionary = {
   'nav.scenarios': 'תרחישים',
   'nav.assumptions': 'הנחות',
   'nav.sensitivity': 'רגישות',
+  'nav.opcoSplit': 'OpCo / PropCo',
   'nav.switchAdmin': 'מעבר למנהל',
   'nav.switchInvestor': 'מעבר למצב משקיע',
 

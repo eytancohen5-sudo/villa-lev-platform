@@ -14,6 +14,7 @@ export const el: TranslationDictionary = {
   'nav.scenarios': 'Σενάρια',
   'nav.assumptions': 'Παραδοχές',
   'nav.sensitivity': 'Ανάλυση ευαισθησίας',
+  'nav.opcoSplit': 'OpCo / PropCo',
   'nav.switchAdmin': 'Εναλλαγή σε Διαχειριστή',
   'nav.switchInvestor': 'Εναλλαγή σε Λειτουργία Επενδυτή',
 
