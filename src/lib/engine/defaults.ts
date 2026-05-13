@@ -444,6 +444,9 @@ export const BASE_CASE: ModelAssumptions = {
   acquisitionLegalPerPlot: 50000,
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
+  // Default exit at the end of the modeled horizon (2036 = Y10 of operations).
+  // Editable; engine clamps to [first stabilised year, last modeled year].
+  exitYear: 2036,
   // Standard Greek/EU commercial real-estate covenant. Editable in the BP
   // export; drives the Pass/Fail flag on the Coverage sheet.
   dscrCovenantThreshold: 1.25,

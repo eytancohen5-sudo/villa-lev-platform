@@ -289,9 +289,13 @@ export interface ModelAssumptions {
   financingPath: FinancingPath;
   opCoFee: OpCoFeeParams;
   workingCapital: WorkingCapitalParams;
-  // Multiple applied to stabilised EBITDA to produce a terminal asset value
-  // for IRR calculations. e.g. 10 means terminal value = 10 × stabilised EBITDA.
+  // Multiple applied to EBITDA at the exit year to produce a terminal asset
+  // value for IRR calculations. e.g. 10 means terminal value = 10 × exit EBITDA.
   exitEbitdaMultiple: number;
+  // Year the asset is sold. IRR / MOIC / equity payback all truncate to this
+  // year; terminal asset value uses the year's EBITDA × exitEbitdaMultiple.
+  // Allowed range 2029–2040 (must be ≥ stabilised year and ≤ last modeled year).
+  exitYear: number;
   // DSCR threshold below which a year fails the lender's covenant test.
   // Greek/EU commercial real estate loans typically carry 1.20–1.30. Surfaced
   // on the Coverage sheet of the BP export with a Pass/Fail row.
@@ -440,9 +444,10 @@ export interface ScenarioOutput {
   opCoStabilisedFee: number;
   projectIRR: number;                 // unlevered IRR with terminal asset value
   roic: number;                       // (EBITDA + CIT) / total CapEx, stabilised
-  terminalAssetValue: number;         // stabilised EBITDA × exit multiple
-  terminalEquityValue: number;        // terminal asset value − loan balance
-  exitEbitdaMultiple: number;         // multiple applied to stabilised EBITDA
+  terminalAssetValue: number;         // EBITDA at exit year × exit multiple
+  terminalEquityValue: number;        // terminal asset value − loan balance at exit
+  exitEbitdaMultiple: number;         // multiple applied to EBITDA at exit
+  exitYear: number;                   // year used as the exit (truncates IRR window)
 }
 
 // Stable identifier for each comparison row, locale-independent. Add cases

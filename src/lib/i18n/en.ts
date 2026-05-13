@@ -15,6 +15,7 @@ export const en: TranslationDictionary = {
   'nav.assumptions': 'Assumptions',
   'nav.sensitivity': 'Sensitivity',
   'nav.opcoSplit': 'OpCo / PropCo',
+  'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Switch to Admin',
   'nav.switchInvestor': 'Switch to Investor Mode',
 

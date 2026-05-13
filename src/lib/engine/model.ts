@@ -795,18 +795,28 @@ function computeScenario(
 
   const icrStabilised = stab?.interestCoverageRatio ?? 0;
 
-  // Terminal values via EBITDA multiple exit on stabilised EBITDA.
+  // Terminal values via EBITDA multiple exit on EBITDA AT THE EXIT YEAR.
+  // exitYear clamps to [2030, 2036] (modeled horizon). Defaults to 2036.
   const exitMultiple = a.exitEbitdaMultiple ?? DEFAULT_EXIT_EBITDA_MULTIPLE;
-  const stabEbitda = stab?.ebitda ?? 0;
-  const terminalAssetValue = stabEbitda > 0 ? stabEbitda * exitMultiple : 0;
-  const remainingDebt = finalYear?.termLoanBalance ?? 0;
+  const exitYearRaw = a.exitYear ?? 2036;
+  const exitYear = Math.max(2030, Math.min(2036, exitYearRaw));
+  const exitPnL = pnl.find((p) => p.year === exitYear) ?? stab ?? finalYear;
+  const exitEbitda = exitPnL?.ebitda ?? 0;
+  const terminalAssetValue = exitEbitda > 0 ? exitEbitda * exitMultiple : 0;
+  const remainingDebt = exitPnL?.termLoanBalance ?? 0;
   const terminalEquityValue = Math.max(0, terminalAssetValue - remainingDebt);
 
-  // Equity IRR: -equity at t=0, NCF post-tax stream, terminal equity at end.
+  // Truncate cash-flow window to the exit year. Operating years before exit
+  // run normally; the exit year itself receives the terminal lump sum. Years
+  // after exit are dropped from the IRR series.
+  const exitIndex = pnl.findIndex((p) => p.year === exitYear);
+  const truncatedPnL = exitIndex >= 0 ? pnl.slice(0, exitIndex + 1) : pnl;
+
+  // Equity IRR: -equity at t=0, NCF post-tax stream, terminal equity at exit.
   const equityCFs: number[] = [-debtResult.equityRequired];
-  pnl.forEach((p, i) => {
+  truncatedPnL.forEach((p, i) => {
     const cf =
-      i === pnl.length - 1
+      i === truncatedPnL.length - 1
         ? p.netCashFlowPostVAT + terminalEquityValue
         : p.netCashFlowPostVAT;
     equityCFs.push(cf);
@@ -816,22 +826,22 @@ function computeScenario(
 
   // Pre-split equity IRR: add OpCo fees back into each year's NCF (i.e. value
   // the all-in equity cash flow if the owner were also the manager). Also
-  // recompute terminal equity off the pre-OpCo stabilised EBITDA so the exit
+  // recompute terminal equity off the pre-OpCo EBITDA at exit so the exit
   // multiple is applied to the un-split GOP. Identical to equityIRR when
   // OpCo split is disabled (all opCoTotalFee + opCoStabilisedFee are zero).
   const opCoStabilisedFee = stab?.opCoTotalFee ?? 0;
-  const stabEbitdaPreOpCo = stab?.ebitdaPreOpCo ?? 0;
+  const exitEbitdaPreOpCo = exitPnL?.ebitdaPreOpCo ?? 0;
   const terminalAssetValuePreOpCo =
-    stabEbitdaPreOpCo > 0 ? stabEbitdaPreOpCo * exitMultiple : 0;
+    exitEbitdaPreOpCo > 0 ? exitEbitdaPreOpCo * exitMultiple : 0;
   const terminalEquityValuePreOpCo = Math.max(
     0,
     terminalAssetValuePreOpCo - remainingDebt
   );
   const equityCFsPreOpCo: number[] = [-debtResult.equityRequired];
-  pnl.forEach((p, i) => {
+  truncatedPnL.forEach((p, i) => {
     const addBack = p.opCoTotalFee;
     const cf =
-      i === pnl.length - 1
+      i === truncatedPnL.length - 1
         ? p.netCashFlowPostVAT + addBack + terminalEquityValuePreOpCo
         : p.netCashFlowPostVAT + addBack;
     equityCFsPreOpCo.push(cf);
@@ -839,11 +849,12 @@ function computeScenario(
   const equityIRRPreOpCoRaw = irr(equityCFsPreOpCo);
   const equityIRRPreOpCo = isFinite(equityIRRPreOpCoRaw) ? equityIRRPreOpCoRaw : 0;
 
-  // Project IRR: -CapEx at t=0, unlevered CFADS stream, terminal asset value.
+  // Project IRR: -CapEx at t=0, unlevered CFADS stream, terminal asset value
+  // at exit year. Truncated to the exit window.
   const projectCFs: number[] = [-totalCapex];
-  pnl.forEach((p, i) => {
+  truncatedPnL.forEach((p, i) => {
     const cf =
-      i === pnl.length - 1 ? p.cfads + terminalAssetValue : p.cfads;
+      i === truncatedPnL.length - 1 ? p.cfads + terminalAssetValue : p.cfads;
     projectCFs.push(cf);
   });
   const projectIRRRaw = irr(projectCFs);
@@ -905,6 +916,7 @@ function computeScenario(
     terminalAssetValue,
     terminalEquityValue,
     exitEbitdaMultiple: exitMultiple,
+    exitYear,
   };
 }
 

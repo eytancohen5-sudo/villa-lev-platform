@@ -15,6 +15,7 @@ export const el: TranslationDictionary = {
   'nav.assumptions': 'Παραδοχές',
   'nav.sensitivity': 'Ανάλυση ευαισθησίας',
   'nav.opcoSplit': 'OpCo / PropCo',
+  'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Εναλλαγή σε Διαχειριστή',
   'nav.switchInvestor': 'Εναλλαγή σε Λειτουργία Επενδυτή',
 

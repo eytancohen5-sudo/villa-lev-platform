@@ -19,6 +19,12 @@ import {
   resolvePortfolio,
 } from '../engine/defaults';
 import { computeModel } from '../engine/model';
+import {
+  CapTableStakeholder,
+  WaterfallParams,
+  DEFAULT_CAP_TABLE,
+  DEFAULT_WATERFALL,
+} from '../engine/capTable';
 
 // Backfill fields added after a template was saved, so older saved scenarios
 // load without crashing the UI: roomAreas, and unit counts (villaUnits,
@@ -194,6 +200,8 @@ const PROJECTS_STORAGE_KEY = 'villa-lev-projects';
 const SCENARIO_STORAGE_KEY = 'villa-lev-active-scenario';
 const SAVE_PROMPT_DISABLED_KEY = 'villa-lev-save-prompt-disabled';
 const LAST_SAVED_CONFIG_KEY = 'villa-lev-last-saved-config';
+const CAP_TABLE_STORAGE_KEY = 'villa-lev-cap-table';
+const WATERFALL_STORAGE_KEY = 'villa-lev-waterfall';
 const HISTORY_MAX = 200;
 
 // ── Server-side scenario sync (Firestore) ──
@@ -430,6 +438,36 @@ function saveScenarioToStorage(scenario: ScenarioName) {
   } catch { /* storage full */ }
 }
 
+function loadCapTableFromStorage(): CapTableStakeholder[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CAP_TABLE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+function saveCapTableToStorage(stakeholders: CapTableStakeholder[]) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(CAP_TABLE_STORAGE_KEY, JSON.stringify(stakeholders)); } catch { /* full */ }
+}
+function loadWaterfallFromStorage(): WaterfallParams | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(WATERFALL_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+function saveWaterfallToStorage(w: WaterfallParams) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(WATERFALL_STORAGE_KEY, JSON.stringify(w)); } catch { /* full */ }
+}
+
 function clearPersistedState() {
   if (typeof window === 'undefined') return;
   try {
@@ -654,6 +692,15 @@ interface ModelStore {
   recompute: () => void;
   init: () => void;
 
+  // Cap table & waterfall state (Feature 3). Computed on demand by the page.
+  capTable: CapTableStakeholder[];
+  waterfall: WaterfallParams;
+  updateStakeholder: (id: string, patch: Partial<CapTableStakeholder>) => void;
+  addStakeholder: (sh: CapTableStakeholder) => void;
+  removeStakeholder: (id: string) => void;
+  setWaterfallParam: <K extends keyof WaterfallParams>(key: K, value: WaterfallParams[K]) => void;
+  resetCapTable: () => void;
+
   // Template management
   addTemplate: (type: 'villa' | 'suite' | 'mixed') => void;
   updateTemplate: (id: string, path: string, value: unknown, label?: string) => void;
@@ -715,6 +762,37 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   userHasSetName: false,
   savePromptDismissed: false,
   savePromptDisabled: false,
+
+  capTable: DEFAULT_CAP_TABLE.map((sh) => ({ ...sh })),
+  waterfall: { ...DEFAULT_WATERFALL },
+
+  updateStakeholder: (id, patch) => {
+    const next = get().capTable.map((sh) => (sh.id === id ? { ...sh, ...patch } : sh));
+    set({ capTable: next });
+    saveCapTableToStorage(next);
+  },
+  addStakeholder: (sh) => {
+    const next = [...get().capTable, sh];
+    set({ capTable: next });
+    saveCapTableToStorage(next);
+  },
+  removeStakeholder: (id) => {
+    const next = get().capTable.filter((sh) => sh.id !== id);
+    set({ capTable: next });
+    saveCapTableToStorage(next);
+  },
+  setWaterfallParam: (key, value) => {
+    const next = { ...get().waterfall, [key]: value };
+    set({ waterfall: next });
+    saveWaterfallToStorage(next);
+  },
+  resetCapTable: () => {
+    const t = DEFAULT_CAP_TABLE.map((sh) => ({ ...sh }));
+    const w = { ...DEFAULT_WATERFALL };
+    set({ capTable: t, waterfall: w });
+    saveCapTableToStorage(t);
+    saveWaterfallToStorage(w);
+  },
 
   setCurrentUser: (name: string) => {
     const trimmed = name.trim() || 'You';
@@ -964,6 +1042,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const savedAssumptions = loadAssumptionsFromStorage();
     const savedProjects = loadProjectsFromStorage();
     const savedScenario = loadScenarioFromStorage();
+    const savedCapTable = loadCapTableFromStorage();
+    const savedWaterfall = loadWaterfallFromStorage();
 
     // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
@@ -1008,6 +1088,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       lastSavedConfigId: stillExists ? lastSaved!.id : null,
       lastSavedConfigName: stillExists ? lastSaved!.name : null,
       ...(savedScenario ? { activeScenario: savedScenario } : {}),
+      ...(savedCapTable ? { capTable: savedCapTable } : {}),
+      ...(savedWaterfall ? { waterfall: { ...DEFAULT_WATERFALL, ...savedWaterfall } } : {}),
     });
     get().recompute();
 

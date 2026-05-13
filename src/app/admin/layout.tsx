@@ -96,6 +96,7 @@ export default function AdminLayout({
     { href: "/admin/assumptions", labelKey: "nav.assumptions" },
     { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
     { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
+    { href: "/admin/cap-table", labelKey: "nav.capTable" },
     { href: "/admin/lexicon", labelKey: "nav.lexicon" },
   ];
 
@@ -248,6 +249,56 @@ export default function AdminLayout({
                 </div>
               </>
             )}
+
+            {/* Exit scenario inputs */}
+            <div className="w-px h-6 bg-surface-tertiary" />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+                  Exit
+                </span>
+                <input
+                  type="number"
+                  min={2030}
+                  max={2036}
+                  step={1}
+                  value={assumptions.exitYear ?? 2036}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (Number.isFinite(v)) {
+                      setAssumption("exitYear", Math.max(2030, Math.min(2036, v)), "Exit year");
+                    }
+                  }}
+                  className="w-16 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+                  ×
+                </span>
+                <input
+                  type="number"
+                  min={6}
+                  max={14}
+                  step={0.5}
+                  value={assumptions.exitEbitdaMultiple ?? 10}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (Number.isFinite(v)) {
+                      setAssumption("exitEbitdaMultiple", Math.max(6, Math.min(14, v)), "Exit EBITDA multiple");
+                    }
+                  }}
+                  className="w-14 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  title={
+                    (assumptions.exitEbitdaMultiple ?? 10) < 7
+                      ? "Warning: below market floor for boutique hotels"
+                      : (assumptions.exitEbitdaMultiple ?? 10) > 12
+                        ? "Warning: above market ceiling"
+                        : "Exit EBITDA multiple"
+                  }
+                />
+              </div>
+            </div>
 
             {/* Live KPIs + Language toggle */}
             <div className="ms-auto flex items-center gap-4 text-xs text-text-tertiary">
