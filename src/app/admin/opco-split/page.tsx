@@ -205,7 +205,7 @@ export default function OpCoSplitPage() {
 
       {/* Waterfall mechanics */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mt-8 mb-3 px-1">
-        Cash-flow priority (waterfall mechanics)
+        Waterfall mechanics — cash-flow priority
       </h2>
       <WaterfallMechanicsBox />
 

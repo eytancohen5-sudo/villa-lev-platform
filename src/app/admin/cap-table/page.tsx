@@ -26,12 +26,13 @@ function NumberInput({
   const id = useId();
   return (
     <div className="inline-flex items-center gap-1">
-      {prefix && <span className="text-text-tertiary text-xs">{prefix}</span>}
+      {prefix && <span className="text-text-tertiary text-xs" aria-hidden>{prefix}</span>}
       <input
         key={`${id}-${value}`}
         type="number"
         step={step}
         defaultValue={value}
+        aria-label={`${prefix ?? ""}${value}${suffix ?? ""}`}
         onBlur={(e) => {
           const v = parseFloat(e.target.value);
           if (Number.isFinite(v)) onCommit(v);
@@ -45,7 +46,7 @@ function NumberInput({
         }}
         className={`${width} px-2 py-1 text-sm font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30`}
       />
-      {suffix && <span className="text-text-tertiary text-xs">{suffix}</span>}
+      {suffix && <span className="text-text-tertiary text-xs" aria-hidden>{suffix}</span>}
     </div>
   );
 }
@@ -65,13 +66,14 @@ function PercentInputSmall({
         min={0}
         max={100}
         defaultValue={Number((value * 100).toFixed(2))}
+        aria-label={`Percent value, currently ${(value * 100).toFixed(1)}`}
         onBlur={(e) => {
           const v = parseFloat(e.target.value);
           if (Number.isFinite(v)) onCommit(Math.max(0, Math.min(100, v)) / 100);
         }}
         className="w-16 px-2 py-1 text-sm font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
       />
-      <span className="text-text-tertiary text-xs">%</span>
+      <span className="text-text-tertiary text-xs" aria-hidden>%</span>
     </div>
   );
 }
