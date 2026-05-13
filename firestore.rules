@@ -19,5 +19,19 @@ service cloud.firestore {
                 && request.resource.data.size() <= 50;
       allow delete: if true;
     }
+
+    // Season snapshots: the live single-villa metrics published by the ops
+    // app (villa-lev-admin hosting site) so this dashboard can render real
+    // data without scraping the admin UI.
+    //   - READ: open. The investor-facing dashboard is unauthenticated.
+    //   - WRITE: never from this app. The ops app is the only writer and
+    //     enforces admin-only at its rule layer (see the ops app's
+    //     firestore.rules). Mirrored here for documentation; the
+    //     authoritative ruleset on the project is whichever app deployed
+    //     `firestore` last.
+    match /seasonSnapshots/{snapshotId} {
+      allow read: if true;
+      allow write: if false;
+    }
   }
 }
