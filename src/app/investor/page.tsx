@@ -33,13 +33,13 @@ function HeroKPI({ value, label, sublabel }: { value: string; label: string; sub
 
 export default function InvestorPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, projects, activeScenario } = useModelStore();
+  const { model, assumptions, projects, activeScenario, capTable, waterfall } = useModelStore();
   if (!model) return <div className="flex items-center justify-center h-96 text-text-tertiary">{t('common.loading')}</div>;
 
   const handleDownloadXlsx = async () => {
     const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
     const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-    const blob = await exportBusinessPlan(assumptions, model, exportScenario);
+    const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

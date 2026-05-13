@@ -15,6 +15,13 @@ import type {
   ModelOutput,
   PropertyConfig,
 } from '@/lib/engine/types';
+import {
+  computeCapTable,
+  CapTableStakeholder,
+  WaterfallParams,
+  DEFAULT_CAP_TABLE,
+  DEFAULT_WATERFALL,
+} from '@/lib/engine/capTable';
 
 // Column letter from 1-indexed column number.
 const col = (n: number): string => {
@@ -67,6 +74,12 @@ export async function exportBusinessPlan(
   a: ModelAssumptions,
   m: ModelOutput,
   scenarioName: 'realistic' | 'upside' | 'downside' = 'realistic',
+  // Optional cap-table inputs. When provided, a Cap Table sheet is added with
+  // per-stakeholder distributions, MOIC, IRR, and the total reconciliation row.
+  // Defaults to the canonical Villa Lev cap table + 8% pref / 70/30 waterfall
+  // so callers without state still get the standard sheet.
+  capTable: CapTableStakeholder[] = DEFAULT_CAP_TABLE,
+  waterfall: WaterfallParams = DEFAULT_WATERFALL,
 ): Promise<Blob> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Villa Lev Group';
@@ -118,6 +131,7 @@ export async function exportBusinessPlan(
     '  Debt Service — amortisation schedule for the active financing path.',
     '  Coverage — DSCR vs covenant + separate Unlevered Project IRR and Levered Equity IRR + MOIC, cash-on-cash, equity payback.',
     '  Scenarios — Downside / Realistic / Upside side-by-side: EBITDA, NCF, DSCR per year + summary IRRs / MOIC.',
+    '  Cap Table — per-stakeholder distributions, MOIC, IRR, payback + year-by-year cash flow. Reconciliation diff confirms the waterfall sums to project distributable.',
     '',
     'Notes',
     '  This export reflects the active financing path only. Other paths are available in the in-app dashboard.',
@@ -1468,6 +1482,139 @@ export async function exportBusinessPlan(
 
   S.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
+  // ── 9. Cap Table ────────────────────────────────────────────────────
+  // Per-stakeholder distributions, MOIC, IRR, equity payback. Reads from
+  // the same engine waterfall module the in-app Cap Table page uses, so
+  // numbers reconcile by construction.
+  const capScenario = m.scenarios[scenarioName];
+  const capResult = computeCapTable(capScenario, capTable, waterfall);
+  const CT = wb.addWorksheet('Cap Table');
+  CT.columns = [{ width: 28 }, ...years.map(() => ({ width: 12 })), { width: 13 }, { width: 8 }, { width: 8 }];
+  CT.getCell('A1').value = 'Cap Table — distributions per stakeholder';
+  CT.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  CT.getCell('A2').value =
+    `Scenario: ${scenarioName} · Exit ${capScenario.exitYear} @ ${capScenario.exitEbitdaMultiple}× · ` +
+    `Promoter ${(waterfall.promoterEquityRate * 100).toFixed(0)}% · Pref ${(waterfall.preferredReturnRate * 100).toFixed(0)}% · ` +
+    `LP/Sponsor split ${(waterfall.ppShareAbovePref * 100).toFixed(0)}/${((1 - waterfall.ppShareAbovePref) * 100).toFixed(0)} · ` +
+    `Co-invest repaid ${waterfall.coInvestRepaymentYear}`;
+  CT.getCell('A2').font = FONT.italic;
+  CT.mergeCells(`A2:${col(2 + years.length + 2)}2`);
+
+  let ctr = 4;
+  // Per-stakeholder summary row (one row per stakeholder)
+  CT.getCell(`A${ctr}`).value = 'Stakeholder';
+  CT.getCell(`A${ctr}`).font = FONT.header;
+  CT.getCell(`A${ctr}`).fill = STYLE.headerFill;
+  ['Cash in', 'Total received', 'Net profit', 'MOIC', 'IRR', 'Payback'].forEach((h, i) => {
+    const c = CT.getCell(`${col(2 + i)}${ctr}`);
+    c.value = h;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'right' };
+  });
+  ctr += 1;
+
+  capResult.stakeholders.forEach((sr) => {
+    CT.getCell(`A${ctr}`).value = sr.stakeholder.name + (sr.stakeholder.isPromoter ? ' (Founder)' : '');
+    if (sr.stakeholder.isPromoter) CT.getCell(`A${ctr}`).font = FONT.bold;
+    const row: Array<number | string> = [
+      sr.stakeholder.cashIn,
+      sr.totalReceived,
+      sr.netProfit,
+      sr.moic,
+      sr.irr,
+      sr.paybackYear ?? '—',
+    ];
+    row.forEach((v, i) => {
+      const c = CT.getCell(`${col(2 + i)}${ctr}`);
+      c.value = v;
+      c.numFmt = i === 0 || i === 1 || i === 2 ? FMT.euro : i === 3 ? FMT.mul : i === 4 ? FMT.pct : FMT.num;
+      c.alignment = { horizontal: 'right' };
+      c.fill = STYLE.formulaFill;
+    });
+    ctr += 1;
+  });
+
+  // Totals row
+  CT.getCell(`A${ctr}`).value = 'Total';
+  CT.getCell(`A${ctr}`).font = FONT.bold;
+  const totalCash = capResult.stakeholders.reduce((s, r) => s + r.stakeholder.cashIn, 0);
+  const totalReceived = capResult.totalDistributed;
+  const totalProfit = totalReceived - totalCash;
+  const aggMoic = totalCash > 0 ? totalReceived / totalCash : 0;
+  [totalCash, totalReceived, totalProfit, aggMoic, '', ''].forEach((v, i) => {
+    const c = CT.getCell(`${col(2 + i)}${ctr}`);
+    c.value = v;
+    c.numFmt = i <= 2 ? FMT.euro : i === 3 ? FMT.mul : FMT.num;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+    c.alignment = { horizontal: 'right' };
+  });
+  ctr += 2;
+
+  // Reconciliation row — total stakeholder distributions vs project distributable.
+  CT.getCell(`A${ctr}`).value = 'Reconciliation';
+  CT.getCell(`A${ctr}`).font = FONT.section;
+  CT.getCell(`A${ctr}`).fill = STYLE.sectionFill;
+  CT.mergeCells(`A${ctr}:${col(7)}${ctr}`);
+  ctr += 1;
+  const reconcileRow = ctr;
+  CT.getCell(`A${ctr}`).value = 'Project distributable (Σ NCF + terminal equity)';
+  CT.getCell(`B${ctr}`).value = capResult.totalProjectDistributable;
+  CT.getCell(`B${ctr}`).numFmt = FMT.euro;
+  CT.getCell(`B${ctr}`).fill = STYLE.formulaFill;
+  ctr += 1;
+  CT.getCell(`A${ctr}`).value = 'Stakeholder distributions (sum of "Total received")';
+  CT.getCell(`B${ctr}`).value = capResult.totalDistributed;
+  CT.getCell(`B${ctr}`).numFmt = FMT.euro;
+  CT.getCell(`B${ctr}`).fill = STYLE.formulaFill;
+  ctr += 1;
+  CT.getCell(`A${ctr}`).value = 'Reconciliation diff (should be ≈ 0)';
+  CT.getCell(`A${ctr}`).font = FONT.bold;
+  CT.getCell(`B${ctr}`).value = capResult.reconciliationError;
+  CT.getCell(`B${ctr}`).numFmt = FMT.euro;
+  CT.getCell(`B${ctr}`).fill = STYLE.totalFill;
+  CT.getCell(`B${ctr}`).font = {
+    bold: true,
+    color: { argb: Math.abs(capResult.reconciliationError) < 1 ? 'FF2E7D32' : 'FFC62828' },
+  };
+  ctr += 2;
+  void reconcileRow;
+
+  // Year-by-year per-stakeholder table
+  CT.getCell(`A${ctr}`).value = 'Year-by-year cash flows per stakeholder';
+  CT.getCell(`A${ctr}`).font = FONT.section;
+  CT.getCell(`A${ctr}`).fill = STYLE.sectionFill;
+  CT.mergeCells(`A${ctr}:${col(2 + years.length)}${ctr}`);
+  ctr += 1;
+  CT.getCell(`A${ctr}`).value = 'Stakeholder';
+  CT.getCell(`A${ctr}`).font = FONT.header;
+  CT.getCell(`A${ctr}`).fill = STYLE.headerFill;
+  years.forEach((y, i) => {
+    const c = CT.getCell(`${col(2 + i)}${ctr}`);
+    c.value = y;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'right' };
+  });
+  ctr += 1;
+
+  capResult.stakeholders.forEach((sr) => {
+    CT.getCell(`A${ctr}`).value = sr.stakeholder.name;
+    if (sr.stakeholder.isPromoter) CT.getCell(`A${ctr}`).font = FONT.bold;
+    years.forEach((y, i) => {
+      const yEntry = sr.yearly.find((yy) => yy.year === y);
+      const c = CT.getCell(`${col(2 + i)}${ctr}`);
+      c.value = yEntry?.totalCashFlow ?? 0;
+      c.numFmt = FMT.euro;
+      c.fill = STYLE.formulaFill;
+      c.alignment = { horizontal: 'right' };
+    });
+    ctr += 1;
+  });
+
+  CT.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
+
   // ── Validation block on the Cover sheet ────────────────────────────
   cover.getCell(`B${valStartRow}`).value = 'Engine ↔ Workbook validation';
   cover.getCell(`B${valStartRow}`).font = { ...FONT.section, size: 14 };
@@ -1500,6 +1647,23 @@ export async function exportBusinessPlan(
     { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
     { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
     { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
+    // Per-stakeholder validation rows — sourced from the engine's
+    // computeCapTable, mirrored into the Cap Table sheet. If anything in the
+    // waterfall changes, these rows go red ⚠ DRIFT.
+    ...capResult.stakeholders.slice(0, 2).map((sr, idx) => ({
+      label: `Cap Table — ${sr.stakeholder.name} MOIC`,
+      engine: sr.moic,
+      // Cap Table sheet: stakeholder rows start at row 5 (after title/sub +
+      // header at row 4). MOIC is column 5 (B+3 → "E" zero-indexed = col 5).
+      workbookRef: `'Cap Table'!${col(5)}${5 + idx}`,
+      fmt: FMT.mul,
+    })),
+    {
+      label: 'Cap Table reconciliation diff',
+      engine: capResult.reconciliationError,
+      workbookRef: `'Cap Table'!B${reconcileRow + 2}`,
+      fmt: FMT.euro,
+    },
   ];
   validations.forEach((v, i) => {
     const r0 = valHeaderRow + 1 + i;

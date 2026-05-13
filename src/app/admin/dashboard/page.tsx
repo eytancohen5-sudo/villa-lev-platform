@@ -134,7 +134,7 @@ function MiniStat({
 
 export default function DashboardPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, activeScenario, projects } = useModelStore();
+  const { model, assumptions, activeScenario, projects, capTable, waterfall } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(DASHBOARD_TOUR.storageKey);
   const {
     currentSeason,
@@ -322,7 +322,7 @@ export default function DashboardPage() {
             onClick={async () => {
               const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
               const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-              const blob = await exportBusinessPlan(assumptions, model, exportScenario);
+              const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall);
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
