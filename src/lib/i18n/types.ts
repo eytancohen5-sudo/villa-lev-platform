@@ -186,6 +186,7 @@ export interface TranslationDictionary {
   'kpi.operatingYieldNote': string;
   'kpi.totalMOIC': string;
   'kpi.totalMOICSub': string;
+  'kpi.totalMOICUnderwaterNote': string;
   'kpi.equityPayback': string;
   'kpi.equityPaybackSub': string;
   'kpi.equityPaybackNote': string;

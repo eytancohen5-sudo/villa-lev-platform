@@ -805,6 +805,9 @@ function computeScenario(
   const terminalAssetValue = exitEbitda > 0 ? exitEbitda * exitMultiple : 0;
   const remainingDebt = exitPnL?.termLoanBalance ?? 0;
   const terminalEquityValue = Math.max(0, terminalAssetValue - remainingDebt);
+  // Flag underwater exit — terminal equity floored at 0 because debt > asset.
+  // Equity holders get nothing from the sale; only operating distributions.
+  const terminalUnderwater = terminalAssetValue > 0 && remainingDebt > terminalAssetValue;
 
   // Truncate cash-flow window to the exit year. Operating years before exit
   // run normally; the exit year itself receives the terminal lump sum. Years
@@ -929,6 +932,7 @@ function computeScenario(
     roic,
     terminalAssetValue,
     terminalEquityValue,
+    terminalUnderwater,
     exitEbitdaMultiple: exitMultiple,
     exitYear,
   };

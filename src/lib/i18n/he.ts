@@ -190,6 +190,7 @@ export const he: TranslationDictionary = {
   'kpi.operatingYieldNote': 'מזומן תפעולי בלבד — לא כולל תקבולי מכירה. ראה Total MOIC.',
   'kpi.totalMOIC': 'Total MOIC (כולל יציאה)',
   'kpi.totalMOICSub': '(Σ NCF + ערך הון טרמינלי) / הון התחלתי',
+  'kpi.totalMOICUnderwaterNote': '⚠ חוב נותר > שווי הנכס ביציאה. תקבולי מכירת ההון = €0; ה-MOIC משקף רק חלוקות תפעוליות.',
   'kpi.equityPaybackNote': 'חלוקות תפעוליות בלבד — לא כולל תקבולי מכירה.',
   'kpi.ebitdaMarginNote': 'המרז\'ין נראה גבוה כי Events & Ancillary נשמרים נטו מעלויות. על בסיס גרוס, GOP טיפוסי לבוטיק (~50–55%).',
   'kpi.cumYieldSub': 'כפולה של הון התחלתי',

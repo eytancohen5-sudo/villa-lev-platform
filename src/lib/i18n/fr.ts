@@ -190,6 +190,7 @@ export const fr: TranslationDictionary = {
   'kpi.operatingYieldNote': "Cash d'exploitation uniquement — exclut le produit de cession. Voir Total MOIC.",
   'kpi.totalMOIC': 'Total MOIC (sortie incluse)',
   'kpi.totalMOICSub': '(Σ NCF + valeur terminale equity) / capital initial',
+  'kpi.totalMOICUnderwaterNote': "⚠ Dette résiduelle > valeur d'actif à la sortie. Produit de cession des fonds propres = €0 ; ce MOIC ne reflète que les distributions d'exploitation.",
   'kpi.equityPaybackNote': "Distributions d'exploitation uniquement — exclut le produit de cession.",
   'kpi.ebitdaMarginNote': "Marge élevée car les revenus Events & Ancillaires sont stockés nets de coûts. Sur une base brute, marge GOP typique boutique hôtel (~50–55%).",
   'kpi.cumYieldSub': 'multiple des fonds propres restitués',

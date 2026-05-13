@@ -191,6 +191,7 @@ export const en: TranslationDictionary = {
   'kpi.operatingYieldNote': 'Operating cash only — exit proceeds are NOT included. See Total MOIC.',
   'kpi.totalMOIC': 'Total MOIC (incl. exit)',
   'kpi.totalMOICSub': '(Σ NCF + terminal equity) / initial equity',
+  'kpi.totalMOICUnderwaterNote': '⚠ Remaining debt > asset value at exit. Equity sale proceeds are €0; this MOIC reflects operating distributions only.',
   'kpi.equityPayback': 'Equity payback',
   'kpi.equityPaybackSub': 'years to return 100% of equity',
   'kpi.equityPaybackNote': 'Operating distributions only — does not include exit proceeds.',

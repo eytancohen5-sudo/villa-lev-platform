@@ -451,6 +451,11 @@ export interface ScenarioOutput {
   roic: number;                       // (EBITDA + CIT) / total CapEx, stabilised
   terminalAssetValue: number;         // EBITDA at exit year × exit multiple
   terminalEquityValue: number;        // terminal asset value − loan balance at exit
+  // True when the asset value at exit cannot cover the remaining debt
+  // balance, i.e. equity holders walk away with €0. Surfaced as a warning
+  // badge on the dashboard so an investor doesn't silently see equity IRR
+  // crater without context.
+  terminalUnderwater: boolean;
   exitEbitdaMultiple: number;         // multiple applied to EBITDA at exit
   exitYear: number;                   // year used as the exit (truncates IRR window)
 }

@@ -181,6 +181,7 @@ export default function DashboardPage() {
     yieldStabilised: activeScenarioOutput.yieldStabilised,
     cumulativeYieldFinal: activeScenarioOutput.cumulativeYieldFinal,
     totalMOIC: activeScenarioOutput.totalMOIC,
+    terminalUnderwater: activeScenarioOutput.terminalUnderwater,
     equityPaybackYears: activeScenarioOutput.equityPaybackYears,
     equityIRR: activeScenarioOutput.equityIRR,
     projectIRR: activeScenarioOutput.projectIRR,
@@ -276,6 +277,10 @@ export default function DashboardPage() {
   const totalUnits = projects.reduce((s, p) => s + p.count, 0);
   const buildingTotalRevenue = stab?.totalRevenue ?? 0;
   const buildingEBITDA = stab?.ebitda ?? 0;
+  // Upside scenario's stabilised totals for the BP UPSIDE column.
+  const upsideStab = model.scenarios.upside.stabilisedYear;
+  const upsideTotalRevenue = upsideStab?.totalRevenue ?? 0;
+  const upsideEBITDA = upsideStab?.ebitda ?? 0;
 
   // Verdict helper: BP value vs live actual, expressed as % gap.
   // Negative gap = BP below live = conservative (positive tone).
@@ -529,7 +534,9 @@ export default function DashboardPage() {
                   <td className="text-right py-2.5 px-3 data-cell text-brand-700">
                     {formatCurrency(buildingTotalRevenue, true, locale)}
                   </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
+                    {formatCurrency(upsideTotalRevenue, true, locale)}
+                  </td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
                     {formatCurrency(liveTotal2025, true, locale)}
                     <div className="text-[11px] font-normal text-text-tertiary">2025 actual · one villa</div>
@@ -543,7 +550,9 @@ export default function DashboardPage() {
                   <td className="text-right py-2.5 px-3 data-cell text-brand-700">
                     {formatCurrency(buildingEBITDA, true, locale)}
                   </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
+                    {formatCurrency(upsideEBITDA, true, locale)}
+                  </td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
                     {formatCurrency(liveTotal2025 * 0.55, true, locale)}
                     <div className="text-[11px] font-normal text-text-tertiary">~55% of 2025 net</div>
@@ -745,8 +754,10 @@ export default function DashboardPage() {
           label={t('kpi.totalMOIC')}
           value={km.totalMOIC !== 0 ? formatYieldMultiple(km.totalMOIC) : "—"}
           sublabel={t('kpi.totalMOICSub')}
-          tone={km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
-          accent={km.totalMOIC >= 3}
+          tone={km.terminalUnderwater ? "warning" : km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
+          accent={km.totalMOIC >= 3 && !km.terminalUnderwater}
+          chip={km.terminalUnderwater ? { label: "underwater", ok: false } : undefined}
+          threshold={km.terminalUnderwater ? t('kpi.totalMOICUnderwaterNote') : undefined}
         />
         <KPICard
           label={t('kpi.equityPayback')}

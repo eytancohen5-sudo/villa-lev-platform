@@ -68,6 +68,8 @@ export default function AdminLayout({
   const pathname = usePathname();
   const { init, model, computeTimeMs, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
+  const activeScenarioOutput = model?.scenarios[activeScenario];
+  const exitUnderwater = !!activeScenarioOutput?.terminalUnderwater;
 
   const rateLoanConfig =
     assumptions.financingPath === "tepix-loan"
@@ -269,8 +271,23 @@ export default function AdminLayout({
                       setAssumption("exitYear", Math.max(2030, Math.min(2036, v)), "Exit year");
                     }
                   }}
-                  className="w-16 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className={`w-16 px-1.5 py-1 text-xs font-mono text-right rounded border bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
+                    exitUnderwater ? "border-warning ring-1 ring-warning/30" : "border-surface-tertiary"
+                  }`}
+                  title={
+                    exitUnderwater
+                      ? "Underwater at this exit: remaining debt exceeds asset value at exit. Equity holders receive only operating distributions; terminal proceeds are €0."
+                      : "Exit year"
+                  }
                 />
+                {exitUnderwater && (
+                  <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-warning/15 text-warning"
+                    title="Remaining debt > asset value at this exit. Equity sale proceeds floor at €0."
+                  >
+                    ⚠ underwater
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
