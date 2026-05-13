@@ -10,12 +10,8 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
-import {
-  ACTUALS_SOURCE,
-  currentSeason,
-  lastCompletedSeason,
-  SEASON_NIGHTS,
-} from "@/lib/data/currentVillaActuals";
+import { ACTUALS_SOURCE } from "@/lib/data/currentVillaActuals";
+import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import {
   AreaChart,
   Area,
@@ -140,6 +136,12 @@ export default function DashboardPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario, projects } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(DASHBOARD_TOUR.storageKey);
+  const {
+    currentSeason,
+    lastCompletedSeason,
+    source: snapshotSource,
+    pulledAt: snapshotPulledAt,
+  } = useSeasonSnapshot();
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -346,20 +348,29 @@ export default function DashboardPage() {
               The business plan models per-villa numbers we already exceed today.
             </div>
             <div className="text-xs text-text-secondary mt-1">
-              Live performance from{" "}
+              {snapshotSource === "live" ? "Live data from " : "Snapshot from "}
               <a href={ACTUALS_SOURCE.url} target="_blank" rel="noreferrer" className="underline hover:text-text-primary">
                 admin.villalevantiparos.com
               </a>
-              {" "}(2025 complete, 2026 in progress) sets a floor — actual portfolio outcomes should beat the plan.
-              Refreshed {ACTUALS_SOURCE.pulledAt}.
+              {" "}(2025 complete, {currentSeason.year} in progress) sets a floor — actual portfolio outcomes should beat the plan.
             </div>
           </div>
-          <div className="flex gap-2 text-[11px] flex-wrap">
+          <div className="flex gap-2 text-[11px] flex-wrap items-center">
+            {snapshotSource === "live" ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-positive/15 text-positive font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
+                LIVE · refreshed {new Date(snapshotPulledAt).toLocaleString(locale, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+              </span>
+            ) : (
+              <span className="px-2 py-1 rounded-md bg-surface-secondary text-text-tertiary text-[10px] uppercase tracking-wider">
+                Snapshot · {snapshotPulledAt}
+              </span>
+            )}
             <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              2026 booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
+              {currentSeason.year} booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
             </span>
             <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              2025 total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
+              {lastCompletedSeason.year} total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
             </span>
           </div>
         </div>
@@ -442,7 +453,7 @@ export default function DashboardPage() {
 
                 <tr className="bg-surface-secondary/20">
                   <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
-                    Services &amp; events — note: BP figures are entire-portfolio totals; the live column is one villa
+                    Services &amp; events — BP ancillary divided by {totalVillaEquivalents} unit-equivalents AND grossed up 2× to compare on a like-for-like single-villa-revenue basis
                   </td>
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
@@ -450,15 +461,22 @@ export default function DashboardPage() {
                     Ancillary services — base (year 1)
                     <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge</div>
                   </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAncillaryBase, true, locale)}</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.ancillaryBaseProfit, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(bpAncillaryBasePerVilla * 2, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">
+                      gross ≈ 2× net of {formatCurrency(bpAncillaryBasePerVilla, true, locale)} per villa
+                    </div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency((revUp.ancillaryBaseProfit / totalVillaEquivalents) * 2, true, locale)}
+                  </td>
                   <td className="text-right py-2.5 px-3 data-cell">
                     {formatCurrency(liveServices2025, true, locale)}
-                    <div className="text-[11px] text-text-tertiary">2025 actual · one villa</div>
+                    <div className="text-[11px] text-text-tertiary">2025 actual gross · one villa</div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryBase.tone)}`}>
-                      {verdictAncillaryBase.label}
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(conservatism(bpAncillaryBasePerVilla * 2, liveServices2025).tone)}`}>
+                      {conservatism(bpAncillaryBasePerVilla * 2, liveServices2025).label}
                     </span>
                   </td>
                 </tr>
@@ -467,17 +485,22 @@ export default function DashboardPage() {
                     Ancillary services — stabilised
                     <div className="text-[11px] text-text-tertiary">+{(rev.ancillaryGrowthRate * 100).toFixed(0)}%/yr × {rev.ancillaryGrowthYears}y cap</div>
                   </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAncillaryStabilised, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(bpAncillaryStabilisedPerVilla * 2, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">
+                      gross ≈ 2× net of {formatCurrency(bpAncillaryStabilisedPerVilla, true, locale)} per villa
+                    </div>
+                  </td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUp.ancillaryBaseProfit * Math.pow(1 + revUp.ancillaryGrowthRate, revUp.ancillaryGrowthYears), true, locale)}
+                    {formatCurrency(revUpAncillaryStabilisedPerVilla * 2, true, locale)}
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">
                     {formatCurrency(liveServices2025, true, locale)}
-                    <div className="text-[11px] text-text-tertiary">single villa today</div>
+                    <div className="text-[11px] text-text-tertiary">single villa today (gross)</div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryStabilised.tone)}`}>
-                      {verdictAncillaryStabilised.label}
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(conservatism(bpAncillaryStabilisedPerVilla * 2, liveServices2025).tone)}`}>
+                      {conservatism(bpAncillaryStabilisedPerVilla * 2, liveServices2025).label}
                     </span>
                   </td>
                 </tr>
