@@ -89,6 +89,19 @@ function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; b
       lowLabel: '−20%', highLabel: '+20%',
     },
     {
+      label: 'Exit year',
+      // Earlier exit usually lifts IRR (terminal lump lands sooner, less
+      // discounting); later exit usually lowers it. Bracket ±2 years from base.
+      vary: (a, s) => {
+        const base = a.exitYear ?? 2036;
+        const lo = Math.max(2030, base - 2);
+        const hi = Math.min(2036, base + 2);
+        a.exitYear = s === 'low' ? lo : hi;
+        return a;
+      },
+      lowLabel: '−2y', highLabel: '+2y',
+    },
+    {
       label: 'Construction €/m²',
       vary: (a, s) => {
         const f = s === 'low' ? 0.9 : 1.1;
@@ -283,7 +296,28 @@ export default function SensitivityPage() {
       };
     });
 
-    return { adrRows, nightsRows, rateRows, wcRows };
+    // Exit year × multiple matrix — equity IRR for every cell. The headline
+    // sensitivity for exit-side underwriting. 4 years × 5 multiples = 20 runs.
+    const exitYears = [2030, 2032, 2034, 2036];
+    const exitMultiples = [6, 8, 10, 12, 14];
+    const exitMatrix = exitYears.map((year) => ({
+      year,
+      cells: exitMultiples.map((mult) => {
+        const modified = { ...assumptions, exitYear: year, exitEbitdaMultiple: mult };
+        const result = computeModel(modified).scenarios.realistic;
+        return {
+          mult,
+          irr: result.equityIRR,
+          moic: result.totalMOIC,
+          underwater: result.terminalUnderwater,
+          isBase:
+            year === (assumptions.exitYear ?? 2036) &&
+            Math.abs(mult - assumptions.exitEbitdaMultiple) < 0.01,
+        };
+      }),
+    }));
+
+    return { adrRows, nightsRows, rateRows, wcRows, exitMatrix, exitMultiples };
   }, [assumptions]);
 
   // Tornado is its own memo — 20+ engine runs, only redo when assumptions change.
@@ -329,6 +363,72 @@ export default function SensitivityPage() {
 
         <p className="mt-4 text-[11px] text-text-tertiary leading-relaxed">
           Each row varies one input ± while everything else stays at the baseline, then captures equity IRR. Bars on the red side mean the variation drops IRR; green side means IRR goes up. Inputs near the top have the most leverage on returns; inputs near the bottom barely move the needle. <strong>Rates ±100bp absolute, loan coverage ±5pp absolute, exit multiple ±20%, everything else ±10%.</strong>
+        </p>
+      </div>
+
+      {/* Exit Year × Multiple matrix — investor-facing exit sensitivity */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6">
+        <div className="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+            Exit year × multiple — equity IRR matrix
+          </h3>
+          <div className="text-xs text-text-tertiary">
+            Active: <span className="font-mono text-text-primary">{assumptions.exitYear ?? 2036} @ {assumptions.exitEbitdaMultiple}×</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-tertiary">
+                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                  Exit year ↓ / Multiple →
+                </th>
+                {sensitivityData.exitMultiples.map((m) => (
+                  <th key={m} className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    {m}×
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sensitivityData.exitMatrix.map((row) => (
+                <tr key={row.year} className="border-b border-surface-secondary/50">
+                  <td className="py-2 pr-4 font-medium">{row.year}</td>
+                  {row.cells.map((cell) => {
+                    // Color: warning if underwater, else gradient by IRR
+                    const tone = cell.underwater
+                      ? "bg-warning/15 text-warning"
+                      : cell.irr >= 0.25
+                        ? "bg-positive/20 text-positive font-semibold"
+                        : cell.irr >= 0.15
+                          ? "bg-positive/8"
+                          : cell.irr >= 0.08
+                            ? ""
+                            : "bg-negative/8 text-negative";
+                    const ringClass = cell.isBase ? " ring-2 ring-brand-500 ring-inset" : "";
+                    return (
+                      <td
+                        key={cell.mult}
+                        className={`text-right py-2 px-3 data-cell ${tone}${ringClass}`}
+                        title={
+                          cell.underwater
+                            ? `Underwater: debt > asset value at this exit. MOIC ${formatMultiple(cell.moic)}.`
+                            : `MOIC ${formatMultiple(cell.moic)}`
+                        }
+                      >
+                        {cell.irr > 0 ? formatPercent(cell.irr, 1) : "—"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-[11px] text-text-tertiary leading-relaxed">
+          Equity IRR for every combination of exit year (2030–2036) and exit EBITDA multiple (6× to 14×).
+          Active configuration is ringed; cells in <span className="text-warning">amber</span> are underwater
+          (remaining debt &gt; asset value, equity sale proceeds floor at €0). Hover for MOIC.
         </p>
       </div>
 
