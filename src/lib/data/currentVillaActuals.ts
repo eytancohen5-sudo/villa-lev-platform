@@ -111,15 +111,22 @@ export const ACTUALS_SOURCE = {
 export const SEASON_NIGHTS = 120;
 
 // Net profit margin assumed on ancillary services (chef, boat, car, quad,
-// concierge) when comparing live gross revenue against the BP's
-// `ancillaryBaseProfit` line — that BP value is already NET PROFIT, so live
-// services revenue is multiplied by this to express on the same basis.
-//
-// Anchor: the operator's reported single-villa season P&L runs ~92% net
-// margin (€345K net profit / €375K gross revenue on the 2026 dashboard's
-// Season P&L). That margin reflects the single-villa, owner-operated
-// reality where corporate overhead isn't separately allocated. We apply
-// a 2-point conservative haircut and use 90% here for the conservatism
-// comparison — well below what the live books show, and still defensible
-// because Villa Lev's services are operator-led with minimal overhead.
-export const SERVICES_PROFIT_MARGIN = 0.90;
+// concierge) when comparing live gross revenue against the BP's per-villa
+// ancillary-profit line. Operator-side gross-margin on services in the live
+// P&L is ~62% (services cost €13.1K against €34.1K revenue, 2026 in-progress),
+// so 25% is the conservative post-overhead net-profit figure used here.
+export const SERVICES_PROFIT_MARGIN = 0.25;
+
+// BP ancillary profit per villa — the explicit per-unit assumption used in
+// the dashboard's Conservatism Check row. The portfolio total
+// (`ancillaryBaseProfit` in the model) is allocated as:
+//   - €15K × 2 villas  = €30K from the villa side
+//   - €30K across the 11 suite rooms (different service mix, fewer guests
+//     per room) = €30K from the suite side
+//   - Portfolio total = €60K
+// The villas are the like-for-like comparator to the existing single villa,
+// so the conservatism row uses the per-villa value (€15K) directly.
+export const BP_ANCILLARY_PROFIT_PER_VILLA = 15000;
+export const BP_ANCILLARY_SUITE_TOTAL = 30000;
+export const BP_ANCILLARY_SUITE_ROOMS = 11;
+export const BP_ANCILLARY_PORTFOLIO_TOTAL = 60000;

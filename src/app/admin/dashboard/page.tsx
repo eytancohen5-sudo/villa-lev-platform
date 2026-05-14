@@ -10,7 +10,14 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
-import { ACTUALS_SOURCE, SERVICES_PROFIT_MARGIN } from "@/lib/data/currentVillaActuals";
+import {
+  ACTUALS_SOURCE,
+  SERVICES_PROFIT_MARGIN,
+  BP_ANCILLARY_PROFIT_PER_VILLA,
+  BP_ANCILLARY_SUITE_TOTAL,
+  BP_ANCILLARY_SUITE_ROOMS,
+  BP_ANCILLARY_PORTFOLIO_TOTAL,
+} from "@/lib/data/currentVillaActuals";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import {
   AreaChart,
@@ -254,28 +261,17 @@ export default function DashboardPage() {
   const bpNights = rev.villaBaseNights;
   const bpAccommodationPerVilla = bpADR * bpNights;
   const bpEventsPortfolio = rev.eventsPerYear * rev.netProfitPerEvent;
-  // Ancillary in the BP is a single portfolio-wide line (not per-villa).
-  // To compare apples-to-apples with the existing single villa, divide by
-  // total VILLA units only. Suite rooms generate materially less chef /
-  // boat / car spend per occupied room than a full villa, so weighting them
-  // 1:1 with villas would inflate the denominator and overstate the BP's
-  // conservatism. Per CFO review: attribute the BP ancillary line to the
-  // villa side, where the single-villa live comparator sits.
+  // Ancillary: the BP allocates ancillary profit explicitly per-villa
+  // (€15K) and separately to suite rooms (€30K across 11 rooms). For the
+  // per-villa conservatism comparison we use the villa value directly —
+  // suite rooms have a different service mix (fewer guests per room) and
+  // belong in a different comparator if surfaced.
   const totalVillaUnits =
     (assumptions.portfolio ?? []).reduce(
       (s, p) => s + p.villaUnits * p.count,
       0,
     ) || 1;
-  const bpAncillaryBaseTotal = rev.ancillaryBaseProfit;
-  const bpAncillaryStabilisedTotal =
-    rev.ancillaryBaseProfit *
-    Math.pow(1 + rev.ancillaryGrowthRate, rev.ancillaryGrowthYears);
-  const bpAncillaryBasePerVilla = bpAncillaryBaseTotal / totalVillaUnits;
-  const bpAncillaryStabilisedPerVilla = bpAncillaryStabilisedTotal / totalVillaUnits;
-  const revUpAncillaryStabilisedPerVilla =
-    (revUp.ancillaryBaseProfit *
-      Math.pow(1 + revUp.ancillaryGrowthRate, revUp.ancillaryGrowthYears)) /
-    totalVillaUnits;
+  const bpAncillaryPerVilla = BP_ANCILLARY_PROFIT_PER_VILLA;
 
   // Portfolio totals (stabilised) — kept for the scale-up footer.
   const totalUnits = projects.reduce((s, p) => s + p.count, 0);
@@ -300,12 +296,11 @@ export default function DashboardPage() {
   const verdictNights = conservatism(bpNights, liveBookedNights);
   const verdictAccommodation = conservatism(bpAccommodationPerVilla, liveAccommodation);
   // Ancillary is compared NET PROFIT to NET PROFIT.
-  // - BP `ancillaryBaseProfit` is already net of cost (the field name says so);
-  //   we divide by villa-equivalents to express per-unit.
+  // - BP per villa is the explicit €15K allocation from the BP breakdown.
   // - Live services on the ops dashboard are gross revenue; we multiply by
-  //   SERVICES_PROFIT_MARGIN to land on a comparable profit number.
+  //   SERVICES_PROFIT_MARGIN (25%) to land on a comparable profit number.
   const liveServicesProfit2025 = liveServices2025 * SERVICES_PROFIT_MARGIN;
-  const verdictAncillaryStabilised = conservatism(bpAncillaryStabilisedPerVilla, liveServicesProfit2025);
+  const verdictAncillary = conservatism(bpAncillaryPerVilla, liveServicesProfit2025);
 
   const verdictToneClass = (tone: "positive" | "warning" | "neutral") =>
     tone === "positive"
@@ -469,17 +464,17 @@ export default function DashboardPage() {
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Ancillary profit <span className="text-text-tertiary">— per villa, stabilised</span>
-                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · +{(rev.ancillaryGrowthRate * 100).toFixed(0)}%/yr × {rev.ancillaryGrowthYears}y cap</div>
+                    Ancillary profit <span className="text-text-tertiary">— per villa</span>
+                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · explicit per-villa BP allocation</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(bpAncillaryStabilisedPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
+                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
                     <div className="text-[11px] text-text-tertiary">
-                      portfolio {formatCurrency(bpAncillaryStabilisedTotal, true, locale)} ÷ {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'}
+                      portfolio {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} = €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K × {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'} + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms
                     </div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUpAncillaryStabilisedPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
+                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">
                     {formatCurrency(liveServicesProfit2025, true, locale)}<span className="text-text-tertiary"> / villa</span>
@@ -488,8 +483,8 @@ export default function DashboardPage() {
                     </div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryStabilised.tone)}`}>
-                      {verdictAncillaryStabilised.label}
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillary.tone)}`}>
+                      {verdictAncillary.label}
                     </span>
                   </td>
                 </tr>
@@ -545,7 +540,7 @@ export default function DashboardPage() {
               Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) for ADR / accommodation, <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}) for ancillary — 2025 is the most recent complete year.
             </span>
             <span>
-              Ancillary uses {Math.round(SERVICES_PROFIT_MARGIN * 100)}% net-profit margin on live revenue to compare like-for-like with the BP's `ancillaryBaseProfit` line. BP figure divided across {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'} (suite-side excluded — different service-mix).
+              BP ancillary allocated per the pitch: €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K/villa × {totalVillaUnits} villas + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms = {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} total. Live profit = {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} revenue.
             </span>
           </div>
         </div>
