@@ -82,6 +82,7 @@ export default function CapTablePage() {
   const { locale } = useTranslation();
   const {
     model,
+    assumptions,
     activeScenario,
     capTable,
     waterfall,
@@ -107,6 +108,40 @@ export default function CapTablePage() {
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
   const exitYear = model.scenarios[activeScenario].exitYear;
   const exitMultiple = model.scenarios[activeScenario].exitEbitdaMultiple;
+
+  const pathLabel =
+    assumptions.financingPath === "grant"
+      ? "Development Law Grant"
+      : assumptions.financingPath === "rrf"
+        ? "RRF Loan"
+        : assumptions.financingPath === "tepix-loan"
+          ? "TEPIX Loan Fund"
+          : "Commercial Loan";
+
+  // Lazy-load jsPDF + autotable on demand so the page bundle stays light.
+  const downloadInvestorPDF = async (stakeholderId: string) => {
+    if (!result) return;
+    const target = result.stakeholders.find((s) => s.stakeholder.id === stakeholderId);
+    if (!target) return;
+    const { exportInvestorReport } = await import("@/lib/pdf/exportInvestorReport");
+    const blob = await exportInvestorReport(target, result, {
+      pathLabel,
+      scenarioLabel,
+      exitYear,
+      exitMultiple,
+      // Default: respect the global redacted toggle when generating the PDF
+      redacted: redacted && redactedTarget === stakeholderId,
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const safeName = target.stakeholder.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    a.download = `villa-lev-${safeName}-${activeScenario}-${assumptions.financingPath}-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // For redacted view: only show the targeted stakeholder named; others aggregated.
   const aggregateOthers = (targetId: string) => {
@@ -293,15 +328,24 @@ export default function CapTablePage() {
                     <td className="py-2.5 px-4 text-right font-mono">{r.paybackYear ?? "—"}</td>
                     <td className="py-2.5 px-4 text-right text-xs text-text-tertiary max-w-[150px] truncate">{sh.notes ?? ""}</td>
                     <td className="py-2.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      {capTable.length > 1 && !sh.isPromoter && (
+                      <div className="inline-flex items-center gap-2">
                         <button
-                          onClick={() => removeStakeholder(sh.id)}
-                          className="text-xs text-text-tertiary hover:text-negative"
-                          title="Remove"
+                          onClick={() => downloadInvestorPDF(sh.id)}
+                          className="text-xs text-text-tertiary hover:text-brand-700"
+                          title="Download personal report (PDF)"
                         >
-                          ×
+                          ↓ PDF
                         </button>
-                      )}
+                        {capTable.length > 1 && !sh.isPromoter && (
+                          <button
+                            onClick={() => removeStakeholder(sh.id)}
+                            className="text-xs text-text-tertiary hover:text-negative"
+                            title="Remove"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

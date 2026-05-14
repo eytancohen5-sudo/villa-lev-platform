@@ -109,3 +109,12 @@ export const ACTUALS_SOURCE = {
 // dashboard's Current vs Building section to compute the planned-portfolio
 // uplift on a like-for-like basis.
 export const SEASON_NIGHTS = 120;
+
+// Net profit margin assumed on ancillary services (chef, boat, car, quad,
+// concierge) when comparing live gross revenue against the BP's
+// `ancillaryBaseProfit` line — that BP value is already NET PROFIT, so live
+// services revenue is multiplied by this to express on the same basis.
+// Operator's actual 2026 season P&L shows ~62% gross margin on services
+// (services_cost €13,100 against €34,100 revenue); 25% is the conservative
+// post-overhead net-profit figure used in the comparison.
+export const SERVICES_PROFIT_MARGIN = 0.25;
