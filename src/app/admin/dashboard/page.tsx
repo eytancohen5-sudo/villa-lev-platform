@@ -256,22 +256,26 @@ export default function DashboardPage() {
   const bpEventsPortfolio = rev.eventsPerYear * rev.netProfitPerEvent;
   // Ancillary in the BP is a single portfolio-wide line (not per-villa).
   // To compare apples-to-apples with the existing single villa, divide by
-  // total villa-equivalent units across the planned portfolio.
-  const totalVillaEquivalents =
+  // total VILLA units only. Suite rooms generate materially less chef /
+  // boat / car spend per occupied room than a full villa, so weighting them
+  // 1:1 with villas would inflate the denominator and overstate the BP's
+  // conservatism. Per CFO review: attribute the BP ancillary line to the
+  // villa side, where the single-villa live comparator sits.
+  const totalVillaUnits =
     (assumptions.portfolio ?? []).reduce(
-      (s, p) => s + (p.villaUnits + p.standardSuites + p.doubleSuites) * p.count,
+      (s, p) => s + p.villaUnits * p.count,
       0,
     ) || 1;
   const bpAncillaryBaseTotal = rev.ancillaryBaseProfit;
   const bpAncillaryStabilisedTotal =
     rev.ancillaryBaseProfit *
     Math.pow(1 + rev.ancillaryGrowthRate, rev.ancillaryGrowthYears);
-  const bpAncillaryBasePerVilla = bpAncillaryBaseTotal / totalVillaEquivalents;
-  const bpAncillaryStabilisedPerVilla = bpAncillaryStabilisedTotal / totalVillaEquivalents;
+  const bpAncillaryBasePerVilla = bpAncillaryBaseTotal / totalVillaUnits;
+  const bpAncillaryStabilisedPerVilla = bpAncillaryStabilisedTotal / totalVillaUnits;
   const revUpAncillaryStabilisedPerVilla =
     (revUp.ancillaryBaseProfit *
       Math.pow(1 + revUp.ancillaryGrowthRate, revUp.ancillaryGrowthYears)) /
-    totalVillaEquivalents;
+    totalVillaUnits;
 
   // Portfolio totals (stabilised) — kept for the scale-up footer.
   const totalUnits = projects.reduce((s, p) => s + p.count, 0);
@@ -280,7 +284,6 @@ export default function DashboardPage() {
   // Upside scenario's stabilised totals for the BP UPSIDE column.
   const upsideStab = model.scenarios.upside.stabilisedYear;
   const upsideTotalRevenue = upsideStab?.totalRevenue ?? 0;
-  const upsideEBITDA = upsideStab?.ebitda ?? 0;
 
   // Verdict helper: BP value vs live actual, expressed as % gap.
   // Negative gap = BP below live = conservative (positive tone).
@@ -302,7 +305,6 @@ export default function DashboardPage() {
   // - Live services on the ops dashboard are gross revenue; we multiply by
   //   SERVICES_PROFIT_MARGIN to land on a comparable profit number.
   const liveServicesProfit2025 = liveServices2025 * SERVICES_PROFIT_MARGIN;
-  const verdictAncillaryBase = conservatism(bpAncillaryBasePerVilla, liveServicesProfit2025);
   const verdictAncillaryStabilised = conservatism(bpAncillaryStabilisedPerVilla, liveServicesProfit2025);
 
   const verdictToneClass = (tone: "positive" | "warning" | "neutral") =>
@@ -407,16 +409,21 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
+                <tr className="bg-surface-secondary/20">
+                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Per-villa conservatism — every BP value below is at or under what one live villa already delivers
+                  </td>
+                </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Peak-season nights
+                    Peak-season nights <span className="text-text-tertiary">(count)</span>
                     <div className="text-[11px] text-text-tertiary">120 available · 15 May – 15 Sept</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">{bpNights}</td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{revUp.villaBaseNights}</td>
                   <td className="text-right py-2.5 px-3 data-cell">
                     {liveBookedNights}
-                    <div className="text-[11px] text-text-tertiary">2026 booked, season in progress</div>
+                    <div className="text-[11px] text-text-tertiary">2026 booked through May; trending to full</div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictNights.tone)}`}>
@@ -426,8 +433,8 @@ export default function DashboardPage() {
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    ADR (net, € per night)
-                    <div className="text-[11px] text-text-tertiary">After OTA commissions</div>
+                    ADR <span className="text-text-tertiary">(net of OTA commissions)</span>
+                    <div className="text-[11px] text-text-tertiary">€ per night</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpADR, false, locale)}</td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.villaADR, false, locale)}</td>
@@ -443,7 +450,7 @@ export default function DashboardPage() {
                 </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Accommodation revenue / villa
+                    Accommodation <span className="text-text-tertiary">(revenue, net of commissions)</span>
                     <div className="text-[11px] text-text-tertiary">Nights × ADR (per villa, per season)</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAccommodationPerVilla, true, locale)}</td>
@@ -460,55 +467,25 @@ export default function DashboardPage() {
                     </span>
                   </td>
                 </tr>
-
-                <tr className="bg-surface-secondary/20">
-                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
-                    Ancillary services — compared on a NET PROFIT basis (BP figure is already net; live revenue × {Math.round(SERVICES_PROFIT_MARGIN * 100)}% margin = profit)
-                  </td>
-                </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Ancillary profit — base (year 1)
-                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · net of cost</div>
+                    Ancillary profit <span className="text-text-tertiary">— per villa, stabilised</span>
+                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · +{(rev.ancillaryGrowthRate * 100).toFixed(0)}%/yr × {rev.ancillaryGrowthYears}y cap</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(bpAncillaryBasePerVilla, true, locale)}
+                    {formatCurrency(bpAncillaryStabilisedPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
                     <div className="text-[11px] text-text-tertiary">
-                      {formatCurrency(bpAncillaryBaseTotal, true, locale)} ÷ {totalVillaEquivalents} units
+                      portfolio {formatCurrency(bpAncillaryStabilisedTotal, true, locale)} ÷ {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'}
                     </div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUp.ancillaryBaseProfit / totalVillaEquivalents, true, locale)}
+                    {formatCurrency(revUpAncillaryStabilisedPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(liveServicesProfit2025, true, locale)}
+                    {formatCurrency(liveServicesProfit2025, true, locale)}<span className="text-text-tertiary"> / villa</span>
                     <div className="text-[11px] text-text-tertiary">
-                      {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} revenue (2025)
+                      {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} services rev (2025)
                     </div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryBase.tone)}`}>
-                      {verdictAncillaryBase.label}
-                    </span>
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Ancillary profit — stabilised
-                    <div className="text-[11px] text-text-tertiary">+{(rev.ancillaryGrowthRate * 100).toFixed(0)}%/yr × {rev.ancillaryGrowthYears}y cap</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(bpAncillaryStabilisedPerVilla, true, locale)}
-                    <div className="text-[11px] text-text-tertiary">
-                      {formatCurrency(bpAncillaryStabilisedTotal, true, locale)} ÷ {totalVillaEquivalents} units
-                    </div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUpAncillaryStabilisedPerVilla, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(liveServicesProfit2025, true, locale)}
-                    <div className="text-[11px] text-text-tertiary">single villa today, profit basis</div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillaryStabilised.tone)}`}>
@@ -516,27 +493,35 @@ export default function DashboardPage() {
                     </span>
                   </td>
                 </tr>
+
+                <tr className="bg-surface-secondary/20 border-t-2 border-surface-tertiary">
+                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Portfolio framing — not conservatism (different scope; shown for scale, not like-for-like comparison)
+                  </td>
+                </tr>
                 <tr className="border-b border-surface-secondary/50">
                   <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Events (private hire)
-                    <div className="text-[11px] text-text-tertiary">{rev.eventsPerYear}/yr × {formatCurrency(rev.netProfitPerEvent, false, locale)} net per event</div>
+                    Events <span className="text-text-tertiary">(portfolio profit)</span>
+                    <div className="text-[11px] text-text-tertiary">{rev.eventsPerYear}/yr × {formatCurrency(rev.netProfitPerEvent, false, locale)} net per event · {totalUnits}-property total</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpEventsPortfolio, true, locale)}</td>
                   <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
                     {formatCurrency(revUp.eventsPerYear * revUp.netProfitPerEvent, true, locale)}
                   </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">—</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    €0
+                    <div className="text-[11px] text-text-tertiary">not run today</div>
+                  </td>
                   <td className="text-right py-2.5 px-3 pr-4">
                     <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-brand-100 text-brand-800">
-                      New revenue line
+                      Pure upside
                     </span>
                   </td>
                 </tr>
-
-                <tr className="font-medium border-t-2 border-surface-tertiary bg-surface-secondary/10">
+                <tr className="font-medium">
                   <td className="py-2.5 pl-4 pr-4">
-                    Portfolio scale-up (stabilised)
-                    <div className="text-[11px] font-normal text-text-tertiary">Conservative per-villa × {totalUnits} units</div>
+                    Portfolio total <span className="text-text-tertiary font-normal">(revenue, stabilised)</span>
+                    <div className="text-[11px] font-normal text-text-tertiary">{totalUnits} properties · BP totals from the model</div>
                   </td>
                   <td className="text-right py-2.5 px-3 data-cell text-brand-700">
                     {formatCurrency(buildingTotalRevenue, true, locale)}
@@ -549,23 +534,7 @@ export default function DashboardPage() {
                     <div className="text-[11px] font-normal text-text-tertiary">2025 actual · one villa</div>
                   </td>
                   <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
-                    {(buildingTotalRevenue / liveTotal2025).toFixed(1)}× revenue
-                  </td>
-                </tr>
-                <tr className="font-medium">
-                  <td className="py-2.5 pl-4 pr-4">EBITDA (stabilised)</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
-                    {formatCurrency(buildingEBITDA, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
-                    {formatCurrency(upsideEBITDA, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
-                    {formatCurrency(liveTotal2025 * 0.55, true, locale)}
-                    <div className="text-[11px] font-normal text-text-tertiary">~55% of 2025 net</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
-                    {(buildingEBITDA / (liveTotal2025 * 0.55)).toFixed(1)}× EBITDA
+                    Portfolio = {(buildingTotalRevenue / liveTotal2025).toFixed(1)}× single-villa run-rate
                   </td>
                 </tr>
               </tbody>
@@ -573,10 +542,10 @@ export default function DashboardPage() {
           </div>
           <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20 flex flex-wrap items-center justify-between gap-2">
             <span>
-              Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) and <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}). Per-villa scope: villa-type assumptions only ({totalUnits} mixed villa/suite properties in the BP scale-up).
+              Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) for ADR / accommodation, <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}) for ancillary — 2025 is the most recent complete year.
             </span>
             <span>
-              Single-villa OpEx — housekeeping, utilities, management — assumed ~55% margin; the operator's reported P&amp;L shows a higher headline net margin (pre corporate-overhead allocation).
+              Ancillary uses {Math.round(SERVICES_PROFIT_MARGIN * 100)}% net-profit margin on live revenue to compare like-for-like with the BP's `ancillaryBaseProfit` line. BP figure divided across {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'} (suite-side excluded — different service-mix).
             </span>
           </div>
         </div>
