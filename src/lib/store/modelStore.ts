@@ -782,6 +782,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     saveCapTableToStorage(next);
   },
   setWaterfallParam: (key, value) => {
+    // Under the 3-layer founder waterfall there are no user-tunable params;
+    // hook retained for forward-compat. No-op for unknown keys.
     const next = { ...get().waterfall, [key]: value };
     set({ waterfall: next });
     saveWaterfallToStorage(next);

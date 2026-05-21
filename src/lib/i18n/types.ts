@@ -672,4 +672,51 @@ export interface TranslationDictionary {
   'pitch.close.askLabel': string;
   'pitch.close.askBody': string;
   'pitch.close.footer': string;
+
+  // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
+  'dash.termsheet.title': string;
+  'dash.termsheet.loan': string;
+  'dash.termsheet.loanSub': string;
+  'dash.termsheet.term': string;
+  'dash.termsheet.termSub': string;
+  'dash.termsheet.rate': string;
+  'dash.termsheet.annualDS': string;
+  'dash.termsheet.dscrCovenant': string;
+  'dash.termsheet.equityRequired': string;
+  'dash.termsheet.security': string;
+  'dash.termsheet.pass': string;
+  'dash.termsheet.fail': string;
+  'dash.termsheet.min': string;
+
+  // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
+  'dash.founder.section': string;
+  'dash.founder.sectionSub': string;
+  'dash.founder.pariPassu': string;
+  'dash.founder.grantBonus': string;
+  'dash.founder.grantBonusInactive': string;
+  'dash.founder.performanceRatchet': string;
+  'dash.founder.ratchetTier': string;
+  'dash.founder.moicFloor': string;
+  'dash.founder.founderTotal': string;
+  'dash.founder.investorsKeep': string;
+  'dash.founder.floorProtected': string;
+  'dash.founder.capStatus': string;
+  'dash.founder.capBinding75': string;
+  'dash.founder.capEarned33': string;
+  'dash.founder.capFree': string;
+  'dash.founder.earned': string;
+  'dash.founder.manCoFee': string;
+  'dash.founder.cumulative': string;
+  'dash.founder.consultantPayment': string;
+  'dash.founder.feesNote': string;
+
+  // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──
+  'opco.splitOn': string;
+  'opco.splitOff': string;
+  'opco.entityStructure': string;
+  'opco.feeStreams': string;
+  'opco.waterfallMechanics': string;
+  'opco.capStructure': string;
+  'opco.feeStructure': string;
+  'opco.stabilisedOutcome': string;
 }

@@ -7,6 +7,12 @@ import { AnnualPnL } from "@/lib/engine/types";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { PNL_TOUR } from "@/lib/tours/configs";
+import {
+  DEFAULT_FOUNDER_MANCO_FEE_RATE,
+  DEFAULT_GRANT_AMOUNT,
+  DEFAULT_CONSULTANT_SHARE_PCT,
+  DEFAULT_GRANT_APPROVAL_YEAR,
+} from "@/lib/engine/founderWaterfall";
 
 type RowDef = {
   label: string;
@@ -23,7 +29,9 @@ type RowDef = {
 
 export default function PnLPage() {
   const { t, locale } = useTranslation();
-  const { model, activeScenario } = useModelStore();
+  const { model, activeScenario, assumptions } = useModelStore();
+  const grantApproved = assumptions.financingPath === "grant";
+  const consultantPayment = grantApproved ? DEFAULT_GRANT_AMOUNT * DEFAULT_CONSULTANT_SHARE_PCT : 0;
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(PNL_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="table" />;
@@ -109,6 +117,33 @@ export default function PnLPage() {
     { label: t('term.citPayable'), getValue: (p) => p.citPayable, format: "currency", color: "negative" },
     { label: t('pnl.profitAfterTax'), getValue: (p) => p.profitAfterTax, format: "currency", bold: true, color: "dynamic" },
     { label: t('pnl.ncfPostVAT'), getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
+    // Founder-comp deductions — subtracted from NCF before distributing to
+    // equity. Informational on the P&L (do not feed EBITDA/DSCR shown to bank).
+    {
+      label: `Founder ManCo fee (${(DEFAULT_FOUNDER_MANCO_FEE_RATE * 100).toFixed(0)}% × revenue)`,
+      getValue: (p) => -(p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE),
+      format: "currency",
+      color: "negative",
+      indent: true,
+    },
+    {
+      label: 'Consultant payment (Layer B, grant approval)',
+      getValue: (p) => (p.year === DEFAULT_GRANT_APPROVAL_YEAR ? -consultantPayment : 0),
+      format: "currency",
+      color: "negative",
+      indent: true,
+    },
+    {
+      label: 'Distributable to equity',
+      getValue: (p) => {
+        const manCo = p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE;
+        const cons = p.year === DEFAULT_GRANT_APPROVAL_YEAR ? consultantPayment : 0;
+        return Math.max(0, p.netCashFlowPostVAT - manCo - cons);
+      },
+      format: "currency",
+      bold: true,
+      color: "dynamic",
+    },
     { label: t('pnl.cfads'), getValue: (p) => p.cfads, format: "currency", color: "dynamic" },
     { label: t('pnl.yieldOnEquity'), getValue: (p) => p.yieldOnInitialEquity, format: "percent", color: "dynamic", anchorId: "pnl-row-yieldOnEquity" },
     { label: t('pnl.totalYieldOnEquity'), getValue: (p) => p.cumulativeYieldOnInitialEquity, format: "percent", bold: true, color: "dynamic" },

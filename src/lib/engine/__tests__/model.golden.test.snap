@@ -1,0 +1,131 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`computeModel — keyMetrics snapshots > pessimistic occupancy (-20% nights) / tepix-loan 1`] = `
+{
+  "annualDS": 498787.6939800389,
+  "assetCoverage": 1.3697391182984475,
+  "breakEvenNights": 49,
+  "bufferToBreakEven": 0.21263581930404712,
+  "equityRequired": 554896,
+  "landFundedByCommercial": 993880,
+  "landFundedByTepix": 356120,
+  "loanAmount": 4356304,
+  "ltv": 0.7300660298307358,
+  "portfolioValue": 5967000,
+  "primaryLoan": 3561200,
+  "stabilisedDSCR": 1.4064500958359134,
+  "stabilisedEBITDA": 701520,
+  "stabilisedEBITDAMargin": 0.7357893908802475,
+  "stabilisedNCF": 7035.566770775913,
+  "stabilisedRevenue": 953425,
+  "supplementaryLoan": 795104,
+  "totalCapex": 4911200,
+}
+`;
+
+exports[`computeModel — keyMetrics snapshots > realistic / commercial path 1`] = `
+{
+  "annualDS": 393460.70083222125,
+  "assetCoverage": 1.518722511809741,
+  "breakEvenNights": 39,
+  "bufferToBreakEven": 0.4025604364680717,
+  "equityRequired": 982240,
+  "landFundedByCommercial": 0,
+  "landFundedByTepix": 0,
+  "loanAmount": 3928960,
+  "ltv": 0.6584481313893079,
+  "portfolioValue": 5967000,
+  "primaryLoan": 3928960,
+  "stabilisedDSCR": 2.097227436351676,
+  "stabilisedEBITDA": 825176.5769114931,
+  "stabilisedEBITDAMargin": 0.7694492173452625,
+  "stabilisedNCF": 205440.02825420332,
+  "stabilisedRevenue": 1072425,
+  "supplementaryLoan": 0,
+  "totalCapex": 4911200,
+}
+`;
+
+exports[`computeModel — keyMetrics snapshots > realistic / grant path 1`] = `
+{
+  "annualDS": 222277.4159563816,
+  "assetCoverage": 2.688341599146507,
+  "breakEvenNights": 22,
+  "bufferToBreakEven": 0.5630860750575737,
+  "equityRequired": 554896,
+  "landFundedByCommercial": 0,
+  "landFundedByTepix": 0,
+  "loanAmount": 2219584,
+  "ltv": 0.37197653762359645,
+  "portfolioValue": 5967000,
+  "primaryLoan": 2219584,
+  "stabilisedDSCR": 3.7167293692226377,
+  "stabilisedEBITDA": 826145,
+  "stabilisedEBITDAMargin": 0.7703522390843183,
+  "stabilisedNCF": 364181.78795108944,
+  "stabilisedRevenue": 1072425,
+  "supplementaryLoan": 0,
+  "totalCapex": 4911200,
+}
+`;
+
+exports[`computeModel — keyMetrics snapshots > realistic / rrf path 1`] = `
+{
+  "annualDS": 416610.86088648904,
+  "assetCoverage": 1.2080903790087463,
+  "breakEvenNights": 41,
+  "bufferToBreakEven": 0.3796969103884264,
+  "equityRequired": 1234800,
+  "landFundedByCommercial": 0,
+  "landFundedByTepix": 0,
+  "loanAmount": 4939200,
+  "ltv": 0.8277526395173453,
+  "portfolioValue": 5967000,
+  "primaryLoan": 4939200,
+  "stabilisedDSCR": 1.9774024091855207,
+  "stabilisedEBITDA": 823807.3200097972,
+  "stabilisedEBITDAMargin": 0.7681724316477118,
+  "stabilisedNCF": 162794.86066549647,
+  "stabilisedRevenue": 1072425,
+  "supplementaryLoan": 0,
+  "totalCapex": 4911200,
+}
+`;
+
+exports[`computeModel — keyMetrics snapshots > realistic / tepix-loan path 1`] = `
+{
+  "annualDS": 498787.6939800389,
+  "assetCoverage": 1.3697391182984475,
+  "breakEvenNights": 49,
+  "bufferToBreakEven": 0.3000044814508811,
+  "equityRequired": 554896,
+  "landFundedByCommercial": 993880,
+  "landFundedByTepix": 356120,
+  "loanAmount": 4356304,
+  "ltv": 0.7300660298307358,
+  "portfolioValue": 5967000,
+  "primaryLoan": 3561200,
+  "stabilisedDSCR": 1.6450285560429976,
+  "stabilisedEBITDA": 820520,
+  "stabilisedEBITDAMargin": 0.7651071170478122,
+  "stabilisedNCF": 91525.56677077591,
+  "stabilisedRevenue": 1072425,
+  "supplementaryLoan": 795104,
+  "totalCapex": 4911200,
+}
+`;
+
+exports[`computeModel — scenario fan > realistic vs upside vs downside stabilised revenue (tepix-loan) 1`] = `
+{
+  "downside": 904098,
+  "downside_factors": {
+    "adrReduction": 0.05,
+    "eventsPerYear": 4,
+    "occupancyReduction": 0.1,
+    "wcRepaymentRatio": 0.7,
+    "wcSeasonalDrawMultiplier": 1.5,
+  },
+  "realistic": 1072425,
+  "upside": 1366625,
+}
+`;

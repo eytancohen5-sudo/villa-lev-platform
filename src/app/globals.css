@@ -206,3 +206,36 @@ body {
 [lang="he"] .font-display {
   font-family: Georgia, 'David Libre', serif;
 }
+
+/* ── Print styles ──
+   Investor page is the primary print target (banker PDFs). Tailwind 4
+   `print:` utilities handle most layout-level visibility / spacing in the
+   component tree; this block is for things Tailwind can't reach: page
+   colour, recharts SVG width, page-break orphan/widow control. */
+@media print {
+  html, body {
+    background: white !important;
+    color: black;
+  }
+  /* Recharts wraps SVGs in <ResponsiveContainer>; print devices give it a
+     0-width pass first. Force a sensible width so charts come out at a
+     readable size when saved as PDF. */
+  .recharts-responsive-container,
+  .recharts-wrapper,
+  .recharts-surface {
+    width: 100% !important;
+    max-width: 720px;
+  }
+  /* Avoid splitting KPI rows / sections across pages. */
+  h1, h2, h3 {
+    break-after: avoid-page;
+  }
+  .kpi-hero,
+  .kpi-value {
+    break-inside: avoid;
+  }
+  /* Tour-pulse ring is noise on paper. */
+  .tour-trigger-pulse::after {
+    display: none;
+  }
+}

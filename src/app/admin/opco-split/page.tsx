@@ -10,6 +10,16 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { Locale } from "@/lib/i18n/types";
 import { PageSkeleton } from "@/components/Skeleton";
 import type { ModelAssumptions, ModelOutput, ScenarioOutput } from "@/lib/engine/types";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 function StatusChip({ label, ok }: { label: string; ok: boolean }) {
   return (
@@ -101,7 +111,7 @@ function RateInput({
 }
 
 export default function OpCoSplitPage() {
-  const { locale } = useTranslation();
+  const { locale, t } = useTranslation();
   const { model, assumptions, activeScenario, setAssumption } = useModelStore();
 
   if (!model) return <PageSkeleton variant="grid" />;
@@ -151,7 +161,7 @@ export default function OpCoSplitPage() {
           }`}
         >
           <span className={`w-2 h-2 rounded-full ${opCoOn ? "bg-positive" : "bg-text-tertiary"}`} />
-          {opCoOn ? "Split ON" : "Split OFF"}
+          {opCoOn ? t('opco.splitOn') : t('opco.splitOff')}
         </button>
       </div>
 
@@ -174,18 +184,19 @@ export default function OpCoSplitPage() {
 
       {/* Entity diagram */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
-        Entity structure
+        {t('opco.entityStructure')}
       </h2>
       <EntityDiagram
         propCoLoan={model.keyMetrics.loanAmount}
         propCoEquity={model.keyMetrics.equityRequired}
         propCoCapex={model.keyMetrics.totalCapex}
+        totalPlots={assumptions.portfolio.reduce((s, p) => s + p.count, 0)}
         locale={locale}
       />
 
       {/* Expanded fee streams */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mt-8 mb-3 px-1">
-        Founder compensation — fee streams (PropCo → OpCo)
+        {t('opco.feeStreams')}
       </h2>
       <FeeStreamsTable
         assumptions={assumptions}
@@ -205,13 +216,13 @@ export default function OpCoSplitPage() {
 
       {/* Waterfall mechanics */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mt-8 mb-3 px-1">
-        Waterfall mechanics — cash-flow priority
+        {t('opco.waterfallMechanics')}
       </h2>
       <WaterfallMechanicsBox />
 
       {/* Cap structure block — moved up from previous design */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mt-8 mb-3 px-1">
-        Cap structure (today's deal)
+        {t('opco.capStructure')}
       </h2>
       <CapStructureSummary
         assumptions={assumptions}
@@ -221,7 +232,7 @@ export default function OpCoSplitPage() {
 
       {/* Fee rates */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
-        Fee structure
+        {t('opco.feeStructure')}
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <RateInput
@@ -266,7 +277,7 @@ export default function OpCoSplitPage() {
 
       {/* PropCo headline KPIs (always shown — when OFF, PropCo == full owner) */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
-        Stabilised year 2031 — outcome for PropCo
+        {t('opco.stabilisedOutcome')}
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <KPICard
@@ -533,6 +544,37 @@ export default function OpCoSplitPage() {
             </div>
           </div>
 
+          <div className="bg-white rounded-2xl border border-surface-tertiary p-5 shadow-sm mb-6">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-4">
+              OpCo fee composition by year ({scenarioLabel})
+            </h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart
+                data={scenario.pnl.map((p) => ({
+                  year: p.year,
+                  Base: p.opCoBaseFee,
+                  Brand: p.opCoBrandFee,
+                  Incentive: p.opCoIncentiveFee,
+                }))}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
+                />
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value), false, locale)}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="Base" stackId="opco" name="Base fee" fill="#C4A55E" />
+                <Bar dataKey="Brand" stackId="opco" name="Brand fee" fill="#8B6914" />
+                <Bar dataKey="Incentive" stackId="opco" name="Incentive fee" fill="#6B7A3D" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
           <div className="text-xs text-text-tertiary">
             Tip: change the financing path or scenario from the top bar to see how
             the same fee schedule plays out under different revenue assumptions.
@@ -699,11 +741,13 @@ function EntityDiagram({
   propCoLoan,
   propCoEquity,
   propCoCapex,
+  totalPlots,
   locale,
 }: {
   propCoLoan: number;
   propCoEquity: number;
   propCoCapex: number;
+  totalPlots: number;
   locale: Locale;
 }) {
   return (
@@ -712,7 +756,7 @@ function EntityDiagram({
         <div className="text-[10px] font-medium uppercase tracking-wider text-brand-700 mb-1">PropCo (Greek SPV)</div>
         <div className="font-display text-base mb-2">Holds real estate</div>
         <div className="text-xs space-y-1">
-          <div><span className="text-text-tertiary">Owns:</span> 3 plots + buildings + FF&amp;E</div>
+          <div><span className="text-text-tertiary">Owns:</span> {totalPlots} {totalPlots === 1 ? "plot" : "plots"} + buildings + FF&amp;E</div>
           <div><span className="text-text-tertiary">CapEx:</span> {formatCurrency(propCoCapex, true, locale)}</div>
           <div><span className="text-text-tertiary">Owes bank:</span> {formatCurrency(propCoLoan, true, locale)}</div>
           <div><span className="text-text-tertiary">Equity:</span> {formatCurrency(propCoEquity, true, locale)}</div>
@@ -937,6 +981,7 @@ function CapStructureSummary({
   const grantRate = assumptions.grant?.grantRate ?? 0;
   const isGrant = assumptions.financingPath === "grant";
   const grantAmount = isGrant ? keyMetrics.totalCapex * grantRate : 0;
+  const totalPlots = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
       <div className="rounded-xl border border-surface-tertiary bg-white p-4">
@@ -971,7 +1016,7 @@ function CapStructureSummary({
       <div className="rounded-xl border border-surface-tertiary bg-white p-4">
         <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Total CapEx</div>
         <div className="font-display text-2xl mt-1">{formatCurrency(keyMetrics.totalCapex, true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">3 plots + construction + FF&amp;E + soft costs</div>
+        <div className="text-xs text-text-tertiary mt-1">{totalPlots} {totalPlots === 1 ? "plot" : "plots"} + construction + FF&amp;E + soft costs</div>
       </div>
     </div>
   );

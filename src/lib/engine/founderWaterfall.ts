@@ -1,0 +1,494 @@
+// ============================================================
+// VILLA LEV GROUP — Founder Compensation Waterfall
+// ============================================================
+//
+// Encodes the deal structure agreed between sponsor and investors:
+//
+//   Layer A  Pari-passu cash equity        = founder_cash / total_equity
+//   Layer B  Grant landing bonus           = +4% if grant approved, else 0
+//   Layer C  Performance ratchet at exit   = 0 / 5 / 9 / 19 / 29 (or 33)%
+//
+// Plus two hard caps that protect investors:
+//   • Earned cap:  grant_bonus + ratchet ≤ +33%
+//   • Total cap:   pari_passu + earned   ≤ 75%  (investors keep ≥ 25%)
+//
+// The ratchet trigger depends on *investor* IRR/MOIC at exit, which in turn
+// depends on the founder's share. We solve the fixed point by iteration —
+// converges in 2–3 rounds for all realistic inputs.
+
+import { ScenarioOutput } from './types';
+
+// ── Constants ──────────────────────────────────────────────────────────
+
+export const EARNED_EQUITY_CAP = 0.33;      // grant_bonus + ratchet
+export const TOTAL_FOUNDER_CAP = 0.75;      // pari_passu + earned
+export const MIN_INVESTOR_SHARE = 1 - TOTAL_FOUNDER_CAP;
+
+// Layer B (grant bonus) is no longer hardcoded — it's *derived* from:
+//   gross_fee   = grant × founderFeePct   (10% by default)
+//   consultant  = grant × consultantPct   (5% by default → €200K cash out)
+//   founder_net = gross_fee − consultant  (5% of grant kept by founder, as equity)
+//   post_grant_equity = project_value − bank_loan
+//   grant_bonus = founder_net / (post_grant_equity + founder_net)
+// At defaults this works out to ≈ 3.92% (vs. the previous hardcoded 4%).
+export const DEFAULT_GRANT_AMOUNT = 4_013_880;
+export const DEFAULT_FOUNDER_FEE_PCT = 0.10;
+export const DEFAULT_CONSULTANT_SHARE_PCT = 0.05;
+export const DEFAULT_PROJECT_ASSET_VALUE = 8_440_000;
+// Senior loan used in the Layer B *baseline* — the pre-grant commercial
+// financing case. The grant bonus measures the founder's grant-landing
+// service against the equity gap that would have existed WITHOUT the grant.
+// This keeps Layer B stable as the user toggles between financing paths;
+// otherwise switching to the grant path (which lowers the actual senior
+// loan) would mechanically shrink the bonus.
+export const DEFAULT_BASELINE_BANK_LOAN = 3_540_000;
+// Year the consultant cash payment hits the PropCo books (grant approval).
+export const DEFAULT_GRANT_APPROVAL_YEAR = 2027;
+// Founder ManCo fee — 5% of gross revenue, subtracted from NCF before
+// distributing to equity. Separate from the existing OPEX €90K/yr property-
+// management line which covers operational costs (cleaning, accounting).
+export const DEFAULT_FOUNDER_MANCO_FEE_RATE = 0.05;
+
+// Practical advisory limits where the 75% cap starts to bind for the
+// default cap-table size. Surfaced as warnings, not hard errors.
+export const ADVISORY_FOUNDER_CASH_GRANT = 400_000;
+export const ADVISORY_FOUNDER_CASH_NO_GRANT = 700_000;
+
+export type RatchetTier =
+  | 'failure'         // IRR < 0%
+  | 'below_pref'      // 0–8%, +5% (needs MOIC ≥ 2.0)
+  | 'pref_met'        // 8–14%, +9% (needs MOIC ≥ 2.5)
+  | 'strong'          // 14–22%, +19% (needs MOIC ≥ 4.0)
+  | 'excellent';      // 22%+, +29% (grant) / +33% (no grant) (needs MOIC ≥ 6.0)
+
+export interface RatchetTierDef {
+  id: RatchetTier;
+  label: string;
+  irrMin: number;          // inclusive
+  irrMax: number;          // exclusive (Infinity for top tier)
+  moicFloor: number;       // sanity check that binds first
+  ratchetGrant: number;    // ratchet % when grant approved
+  ratchetNoGrant: number;  // ratchet % when grant denied
+}
+
+export const RATCHET_TIERS: RatchetTierDef[] = [
+  { id: 'failure',    label: 'True failure',  irrMin: -Infinity, irrMax: 0,        moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
+  { id: 'below_pref', label: 'Below pref',    irrMin: 0,         irrMax: 0.08,     moicFloor: 2.0, ratchetGrant: 0.05, ratchetNoGrant: 0.05 },
+  { id: 'pref_met',   label: 'Pref met',      irrMin: 0.08,      irrMax: 0.14,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
+  { id: 'strong',     label: 'Strong',        irrMin: 0.14,      irrMax: 0.22,     moicFloor: 4.0, ratchetGrant: 0.19, ratchetNoGrant: 0.19 },
+  { id: 'excellent',  label: 'Excellent',     irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.29, ratchetNoGrant: 0.33 },
+];
+
+export type CapBinding = 'none' | 'earned_33' | 'total_75';
+
+export interface FounderStakeInput {
+  founderCashInvested: number;
+  totalEquityRaised: number;
+  grantApproved: boolean;
+  // Inputs that drive the *derived* grant bonus (Layer B). All have
+  // module-level defaults — callers can override per-scenario.
+  grantAmount?: number;
+  founderFeePct?: number;
+  consultantSharePct?: number;
+  projectAssetValue?: number;
+  bankLoanAmount?: number;
+  // Iterative IRR/MOIC for tier selection (Layer C).
+  investorIRR: number;
+  investorMOIC: number;
+}
+
+export interface FounderStakeBreakdown {
+  pariPassuPct: number;
+  // Derived from inputs. Tooltip on UI should show:
+  //   founder_net_grant_cash / (post_grant_equity + founder_net_grant_cash)
+  grantBonusPct: number;
+  performanceRatchetPct: number;
+  // grant_bonus + ratchet, with ratchet specifically reduced to honour the
+  // earned cap (grant bonus is contractual; ratchet flexes).
+  earnedPct: number;
+  founderTotalPct: number;
+  investorTotalPct: number;
+  capBinding: CapBinding;
+  ratchetTier: RatchetTier;
+  ratchetTierLabel: string;
+  moicFloorReduction: boolean;
+  // ── Layer B derivation telemetry (surfaced in UI/Excel) ──────────
+  consultantCashPayment: number;     // grant × consultantSharePct
+  founderNetGrantCash: number;       // gross_fee − consultant
+  postGrantEquityValue: number;      // project_value − bank_loan
+}
+
+// ── Tier resolution ────────────────────────────────────────────────────
+
+/**
+ * Select the ratchet tier given investor IRR and MOIC. IRR alone picks the
+ * tier; the MOIC floor must be met or we drop to the next lower tier
+ * (recursively). Prevents quick-exit gaming where a 100% IRR over 1 year
+ * with 2× MOIC unlocks the top tier.
+ */
+function selectTier(irr: number, moic: number, grantApproved: boolean): {
+  tier: RatchetTierDef;
+  ratchet: number;
+  reduced: boolean;
+} {
+  // Walk tiers high → low. First tier whose IRR band contains `irr` and
+  // whose MOIC floor is met, wins. Else drop down.
+  let idealIdx = -1;
+  for (let i = 0; i < RATCHET_TIERS.length; i++) {
+    const t = RATCHET_TIERS[i];
+    if (irr >= t.irrMin && irr < t.irrMax) {
+      idealIdx = i;
+      break;
+    }
+  }
+  if (idealIdx < 0) {
+    // Fallback (shouldn't happen given Infinity bounds).
+    const t = RATCHET_TIERS[0];
+    return { tier: t, ratchet: grantApproved ? t.ratchetGrant : t.ratchetNoGrant, reduced: false };
+  }
+  for (let i = idealIdx; i >= 0; i--) {
+    const t = RATCHET_TIERS[i];
+    if (moic >= t.moicFloor) {
+      return {
+        tier: t,
+        ratchet: grantApproved ? t.ratchetGrant : t.ratchetNoGrant,
+        reduced: i < idealIdx,
+      };
+    }
+  }
+  const t = RATCHET_TIERS[0];
+  return { tier: t, ratchet: 0, reduced: true };
+}
+
+// ── Stake breakdown (pure function, per spec pseudocode) ───────────────
+
+export function computeFounderStake(input: FounderStakeInput): FounderStakeBreakdown {
+  const pariPassu = input.totalEquityRaised > 0
+    ? input.founderCashInvested / input.totalEquityRaised
+    : 0;
+
+  // ── Layer B derivation (transparent from inputs) ───────────────────
+  const grantAmount = input.grantAmount ?? DEFAULT_GRANT_AMOUNT;
+  const founderFeePct = input.founderFeePct ?? DEFAULT_FOUNDER_FEE_PCT;
+  const consultantSharePct = input.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT;
+  const projectAssetValue = input.projectAssetValue ?? DEFAULT_PROJECT_ASSET_VALUE;
+  const bankLoanAmount = input.bankLoanAmount ?? DEFAULT_BASELINE_BANK_LOAN;
+
+  let grantBonus = 0;
+  let consultantCash = 0;
+  let founderNetCash = 0;
+  let postGrantEquity = 0;
+  if (input.grantApproved) {
+    const grossFee = grantAmount * founderFeePct;
+    consultantCash = grantAmount * consultantSharePct;
+    founderNetCash = grossFee - consultantCash;
+    postGrantEquity = Math.max(0, projectAssetValue - bankLoanAmount);
+    const denom = postGrantEquity + founderNetCash;
+    grantBonus = denom > 0 ? founderNetCash / denom : 0;
+  }
+
+  // ── Layer C tier selection (unchanged) ─────────────────────────────
+  let { tier, ratchet, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
+
+  // ── Earned cap (33%) — reduce ratchet, preserve grant bonus ────────
+  // The grant bonus is contractual (the founder earned it by landing the
+  // grant); the ratchet is the flexible portion that absorbs the cap.
+  let cap: CapBinding = 'none';
+  const earnedRaw = grantBonus + ratchet;
+  if (earnedRaw > EARNED_EQUITY_CAP + 1e-9) {
+    ratchet = Math.max(0, EARNED_EQUITY_CAP - grantBonus);
+    cap = 'earned_33';
+  } else if (Math.abs(earnedRaw - EARNED_EQUITY_CAP) < 1e-9) {
+    cap = 'earned_33';
+  }
+  let earned = Math.min(grantBonus + ratchet, EARNED_EQUITY_CAP);
+
+  // ── Total cap (75%) — reduce earned, preserve pari-passu ───────────
+  let total = pariPassu + earned;
+  if (total > TOTAL_FOUNDER_CAP + 1e-9) {
+    earned = Math.max(0, TOTAL_FOUNDER_CAP - pariPassu);
+    if (earned <= 0) {
+      // Founder cash alone exceeds 75% — pari-passu effectively clipped too
+      // (theoretical edge case; doesn't bind at sane equity raises).
+      earned = 0;
+    }
+    total = pariPassu + earned;
+    if (total > TOTAL_FOUNDER_CAP) total = TOTAL_FOUNDER_CAP;
+    cap = 'total_75';
+  }
+
+  return {
+    pariPassuPct: pariPassu,
+    grantBonusPct: input.grantApproved ? grantBonus : 0,
+    performanceRatchetPct: ratchet,
+    earnedPct: earned,
+    founderTotalPct: total,
+    investorTotalPct: 1 - total,
+    capBinding: cap,
+    ratchetTier: tier.id,
+    ratchetTierLabel: tier.label,
+    moicFloorReduction: reduced,
+    consultantCashPayment: consultantCash,
+    founderNetGrantCash: founderNetCash,
+    postGrantEquityValue: postGrantEquity,
+  };
+}
+
+// ── Cash-flow level helpers ────────────────────────────────────────────
+
+function npv(rate: number, cashFlows: number[]): number {
+  let total = 0;
+  for (let t = 0; t < cashFlows.length; t++) {
+    total += cashFlows[t] / Math.pow(1 + rate, t);
+  }
+  return total;
+}
+
+function irrNewton(cashFlows: number[], guess = 0.1): number {
+  const hasNeg = cashFlows.some((cf) => cf < 0);
+  const hasPos = cashFlows.some((cf) => cf > 0);
+  if (!hasNeg || !hasPos) return 0;
+  let r = guess;
+  for (let i = 0; i < 200; i++) {
+    const f = npv(r, cashFlows);
+    const dr = 1e-6;
+    const fPrime = (npv(r + dr, cashFlows) - f) / dr;
+    if (Math.abs(fPrime) < 1e-14) break;
+    const newR = r - f / fPrime;
+    if (!isFinite(newR)) break;
+    if (Math.abs(newR - r) < 1e-9) return newR;
+    r = newR;
+  }
+  // Bisection fallback.
+  let lo = -0.99;
+  let hi = 5.0;
+  const fLo0 = npv(lo, cashFlows);
+  const fHi0 = npv(hi, cashFlows);
+  if (fLo0 * fHi0 > 0) return 0;
+  let fLo = fLo0;
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const fMid = npv(mid, cashFlows);
+    if (Math.abs(fMid) < 1e-6) return mid;
+    if (fLo * fMid < 0) {
+      hi = mid;
+    } else {
+      lo = mid;
+      fLo = fMid;
+    }
+  }
+  return (lo + hi) / 2;
+}
+
+export interface YearDistribution {
+  year: number;
+  totalDistribution: number;  // project cash distributable this year (post-fees)
+  founderShare: number;       // founder equity share this year
+  investorShare: number;      // total investor share this year
+  // ── Per-year fee deductions (informational) ───────────────────────
+  founderManCoFee: number;     // 5% × revenue, paid to founder's ManCo
+  consultantPayment: number;   // €200K one-time at grant approval year
+  ncfPreFees: number;          // NCF post-VAT before founder fees subtracted
+}
+
+export interface ResolvedFounderWaterfall {
+  breakdown: FounderStakeBreakdown;
+  // Convergence telemetry.
+  iterations: number;
+  converged: boolean;
+  // Per-year distributions actually realised (post-resolution).
+  yearly: YearDistribution[];
+  // Investor aggregate metrics derived from the converged split.
+  investorIRR: number;
+  investorMOIC: number;
+  totalNonFounderCash: number;
+  totalProjectDistributable: number;
+  // Aggregate fee totals (over the projection window, useful for UI).
+  totalFounderManCoFee: number;
+  totalConsultantPayment: number;
+}
+
+export interface DistributionStreamOptions {
+  // 5% by default; the founder's ManCo executive compensation. Subtracted
+  // from NCF before equity distributions, so equity holders see post-fee cash.
+  founderManCoFeeRate?: number;
+  // Year the €200K consultant payment hits — typically grant approval year.
+  consultantPaymentYear?: number;
+  // Total consultant payment amount; 0 if no grant.
+  consultantPayment?: number;
+}
+
+/**
+ * Build the per-year distribution stream from a scenario, subtracting:
+ *   • Founder ManCo fee = 5% × gross revenue (annual)
+ *   • One-time €200K consultant payment at grant approval year (if grant)
+ *
+ * Result is post-fee cash distributable to equity, used by the waterfall.
+ */
+export function buildDistributionStream(
+  scenario: ScenarioOutput,
+  options: DistributionStreamOptions = {},
+): YearDistribution[] {
+  const feeRate = options.founderManCoFeeRate ?? DEFAULT_FOUNDER_MANCO_FEE_RATE;
+  const consultantYear = options.consultantPaymentYear ?? DEFAULT_GRANT_APPROVAL_YEAR;
+  const consultantPayment = options.consultantPayment ?? 0;
+
+  const exitYear = scenario.exitYear;
+  const pnlAll = scenario.pnl;
+  const exitIdx = pnlAll.findIndex((p) => p.year === exitYear);
+  const pnl = exitIdx >= 0 ? pnlAll.slice(0, exitIdx + 1) : pnlAll;
+
+  return pnl.map((p, i) => {
+    const isExit = i === pnl.length - 1;
+    const ncfPreFees = Math.max(0, p.netCashFlowPostVAT);
+    const manCoFee = Math.max(0, p.totalRevenue) * feeRate;
+    const consultantThisYear = p.year === consultantYear ? consultantPayment : 0;
+    let cash = ncfPreFees - manCoFee - consultantThisYear;
+    if (isExit) cash += scenario.terminalEquityValue;
+    // Floor at zero so we never give the founder negative equity (manCoFee
+    // already absorbed by the founder via their ManCo entity).
+    cash = Math.max(0, cash);
+    return {
+      year: p.year,
+      totalDistribution: cash,
+      founderShare: 0,    // populated after waterfall resolves
+      investorShare: 0,
+      founderManCoFee: manCoFee,
+      consultantPayment: consultantThisYear,
+      ncfPreFees,
+    };
+  });
+}
+
+export interface ResolveOptions {
+  // Layer B derivation inputs (override defaults; usually scenario-specific
+  // bank_loan_amount comes from the model's active financing path).
+  grantAmount?: number;
+  founderFeePct?: number;
+  consultantSharePct?: number;
+  projectAssetValue?: number;
+  bankLoanAmount?: number;
+  // Cash-flow stream options (founder ManCo fee + consultant payment year).
+  founderManCoFeeRate?: number;
+  consultantPaymentYear?: number;
+  maxIterations?: number;
+}
+
+/**
+ * Iterative fixed-point: starting from ratchet = 0, compute investor IRR/
+ * MOIC, then re-derive ratchet, repeat until stable. The Layer B grant
+ * bonus is derived from the inputs (not hardcoded); the founder's ManCo fee
+ * (5% × revenue) and €200K consultant payment at grant approval are
+ * subtracted from the distribution stream before the split.
+ */
+export function resolveFounderWaterfall(
+  scenario: ScenarioOutput,
+  founderCashInvested: number,
+  totalEquityRaised: number,
+  grantApproved: boolean,
+  options: ResolveOptions = {},
+): ResolvedFounderWaterfall {
+  const maxIterations = options.maxIterations ?? 8;
+  // The consultant payment only flows when the grant lands. Compute up front
+  // so the stream subtraction and the breakdown agree.
+  const consultantSharePct = options.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT;
+  const grantAmount = options.grantAmount ?? DEFAULT_GRANT_AMOUNT;
+  const consultantPayment = grantApproved ? grantAmount * consultantSharePct : 0;
+  const stream = buildDistributionStream(scenario, {
+    founderManCoFeeRate: options.founderManCoFeeRate,
+    consultantPaymentYear: options.consultantPaymentYear,
+    consultantPayment,
+  });
+  const totalProject = stream.reduce((s, y) => s + y.totalDistribution, 0);
+  const totalFounderManCoFee = stream.reduce((s, y) => s + y.founderManCoFee, 0);
+  const totalConsultantPayment = stream.reduce((s, y) => s + y.consultantPayment, 0);
+  const totalNonFounderCash = Math.max(0, totalEquityRaised - founderCashInvested);
+
+  const stakeInputBase = {
+    founderCashInvested,
+    totalEquityRaised,
+    grantApproved,
+    grantAmount,
+    founderFeePct: options.founderFeePct,
+    consultantSharePct,
+    projectAssetValue: options.projectAssetValue,
+    bankLoanAmount: options.bankLoanAmount,
+  };
+
+  // Initial breakdown with ratchet = 0 (i.e. investor IRR = -∞ guess).
+  let breakdown = computeFounderStake({
+    ...stakeInputBase,
+    investorIRR: -1,
+    investorMOIC: 0,
+  });
+
+  let iterations = 0;
+  let converged = false;
+  let lastRatchet = breakdown.performanceRatchetPct;
+  let investorIRR = 0;
+  let investorMOIC = 0;
+  // Detect cycles (oscillation between two adjacent tiers when the trigger
+  // straddles a band boundary). On cycle, end on the *lower* ratchet to be
+  // investor-friendly and flag as converged-by-stabilisation.
+  const seen = new Set<string>();
+  seen.add(`${breakdown.ratchetTier}|${breakdown.performanceRatchetPct.toFixed(6)}`);
+
+  for (let i = 0; i < maxIterations; i++) {
+    iterations = i + 1;
+    const investorYearly = stream.map((y) => y.totalDistribution * breakdown.investorTotalPct);
+    const cfStream = [-totalNonFounderCash, ...investorYearly];
+    investorIRR = totalNonFounderCash > 0 ? irrNewton(cfStream) : 0;
+    const investorTotalReceived = investorYearly.reduce((s, v) => s + v, 0);
+    investorMOIC = totalNonFounderCash > 0 ? investorTotalReceived / totalNonFounderCash : 0;
+
+    const nextBreakdown = computeFounderStake({
+      ...stakeInputBase,
+      investorIRR,
+      investorMOIC,
+    });
+    const nextKey = `${nextBreakdown.ratchetTier}|${nextBreakdown.performanceRatchetPct.toFixed(6)}`;
+
+    if (Math.abs(nextBreakdown.performanceRatchetPct - lastRatchet) < 1e-9) {
+      breakdown = nextBreakdown;
+      converged = true;
+      break;
+    }
+    if (seen.has(nextKey)) {
+      breakdown = nextBreakdown.performanceRatchetPct < lastRatchet ? nextBreakdown : breakdown;
+      converged = true;
+      break;
+    }
+    seen.add(nextKey);
+    lastRatchet = nextBreakdown.performanceRatchetPct;
+    breakdown = nextBreakdown;
+  }
+
+  const yearly: YearDistribution[] = stream.map((y) => ({
+    ...y,
+    founderShare: y.totalDistribution * breakdown.founderTotalPct,
+    investorShare: y.totalDistribution * breakdown.investorTotalPct,
+  }));
+
+  return {
+    breakdown,
+    iterations,
+    converged,
+    yearly,
+    investorIRR,
+    investorMOIC,
+    totalNonFounderCash,
+    totalProjectDistributable: totalProject,
+    totalFounderManCoFee,
+    totalConsultantPayment,
+  };
+}
+
+// ── Advisory / warning helpers ──────────────────────────────────────────
+
+export function advisoryFounderCashLimit(grantApproved: boolean): number {
+  return grantApproved ? ADVISORY_FOUNDER_CASH_GRANT : ADVISORY_FOUNDER_CASH_NO_GRANT;
+}
+
+export function founderCashExceedsAdvisory(founderCash: number, grantApproved: boolean): boolean {
+  return founderCash > advisoryFounderCashLimit(grantApproved);
+}

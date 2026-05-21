@@ -1,21 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-import { formatCurrency } from "@/lib/hooks/useModel";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { AssumptionPrompts } from "@/components/AssumptionPrompts";
+import { ViewAsControl } from "@/components/ViewAsControl";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
+import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
+import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 
-const financingPaths: { id: FinancingPath; shortKey: keyof TranslationDictionary; color: string }[] = [
-  { id: "commercial", shortKey: "path.commercialShort", color: "#8B6914" },
-  { id: "rrf", shortKey: "path.rrfShort", color: "#4A6A8B" },
-  { id: "grant", shortKey: "path.grantShort", color: "#4A7C3F" },
-  { id: "tepix-loan", shortKey: "path.tepixLoanShort", color: "#7B5EA7" },
+// Single brand accent for path pills — the prior multi-colour palette (one
+// hue per financing path) read as visual noise. Active = brand-700, others
+// stay neutral.
+const financingPaths: { id: FinancingPath; shortKey: keyof TranslationDictionary }[] = [
+  { id: "commercial", shortKey: "path.commercialShort" },
+  { id: "rrf", shortKey: "path.rrfShort" },
+  { id: "grant", shortKey: "path.grantShort" },
+  { id: "tepix-loan", shortKey: "path.tepixLoanShort" },
 ];
 
 function PercentInput({
@@ -60,16 +65,137 @@ function PercentInput({
   );
 }
 
+// Tiny dropdown popover for Rate / Loan — they rarely change session-to-
+// session, so they don't deserve permanent space in the top bar.
+function RateLoanPopover({
+  rate,
+  coverage,
+  onRate,
+  onCoverage,
+}: {
+  rate: number;
+  coverage: number;
+  onRate: (v: number) => void;
+  onCoverage: (v: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors ${
+          open
+            ? "bg-brand-50 text-brand-700 border border-brand-200"
+            : "bg-surface-secondary text-text-secondary border border-surface-tertiary hover:bg-surface-tertiary"
+        }`}
+        aria-expanded={open}
+        title={`Rate ${(rate * 100).toFixed(2)}% · Loan ${(coverage * 100).toFixed(0)}%`}
+      >
+        Adjust · {(rate * 100).toFixed(1)}% / {(coverage * 100).toFixed(0)}%
+      </button>
+      {open && (
+        <div className="absolute top-full mt-2 right-0 z-30 bg-white border border-surface-tertiary rounded-xl shadow-lg p-4 min-w-[220px]">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-3">
+            Loan parameters
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-xs text-text-secondary">Interest rate</label>
+              <div className="flex items-center gap-1">
+                <PercentInput value={rate} decimals={2} step={0.05} onCommit={onRate} />
+                <span className="text-xs text-text-tertiary">%</span>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-xs text-text-secondary">Loan coverage</label>
+              <div className="flex items-center gap-1">
+                <PercentInput value={coverage} decimals={0} step={1} onCommit={onCoverage} />
+                <span className="text-xs text-text-tertiary">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sidebar groups — replaces the prior flat 10-item list. Banker-facing
+// "Underwrite" first; founder/CFO "Structure" second; "Inputs" last.
+interface NavItem {
+  href: string;
+  labelKey: keyof TranslationDictionary;
+}
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Underwrite",
+    items: [
+      { href: "/admin/dashboard", labelKey: "nav.dashboard" },
+      { href: "/admin/pnl", labelKey: "nav.pnl" },
+      { href: "/admin/breakeven", labelKey: "nav.breakeven" },
+      { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
+    ],
+  },
+  {
+    label: "Structure",
+    items: [
+      { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
+      { href: "/admin/cap-table", labelKey: "nav.capTable" },
+    ],
+  },
+  {
+    label: "Inputs",
+    items: [
+      { href: "/admin/assumptions", labelKey: "nav.assumptions" },
+      { href: "/admin/capex", labelKey: "nav.capex" },
+      { href: "/admin/scenarios", labelKey: "nav.scenarios" },
+      { href: "/admin/lexicon", labelKey: "nav.lexicon" },
+    ],
+  },
+];
+
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  // Impersonation: only fires for an actual admin pretending to be a
+  // banker. Real unauthenticated visitors never satisfy isImpersonating,
+  // so this redirect is safe to live in /admin/* — bankers viewing the
+  // public share-link never hit this codepath.
+  const { isImpersonating, effectiveRole } = useEffectiveAuth();
+  useEffect(() => {
+    if (isImpersonating && effectiveRole === "banker") {
+      router.replace("/investor");
+    }
+  }, [isImpersonating, effectiveRole, router]);
   const { init, model, computeTimeMs, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
   const activeScenarioOutput = model?.scenarios[activeScenario];
   const exitUnderwater = !!activeScenarioOutput?.terminalUnderwater;
+  // Freshness banner: when the seasonSnapshot Firestore subscription returns
+  // nothing (or shape-mismatches), useSeasonSnapshot falls back to the static
+  // file at currentVillaActuals.ts. Surface that to operators so they don't
+  // mistake stale data for live.
+  const { source: snapshotSource, pulledAt: snapshotPulledAt } = useSeasonSnapshot();
+  const showStaleBanner = snapshotSource === "static-fallback";
 
   const rateLoanConfig =
     assumptions.financingPath === "tepix-loan"
@@ -87,20 +213,7 @@ export default function AdminLayout({
             coveragePath: "commercialLoan.loanCoverageRate",
           }
         : null;
-  const { t, locale } = useTranslation();
-
-  const navItems: { href: string; labelKey: keyof TranslationDictionary }[] = [
-    { href: "/admin/dashboard", labelKey: "nav.dashboard" },
-    { href: "/admin/pnl", labelKey: "nav.pnl" },
-    { href: "/admin/breakeven", labelKey: "nav.breakeven" },
-    { href: "/admin/capex", labelKey: "nav.capex" },
-    { href: "/admin/scenarios", labelKey: "nav.scenarios" },
-    { href: "/admin/assumptions", labelKey: "nav.assumptions" },
-    { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
-    { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
-    { href: "/admin/cap-table", labelKey: "nav.capTable" },
-    { href: "/admin/lexicon", labelKey: "nav.lexicon" },
-  ];
+  const { t } = useTranslation();
 
   const scenarios: { id: ScenarioName; labelKey: keyof TranslationDictionary }[] = [
     { id: "realistic", labelKey: "scenario.realistic" },
@@ -132,26 +245,35 @@ export default function AdminLayout({
           </Link>
         </div>
 
-        <nav className="flex-1 py-4">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`block px-5 py-2.5 text-sm transition-colors ${
-                  isActive
-                    ? "bg-brand-50 text-brand-700 border-e-2 border-brand-500 font-medium"
-                    : "text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
-                }`}
-              >
-                {t(item.labelKey)}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 py-3 overflow-y-auto">
+          {NAV_GROUPS.map((group, gIdx) => (
+            <div key={group.label} className={gIdx > 0 ? "mt-4" : ""}>
+              <div className="px-5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary">
+                {group.label}
+              </div>
+              {group.items.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`block px-5 py-2 text-sm transition-colors ${
+                      isActive
+                        ? "bg-brand-50 text-brand-700 border-e-2 border-brand-500 font-medium"
+                        : "text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
+                    }`}
+                  >
+                    {t(item.labelKey)}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        <div className="p-4 border-t border-surface-tertiary">
+        <div className="p-4 border-t border-surface-tertiary space-y-2">
+          <LanguageToggle />
+          <ViewAsControl />
           {model && (
             <div className="text-xs text-text-tertiary flex justify-between">
               <span>{t("bar.engine")}</span>
@@ -163,7 +285,22 @@ export default function AdminLayout({
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto h-screen">
-        {/* Prominent toggles — always visible */}
+        {showStaleBanner && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-amber-50 border-b border-amber-300 text-amber-900 text-xs px-6 py-2 flex items-center gap-2 print:hidden"
+          >
+            <span aria-hidden="true">⚠</span>
+            <span>
+              Showing static snapshot from <strong>{snapshotPulledAt}</strong> — live
+              <code className="mx-1 px-1 rounded bg-amber-100 font-mono">seasonSnapshots/latest</code>
+              feed not connected.
+            </span>
+          </div>
+        )}
+        {/* Stripped control bar — Path, Scenario, Exit, Rate/Loan popover.
+            Live KPIs removed (they're on the dashboard, one home only). */}
         <div id="control-bar" className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary scroll-mt-24">
           <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
             {/* Financing path */}
@@ -180,10 +317,9 @@ export default function AdminLayout({
                       onClick={() => setFinancingPath(fp.id)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                         isActive
-                          ? "text-white shadow-md"
+                          ? "bg-brand-700 text-white shadow-sm"
                           : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
                       }`}
-                      style={isActive ? { backgroundColor: fp.color } : undefined}
                     >
                       {t(fp.shortKey)}
                     </button>
@@ -208,7 +344,7 @@ export default function AdminLayout({
                       onClick={() => setActiveScenario(s.id)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                         isActive
-                          ? "bg-text-primary text-white shadow-md"
+                          ? "bg-text-primary text-white shadow-sm"
                           : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
                       }`}
                     >
@@ -219,41 +355,9 @@ export default function AdminLayout({
               </div>
             </div>
 
-            {/* Rate / Loan coverage inputs (per active path) */}
-            {rateLoanConfig && (
-              <>
-                <div className="w-px h-6 bg-surface-tertiary" />
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-                      Rate
-                    </span>
-                    <PercentInput
-                      value={rateLoanConfig.rate}
-                      decimals={2}
-                      step={0.05}
-                      onCommit={(v) => setAssumption(rateLoanConfig.ratePath, v, "Interest rate")}
-                    />
-                    <span className="text-xs text-text-tertiary">%</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-                      Loan
-                    </span>
-                    <PercentInput
-                      value={rateLoanConfig.coverage}
-                      decimals={0}
-                      step={1}
-                      onCommit={(v) => setAssumption(rateLoanConfig.coveragePath, v, "Loan coverage")}
-                    />
-                    <span className="text-xs text-text-tertiary">%</span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Exit scenario inputs */}
             <div className="w-px h-6 bg-surface-tertiary" />
+
+            {/* Exit year × multiple — inline since they're tuned often */}
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
@@ -276,7 +380,7 @@ export default function AdminLayout({
                   }`}
                   title={
                     exitUnderwater
-                      ? "Underwater at this exit: remaining debt exceeds asset value at exit. Equity holders receive only operating distributions; terminal proceeds are €0."
+                      ? "Remaining debt exceeds asset value at exit — equity holders receive only operating distributions; terminal proceeds are €0."
                       : "Exit year"
                   }
                 />
@@ -285,7 +389,7 @@ export default function AdminLayout({
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-warning/15 text-warning"
                     title="Remaining debt > asset value at this exit. Equity sale proceeds floor at €0."
                   >
-                    ⚠ underwater
+                    ⚠ stub at maturity
                   </span>
                 )}
               </div>
@@ -317,58 +421,18 @@ export default function AdminLayout({
               </div>
             </div>
 
-            {/* Live KPIs + Language toggle */}
-            <div className="ms-auto flex items-center gap-4 text-xs text-text-tertiary">
-              {model && (() => {
-                const activeStab = model.scenarios[activeScenario].stabilisedYear;
-                const realStab = model.scenarios.realistic.stabilisedYear;
-                const dscr = activeStab?.dscr ?? 0;
-                const ncf = activeStab?.netCashFlowPostVAT ?? 0;
-                const dscrDelta = activeScenario === 'realistic' ? null : dscr - (realStab?.dscr ?? 0);
-                const ncfDelta = activeScenario === 'realistic' ? null : ncf - (realStab?.netCashFlowPostVAT ?? 0);
-                const fmtSign = (n: number) => (n >= 0 ? '+' : '');
-                return (
-                  <>
-                    <span>
-                      {t("bar.ds")}:{" "}
-                      <span className="font-mono font-medium text-text-primary">
-                        {formatCurrency(model.keyMetrics.annualDS, true, locale)}
-                      </span>
-                    </span>
-                    <span>
-                      {t("bar.dscr")}:{" "}
-                      <span className="font-mono font-medium text-text-primary">
-                        {dscr.toFixed(2)}×
-                      </span>
-                      {dscrDelta !== null && Math.abs(dscrDelta) >= 0.005 && (
-                        <span
-                          className={`ms-1 font-mono text-[10px] ${dscrDelta >= 0 ? 'text-positive' : 'text-warning'}`}
-                          title={t('bar.deltaR')}
-                        >
-                          ({fmtSign(dscrDelta)}{dscrDelta.toFixed(2)}×)
-                        </span>
-                      )}
-                    </span>
-                    <span>
-                      {t("bar.ncf")}:{" "}
-                      <span className="font-mono font-medium text-text-primary">
-                        {formatCurrency(ncf, true, locale)}
-                      </span>
-                      {ncfDelta !== null && Math.abs(ncfDelta) >= 1000 && (
-                        <span
-                          className={`ms-1 font-mono text-[10px] ${ncfDelta >= 0 ? 'text-positive' : 'text-warning'}`}
-                          title={t('bar.deltaR')}
-                        >
-                          ({fmtSign(ncfDelta)}{formatCurrency(ncfDelta, true, locale)})
-                        </span>
-                      )}
-                    </span>
-                  </>
-                );
-              })()}
-              <div className="w-px h-4 bg-surface-tertiary" />
-              <LanguageToggle />
-            </div>
+            {/* Rate / Loan popover (only when applicable to active path) */}
+            {rateLoanConfig && (
+              <>
+                <div className="w-px h-6 bg-surface-tertiary" />
+                <RateLoanPopover
+                  rate={rateLoanConfig.rate}
+                  coverage={rateLoanConfig.coverage}
+                  onRate={(v) => setAssumption(rateLoanConfig.ratePath, v, "Interest rate")}
+                  onCoverage={(v) => setAssumption(rateLoanConfig.coveragePath, v, "Loan coverage")}
+                />
+              </>
+            )}
           </div>
         </div>
 

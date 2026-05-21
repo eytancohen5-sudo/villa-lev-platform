@@ -9,6 +9,7 @@ import {
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FinancingPath, PropertyTemplate, VillaRoom, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea } from "@/lib/engine/types";
+import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 
 // ── Shared Components ──
 
@@ -16,10 +17,12 @@ function EditableCell({
   value,
   onChange,
   format = "number",
+  label,
 }: {
   value: number;
   onChange: (v: number) => void;
   format?: "number" | "currency" | "percent";
+  label?: string;
 }) {
   const { locale } = useTranslation();
   const [editing, setEditing] = useState(false);
@@ -32,10 +35,18 @@ function EditableCell({
         ? formatPercent(value)
         : value.toLocaleString();
 
+  const beginEditing = useCallback(() => {
+    setInputValue(
+      format === "percent" ? (value * 100).toString() : value.toString()
+    );
+    setEditing(true);
+  }, [format, value]);
+
   if (editing) {
     return (
       <input
         type="number"
+        aria-label={label ?? "Edit assumption"}
         className="w-full px-2 py-1 text-right data-cell bg-blue-50 border border-blue-300 rounded outline-none"
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
@@ -55,18 +66,29 @@ function EditableCell({
     );
   }
 
+  // Display state is a real <button> so it's keyboard-focusable (Tab) and
+  // activatable via Enter/Space. Visually identical to the prior <div>.
   return (
-    <div
-      className="px-2 py-1 text-right data-cell bg-blue-50/50 rounded cursor-pointer hover:bg-blue-100/50 transition-colors"
-      onClick={() => {
-        setInputValue(
-          format === "percent" ? (value * 100).toString() : value.toString()
-        );
-        setEditing(true);
+    <button
+      type="button"
+      aria-label={
+        label
+          ? `${label} — current value ${display}. Press Enter or Space to edit.`
+          : `Current value ${display}. Press Enter or Space to edit.`
+      }
+      className="w-full px-2 py-1 text-right data-cell bg-blue-50/50 rounded cursor-pointer hover:bg-blue-100/50 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-colors"
+      onClick={beginEditing}
+      onKeyDown={(e) => {
+        // <button> already handles Enter/Space natively; we keep the
+        // explicit handler so a future refactor to non-button keeps a11y.
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          beginEditing();
+        }
       }}
     >
       {display}
-    </div>
+    </button>
   );
 }
 
@@ -99,6 +121,7 @@ function AssumptionRow({
         <EditableCell
           value={value}
           format={format}
+          label={label}
           onChange={(v) => setAssumption(path, v, label)}
         />
       </td>
@@ -1560,10 +1583,33 @@ function ConfigPanel() {
     lastSavedConfigId, lastSavedConfigName, editsSinceLastSave,
     saveConfig, updateConfig, loadConfig, deleteConfig, renameConfig, importConfigs,
   } = useModelStore();
+  // Auth gates *write* actions only — listing/loading scenarios stays public
+  // so unauthenticated visitors (e.g. bankers on a share link) can still see
+  // and inspect saved scenarios. See firestore.rules:29 — create/update now
+  // require `request.auth != null`, so a save attempt while signed-out would
+  // 403 silently without this gate.
+  // Use the impersonation-aware wrapper so View-As propagates here. `user`,
+  // `signIn`, `signOut` pass through untouched from useAuth; only the
+  // role-derived flag `canEdit` reflects the active impersonation.
+  const { user, canEdit, loading: authLoading, signIn, signOut } = useEffectiveAuth();
+  const canWrite = canEdit;
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSignIn = async () => {
+    const store = useModelStore.getState();
+    try {
+      await signIn();
+    } catch (err) {
+      store.requestAlert({
+        title: 'Sign-in failed',
+        message: (err as Error).message ?? 'Could not complete Google sign-in.',
+        tone: 'error',
+      });
+    }
+  };
 
   const handleSave = () => {
     if (!newName.trim()) return;
@@ -1636,8 +1682,9 @@ function ConfigPanel() {
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
-            title="Restore scenarios from a previously exported JSON file"
+            disabled={!canWrite}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            title={canWrite ? "Restore scenarios from a previously exported JSON file" : "Sign in to import"}
           >
             ⬆ Import backup
           </button>
@@ -1674,23 +1721,53 @@ function ConfigPanel() {
         </div>
       )}
 
-      <div className="flex gap-2 mb-6">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder={t('config.nameLabel')}
-          className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
-        />
-        <button
-          onClick={handleSave}
-          disabled={!newName.trim()}
-          className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-        >
-          {t('config.save')}
-        </button>
-      </div>
+      {/* Save row — gated on admin auth. Signed-out visitors see a single
+          sign-in CTA in the same slot so the affordance for "this is how you
+          persist a scenario" stays in the same place. Loading state hides
+          both to avoid a flash of "Sign in to save" before Firebase resolves
+          the cached session. */}
+      {authLoading ? (
+        <div className="flex gap-2 mb-6 h-[46px]" aria-hidden="true" />
+      ) : canWrite ? (
+        <div className="flex gap-2 mb-6">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            placeholder={t('config.nameLabel')}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
+          />
+          <button
+            onClick={handleSave}
+            disabled={!newName.trim()}
+            className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {t('config.save')}
+          </button>
+          <button
+            onClick={signOut}
+            className="px-3 py-2.5 rounded-xl bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-all"
+            title={`Signed in as ${user?.email ?? 'admin'}`}
+          >
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2 mb-6 items-center">
+          <div className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm text-text-tertiary">
+            {user
+              ? `Signed in as ${user.email ?? 'unknown'} — not on admin allow-list. Scenarios are read-only.`
+              : 'Scenarios are read-only for unauthenticated visitors. Save, import, rename, and delete require admin sign-in.'}
+          </div>
+          <button
+            onClick={handleSignIn}
+            className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
+          >
+            Sign in to save
+          </button>
+        </div>
+      )}
 
       {savedConfigs.length === 0 ? (
         <p className="text-sm text-text-tertiary text-center py-6">{t('config.noSaved')}</p>
@@ -1705,7 +1782,7 @@ function ConfigPanel() {
                   : 'border-surface-tertiary hover:border-surface-tertiary/80 hover:bg-surface-secondary/20'
               }`}
             >
-              {editingId === config.id ? (
+              {editingId === config.id && canWrite ? (
                 <input
                   type="text"
                   value={editName}
@@ -1727,32 +1804,39 @@ function ConfigPanel() {
                 </div>
               )}
               <div className="flex items-center gap-1.5">
+                {/* Load is read-only (client-side store hydration) so it stays
+                    available to anonymous visitors. The mutating buttons —
+                    Save here, rename, delete — are hidden when !canWrite. */}
                 <button onClick={() => loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
-                <button
-                  onClick={() => useModelStore.getState().requestConfirm({
-                    title: `Overwrite "${config.name}"?`,
-                    message: 'The saved state for this scenario will be replaced with your current assumptions, templates, and projects. Other scenarios in the list are not affected.',
-                    confirmLabel: 'Overwrite',
-                    danger: true,
-                    onConfirm: () => updateConfig(config.id),
-                  })}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
-                  title="Save current state on top of this scenario"
-                >
-                  Save here
-                </button>
-                <button onClick={() => { setEditingId(config.id); setEditName(config.name); }} className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors" title={t('config.rename')}>&#9998;</button>
-                <button
-                  onClick={() => useModelStore.getState().requestConfirm({
-                    title: `Delete "${config.name}"?`,
-                    message: 'This removes the scenario from the shared list. Anyone connecting will no longer see it. This cannot be undone — export a backup first if you might want it back.',
-                    confirmLabel: 'Delete scenario',
-                    danger: true,
-                    onConfirm: () => deleteConfig(config.id),
-                  })}
-                  className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
-                  title={t('config.delete')}
-                >&times;</button>
+                {canWrite && (
+                  <>
+                    <button
+                      onClick={() => useModelStore.getState().requestConfirm({
+                        title: `Overwrite "${config.name}"?`,
+                        message: 'The saved state for this scenario will be replaced with your current assumptions, templates, and projects. Other scenarios in the list are not affected.',
+                        confirmLabel: 'Overwrite',
+                        danger: true,
+                        onConfirm: () => updateConfig(config.id),
+                      })}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
+                      title="Save current state on top of this scenario"
+                    >
+                      Save here
+                    </button>
+                    <button onClick={() => { setEditingId(config.id); setEditName(config.name); }} className="px-2.5 py-1.5 text-xs rounded-lg text-text-tertiary hover:bg-surface-secondary transition-colors" title={t('config.rename')}>&#9998;</button>
+                    <button
+                      onClick={() => useModelStore.getState().requestConfirm({
+                        title: `Delete "${config.name}"?`,
+                        message: 'This removes the scenario from the shared list. Anyone connecting will no longer see it. This cannot be undone — export a backup first if you might want it back.',
+                        confirmLabel: 'Delete scenario',
+                        danger: true,
+                        onConfirm: () => deleteConfig(config.id),
+                      })}
+                      className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
+                      title={t('config.delete')}
+                    >&times;</button>
+                  </>
+                )}
               </div>
             </div>
           ))}

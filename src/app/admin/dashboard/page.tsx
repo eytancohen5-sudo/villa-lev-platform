@@ -32,6 +32,8 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
+import { computeCapTable } from "@/lib/engine/capTable";
+import { MIN_INVESTOR_SHARE } from "@/lib/engine/founderWaterfall";
 
 // ── Shared bits ─────────────────────────────────────────────
 
@@ -195,6 +197,31 @@ export default function DashboardPage() {
     roic: activeScenarioOutput.roic,
   };
 
+  // Founder waterfall — derived once, shared with Cap Table page. The
+  // dashboard surfaces just the headline split + cap status; full
+  // year-by-year detail lives on /admin/cap-table.
+  //
+  // Layer B (grant bonus) is derived from the active scenario's senior
+  // loan balance, so the % adjusts automatically as financing terms move.
+  const founderResult = computeCapTable(
+    activeScenarioOutput,
+    capTable,
+    waterfall,
+    {
+      grantApproved: assumptions.financingPath === "grant",
+      // Use the engine's DEFAULT_BASELINE_BANK_LOAN — Layer B is measured
+      // against the pre-grant commercial-financing equity gap so it stays
+      // stable across path toggles.
+    },
+  );
+  const founderBd = founderResult.founderBreakdown;
+  const capStatusLabel =
+    founderBd.capBinding === "total_75"
+      ? "75% total cap — earned reduced"
+      : founderBd.capBinding === "earned_33"
+        ? "33% earned cap reached"
+        : "Free (no cap binding)";
+
   const pathLabel =
     assumptions.financingPath === "grant"
       ? t('path.grant')
@@ -295,6 +322,19 @@ export default function DashboardPage() {
   const verdictADR = conservatism(bpADR, liveADR);
   const verdictNights = conservatism(bpNights, liveBookedNights);
   const verdictAccommodation = conservatism(bpAccommodationPerVilla, liveAccommodation);
+
+  // Drift alert: surface a header-level chip when the BP per-villa ADR or
+  // booked-nights assumption is >10% off the live actuals. The Conservatism
+  // Check section below carries fine-grained tone; this chip is the at-a-
+  // glance escalation so an operator opening the dashboard immediately sees
+  // when the model has drifted from reality. The threshold is loose enough
+  // that normal scenario tweaking doesn't fire it.
+  const DRIFT_ALERT_THRESHOLD = 0.10;
+  const adrDrift = liveADR > 0 ? bpADR / liveADR - 1 : 0;
+  const nightsDrift = liveBookedNights > 0 ? bpNights / liveBookedNights - 1 : 0;
+  const adrDriftFires = Math.abs(adrDrift) > DRIFT_ALERT_THRESHOLD;
+  const nightsDriftFires = Math.abs(nightsDrift) > DRIFT_ALERT_THRESHOLD;
+  const showDriftAlert = adrDriftFires || nightsDriftFires;
   // Ancillary is compared NET PROFIT to NET PROFIT.
   // - BP per villa is the explicit €15K allocation from the BP breakdown.
   // - Live services on the ops dashboard are gross revenue; we multiply by
@@ -311,6 +351,32 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {/* Drift alert: BP per-villa assumption >10% off live actuals.
+          See Conservatism Check section below for the fine-grained verdict. */}
+      {showDriftAlert && (
+        <div
+          role="alert"
+          className="mb-4 rounded-lg border border-warning/40 bg-warning/10 text-warning px-4 py-3 text-sm flex flex-wrap items-baseline gap-x-3 gap-y-1 print:hidden"
+        >
+          <strong className="uppercase tracking-wider text-[11px]">Drift alert</strong>
+          <span className="text-text-primary">
+            BP per-villa assumption is {">"} {Math.round(DRIFT_ALERT_THRESHOLD * 100)}% off live actuals:
+          </span>
+          {adrDriftFires && (
+            <span className="font-mono text-xs">
+              ADR {adrDrift >= 0 ? "+" : ""}{(adrDrift * 100).toFixed(1)}%
+              <span className="text-text-tertiary"> (BP {formatCurrency(bpADR, false, locale)} vs live {formatCurrency(liveADR, false, locale)})</span>
+            </span>
+          )}
+          {nightsDriftFires && (
+            <span className="font-mono text-xs">
+              Nights {nightsDrift >= 0 ? "+" : ""}{(nightsDrift * 100).toFixed(1)}%
+              <span className="text-text-tertiary"> (BP {bpNights} vs live {liveBookedNights})</span>
+            </span>
+          )}
+          <span className="text-text-tertiary ml-auto text-[11px]">Tune in <em>Assumptions</em>.</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
@@ -343,208 +409,100 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section — Conservatism Check */}
-      <div id="section-conservatism" className="scroll-mt-24 mb-6">
-        <SectionHeader
-          title="Conservatism Check"
-          sub="Per-villa BP assumptions vs the live single villa we already run today"
-        />
-        <div className="rounded-xl border border-positive/30 bg-positive/5 p-4 mb-3 flex flex-wrap items-start gap-3">
-          <div className="flex-1 min-w-[260px]">
-            <div className="text-sm font-medium text-text-primary">
-              The business plan models per-villa numbers we already exceed today.
-            </div>
-            <div className="text-xs text-text-secondary mt-1">
-              {snapshotSource === "live" ? "Live data from " : "Snapshot from "}
-              <a href={ACTUALS_SOURCE.url} target="_blank" rel="noreferrer" className="underline hover:text-text-primary">
-                admin.villalevantiparos.com
-              </a>
-              {" "}(2025 complete, {currentSeason.year} in progress) sets a floor — actual portfolio outcomes should beat the plan.
-            </div>
-          </div>
-          <div className="flex gap-2 text-[11px] flex-wrap items-center">
-            {snapshotSource === "live" ? (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-positive/15 text-positive font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
-                LIVE · refreshed {new Date(snapshotPulledAt).toLocaleString(locale, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-              </span>
-            ) : (
-              <span className="px-2 py-1 rounded-md bg-surface-secondary text-text-tertiary text-[10px] uppercase tracking-wider">
-                Snapshot · {snapshotPulledAt}
-              </span>
-            )}
-            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              {currentSeason.year} booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
-            </span>
-            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              {lastCompletedSeason.year} total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
-            </span>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-surface-tertiary bg-surface-secondary/30">
-                  <th className="text-left py-2.5 pl-4 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Assumption (per villa)
-                  </th>
-                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-brand-700 font-medium">
-                    BP Realistic
-                  </th>
-                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    BP Upside
-                  </th>
-                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-secondary font-medium">
-                    Live Villa Lev
-                  </th>
-                  <th className="text-right py-2.5 px-3 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    Verdict
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="bg-surface-secondary/20">
-                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
-                    Per-villa conservatism — every BP value below is at or under what one live villa already delivers
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Peak-season nights <span className="text-text-tertiary">(count)</span>
-                    <div className="text-[11px] text-text-tertiary">120 available · 15 May – 15 Sept</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{bpNights}</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{revUp.villaBaseNights}</td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {liveBookedNights}
-                    <div className="text-[11px] text-text-tertiary">2026 booked through May; trending to full</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictNights.tone)}`}>
-                      {verdictNights.label}
-                    </span>
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    ADR <span className="text-text-tertiary">(net of OTA commissions)</span>
-                    <div className="text-[11px] text-text-tertiary">€ per night</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpADR, false, locale)}</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.villaADR, false, locale)}</td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(liveADR, false, locale)}
-                    <div className="text-[11px] text-text-tertiary">2026 net · gross {formatCurrency(currentSeason.grossADR, false, locale)}</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictADR.tone)}`}>
-                      {verdictADR.label}
-                    </span>
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Accommodation <span className="text-text-tertiary">(revenue, net of commissions)</span>
-                    <div className="text-[11px] text-text-tertiary">Nights × ADR (per villa, per season)</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAccommodationPerVilla, true, locale)}</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUp.villaADR * revUp.villaBaseNights, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(liveAccommodation, true, locale)}
-                    <div className="text-[11px] text-text-tertiary">2026 net rental (in progress)</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAccommodation.tone)}`}>
-                      {verdictAccommodation.label}
-                    </span>
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Ancillary profit <span className="text-text-tertiary">— per villa</span>
-                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · explicit per-villa BP allocation</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
-                    <div className="text-[11px] text-text-tertiary">
-                      portfolio {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} = €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K × {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'} + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms
+      {/* Term sheet at a glance — what the credit committee skims first. */}
+      {(() => {
+        const path = assumptions.financingPath;
+        const ratePct =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.bankInterestRate
+            : path === "rrf"
+              ? assumptions.rrf.commercialInterestRate
+              : assumptions.commercialLoan.interestRate;
+        const term =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.totalTermYears
+            : path === "rrf"
+              ? assumptions.rrf.repaymentTermYears
+              : assumptions.commercialLoan.repaymentTermYears;
+        const grace =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.gracePeriodYears
+            : path === "rrf"
+              ? assumptions.rrf.gracePeriodYears
+              : assumptions.commercialLoan.gracePeriodYears;
+        const covenant = assumptions.dscrCovenantThreshold;
+        const minDscr = activeScenarioOutput.minDSCRLoanLife;
+        const dscrPass = minDscr >= covenant;
+        const totalPlots = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
+        const cells: Array<{ label: string; value: string; sub?: string; tone?: "positive" | "warning" }> = [
+          {
+            label: t('dash.termsheet.loan'),
+            value: formatCurrency(km.loanAmount, true, locale),
+            sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}`,
+          },
+          {
+            label: t('dash.termsheet.term'),
+            value: `${term}y · ${grace}y`,
+            sub: t('dash.termsheet.termSub'),
+          },
+          {
+            label: t('dash.termsheet.rate'),
+            value: `${(ratePct * 100).toFixed(2)}%`,
+            sub: pathLabel,
+          },
+          {
+            label: t('dash.termsheet.annualDS'),
+            value: formatCurrency(km.annualDS, true, locale),
+            sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}`,
+          },
+          {
+            label: t('dash.termsheet.dscrCovenant'),
+            value: `${covenant.toFixed(2)}×`,
+            sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`,
+            tone: dscrPass ? "positive" : "warning",
+          },
+          {
+            label: t('dash.termsheet.equityRequired'),
+            value: formatCurrency(km.equityRequired, true, locale),
+            sub: `${t('dash.termsheet.security')} · ${totalPlots} ${totalPlots === 1 ? t('kpi.plotsSingular') : t('kpi.plots')} + ${t('term.ffe')}`,
+          },
+        ];
+        return (
+          <div id="section-termsheet" className="scroll-mt-24 mb-6">
+            <SectionHeader
+              title={t('dash.termsheet.title')}
+              sub={`${pathLabel} · ${scenarioLabel}`}
+            />
+            <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-surface-tertiary/60">
+                {cells.map((c) => (
+                  <div key={c.label} className="p-4">
+                    <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                      {c.label}
                     </div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">
-                    {formatCurrency(liveServicesProfit2025, true, locale)}<span className="text-text-tertiary"> / villa</span>
-                    <div className="text-[11px] text-text-tertiary">
-                      {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} services rev (2025)
+                    <div
+                      className={`mt-1 font-mono text-lg font-semibold ${
+                        c.tone === "positive"
+                          ? "text-positive"
+                          : c.tone === "warning"
+                            ? "text-warning"
+                            : "text-text-primary"
+                      }`}
+                    >
+                      {c.value}
                     </div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillary.tone)}`}>
-                      {verdictAncillary.label}
-                    </span>
-                  </td>
-                </tr>
-
-                <tr className="bg-surface-secondary/20 border-t-2 border-surface-tertiary">
-                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
-                    Portfolio framing — not conservatism (different scope; shown for scale, not like-for-like comparison)
-                  </td>
-                </tr>
-                <tr className="border-b border-surface-secondary/50">
-                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
-                    Events <span className="text-text-tertiary">(portfolio profit)</span>
-                    <div className="text-[11px] text-text-tertiary">{rev.eventsPerYear}/yr × {formatCurrency(rev.netProfitPerEvent, false, locale)} net per event · {totalUnits}-property total</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpEventsPortfolio, true, locale)}</td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    {formatCurrency(revUp.eventsPerYear * revUp.netProfitPerEvent, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
-                    €0
-                    <div className="text-[11px] text-text-tertiary">not run today</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-brand-100 text-brand-800">
-                      Pure upside
-                    </span>
-                  </td>
-                </tr>
-                <tr className="font-medium">
-                  <td className="py-2.5 pl-4 pr-4">
-                    Portfolio total <span className="text-text-tertiary font-normal">(revenue, stabilised)</span>
-                    <div className="text-[11px] font-normal text-text-tertiary">{totalUnits} properties · BP totals from the model</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
-                    {formatCurrency(buildingTotalRevenue, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
-                    {formatCurrency(upsideTotalRevenue, true, locale)}
-                  </td>
-                  <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
-                    {formatCurrency(liveTotal2025, true, locale)}
-                    <div className="text-[11px] font-normal text-text-tertiary">2025 actual · one villa</div>
-                  </td>
-                  <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
-                    Portfolio = {(buildingTotalRevenue / liveTotal2025).toFixed(1)}× single-villa run-rate
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    {c.sub && (
+                      <div className="text-[11px] text-text-tertiary mt-1 leading-snug">
+                        {c.sub}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20 flex flex-wrap items-center justify-between gap-2">
-            <span>
-              Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) for ADR / accommodation, <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}) for ancillary — 2025 is the most recent complete year.
-            </span>
-            <span>
-              BP ancillary allocated per the pitch: €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K/villa × {totalVillaUnits} villas + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms = {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} total. Live profit = {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} revenue.
-            </span>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Section 0 — Deal Snapshot */}
       <div id="section-deal-snapshot" className="scroll-mt-24">
@@ -759,6 +717,292 @@ export default function DashboardPage() {
           sublabel={t('kpi.projectIRRSub')}
           tone={km.projectIRR >= 0.10 ? "positive" : km.projectIRR > 0 ? undefined : "warning"}
         />
+      </div>
+      </div>
+
+      {/* Section — Conservatism Check (placed after Returns per audit 2026-05-21 fix #3:
+          lands as proof of the headline returns, not pre-emptive defence). */}
+      <div id="section-conservatism" className="scroll-mt-24 mb-6 mt-6">
+        <SectionHeader
+          title="Conservatism Check"
+          sub="Per-villa BP assumptions vs the live single villa we already run today"
+        />
+        <div className="rounded-xl border border-positive/30 bg-positive/5 p-4 mb-3 flex flex-wrap items-start gap-3">
+          <div className="flex-1 min-w-[260px]">
+            <div className="text-sm font-medium text-text-primary">
+              The business plan models per-villa numbers we already exceed today.
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              {snapshotSource === "live" ? "Live data from " : "Snapshot from "}
+              <a href={ACTUALS_SOURCE.url} target="_blank" rel="noreferrer" className="underline hover:text-text-primary">
+                admin.villalevantiparos.com
+              </a>
+              {" "}(2025 complete, {currentSeason.year} in progress) sets a floor — actual portfolio outcomes should beat the plan.
+            </div>
+          </div>
+          <div className="flex gap-2 text-[11px] flex-wrap items-center">
+            {snapshotSource === "live" ? (
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-positive/15 text-positive font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
+                LIVE · refreshed {new Date(snapshotPulledAt).toLocaleString(locale, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
+              </span>
+            ) : (
+              <span className="px-2 py-1 rounded-md bg-surface-secondary text-text-tertiary text-[10px] uppercase tracking-wider">
+                Snapshot · {snapshotPulledAt}
+              </span>
+            )}
+            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
+              {currentSeason.year} booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
+            </span>
+            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
+              {lastCompletedSeason.year} total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-tertiary bg-surface-secondary/30">
+                  <th className="text-left py-2.5 pl-4 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    Assumption (per villa)
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-brand-700 font-medium">
+                    BP Realistic
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    BP Upside
+                  </th>
+                  <th className="text-right py-2.5 px-3 text-xs uppercase tracking-wider text-text-secondary font-medium">
+                    Live Villa Lev
+                  </th>
+                  <th className="text-right py-2.5 px-3 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                    Verdict
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="bg-surface-secondary/20">
+                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Per-villa conservatism — every BP value below is at or under what one live villa already delivers
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Peak-season nights <span className="text-text-tertiary">(count)</span>
+                    <div className="text-[11px] text-text-tertiary">120 available · 15 May – 15 Sept</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">{bpNights}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{revUp.villaBaseNights}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {liveBookedNights}
+                    <div className="text-[11px] text-text-tertiary">2026 booked through May; trending to full</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictNights.tone)}`}>
+                      {verdictNights.label}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    ADR <span className="text-text-tertiary">(net of OTA commissions)</span>
+                    <div className="text-[11px] text-text-tertiary">€ per night</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpADR, false, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">{formatCurrency(revUp.villaADR, false, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveADR, false, locale)}
+                    <div className="text-[11px] text-text-tertiary">2026 net · gross {formatCurrency(currentSeason.grossADR, false, locale)}</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictADR.tone)}`}>
+                      {verdictADR.label}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Accommodation <span className="text-text-tertiary">(revenue, net of commissions)</span>
+                    <div className="text-[11px] text-text-tertiary">Nights × ADR (per villa, per season)</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpAccommodationPerVilla, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(revUp.villaADR * revUp.villaBaseNights, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveAccommodation, true, locale)}
+                    <div className="text-[11px] text-text-tertiary">2026 net rental (in progress)</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAccommodation.tone)}`}>
+                      {verdictAccommodation.label}
+                    </span>
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Ancillary profit <span className="text-text-tertiary">— per villa</span>
+                    <div className="text-[11px] text-text-tertiary">Chef · boat · car · quad · concierge · explicit per-villa BP allocation</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
+                    <div className="text-[11px] text-text-tertiary">
+                      portfolio {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} = €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K × {totalVillaUnits} villa{totalVillaUnits === 1 ? '' : 's'} + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms
+                    </div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(bpAncillaryPerVilla, true, locale)}<span className="text-text-tertiary"> / villa</span>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">
+                    {formatCurrency(liveServicesProfit2025, true, locale)}<span className="text-text-tertiary"> / villa</span>
+                    <div className="text-[11px] text-text-tertiary">
+                      {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} services rev (2025)
+                    </div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${verdictToneClass(verdictAncillary.tone)}`}>
+                      {verdictAncillary.label}
+                    </span>
+                  </td>
+                </tr>
+
+                <tr className="bg-surface-secondary/20 border-t-2 border-surface-tertiary">
+                  <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-medium">
+                    Portfolio framing — not conservatism (different scope; shown for scale, not like-for-like comparison)
+                  </td>
+                </tr>
+                <tr className="border-b border-surface-secondary/50">
+                  <td className="py-2.5 pl-4 pr-4 text-text-secondary">
+                    Events <span className="text-text-tertiary">(portfolio profit)</span>
+                    <div className="text-[11px] text-text-tertiary">{rev.eventsPerYear}/yr × {formatCurrency(rev.netProfitPerEvent, false, locale)} net per event · {totalUnits}-property total</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell">{formatCurrency(bpEventsPortfolio, true, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    {formatCurrency(revUp.eventsPerYear * revUp.netProfitPerEvent, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-tertiary">
+                    €0
+                    <div className="text-[11px] text-text-tertiary">not run today</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-brand-100 text-brand-800">
+                      Pure upside
+                    </span>
+                  </td>
+                </tr>
+                <tr className="font-medium">
+                  <td className="py-2.5 pl-4 pr-4">
+                    Portfolio total <span className="text-text-tertiary font-normal">(revenue, stabilised)</span>
+                    <div className="text-[11px] font-normal text-text-tertiary">{totalUnits} properties · BP totals from the model</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
+                    {formatCurrency(buildingTotalRevenue, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-brand-700">
+                    {formatCurrency(upsideTotalRevenue, true, locale)}
+                  </td>
+                  <td className="text-right py-2.5 px-3 data-cell text-text-secondary">
+                    {formatCurrency(liveTotal2025, true, locale)}
+                    <div className="text-[11px] font-normal text-text-tertiary">2025 actual · one villa</div>
+                  </td>
+                  <td className="text-right py-2.5 px-3 pr-4 data-cell text-positive">
+                    Portfolio = {(buildingTotalRevenue / liveTotal2025).toFixed(1)}× single-villa run-rate
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="px-4 py-2 border-t border-surface-tertiary/50 text-[11px] text-text-tertiary bg-surface-secondary/20 flex flex-wrap items-center justify-between gap-2">
+            <span>
+              Live source: <strong>2026 season</strong> (in progress, {liveBookedNights}/{currentSeason.availableNights} nights booked) for ADR / accommodation, <strong>2025 actual</strong> ({formatCurrency(lastCompletedSeason.total, true, locale)}) for ancillary — 2025 is the most recent complete year.
+            </span>
+            <span>
+              BP ancillary allocated per the pitch: €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K/villa × {totalVillaUnits} villas + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms = {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} total. Live profit = {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} revenue.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 3b — Founder waterfall (3-layer model). Full detail on /admin/cap-table. */}
+      <div id="section-founder" className="scroll-mt-24">
+      <SectionHeader title={t('dash.founder.section')} sub={t('dash.founder.sectionSub')} />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KPICard
+          label={t('dash.founder.pariPassu')}
+          value={formatPercent(founderBd.pariPassuPct)}
+          sublabel={`€${Math.round(founderResult.founderCashInvested / 1000)}K / €${Math.round(founderResult.totalEquityRaised / 1000)}K`}
+        />
+        <KPICard
+          label={t('dash.founder.grantBonus')}
+          value={founderBd.grantBonusPct > 0 ? `+${formatPercent(founderBd.grantBonusPct)}` : "—"}
+          sublabel={
+            founderBd.grantBonusPct > 0
+              ? `€${Math.round(founderBd.founderNetGrantCash / 1000)}K net / €${Math.round((founderBd.postGrantEquityValue + founderBd.founderNetGrantCash) / 1000)}K`
+              : t('dash.founder.grantBonusInactive')
+          }
+          threshold={
+            founderBd.grantBonusPct > 0
+              ? `Derived: founder_net (€${Math.round(founderBd.founderNetGrantCash / 1000)}K = 10% gross fee − €${Math.round(founderResult.totalConsultantPayment / 1000)}K consultant) ÷ (post-grant equity €${Math.round(founderBd.postGrantEquityValue / 1_000_000 * 10) / 10}M + founder_net)`
+              : undefined
+          }
+        />
+        <KPICard
+          label={t('dash.founder.performanceRatchet')}
+          value={`+${formatPercent(founderBd.performanceRatchetPct)}`}
+          sublabel={`${t('dash.founder.ratchetTier')}: ${founderBd.ratchetTierLabel}${founderBd.moicFloorReduction ? ` · ${t('dash.founder.moicFloor')}` : ""}`}
+        />
+        <KPICard
+          label={t('dash.founder.founderTotal')}
+          value={formatPercent(founderBd.founderTotalPct)}
+          sublabel={`${formatPercent(founderBd.pariPassuPct)} + ${formatPercent(founderBd.earnedPct)} ${t('dash.founder.earned')}`}
+          tone={founderBd.capBinding === "total_75" ? "warning" : undefined}
+          accent
+        />
+        <KPICard
+          label={t('dash.founder.investorsKeep')}
+          value={formatPercent(founderBd.investorTotalPct)}
+          sublabel={`${t('dash.founder.floorProtected')} ${formatPercent(MIN_INVESTOR_SHARE)}`}
+          tone="positive"
+        />
+        <KPICard
+          label={t('dash.founder.capStatus')}
+          value={
+            founderBd.capBinding === "total_75"
+              ? t('dash.founder.capBinding75')
+              : founderBd.capBinding === "earned_33"
+                ? t('dash.founder.capEarned33')
+                : t('dash.founder.capFree')
+          }
+          sublabel={capStatusLabel}
+          tone={
+            founderBd.capBinding === "total_75"
+              ? "warning"
+              : founderBd.capBinding === "earned_33"
+                ? undefined
+                : "positive"
+          }
+        />
+      </div>
+      {/* Operating-fee context — these reduce cash distributable to equity. */}
+      <div className="mt-2 text-[11px] text-text-tertiary flex flex-wrap gap-x-5 gap-y-1 px-1">
+        <span>
+          {t('dash.founder.manCoFee')}:
+          <span className="font-mono text-text-secondary ms-1">
+            {formatCurrency(founderResult.totalFounderManCoFee, true, locale)} {t('dash.founder.cumulative')}
+          </span>
+        </span>
+        {founderResult.totalConsultantPayment > 0 && (
+          <span>
+            {t('dash.founder.consultantPayment')}:
+            <span className="font-mono text-text-secondary ms-1">
+              {formatCurrency(founderResult.totalConsultantPayment, true, locale)}
+            </span>
+          </span>
+        )}
+        <span className="text-text-tertiary/70">
+          {t('dash.founder.feesNote')}
+        </span>
       </div>
       </div>
 

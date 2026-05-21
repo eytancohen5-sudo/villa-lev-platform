@@ -22,6 +22,12 @@ import {
   DEFAULT_CAP_TABLE,
   DEFAULT_WATERFALL,
 } from '@/lib/engine/capTable';
+import {
+  resolveFounderWaterfall,
+  EARNED_EQUITY_CAP,
+  TOTAL_FOUNDER_CAP,
+  MIN_INVESTOR_SHARE,
+} from '@/lib/engine/founderWaterfall';
 
 // Column letter from 1-indexed column number.
 const col = (n: number): string => {
@@ -74,10 +80,10 @@ export async function exportBusinessPlan(
   a: ModelAssumptions,
   m: ModelOutput,
   scenarioName: 'realistic' | 'upside' | 'downside' = 'realistic',
-  // Optional cap-table inputs. When provided, a Cap Table sheet is added with
-  // per-stakeholder distributions, MOIC, IRR, and the total reconciliation row.
-  // Defaults to the canonical Villa Lev cap table + 8% pref / 70/30 waterfall
-  // so callers without state still get the standard sheet.
+  // Cap-table inputs. When provided, the Cap Table + Waterfall sheets surface
+  // the 3-layer founder economics (pari-passu + grant bonus + performance
+  // ratchet) and per-stakeholder distributions. Defaults to the canonical
+  // Villa Lev cap table so callers without state still get the standard sheet.
   capTable: CapTableStakeholder[] = DEFAULT_CAP_TABLE,
   waterfall: WaterfallParams = DEFAULT_WATERFALL,
 ): Promise<Blob> {
@@ -132,6 +138,7 @@ export async function exportBusinessPlan(
     '  Coverage — DSCR vs covenant + separate Unlevered Project IRR and Levered Equity IRR + MOIC, cash-on-cash, equity payback.',
     '  Scenarios — Downside / Realistic / Upside side-by-side: EBITDA, NCF, DSCR per year + summary IRRs / MOIC.',
     '  Cap Table — per-stakeholder distributions, MOIC, IRR, payback + year-by-year cash flow. Reconciliation diff confirms the waterfall sums to project distributable.',
+    '  Waterfall — 3-layer founder economics (pari-passu / grant bonus / performance ratchet) with investor protection caps (33% earned, 75% total). Layer B is derived from live grant, fee, and project-value inputs (auditable). Stress test at €200K/€300K/€400K/€500K founder cash; ManCo fee + consultant payment subtracted from NCF.',
     '',
     'Notes',
     '  This export reflects the active financing path only. Other paths are available in the in-app dashboard.',
@@ -1487,16 +1494,18 @@ export async function exportBusinessPlan(
   // the same engine waterfall module the in-app Cap Table page uses, so
   // numbers reconcile by construction.
   const capScenario = m.scenarios[scenarioName];
-  const capResult = computeCapTable(capScenario, capTable, waterfall);
+  const grantApproved = a.financingPath === 'grant';
+  const capResult = computeCapTable(capScenario, capTable, waterfall, { grantApproved });
+  const fb = capResult.founderBreakdown;
   const CT = wb.addWorksheet('Cap Table');
   CT.columns = [{ width: 28 }, ...years.map(() => ({ width: 12 })), { width: 13 }, { width: 8 }, { width: 8 }];
   CT.getCell('A1').value = 'Cap Table — distributions per stakeholder';
   CT.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
   CT.getCell('A2').value =
     `Scenario: ${scenarioName} · Exit ${capScenario.exitYear} @ ${capScenario.exitEbitdaMultiple}× · ` +
-    `Promoter ${(waterfall.promoterEquityRate * 100).toFixed(0)}% · Pref ${(waterfall.preferredReturnRate * 100).toFixed(0)}% · ` +
-    `LP/Sponsor split ${(waterfall.ppShareAbovePref * 100).toFixed(0)}/${((1 - waterfall.ppShareAbovePref) * 100).toFixed(0)} · ` +
-    `Co-invest repaid ${waterfall.coInvestRepaymentYear}`;
+    `Founder ${(fb.founderTotalPct * 100).toFixed(1)}% (pp ${(fb.pariPassuPct * 100).toFixed(1)}% + grant ${(fb.grantBonusPct * 100).toFixed(0)}% + ratchet ${(fb.performanceRatchetPct * 100).toFixed(0)}%) · ` +
+    `Investors ${(fb.investorTotalPct * 100).toFixed(1)}% · ` +
+    `Cap: ${fb.capBinding === 'total_75' ? '75% total binding' : fb.capBinding === 'earned_33' ? '33% earned binding' : 'free'}`;
   CT.getCell('A2').font = FONT.italic;
   CT.mergeCells(`A2:${col(2 + years.length + 2)}2`);
 
@@ -1615,6 +1624,261 @@ export async function exportBusinessPlan(
 
   CT.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
 
+  // ── 9b. Waterfall (3-layer founder economics + stress test) ────────
+  // Shows how founder economics decompose into pari-passu / grant bonus /
+  // performance ratchet, plus a stress test at €200K / €300K / €400K founder
+  // cash so the bank can see when the 75% total cap binds.
+  const WF = wb.addWorksheet('Waterfall');
+  WF.columns = [
+    { width: 30 }, { width: 14 }, { width: 14 }, { width: 14 },
+    { width: 14 }, { width: 14 }, { width: 14 },
+  ];
+  WF.getCell('A1').value = 'Founder Compensation Waterfall — 3-layer model';
+  WF.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  WF.getCell('A2').value =
+    `Scenario: ${scenarioName} · Exit ${capScenario.exitYear} @ ${capScenario.exitEbitdaMultiple}× · ` +
+    `${grantApproved ? 'Grant approved (Layer B active)' : 'No grant (Layer B inactive)'}`;
+  WF.getCell('A2').font = FONT.italic;
+  WF.mergeCells('A2:G2');
+
+  let wfr = 4;
+  WF.getCell(`A${wfr}`).value = 'Layered breakdown';
+  WF.getCell(`A${wfr}`).font = FONT.section;
+  WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 1;
+
+  const layerRows: Array<{ label: string; pct: number; note: string }> = [
+    {
+      label: 'Layer A — Pari-passu (cash equity)',
+      pct: fb.pariPassuPct,
+      note: `€${Math.round(capResult.founderCashInvested / 1000)}K founder ÷ €${Math.round(capResult.totalEquityRaised / 1000)}K total`,
+    },
+    {
+      label: 'Layer B — Grant landing bonus',
+      pct: fb.grantBonusPct,
+      note: grantApproved ? 'Vests at grant approval (+4%)' : 'Inactive — no grant',
+    },
+    {
+      label: 'Layer C — Performance ratchet',
+      pct: fb.performanceRatchetPct,
+      note: `Tier: ${fb.ratchetTierLabel}${fb.moicFloorReduction ? ' (MOIC floor reduced)' : ''}`,
+    },
+    {
+      label: 'Earned (B + C, capped at +33%)',
+      pct: fb.earnedPct,
+      note: fb.capBinding === 'earned_33' ? '33% earned cap binding' : 'Within earned cap',
+    },
+    {
+      label: 'Founder total (A + B + C, capped at 75%)',
+      pct: fb.founderTotalPct,
+      note: fb.capBinding === 'total_75' ? '75% total cap binding — earned reduced' : 'Below total cap',
+    },
+    {
+      label: 'Investors keep',
+      pct: fb.investorTotalPct,
+      note: `Floor protected at ${(MIN_INVESTOR_SHARE * 100).toFixed(0)}%`,
+    },
+  ];
+
+  WF.getCell(`A${wfr}`).value = 'Layer';
+  WF.getCell(`B${wfr}`).value = '%';
+  WF.getCell(`C${wfr}`).value = 'Note';
+  ['A', 'B', 'C'].forEach((c) => {
+    WF.getCell(`${c}${wfr}`).font = FONT.header;
+    WF.getCell(`${c}${wfr}`).fill = STYLE.headerFill;
+  });
+  wfr += 1;
+  layerRows.forEach((r) => {
+    WF.getCell(`A${wfr}`).value = r.label;
+    WF.getCell(`B${wfr}`).value = r.pct;
+    WF.getCell(`B${wfr}`).numFmt = FMT.pct;
+    WF.getCell(`B${wfr}`).alignment = { horizontal: 'right' };
+    WF.getCell(`C${wfr}`).value = r.note;
+    WF.getCell(`C${wfr}`).font = FONT.italic;
+    if (r.label.startsWith('Founder total') || r.label.startsWith('Investors keep')) {
+      WF.getCell(`A${wfr}`).font = FONT.bold;
+      WF.getCell(`B${wfr}`).font = FONT.bold;
+      WF.getCell(`B${wfr}`).fill = STYLE.totalFill;
+    }
+    wfr += 1;
+  });
+  wfr += 1;
+
+  // Caps reference card
+  WF.getCell(`A${wfr}`).value = 'Caps (investor protection)';
+  WF.getCell(`A${wfr}`).font = FONT.section;
+  WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value = 'Earned cap (grant bonus + ratchet ≤)';
+  WF.getCell(`B${wfr}`).value = EARNED_EQUITY_CAP;
+  WF.getCell(`B${wfr}`).numFmt = FMT.pct;
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value = 'Total founder cap (pari-passu + earned ≤)';
+  WF.getCell(`B${wfr}`).value = TOTAL_FOUNDER_CAP;
+  WF.getCell(`B${wfr}`).numFmt = FMT.pct;
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value = 'Minimum investor share';
+  WF.getCell(`B${wfr}`).value = MIN_INVESTOR_SHARE;
+  WF.getCell(`B${wfr}`).numFmt = FMT.pct;
+  wfr += 2;
+
+  // ── Layer B derivation (visible inputs → formula → result) ──────────
+  // Spec says the grant bonus must NOT be a hardcoded magic number; it
+  // derives from these inputs. Live formula cells so the bank can audit.
+  WF.getCell(`A${wfr}`).value = 'Layer B — Grant bonus derivation';
+  WF.getCell(`A${wfr}`).font = FONT.section;
+  WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 1;
+  if (grantApproved) {
+    // Input cells (blue — editable)
+    const inputs: Array<{ label: string; cell: string; value: number; fmt: string }> = [
+      { label: 'Grant amount', cell: 'B', value: 4_013_880, fmt: FMT.euro },
+      { label: 'Founder fee % (of grant)', cell: 'B', value: 0.10, fmt: FMT.pct },
+      { label: 'Consultant share % (of grant)', cell: 'B', value: 0.05, fmt: FMT.pct },
+      { label: 'Project asset value', cell: 'B', value: 8_440_000, fmt: FMT.euro },
+      { label: 'Baseline bank loan (pre-grant commercial)', cell: 'B', value: 3_540_000, fmt: FMT.euro },
+    ];
+    const inputStartRow = wfr;
+    inputs.forEach((inp) => {
+      WF.getCell(`A${wfr}`).value = inp.label;
+      const c = WF.getCell(`B${wfr}`);
+      c.value = inp.value;
+      c.numFmt = inp.fmt;
+      c.fill = STYLE.inputFill;
+      c.alignment = { horizontal: 'right' };
+      wfr += 1;
+    });
+    const r = {
+      grant: inputStartRow,
+      feePct: inputStartRow + 1,
+      consPct: inputStartRow + 2,
+      asset: inputStartRow + 3,
+      loan: inputStartRow + 4,
+    };
+    // Derived cells (grey — formulas linked to inputs above)
+    const grossFee = capResult.founderBreakdown.founderNetGrantCash + capResult.totalConsultantPayment;
+    const derivedRows: Array<{ label: string; formula: string; value: number; fmt: string }> = [
+      { label: 'Gross fee = grant × founder_fee_pct', formula: `=B${r.grant}*B${r.feePct}`, value: grossFee, fmt: FMT.euro },
+      { label: 'Consultant cash = grant × consultant_share_pct', formula: `=B${r.grant}*B${r.consPct}`, value: capResult.totalConsultantPayment, fmt: FMT.euro },
+      { label: 'Founder net cash = gross_fee − consultant_cash', formula: `=B${r.grant}*B${r.feePct}-B${r.grant}*B${r.consPct}`, value: capResult.founderBreakdown.founderNetGrantCash, fmt: FMT.euro },
+      { label: 'Post-grant equity = project_value − bank_loan', formula: `=B${r.asset}-B${r.loan}`, value: capResult.founderBreakdown.postGrantEquityValue, fmt: FMT.euro },
+    ];
+    derivedRows.forEach((d) => {
+      WF.getCell(`A${wfr}`).value = d.label;
+      const c = WF.getCell(`B${wfr}`);
+      c.value = { formula: d.formula, result: d.value };
+      c.numFmt = d.fmt;
+      c.fill = STYLE.formulaFill;
+      c.alignment = { horizontal: 'right' };
+      wfr += 1;
+    });
+    // Final grant bonus = founder_net / (post_grant_equity + founder_net)
+    WF.getCell(`A${wfr}`).value = 'Grant bonus % = founder_net / (post_grant_equity + founder_net)';
+    WF.getCell(`A${wfr}`).font = FONT.bold;
+    const gbCell = WF.getCell(`B${wfr}`);
+    const founderNetRow = inputStartRow + inputs.length + 2;  // 3rd derived row
+    const postEquityRow = inputStartRow + inputs.length + 3;  // 4th derived row
+    gbCell.value = {
+      formula: `=B${founderNetRow}/(B${postEquityRow}+B${founderNetRow})`,
+      result: capResult.founderBreakdown.grantBonusPct,
+    };
+    gbCell.numFmt = FMT.pct;
+    gbCell.font = FONT.bold;
+    gbCell.fill = STYLE.totalFill;
+    gbCell.alignment = { horizontal: 'right' };
+    wfr += 2;
+  } else {
+    WF.getCell(`A${wfr}`).value = 'Grant not approved — Layer B inactive (grant bonus = 0%).';
+    WF.getCell(`A${wfr}`).font = FONT.italic;
+    WF.mergeCells(`A${wfr}:G${wfr}`);
+    wfr += 2;
+  }
+
+  // ── Fee summary — these reduce cash distributable to equity ────────
+  WF.getCell(`A${wfr}`).value = 'Operating fees subtracted from NCF (before equity split)';
+  WF.getCell(`A${wfr}`).font = FONT.section;
+  WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value = 'Founder ManCo fee (5% × revenue, cumulative)';
+  WF.getCell(`B${wfr}`).value = capResult.totalFounderManCoFee;
+  WF.getCell(`B${wfr}`).numFmt = FMT.euro;
+  WF.getCell(`B${wfr}`).fill = STYLE.formulaFill;
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value = 'Consultant payment at grant approval (€200K one-time)';
+  WF.getCell(`B${wfr}`).value = capResult.totalConsultantPayment;
+  WF.getCell(`B${wfr}`).numFmt = FMT.euro;
+  WF.getCell(`B${wfr}`).fill = STYLE.formulaFill;
+  wfr += 2;
+
+  // ── Stress test: founder cash at €200K / €300K / €400K / €500K ──────
+  WF.getCell(`A${wfr}`).value = 'Stress test — founder cash sensitivity';
+  WF.getCell(`A${wfr}`).font = FONT.section;
+  WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 1;
+  WF.getCell(`A${wfr}`).value =
+    `Holds everything else constant (total equity €${Math.round(capResult.totalEquityRaised / 1000)}K, grant=${grantApproved}); ` +
+    `varies founder cash only. Tells the bank where additional founder cash stops adding upside.`;
+  WF.getCell(`A${wfr}`).font = FONT.italic;
+  WF.mergeCells(`A${wfr}:G${wfr}`);
+  wfr += 2;
+
+  const stressHeaders = [
+    'Founder cash', 'Pari-passu', 'Grant bonus', 'Ratchet',
+    'Founder total', 'Investors', 'Cap binding',
+  ];
+  stressHeaders.forEach((h, i) => {
+    const c = WF.getCell(`${col(1 + i)}${wfr}`);
+    c.value = h;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: i === 0 ? 'left' : 'right' };
+  });
+  wfr += 1;
+
+  // Spec stress levels — €500K crosses the 75% total cap so the bank can
+  // see exactly where additional founder cash stops adding upside.
+  const stressCashLevels = [200_000, 300_000, 400_000, 500_000];
+  // Total equity stays constant — when founder cash increases the non-founder
+  // pool implicitly shrinks (in the model, an editor changes one stakeholder's
+  // contribution to keep the total equity raise fixed).
+  const totalEquityFixed = capResult.totalEquityRaised || 885_000;
+  stressCashLevels.forEach((cash) => {
+    const stress = resolveFounderWaterfall(capScenario, cash, totalEquityFixed, grantApproved);
+    const sb = stress.breakdown;
+    const cells: Array<string | number> = [
+      cash,
+      sb.pariPassuPct,
+      sb.grantBonusPct,
+      sb.performanceRatchetPct,
+      sb.founderTotalPct,
+      sb.investorTotalPct,
+      sb.capBinding === 'total_75'
+        ? '75% binding'
+        : sb.capBinding === 'earned_33'
+          ? '33% reached'
+          : 'free',
+    ];
+    cells.forEach((v, i) => {
+      const c = WF.getCell(`${col(1 + i)}${wfr}`);
+      c.value = v;
+      if (i === 0) c.numFmt = FMT.euro;
+      else if (i < 6) c.numFmt = FMT.pct;
+      c.alignment = { horizontal: i === 0 ? 'left' : 'right' };
+      c.fill = STYLE.formulaFill;
+      if (sb.capBinding === 'total_75' && i === 6) {
+        c.font = { bold: true, color: { argb: 'FFB45309' } };
+      }
+    });
+    wfr += 1;
+  });
+
+  WF.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+
   // ── Validation block on the Cover sheet ────────────────────────────
   cover.getCell(`B${valStartRow}`).value = 'Engine ↔ Workbook validation';
   cover.getCell(`B${valStartRow}`).font = { ...FONT.section, size: 14 };
@@ -1681,6 +1945,662 @@ export async function exportBusinessPlan(
     match.font = { bold: true, color: { argb: 'FF2E7D32' } };
     match.alignment = { horizontal: 'center' };
   });
+
+  // ─────────────────────────────────────────────────────────────────────
+  // Banker-pack sheets (added 2026-05-21). Inserted as positions 2–5 via
+  // `orderNo` reshuffle at the end of this function so a reader sees the
+  // financing-comparison table immediately after the Cover.
+  //
+  // Sources: ModelOutput.financingComparison, ModelOutput.scenarios.realistic
+  // (full data for the active path), ModelOutput.grantScenario (full data for
+  // the grant path). For non-active commercial / rrf / tepix-loan paths we
+  // only have the thin metrics in `financingComparison` — richer per-path
+  // metrics (minDSCR, equityIRR, projectIRR, peakWC, exit value) are flagged
+  // as "active path only" rather than fabricated.
+  //
+  // The engine does not currently expose a `tepix-guarantee-short` financing
+  // path — FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan'. We
+  // omit that column rather than fabricate. Flag for engine work next.
+  // ─────────────────────────────────────────────────────────────────────
+
+  const activeScenario = m.scenarios.realistic;
+  const activePath = m.activeFinancingPath;
+
+  // Compute the year of minimum DSCR across operational years (≥2029) on the
+  // active scenario. Used to annotate min-DSCR rows with year-of-occurrence so
+  // readers see the worst-year context the v6 BP / v8 deck calls out.
+  const minDscrYearLookup = (sc: typeof activeScenario): number | null => {
+    let yr: number | null = null;
+    let cur = Number.POSITIVE_INFINITY;
+    sc.pnl.forEach((p) => {
+      if (p.year >= 2029 && p.dscr > 0 && p.dscr < cur) {
+        cur = p.dscr;
+        yr = p.year;
+      }
+    });
+    return yr;
+  };
+  const activeMinDscrYear = minDscrYearLookup(activeScenario);
+
+  // ── Financing-path comparison ───────────────────────────────────────
+  const FC = wb.addWorksheet('Financing Comparison', { views: [{ showGridLines: false }] });
+  FC.columns = [
+    { width: 42 },
+    { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 },
+    { width: 28 },
+  ];
+  FC.getCell('A1').value = 'Financing-path comparison';
+  FC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  FC.getCell('A2').value =
+    'Side-by-side: each column is one financing path. Bolded column is the ACTIVE path used elsewhere in this workbook. ' +
+    'Rich return / coverage / peak-WC / exit metrics are only computed for the ACTIVE path and (when distinct) the GRANT path; ' +
+    'other columns surface the thin metrics in ModelOutput.financingComparison only.';
+  FC.getCell('A2').font = FONT.italic;
+  FC.getCell('A2').alignment = { wrapText: true, vertical: 'top' };
+  FC.mergeCells('A2:F2');
+  FC.getRow(2).height = 42;
+
+  // DSCR reading-guide (matches v6 BP / v8 presentation convention).
+  FC.getCell('A3').value =
+    'DSCR reading guide — Stabilised DSCR reflects steady-state operations (year 3+) and is the ' +
+    'headline coverage number used by bankers underwriting long-dated facilities. Minimum DSCR ' +
+    'captures the worst single year — typically the first year of full amortisation before NCF ' +
+    'ramps — and is used for covenant-floor checks. Stabilised is weighted heaviest; min is a ' +
+    'sub-metric for stress context.';
+  FC.getCell('A3').font = { ...FONT.italic, italic: true, color: { argb: 'FF5A4A1F' }, size: 9 };
+  FC.getCell('A3').alignment = { wrapText: true, vertical: 'top' };
+  FC.getCell('A3').fill = STYLE.sectionFill;
+  FC.mergeCells('A3:F3');
+  FC.getRow(3).height = 52;
+
+  // Header row.
+  const fcPathCols: Array<{ key: 'commercial' | 'rrf' | 'grant' | 'tepix-loan'; label: string }> = [
+    { key: 'commercial', label: 'Commercial' },
+    { key: 'tepix-loan', label: 'TEPIX Loan' },
+    { key: 'rrf', label: 'RRF' },
+    { key: 'grant', label: 'Grant' },
+  ];
+  let fcr = 5;
+  FC.getCell(`A${fcr}`).value = 'Metric';
+  FC.getCell(`A${fcr}`).font = FONT.header;
+  FC.getCell(`A${fcr}`).fill = STYLE.headerFill;
+  fcPathCols.forEach((p, i) => {
+    const c = FC.getCell(`${col(2 + i)}${fcr}`);
+    const isActive = p.key === activePath;
+    c.value = isActive ? `${p.label} (ACTIVE)` : p.label;
+    c.font = { ...FONT.header, bold: true };
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'center' };
+  });
+  FC.getCell(`F${fcr}`).value = 'Source / note';
+  FC.getCell(`F${fcr}`).font = FONT.header;
+  FC.getCell(`F${fcr}`).fill = STYLE.headerFill;
+  fcr += 1;
+
+  // Helper: pick a value from financingComparison by key.
+  const fcRow = (key: string) => m.financingComparison.find((row) => row.key === key);
+  // Helper: full-data scenario for a path, if available.
+  const scenarioForPath = (key: typeof fcPathCols[number]['key']): typeof activeScenario | null => {
+    if (key === activePath) return activeScenario;
+    if (key === 'grant') return m.grantScenario;
+    return null;
+  };
+
+  // Write one row across all paths.
+  // emphasis: 'headline' renders the row at +1 size, bold, larger row height;
+  //           'sub'      renders the row in italic, size 9, grey (demoted);
+  //           'normal'   matches the pre-existing styling (bold label + body).
+  const writeFcMetric = (
+    label: string,
+    pickRich: (sc: typeof activeScenario) => number,
+    fmt: string,
+    note: string,
+    emphasis: 'headline' | 'sub' | 'normal' = 'normal',
+  ) => {
+    const labelCell = FC.getCell(`A${fcr}`);
+    labelCell.value = label;
+    if (emphasis === 'headline') {
+      labelCell.font = { bold: true, size: 13, color: { argb: 'FF8B6914' } };
+      FC.getRow(fcr).height = 22;
+    } else if (emphasis === 'sub') {
+      labelCell.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
+    } else {
+      labelCell.font = FONT.bold;
+    }
+    fcPathCols.forEach((p, i) => {
+      const c = FC.getCell(`${col(2 + i)}${fcr}`);
+      const sc = scenarioForPath(p.key);
+      if (sc) {
+        let v: string | number = pickRich(sc);
+        c.numFmt = fmt;
+        if (emphasis === 'sub' && p.key === activePath && activeMinDscrYear !== null) {
+          // Suffix the active-path min-DSCR cell with the year of occurrence.
+          // ExcelJS preserves numFmt only when value is numeric, so when we
+          // attach the year context we switch to a string for that one cell.
+          c.numFmt = '';
+          v = `${(pickRich(sc) as number).toFixed(2)}× · yr ${activeMinDscrYear}`;
+        }
+        c.value = v;
+        c.fill = p.key === activePath ? STYLE.totalFill : STYLE.formulaFill;
+        if (emphasis === 'headline') {
+          c.font = { bold: true, size: 13, color: p.key === activePath ? { argb: 'FF8B6914' } : { argb: 'FF333333' } };
+        } else if (emphasis === 'sub') {
+          c.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
+        } else if (p.key === activePath) {
+          c.font = FONT.bold;
+        }
+      } else {
+        c.value = 'n/a (active-path only)';
+        c.font = FONT.italic;
+        c.alignment = { horizontal: 'center' };
+        c.fill = STYLE.formulaFill;
+      }
+    });
+    FC.getCell(`F${fcr}`).value = note;
+    FC.getCell(`F${fcr}`).font = FONT.italic;
+    fcr += 1;
+  };
+
+  // Thin metrics — sourced from m.financingComparison, available for all paths.
+  const writeThinRow = (
+    key: string,
+    fmt: string,
+    note: string,
+  ) => {
+    const row = fcRow(key);
+    if (!row) return;
+    FC.getCell(`A${fcr}`).value = row.metric;
+    FC.getCell(`A${fcr}`).font = FONT.bold;
+    fcPathCols.forEach((p, i) => {
+      const c = FC.getCell(`${col(2 + i)}${fcr}`);
+      const v = (row as unknown as Record<string, string | number>)[
+        p.key === 'tepix-loan' ? 'tepixLoan' : p.key
+      ];
+      if (typeof v === 'number') {
+        c.value = v;
+        c.numFmt = fmt;
+      } else {
+        c.value = v;
+        c.alignment = { horizontal: 'center' };
+      }
+      c.fill = p.key === activePath ? STYLE.totalFill : STYLE.formulaFill;
+      if (p.key === activePath) c.font = FONT.bold;
+    });
+    FC.getCell(`F${fcr}`).value = note;
+    FC.getCell(`F${fcr}`).font = FONT.italic;
+    fcr += 1;
+  };
+
+  // Spec rows: stab DSCR, minDSCRLoanLife, stab NCF, equityIRR, projectIRR,
+  // peak working capital, exit value. We also surface a small block of
+  // financing-comparison rows the engine already produces (loan / equity /
+  // annual DS / supplementary) for completeness.
+  writeThinRow('totalLoanDrawn', FMT.euro, 'engine.financingComparison.totalLoanDrawn');
+  writeThinRow('grantReceived', FMT.euro, 'engine.financingComparison.grantReceived');
+  writeThinRow('equityRequired', FMT.euro, 'engine.financingComparison.equityRequired');
+  writeThinRow('annualDebtService', FMT.euro, 'engine.financingComparison.annualDebtService');
+  writeThinRow('supplementaryLoan', FMT.euro, 'engine.financingComparison.supplementaryLoan (TEPIX only)');
+  writeThinRow('equitySavingVsCommercial', FMT.euro, 'engine.financingComparison.equitySavingVsCommercial');
+
+  // Rich metrics — only available where we have a full ScenarioOutput.
+  // DSCR block: stabilised is the headline (project-finance industry standard
+  // for long-dated facilities); min is a demoted sub-metric carrying the
+  // year-of-occurrence and recovery context. Matches v6 BP / v8 deck framing.
+  writeFcMetric(
+    'Stabilised DSCR (2031, EBITDA / DS)  — headline',
+    (sc) => sc.stabilisedYear?.dscr ?? 0,
+    FMT.mul,
+    'ScenarioOutput.stabilisedYear.dscr — steady-state coverage, the number bankers underwrite to',
+    'headline',
+  );
+  writeFcMetric(
+    '   ↳ Min DSCR over loan life (post-ramp, worst-year stress)',
+    (sc) => sc.minDSCRLoanLife,
+    FMT.mul,
+    `ScenarioOutput.minDSCRLoanLife — covenant-floor check; active-path min occurs in yr ${activeMinDscrYear ?? '—'} then recovers as NCF ramps`,
+    'sub',
+  );
+  writeFcMetric(
+    'Stabilised NCF post-tax (2031)',
+    (sc) => sc.stabilisedYear?.netCashFlowPostVAT ?? 0,
+    FMT.euro,
+    'ScenarioOutput.stabilisedYear.netCashFlowPostVAT',
+  );
+  writeFcMetric(
+    'Levered Equity IRR (incl. terminal)',
+    (sc) => sc.equityIRR,
+    FMT.pct,
+    'ScenarioOutput.equityIRR',
+  );
+  writeFcMetric(
+    'Unlevered Project IRR (incl. terminal)',
+    (sc) => sc.projectIRR,
+    FMT.pct,
+    'ScenarioOutput.projectIRR',
+  );
+  writeFcMetric(
+    'Peak working-capital balance (max across years)',
+    (sc) => sc.pnl.reduce((m_, p) => Math.max(m_, p.wcPeakBalance), 0),
+    FMT.euro,
+    'max(AnnualPnL.wcPeakBalance)',
+  );
+  writeFcMetric(
+    'Peak total debt outstanding (term + WC)',
+    (sc) => sc.peakDebtOutstanding,
+    FMT.euro,
+    'ScenarioOutput.peakDebtOutstanding',
+  );
+  writeFcMetric(
+    'Terminal asset value (exit)',
+    (sc) => sc.terminalAssetValue,
+    FMT.euro,
+    'ScenarioOutput.terminalAssetValue (EBITDA × exit multiple)',
+  );
+  writeFcMetric(
+    'Terminal equity value (exit, asset − debt)',
+    (sc) => sc.terminalEquityValue,
+    FMT.euro,
+    'ScenarioOutput.terminalEquityValue',
+  );
+
+  fcr += 1;
+  FC.mergeCells(`A${fcr}:F${fcr}`);
+  FC.getCell(`A${fcr}`).value =
+    'Engine note: ModelOutput.FinancingPath = commercial | grant | rrf | tepix-loan. ' +
+    'No tepix-guarantee-short path is currently produced by the engine; that column is omitted ' +
+    'rather than fabricated. Extend the engine first if a guarantee-short comparison is required.';
+  FC.getCell(`A${fcr}`).font = FONT.italic;
+  FC.getCell(`A${fcr}`).alignment = { wrapText: true, vertical: 'top' };
+  FC.getRow(fcr).height = 32;
+  FC.views = [{ state: 'frozen', xSplit: 1, ySplit: 5 }];
+
+  // ── Amortisation schedule (active path) ─────────────────────────────
+  // Reconstructed from AnnualPnL.termLoanInterest / termLoanPrincipal /
+  // termLoanBalance. Drawdown is set to loanAmount at year 2026 (project
+  // start), zero thereafter; this matches the engine's single-draw model.
+  // No cash-sweep mechanic exists in the current engine — column reported
+  // as 'n/a'.
+  const AM = wb.addWorksheet('Amortisation Schedule');
+  AM.columns = [
+    { width: 8 },
+    { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 16 },
+    { width: 10 }, { width: 12 },
+  ];
+  AM.getCell('A1').value = `Amortisation schedule — ${pathLabel(activePath)} (active path)`;
+  AM.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  AM.getCell('A2').value =
+    `Loan ${pathLabel(activePath)}. Grace 2026–2028 (interest-only). Amortising 2029 onward. ` +
+    `Source: AnnualPnL.termLoanInterest / termLoanPrincipal / termLoanBalance.`;
+  AM.getCell('A2').font = FONT.italic;
+  AM.mergeCells('A2:H2');
+
+  const amHeaders = [
+    'Year', 'Opening balance', 'Drawdown', 'Interest', 'Principal',
+    'Closing balance', 'DSCR', 'Cash sweep',
+  ];
+  let amr = 4;
+  amHeaders.forEach((h, i) => {
+    const c = AM.getCell(`${col(1 + i)}${amr}`);
+    c.value = h;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'center' };
+  });
+  amr += 1;
+
+  const loanAmount = m.keyMetrics.loanAmount;
+  let priorClosing = loanAmount;
+  activeScenario.pnl.forEach((p, idx) => {
+    const opening = idx === 0 ? 0 : priorClosing;
+    const drawdown = idx === 0 ? loanAmount : 0;
+    // Engine stores termLoanBalance as the closing balance for the year.
+    const closing = p.termLoanBalance;
+    AM.getCell(`A${amr}`).value = p.year;
+    AM.getCell(`A${amr}`).alignment = { horizontal: 'center' };
+    AM.getCell(`A${amr}`).font = FONT.bold;
+    const numCells: Array<[string, number, string]> = [
+      [`B${amr}`, opening, FMT.euro],
+      [`C${amr}`, drawdown, FMT.euro],
+      [`D${amr}`, p.termLoanInterest, FMT.euro],
+      [`E${amr}`, p.termLoanPrincipal, FMT.euro],
+      [`F${amr}`, closing, FMT.euro],
+      [`G${amr}`, p.dscr, FMT.mul],
+    ];
+    numCells.forEach(([addr, v, fmt]) => {
+      const c = AM.getCell(addr);
+      c.value = v;
+      c.numFmt = fmt;
+      c.fill = STYLE.formulaFill;
+    });
+    // No cash-sweep in current engine.
+    const sweepCell = AM.getCell(`H${amr}`);
+    sweepCell.value = 'n/a';
+    sweepCell.alignment = { horizontal: 'center' };
+    sweepCell.font = FONT.italic;
+    sweepCell.fill = STYLE.formulaFill;
+    priorClosing = closing;
+    amr += 1;
+  });
+
+  // Totals row.
+  const amTotalRow = amr;
+  AM.getCell(`A${amr}`).value = 'Total';
+  AM.getCell(`A${amr}`).font = FONT.bold;
+  const totalDrawn = loanAmount;
+  const totalInterest = activeScenario.pnl.reduce((s, p) => s + p.termLoanInterest, 0);
+  const totalPrincipal = activeScenario.pnl.reduce((s, p) => s + p.termLoanPrincipal, 0);
+  AM.getCell(`C${amr}`).value = totalDrawn;
+  AM.getCell(`C${amr}`).numFmt = FMT.euro;
+  AM.getCell(`C${amr}`).fill = STYLE.totalFill;
+  AM.getCell(`C${amr}`).font = FONT.bold;
+  AM.getCell(`D${amr}`).value = totalInterest;
+  AM.getCell(`D${amr}`).numFmt = FMT.euro;
+  AM.getCell(`D${amr}`).fill = STYLE.totalFill;
+  AM.getCell(`D${amr}`).font = FONT.bold;
+  AM.getCell(`E${amr}`).value = totalPrincipal;
+  AM.getCell(`E${amr}`).numFmt = FMT.euro;
+  AM.getCell(`E${amr}`).fill = STYLE.totalFill;
+  AM.getCell(`E${amr}`).font = FONT.bold;
+  void amTotalRow;
+  amr += 2;
+
+  AM.getCell(`A${amr}`).value = `Note: 'Cash sweep' is reported as n/a — the current engine does not model a cash-sweep mechanism.`;
+  AM.getCell(`A${amr}`).font = FONT.italic;
+  AM.mergeCells(`A${amr}:H${amr}`);
+  AM.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
+
+  // ── Working-capital block ───────────────────────────────────────────
+  const WC = wb.addWorksheet('Working Capital');
+  WC.columns = [{ width: 38 }, ...years.map(() => ({ width: 14 })), { width: 16 }];
+  WC.getCell('A1').value = 'Working Capital — annual aggregates';
+  WC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  WC.getCell('A2').value =
+    'Source: AnnualPnL.wc* per year (engine runs quarterly under the hood; aggregates shown here). ' +
+    'Self-liquidating-violation flag: TRUE when the trough quarter ends above the self-liquidating threshold.';
+  WC.getCell('A2').font = FONT.italic;
+  WC.getCell('A2').alignment = { wrapText: true, vertical: 'top' };
+  WC.mergeCells(`A2:${col(2 + years.length)}2`);
+  WC.getRow(2).height = 30;
+
+  let wcRr = 4;
+  // Headline metrics block.
+  WC.getCell(`A${wcRr}`).value = 'Portfolio-wide totals (active scenario)';
+  WC.getCell(`A${wcRr}`).font = FONT.section;
+  WC.getCell(`A${wcRr}`).fill = STYLE.sectionFill;
+  WC.mergeCells(`A${wcRr}:${col(2 + years.length)}${wcRr}`);
+  wcRr += 1;
+
+  const wcPeak = activeScenario.pnl.reduce((m_, p) => Math.max(m_, p.wcPeakBalance), 0);
+  const wcTrough = activeScenario.pnl.reduce(
+    (m_, p) => (p.wcTroughBalance > 0 ? Math.min(m_, p.wcTroughBalance) : m_),
+    Number.POSITIVE_INFINITY,
+  );
+  const wcTroughFinal = isFinite(wcTrough) ? wcTrough : 0;
+  const selfLiqViolation = activeScenario.pnl.some((p) => p.wcSelfLiquidatingViolation);
+  const wcEffectiveFacility = activeScenario.wcEffectiveFacility;
+  const wcRate = activeScenario.wcRate;
+
+  const headlineRows: Array<[string, number | string, string]> = [
+    ['Peak WC balance (max across years)', wcPeak, FMT.euro],
+    ['Trough WC balance (min across operational years, > 0)', wcTroughFinal, FMT.euro],
+    ['Effective WC facility cap', wcEffectiveFacility, FMT.euro],
+    ['WC interest rate', wcRate, FMT.pct],
+    ['Self-liquidating violation flag (any year)', selfLiqViolation ? '✗ VIOLATED' : '✓ CLEAR', ''],
+  ];
+  headlineRows.forEach(([label, val, fmt]) => {
+    WC.getCell(`A${wcRr}`).value = label;
+    WC.getCell(`A${wcRr}`).font = FONT.bold;
+    const c = WC.getCell(`B${wcRr}`);
+    c.value = val;
+    if (fmt) c.numFmt = fmt;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+    if (label.startsWith('Self-liquidating')) {
+      c.font = { bold: true, color: { argb: selfLiqViolation ? 'FFC62828' : 'FF2E7D32' } };
+      c.alignment = { horizontal: 'center' };
+    }
+    wcRr += 1;
+  });
+  // WC days — not in current ModelOutput.
+  WC.getCell(`A${wcRr}`).value = 'WC days (revenue × days/365)';
+  WC.getCell(`A${wcRr}`).font = FONT.bold;
+  WC.getCell(`B${wcRr}`).value = 'n/a — not in ModelOutput';
+  WC.getCell(`B${wcRr}`).font = FONT.italic;
+  WC.getCell(`B${wcRr}`).alignment = { horizontal: 'center' };
+  wcRr += 2;
+
+  // Per-year table.
+  WC.getCell(`A${wcRr}`).value = 'Year-by-year';
+  WC.getCell(`A${wcRr}`).font = FONT.section;
+  WC.getCell(`A${wcRr}`).fill = STYLE.sectionFill;
+  WC.mergeCells(`A${wcRr}:${col(2 + years.length)}${wcRr}`);
+  wcRr += 1;
+
+  // Header row.
+  WC.getCell(`A${wcRr}`).value = 'Metric';
+  WC.getCell(`A${wcRr}`).font = FONT.header;
+  WC.getCell(`A${wcRr}`).fill = STYLE.headerFill;
+  years.forEach((y, i) => {
+    const c = WC.getCell(`${col(2 + i)}${wcRr}`);
+    c.value = y;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'center' };
+  });
+  wcRr += 1;
+
+  const wcMetricRows: Array<{
+    label: string;
+    pick: (p: typeof activeScenario.pnl[number]) => number | boolean;
+    fmt: string;
+  }> = [
+    { label: 'WC peak balance', pick: (p) => p.wcPeakBalance, fmt: FMT.euro },
+    { label: 'WC trough balance', pick: (p) => p.wcTroughBalance, fmt: FMT.euro },
+    { label: 'WC average balance', pick: (p) => p.wcAvgBalance, fmt: FMT.euro },
+    { label: 'WC net contribution (drawn − repaid)', pick: (p) => p.wcNetContribution, fmt: FMT.euro },
+    { label: 'WC interest expense', pick: (p) => p.wcInterestExpense, fmt: FMT.euro },
+    { label: 'Self-liquidating violation', pick: (p) => p.wcSelfLiquidatingViolation, fmt: '' },
+  ];
+  wcMetricRows.forEach((mRow) => {
+    WC.getCell(`A${wcRr}`).value = mRow.label;
+    WC.getCell(`A${wcRr}`).font = FONT.bold;
+    activeScenario.pnl.forEach((p, i) => {
+      const c = WC.getCell(`${col(2 + i)}${wcRr}`);
+      const v = mRow.pick(p);
+      if (typeof v === 'boolean') {
+        c.value = v ? '✗' : '✓';
+        c.alignment = { horizontal: 'center' };
+        c.font = { bold: true, color: { argb: v ? 'FFC62828' : 'FF2E7D32' } };
+      } else {
+        c.value = v;
+        c.numFmt = mRow.fmt;
+      }
+      c.fill = STYLE.formulaFill;
+    });
+    wcRr += 1;
+  });
+  WC.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+
+  // ── Bank Coverage Ratios (LLCR / PLCR / ICR) ─────────────────────────
+  // ICR is per-year on AnnualPnL.interestCoverageRatio.
+  // LLCR / PLCR are scenario-aggregate (NPV-based) — single number each.
+  // We report ICR per year + scenario aggregates for LLCR / PLCR + min ICR
+  // across loan life.
+  const BC = wb.addWorksheet('Bank Coverage');
+  BC.columns = [{ width: 38 }, ...years.map(() => ({ width: 13 })), { width: 16 }];
+  BC.getCell('A1').value = 'Bank Coverage Ratios — LLCR / PLCR / ICR';
+  BC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
+  BC.getCell('A2').value =
+    'ICR per year from AnnualPnL.interestCoverageRatio (EBITDA / interest). LLCR / PLCR are NPV-based ' +
+    'coverage ratios computed at the scenario level (single aggregate number each) — see ScenarioOutput.llcr / .plcr.';
+  BC.getCell('A2').font = FONT.italic;
+  BC.getCell('A2').alignment = { wrapText: true, vertical: 'top' };
+  BC.mergeCells(`A2:${col(2 + years.length)}2`);
+  BC.getRow(2).height = 30;
+
+  // DSCR reading-guide (matches v6 BP / v8 presentation convention).
+  BC.getCell('A3').value =
+    'DSCR reading guide — Stabilised DSCR reflects steady-state operations (year 3+) and is the ' +
+    'headline coverage number used by bankers underwriting long-dated facilities. Minimum DSCR ' +
+    'captures the worst single year — typically the first year of full amortisation before NCF ' +
+    'ramps — and is used for covenant-floor checks. Stabilised is weighted heaviest; min is a ' +
+    'sub-metric for stress context.';
+  BC.getCell('A3').font = { italic: true, size: 9, color: { argb: 'FF5A4A1F' } };
+  BC.getCell('A3').alignment = { wrapText: true, vertical: 'top' };
+  BC.getCell('A3').fill = STYLE.sectionFill;
+  BC.mergeCells(`A3:${col(2 + years.length)}3`);
+  BC.getRow(3).height = 52;
+
+  let bcr = 5;
+  // Per-year header.
+  BC.getCell(`A${bcr}`).value = 'Year';
+  BC.getCell(`A${bcr}`).font = FONT.header;
+  BC.getCell(`A${bcr}`).fill = STYLE.headerFill;
+  years.forEach((y, i) => {
+    const c = BC.getCell(`${col(2 + i)}${bcr}`);
+    c.value = y;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'center' };
+  });
+  BC.getCell(`${col(2 + years.length)}${bcr}`).value = 'Min over loan life';
+  BC.getCell(`${col(2 + years.length)}${bcr}`).font = FONT.header;
+  BC.getCell(`${col(2 + years.length)}${bcr}`).fill = STYLE.headerFill;
+  BC.getCell(`${col(2 + years.length)}${bcr}`).alignment = { horizontal: 'center' };
+  bcr += 1;
+
+  // DSCR row (per year).
+  BC.getCell(`A${bcr}`).value = 'DSCR (EBITDA / main-loan DS)';
+  BC.getCell(`A${bcr}`).font = FONT.bold;
+  let minDscr = Number.POSITIVE_INFINITY;
+  activeScenario.pnl.forEach((p, i) => {
+    const c = BC.getCell(`${col(2 + i)}${bcr}`);
+    c.value = p.dscr;
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+    if (p.dscr > 0 && p.year >= 2029) minDscr = Math.min(minDscr, p.dscr);
+  });
+  const minDscrCell = BC.getCell(`${col(2 + years.length)}${bcr}`);
+  minDscrCell.value = isFinite(minDscr) ? minDscr : 0;
+  minDscrCell.numFmt = FMT.mul;
+  minDscrCell.fill = STYLE.totalFill;
+  minDscrCell.font = FONT.bold;
+  bcr += 1;
+
+  // ICR row (per year).
+  BC.getCell(`A${bcr}`).value = 'ICR (EBITDA / interest only)';
+  BC.getCell(`A${bcr}`).font = FONT.bold;
+  let minIcr = Number.POSITIVE_INFINITY;
+  activeScenario.pnl.forEach((p, i) => {
+    const c = BC.getCell(`${col(2 + i)}${bcr}`);
+    c.value = p.interestCoverageRatio;
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+    if (p.interestCoverageRatio > 0 && p.year >= 2029) {
+      minIcr = Math.min(minIcr, p.interestCoverageRatio);
+    }
+  });
+  const minIcrCell = BC.getCell(`${col(2 + years.length)}${bcr}`);
+  minIcrCell.value = isFinite(minIcr) ? minIcr : 0;
+  minIcrCell.numFmt = FMT.mul;
+  minIcrCell.fill = STYLE.totalFill;
+  minIcrCell.font = FONT.bold;
+  bcr += 1;
+
+  // Loaded DSCR (EBITDA / total DS incl. WC) — already useful here for a banker.
+  BC.getCell(`A${bcr}`).value = 'DSCR loaded (EBITDA / DS incl. WC interest)';
+  BC.getCell(`A${bcr}`).font = FONT.bold;
+  let minLoadedDscr = Number.POSITIVE_INFINITY;
+  activeScenario.pnl.forEach((p, i) => {
+    const c = BC.getCell(`${col(2 + i)}${bcr}`);
+    c.value = p.dscrLoaded;
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+    if (p.dscrLoaded > 0 && p.year >= 2029) {
+      minLoadedDscr = Math.min(minLoadedDscr, p.dscrLoaded);
+    }
+  });
+  const minLoadedDscrCell = BC.getCell(`${col(2 + years.length)}${bcr}`);
+  minLoadedDscrCell.value = isFinite(minLoadedDscr) ? minLoadedDscr : 0;
+  minLoadedDscrCell.numFmt = FMT.mul;
+  minLoadedDscrCell.fill = STYLE.totalFill;
+  minLoadedDscrCell.font = FONT.bold;
+  bcr += 2;
+
+  // Aggregate LLCR / PLCR block.
+  BC.getCell(`A${bcr}`).value = 'Loan-life / project-life aggregate ratios (NPV-based)';
+  BC.getCell(`A${bcr}`).font = FONT.section;
+  BC.getCell(`A${bcr}`).fill = STYLE.sectionFill;
+  BC.mergeCells(`A${bcr}:${col(2 + years.length)}${bcr}`);
+  bcr += 1;
+
+  // DSCR block reframed: Stabilised DSCR leads as the headline; Min DSCR is
+  // demoted with year-of-occurrence suffix. Aggregates that follow are
+  // rendered at normal emphasis.
+  type AggEmphasis = 'headline' | 'sub' | 'normal';
+  const aggRows: Array<[string, number, string, string, AggEmphasis]> = [
+    ['Stabilised DSCR (2031, EBITDA / DS)  — headline', activeScenario.stabilisedYear?.dscr ?? 0, FMT.mul, 'ScenarioOutput.stabilisedYear.dscr — steady-state coverage, the number bankers underwrite to', 'headline'],
+    [`   ↳ Min DSCR over loan life (post-ramp, worst-year stress)`, activeScenario.minDSCRLoanLife, FMT.mul, `ScenarioOutput.minDSCRLoanLife — covenant-floor check; min occurs in yr ${activeMinDscrYear ?? '—'} then recovers as NCF ramps`, 'sub'],
+    ['LLCR (Loan Life Coverage Ratio)', activeScenario.llcr, FMT.mul, 'ScenarioOutput.llcr — NPV of CFADS over loan life ÷ outstanding debt', 'normal'],
+    ['PLCR (Project Life Coverage Ratio)', activeScenario.plcr, FMT.mul, 'ScenarioOutput.plcr — NPV of CFADS over project life ÷ outstanding debt', 'normal'],
+    ['ICR stabilised (2031)', activeScenario.icrStabilised, FMT.mul, 'ScenarioOutput.icrStabilised', 'normal'],
+    ['DSCR covenant headroom', activeScenario.dscrCovenantHeadroom, FMT.pct, '(minDSCR − 1.25) / 1.25', 'normal'],
+    ['Grace-period interest total (2026–28)', activeScenario.gracePeriodInterestTotal, FMT.euro, 'ScenarioOutput.gracePeriodInterestTotal', 'normal'],
+    ['Peak debt outstanding (term + WC)', activeScenario.peakDebtOutstanding, FMT.euro, 'ScenarioOutput.peakDebtOutstanding', 'normal'],
+    ['Net leverage (loan / stab EBITDA)', activeScenario.netLeverage, FMT.mul, 'ScenarioOutput.netLeverage', 'normal'],
+  ];
+  aggRows.forEach(([label, v, fmt, note, emphasis]) => {
+    const labelCell = BC.getCell(`A${bcr}`);
+    labelCell.value = label;
+    const c = BC.getCell(`B${bcr}`);
+    if (emphasis === 'headline') {
+      labelCell.font = { bold: true, size: 13, color: { argb: 'FF8B6914' } };
+      BC.getRow(bcr).height = 22;
+      c.value = v;
+      c.numFmt = fmt;
+      c.fill = STYLE.totalFill;
+      c.font = { bold: true, size: 13, color: { argb: 'FF8B6914' } };
+    } else if (emphasis === 'sub') {
+      labelCell.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
+      // Demoted min DSCR row carries the year-of-occurrence suffix in the
+      // value cell (string form so the suffix fits alongside the number).
+      const yrSuffix = activeMinDscrYear !== null ? ` · yr ${activeMinDscrYear}` : '';
+      c.value = `${v.toFixed(2)}×${yrSuffix}`;
+      c.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
+      c.fill = STYLE.formulaFill;
+    } else {
+      labelCell.font = FONT.bold;
+      c.value = v;
+      c.numFmt = fmt;
+      c.fill = STYLE.totalFill;
+      c.font = FONT.bold;
+    }
+    BC.getCell(`C${bcr}`).value = note;
+    BC.getCell(`C${bcr}`).font = FONT.italic;
+    BC.mergeCells(`C${bcr}:${col(2 + years.length)}${bcr}`);
+    bcr += 1;
+  });
+  BC.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
+
+  // ── Reorder: Cover, Financing Comparison, Amortisation, WC, Bank
+  //    Coverage, then existing detail sheets. ExcelJS sorts by `orderNo`
+  //    when serialising, so setting these explicitly is sufficient.
+  type WsWithOrder = ExcelJS.Worksheet & { orderNo: number };
+  const setOrder = (ws: ExcelJS.Worksheet, n: number) => { (ws as WsWithOrder).orderNo = n; };
+  setOrder(cover, 1);
+  setOrder(FC, 2);
+  setOrder(AM, 3);
+  setOrder(WC, 4);
+  setOrder(BC, 5);
+  setOrder(A, 6);
+  setOrder(C, 7);
+  setOrder(R, 8);
+  setOrder(PnL, 9);
+  setOrder(D, 10);
+  setOrder(Cov, 11);
+  setOrder(S, 12);
+  setOrder(CT, 13);
+  setOrder(WF, 14);
 
   // ── Output ──
   const buffer = await wb.xlsx.writeBuffer();

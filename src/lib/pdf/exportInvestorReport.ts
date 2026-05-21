@@ -132,26 +132,39 @@ export async function exportInvestorReport(
   doc.text('Year-by-year distributions', margin, y);
   y += 4;
 
-  const tableHead = [['Year', 'Co-invest return', 'Pref return', 'Promoter draw', 'PP excess', 'Sponsor catch', 'Total']];
-  const tableBody = target.yearly.map((row) => [
-    String(row.year),
-    eur(row.coInvestReturn),
-    eur(row.preferredReturn),
-    eur(row.promoterDraw),
-    eur(row.ppExcessShare),
-    eur(row.sponsorCatch),
-    eur(row.totalCashFlow),
-  ]);
-  // Total row
-  tableBody.push([
-    'TOTAL',
-    eur(target.yearly.reduce((s, r) => s + r.coInvestReturn, 0)),
-    eur(target.yearly.reduce((s, r) => s + r.preferredReturn, 0)),
-    eur(target.yearly.reduce((s, r) => s + r.promoterDraw, 0)),
-    eur(target.yearly.reduce((s, r) => s + r.ppExcessShare, 0)),
-    eur(target.yearly.reduce((s, r) => s + r.sponsorCatch, 0)),
-    eur(target.totalReceived),
-  ]);
+  // Columns differ for founder vs investor:
+  // - Founder: Pari-passu | Grant bonus | Performance ratchet | Total
+  // - Investor: Distribution | Total (same number, kept symmetric)
+  const isFounder = !!target.stakeholder.isPromoter;
+  const tableHead = isFounder
+    ? [['Year', 'Pari-passu', 'Grant bonus', 'Performance ratchet', 'Total']]
+    : [['Year', 'Distribution', 'Total']];
+  const tableBody = target.yearly.map((row) =>
+    isFounder
+      ? [
+          String(row.year),
+          eur(row.pariPassuShare),
+          eur(row.grantBonusShare),
+          eur(row.performanceRatchetShare),
+          eur(row.totalCashFlow),
+        ]
+      : [String(row.year), eur(row.investorDistribution), eur(row.totalCashFlow)],
+  );
+  tableBody.push(
+    isFounder
+      ? [
+          'TOTAL',
+          eur(target.yearly.reduce((s, r) => s + r.pariPassuShare, 0)),
+          eur(target.yearly.reduce((s, r) => s + r.grantBonusShare, 0)),
+          eur(target.yearly.reduce((s, r) => s + r.performanceRatchetShare, 0)),
+          eur(target.totalReceived),
+        ]
+      : [
+          'TOTAL',
+          eur(target.yearly.reduce((s, r) => s + r.investorDistribution, 0)),
+          eur(target.totalReceived),
+        ],
+  );
 
   autoTable(doc, {
     startY: y,

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useModelStore, type ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
+import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import type { FinancingPath } from "@/lib/engine/types";
 import type { Locale } from "@/lib/i18n/types";
 import {
@@ -26,12 +27,14 @@ import {
 // Only endpoint years have full verified data. Intermediate revenue is verified;
 // intermediate ADR/refused-bookings are not published, so we show only revenue bars
 // with ADR labelled at the endpoints in the callout, not on the chart.
-const VILLA_LEV_HISTORY = [
+// 2022–2025 are settled years — fixed historicals. 2026 is live and flows from
+// the same `useSeasonSnapshot()` source the admin dashboard's Conservatism Check
+// reads, so the pitch chart and the dashboard never disagree.
+const VILLA_LEV_HISTORY_SETTLED: { year: string; revenue: number; projected?: boolean }[] = [
   { year: "2022", revenue: 116 },
   { year: "2023", revenue: 165 },
   { year: "2024", revenue: 185 },
   { year: "2025", revenue: 298 },
-  { year: "2026*", revenue: 500, projected: true },
 ];
 
 // ── Slide shell ──
@@ -95,12 +98,44 @@ function ControlBar() {
     { key: "downside", label: t("pitch.bar.downside") },
   ];
 
+  // Per audit 2026-05-21 fix #5: persistent badge so a banker can't accidentally
+  // read Upside / Downside numbers as the base case. Default is Realistic in
+  // the store (`modelStore.ts` line 748); we just surface it here unambiguously.
+  const isRealisticBase = activeScenario === "realistic";
+  const scenarioBadgeLabel = isRealisticBase
+    ? t("pitch.bar.realistic")
+    : activeScenario === "upside"
+      ? t("pitch.bar.upside")
+      : t("pitch.bar.downside");
+
   return (
     <div className="sticky top-0 z-50 bg-surface-primary/90 backdrop-blur-md border-b border-surface-tertiary">
       <div className="max-w-6xl mx-auto px-6 md:px-16 h-14 flex items-center justify-between gap-6">
-        <Link href="/" className="font-display text-base text-text-primary truncate">
-          Villa Lev Group
-        </Link>
+        <div className="flex items-center gap-3 min-w-0">
+          <Link href="/" className="font-display text-base text-text-primary truncate">
+            Villa Lev Group
+          </Link>
+          <span
+            className={`hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider border ${
+              isRealisticBase
+                ? "border-earth-olive/40 text-earth-olive bg-earth-olive/10"
+                : "border-warning/50 text-warning bg-warning/10"
+            }`}
+            aria-label={`Active case: ${scenarioBadgeLabel}`}
+            title={
+              isRealisticBase
+                ? "Base case — the figures across this deck reflect the Realistic scenario."
+                : "Non-base case — figures across this deck reflect a non-Realistic scenario."
+            }
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isRealisticBase ? "bg-earth-olive" : "bg-warning"
+              }`}
+            />
+            {scenarioBadgeLabel}
+          </span>
+        </div>
         <div className="flex items-center gap-6 text-xs">
           <div className="hidden md:flex items-center gap-1">
             <span className="text-text-tertiary uppercase tracking-wider mr-2">{t("pitch.bar.path")}</span>
@@ -154,10 +189,27 @@ function dscrColor(dscr: number): string {
 export default function PitchPage() {
   const { model, assumptions, activeScenario } = useModelStore();
   const { locale, t } = useTranslation();
+  // Live 2026 revenue — same source the admin dashboard's Conservatism Check
+  // reads (`useSeasonSnapshot` → `historicalYears`). While Firestore is still
+  // doing its first read (`loading === true`), `historicalYears` already holds
+  // the static fallback from `currentVillaActuals.ts`, but we deliberately hide
+  // the 2026 bar to avoid showing a stale projection as a confirmed datapoint.
+  const { historicalYears, loading: snapshotLoading } = useSeasonSnapshot();
 
   // Pre-compute derived data (all hooks must run before any early return)
   const km = model?.keyMetrics;
   const scenario = model?.scenarios[activeScenario] ?? model?.scenarios.realistic;
+  const villaLevHistory = useMemo(() => {
+    if (snapshotLoading) return VILLA_LEV_HISTORY_SETTLED;
+    const y2026 = historicalYears.find((y) => y.year === 2026);
+    if (!y2026 || !Number.isFinite(y2026.total) || y2026.total <= 0) {
+      return VILLA_LEV_HISTORY_SETTLED;
+    }
+    return [
+      ...VILLA_LEV_HISTORY_SETTLED,
+      { year: "2026 YTD", revenue: Math.round(y2026.total / 1000), projected: true },
+    ];
+  }, [historicalYears, snapshotLoading]);
   const operatingPnl = useMemo(
     () => scenario?.pnl.filter((p) => p.year >= 2028) ?? [],
     [scenario]
@@ -315,7 +367,7 @@ export default function PitchPage() {
 
           <div className="mt-12 bg-white rounded-xl border border-surface-tertiary p-8">
             <ResponsiveContainer width="100%" height={260}>
-              <ComposedChart data={VILLA_LEV_HISTORY}>
+              <ComposedChart data={villaLevHistory}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
                 <XAxis dataKey="year" tick={{ fontSize: 12 }} />
                 <YAxis

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Serif_Display, Inter, JetBrains_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import { ImpersonationBanner } from "@/components/ImpersonationBanner";
 import "./globals.css";
 
 const dmSerif = DM_Serif_Display({
@@ -38,7 +39,10 @@ export default function RootLayout({
       className={`h-full antialiased ${dmSerif.variable} ${inter.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+        <Providers>
+          <ImpersonationBanner />
+          {children}
+        </Providers>
       </body>
     </html>
   );

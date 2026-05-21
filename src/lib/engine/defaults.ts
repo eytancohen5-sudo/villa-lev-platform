@@ -429,9 +429,15 @@ export const BASE_CASE: ModelAssumptions = {
     hdbShareOfLoan: 0.40,
     bankShareOfLoan: 0.60,
     bankInterestRate: 0.05,
-    interestSubsidy: 0.02,
+    // 5% island-region rate subsidy (vs 3% standard). Villa Lev is on
+    // Antiparos, qualifying for the higher tier per the TEPIX III program
+    // brochure (see tepix/milestones.yaml meta.program.interest_subsidy_pct).
+    // The subsidy applies to the bank portion only and only for the first
+    // `subsidyDurationYears`. Corrected 2026-05-21 — prior value 0.02 did
+    // not match either tier and silently understated DSCR in years 1-2.
+    interestSubsidy: 0.05,
     subsidyDurationYears: 2,
-    totalTermYears: 14,
+    totalTermYears: 12,
     gracePeriodYears: 2,
     landCapOnFundContribution: 0.10,
   },

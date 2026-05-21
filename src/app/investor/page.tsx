@@ -93,20 +93,24 @@ export default function InvestorPage() {
       Downside: Number(d.downside.toFixed(2)),
     }));
 
+  const handlePrint = () => {
+    if (typeof window !== "undefined") window.print();
+  };
+
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12">
+    <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none">
       {/* Hero Section */}
-      <div className="text-center mb-16 relative">
-        <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3">
+      <div className="text-center mb-10 relative print:mb-4 print:break-after-avoid">
+        <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3 print:mb-1">
           {t('inv.portfolioExpansion')}
         </p>
-        <h1 className="font-display text-4xl md:text-5xl text-text-primary mb-3">
+        <h1 className="font-display text-4xl md:text-5xl text-text-primary mb-3 print:text-3xl">
           {t('app.title')}
         </h1>
         <p className="text-text-secondary max-w-xl mx-auto">
           {t('app.loanApp')} &middot; {pathLabel} &middot; {t('app.confidential')}
         </p>
-        <div className="mt-6">
+        <div className="mt-6 flex items-center justify-center gap-3 print:hidden">
           <button
             onClick={handleDownloadXlsx}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
@@ -114,11 +118,19 @@ export default function InvestorPage() {
           >
             ⬇ Download model (.xlsx)
           </button>
+          <button
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-brand-700 border border-brand-200 text-sm font-medium hover:bg-brand-50 transition-all shadow-sm"
+            title="Print or save this view as a PDF"
+            aria-label="Print or save as PDF"
+          >
+            🖨 Print / Save as PDF
+          </button>
         </div>
       </div>
 
       {/* Hero KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-16 py-8 border-y border-surface-tertiary">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 py-6 border-y border-surface-tertiary">
         <HeroKPI
           value={formatCurrency(km.totalCapex, true, locale)}
           label={t('kpi.totalInvestment')}
@@ -135,17 +147,21 @@ export default function InvestorPage() {
         <HeroKPI
           value={`~${formatPercent(km.ltv, 0)}`}
           label={t('kpi.ltvAtCompletion')}
-          sublabel={`${formatMultiple(km.assetCoverage)}`}
         />
         <HeroKPI
           value={formatMultiple(km.assetCoverage)}
           label={t('kpi.assetCoverage')}
           sublabel={`${formatCurrency(km.portfolioValue, true, locale)}`}
         />
+        <HeroKPI
+          value={formatMultiple(km.stabilisedDSCR)}
+          label={t('term.dscr')}
+          sublabel={t('dash.kpi.dscrThreshold')}
+        />
       </div>
 
       {/* Two-column: Capital Structure + Stabilised Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
         {/* Capital Structure */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
@@ -228,7 +244,7 @@ export default function InvestorPage() {
       </div>
 
       {/* Revenue & EBITDA Chart */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
           {t('inv.revenueEbitda')}
         </h3>
@@ -253,7 +269,7 @@ export default function InvestorPage() {
       </div>
 
       {/* DSCR Chart */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
           {t('term.dscrFull')}
         </h3>
@@ -276,7 +292,7 @@ export default function InvestorPage() {
       </div>
 
       {/* Financing Path Comparison */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
           {t('dash.financingComparison')}
         </h3>
@@ -313,7 +329,7 @@ export default function InvestorPage() {
       </div>
 
       {/* All-Paths DSCR Trajectory */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
           {t('dash.dscrTrajectory')}
         </h3>
@@ -338,7 +354,7 @@ export default function InvestorPage() {
       </div>
 
       {/* Collateral */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
         <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
           {t('inv.collateralAsset')}
         </h3>

@@ -405,7 +405,11 @@ export function TourButton({
 }
 
 /**
- * Hook: auto-opens a tour the first time a user lands on a page (per-browser).
+ * Hook: tracks "never seen" state for the tour pulse hint, but does NOT
+ * auto-open the modal. Tours are opt-in — users invoke them via the
+ * "Take the tour" button. Auto-popups are condescending for the credit-
+ * committee audience this app targets.
+ *
  * Returns `[open, setOpen, neverSeen]`. `neverSeen` is null until the
  * localStorage flag is read on mount, then `true` if not yet seen, `false`
  * otherwise. Use that to drive the pulsing trigger button.
@@ -427,10 +431,6 @@ export function usePageTour(storageKey: string): [
       seen = true;
     }
     setNeverSeen(!seen);
-    if (!seen) {
-      const id = window.setTimeout(() => setOpen(true), 600);
-      return () => window.clearTimeout(id);
-    }
   }, [storageKey]);
 
   return [open, setOpen, neverSeen];

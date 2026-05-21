@@ -6,6 +6,13 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
 import { computeCapTable } from "@/lib/engine/capTable";
+import {
+  EARNED_EQUITY_CAP,
+  TOTAL_FOUNDER_CAP,
+  MIN_INVESTOR_SHARE,
+  founderCashExceedsAdvisory,
+  advisoryFounderCashLimit,
+} from "@/lib/engine/founderWaterfall";
 
 function NumberInput({
   value,
@@ -22,7 +29,6 @@ function NumberInput({
   suffix?: string;
   width?: string;
 }) {
-  // Uncontrolled — `key` reset forces remount when external value changes.
   const id = useId();
   return (
     <div className="inline-flex items-center gap-1">
@@ -51,33 +57,6 @@ function NumberInput({
   );
 }
 
-function PercentInputSmall({
-  value,
-  onCommit,
-}: {
-  value: number;
-  onCommit: (v: number) => void;
-}) {
-  return (
-    <div className="inline-flex items-center gap-1">
-      <input
-        type="number"
-        step={0.5}
-        min={0}
-        max={100}
-        defaultValue={Number((value * 100).toFixed(2))}
-        aria-label={`Percent value, currently ${(value * 100).toFixed(1)}`}
-        onBlur={(e) => {
-          const v = parseFloat(e.target.value);
-          if (Number.isFinite(v)) onCommit(Math.max(0, Math.min(100, v)) / 100);
-        }}
-        className="w-16 px-2 py-1 text-sm font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-      />
-      <span className="text-text-tertiary text-xs" aria-hidden>%</span>
-    </div>
-  );
-}
-
 export default function CapTablePage() {
   const { locale } = useTranslation();
   const {
@@ -89,25 +68,34 @@ export default function CapTablePage() {
     updateStakeholder,
     addStakeholder,
     removeStakeholder,
-    setWaterfallParam,
     resetCapTable,
   } = useModelStore();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [redacted, setRedacted] = useState(false);
   const [redactedTarget, setRedactedTarget] = useState<string | null>(null);
 
+  const grantApproved = assumptions.financingPath === "grant";
+
   const result = useMemo(() => {
     if (!model) return null;
     const scenario = model.scenarios[activeScenario];
-    return computeCapTable(scenario, capTable, waterfall);
-  }, [model, activeScenario, capTable, waterfall]);
+    return computeCapTable(scenario, capTable, waterfall, {
+      grantApproved,
+      // Layer B uses the engine's DEFAULT_BASELINE_BANK_LOAN (pre-grant
+      // commercial financing), not the active scenario's loan.
+    });
+  }, [model, activeScenario, capTable, waterfall, grantApproved]);
 
   if (!model || !result) return <PageSkeleton variant="grid" />;
 
-  const totalPP = capTable.reduce((s, sh) => s + sh.cashIn, 0);
+  const b = result.founderBreakdown;
+  const totalEquity = result.totalEquityRaised;
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
   const exitYear = model.scenarios[activeScenario].exitYear;
   const exitMultiple = model.scenarios[activeScenario].exitEbitdaMultiple;
+  const founderCash = result.founderCashInvested;
+  const advisoryExceeded = founderCashExceedsAdvisory(founderCash, grantApproved);
+  const advisoryLimit = advisoryFounderCashLimit(grantApproved);
 
   const pathLabel =
     assumptions.financingPath === "grant"
@@ -118,7 +106,6 @@ export default function CapTablePage() {
           ? "TEPIX Loan Fund"
           : "Commercial Loan";
 
-  // Lazy-load jsPDF + autotable on demand so the page bundle stays light.
   const downloadInvestorPDF = async (stakeholderId: string) => {
     if (!result) return;
     const target = result.stakeholders.find((s) => s.stakeholder.id === stakeholderId);
@@ -129,7 +116,6 @@ export default function CapTablePage() {
       scenarioLabel,
       exitYear,
       exitMultiple,
-      // Default: respect the global redacted toggle when generating the PDF
       redacted: redacted && redactedTarget === stakeholderId,
     });
     const url = URL.createObjectURL(blob);
@@ -143,7 +129,6 @@ export default function CapTablePage() {
     URL.revokeObjectURL(url);
   };
 
-  // For redacted view: only show the targeted stakeholder named; others aggregated.
   const aggregateOthers = (targetId: string) => {
     const target = result.stakeholders.find((s) => s.stakeholder.id === targetId);
     const others = result.stakeholders.filter((s) => s.stakeholder.id !== targetId);
@@ -152,6 +137,28 @@ export default function CapTablePage() {
     return { target, others, aggCashIn, aggReceived };
   };
 
+  // Layered founder share — pari-passu / grant / ratchet / total (with caps).
+  // The colour-coded stacked bar gives an instant read of the deal structure.
+  const layerColors = {
+    pp: "#8B6914",         // brand gold
+    grant: "#4A6A8B",      // blue
+    ratchet: "#4A7C3F",    // green
+    investor: "#D6CFC0",   // neutral
+  };
+
+  // The capBinding indicator:
+  //   total_75 — investors keep their 25% floor; earned was reduced
+  //   earned_33 — top-tier or near-top; earned hit the +33% ceiling
+  //   none — no cap pressure; founder fully earns the tier
+  const capLabel =
+    b.capBinding === "total_75"
+      ? `75% total cap binding — earned reduced to ${formatPercent(b.earnedPct)}`
+      : b.capBinding === "earned_33"
+        ? `33% earned cap reached`
+        : "No cap binding";
+  const capTone =
+    b.capBinding === "total_75" ? "warning" : b.capBinding === "earned_33" ? "neutral" : "positive";
+
   return (
     <div>
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
@@ -159,7 +166,7 @@ export default function CapTablePage() {
           <h1 className="font-display text-2xl text-text-primary">Cap Table</h1>
           <p className="text-sm text-text-secondary mt-1">
             {scenarioLabel} &middot; Exit {exitYear} @ {formatMultiple(exitMultiple)} &middot;
-            Per-stakeholder cash flows, IRR, MOIC, equity payback
+            3-layer founder waterfall with investor protection caps
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -196,6 +203,202 @@ export default function CapTablePage() {
         <span className={Math.abs(result.reconciliationError) < 1 ? "text-positive ml-1" : "text-warning ml-1"}>
           diff {formatCurrency(result.reconciliationError, true, locale)}
         </span>
+        <span className="text-text-tertiary mx-3">·</span>
+        Waterfall {result.converged ? `converged in ${result.iterations} iter${result.iterations === 1 ? "" : "s"}` : `did not converge (${result.iterations} iters)`}
+      </div>
+
+      {/* ── Founder compensation waterfall ─────────────────────────────── */}
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
+        Founder compensation
+      </h2>
+      <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-5">
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+              Layer A — Pari-passu
+            </div>
+            <div className="font-mono text-2xl font-semibold text-text-primary">
+              {formatPercent(b.pariPassuPct)}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">
+              {formatCurrency(founderCash, true, locale)} ÷ {formatCurrency(totalEquity, true, locale)}
+            </div>
+          </div>
+          <div title={
+            grantApproved
+              ? `Derived: founder_net €${Math.round(b.founderNetGrantCash / 1000)}K ÷ (post-grant equity €${(b.postGrantEquityValue / 1_000_000).toFixed(2)}M + founder_net) — adjusts with grant size, consultant share, and project valuation.`
+              : "Layer B vests only when the Greek Development Law grant is approved."
+          }>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+              Layer B — Grant bonus
+            </div>
+            <div className={`font-mono text-2xl font-semibold ${grantApproved ? "text-text-primary" : "text-text-tertiary"}`}>
+              {grantApproved ? "+" + formatPercent(b.grantBonusPct) : "—"}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">
+              {grantApproved
+                ? `€${Math.round(b.founderNetGrantCash / 1000)}K net / €${Math.round((b.postGrantEquityValue + b.founderNetGrantCash) / 1000)}K`
+                : "Inactive (no grant path)"}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+              Layer C — Performance ratchet
+            </div>
+            <div className="font-mono text-2xl font-semibold text-text-primary">
+              +{formatPercent(b.performanceRatchetPct)}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">
+              Tier: {b.ratchetTierLabel}
+              {b.moicFloorReduction && <span className="ms-1 text-warning">· MOIC floor reduced</span>}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+              Founder total
+            </div>
+            <div className="font-mono text-2xl font-semibold text-brand-700">
+              {formatPercent(b.founderTotalPct)}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">
+              {formatPercent(b.pariPassuPct)} + {formatPercent(b.earnedPct)} earned
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+              Investors keep
+            </div>
+            <div className="font-mono text-2xl font-semibold text-positive">
+              {formatPercent(b.investorTotalPct)}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">
+              Floor protected at {formatPercent(MIN_INVESTOR_SHARE)}
+            </div>
+          </div>
+        </div>
+
+        {/* Stacked bar — founder layers + investor share */}
+        <div className="mb-3">
+          <div className="h-3 w-full rounded-full overflow-hidden flex bg-surface-tertiary">
+            <div title={`Pari-passu ${formatPercent(b.pariPassuPct)}`}
+                 style={{ width: `${b.pariPassuPct * 100}%`, backgroundColor: layerColors.pp }} />
+            {grantApproved && b.grantBonusPct > 0 && (
+              <div title={`Grant bonus +${formatPercent(b.grantBonusPct)}`}
+                   style={{ width: `${b.grantBonusPct * 100}%`, backgroundColor: layerColors.grant }} />
+            )}
+            <div title={`Performance ratchet +${formatPercent(b.performanceRatchetPct)}`}
+                 style={{ width: `${Math.max(0, b.founderTotalPct - b.pariPassuPct - (grantApproved ? b.grantBonusPct : 0)) * 100}%`, backgroundColor: layerColors.ratchet }} />
+            <div title={`Investors keep ${formatPercent(b.investorTotalPct)}`}
+                 style={{ width: `${b.investorTotalPct * 100}%`, backgroundColor: layerColors.investor }} />
+          </div>
+          <div className="flex flex-wrap items-center gap-4 mt-2 text-[11px] text-text-tertiary">
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: layerColors.pp }} /> Pari-passu</span>
+            {grantApproved && b.grantBonusPct > 0 && (
+              <span className="flex items-center gap-1.5"><span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: layerColors.grant }} /> Grant bonus</span>
+            )}
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: layerColors.ratchet }} /> Performance ratchet</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2 h-2 rounded-sm" style={{ backgroundColor: layerColors.investor }} /> Investor pool</span>
+          </div>
+        </div>
+
+        {/* Cap binding indicator */}
+        <div className={`mt-4 rounded-lg p-3 text-xs border flex items-start gap-3 ${
+          capTone === "warning"
+            ? "bg-warning/10 border-warning/30 text-warning"
+            : capTone === "neutral"
+              ? "bg-surface-secondary border-surface-tertiary text-text-secondary"
+              : "bg-positive/10 border-positive/20 text-positive"
+        }`}>
+          <span className="font-medium">{capLabel}.</span>
+          <span className="text-text-tertiary">
+            Earned cap {formatPercent(EARNED_EQUITY_CAP)} · Total founder cap {formatPercent(TOTAL_FOUNDER_CAP)} (investors keep ≥ {formatPercent(MIN_INVESTOR_SHARE)}).
+          </span>
+        </div>
+
+        {/* Headline aggregate investor metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-surface-tertiary">
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Total equity raised</div>
+            <div className="font-mono text-base font-semibold mt-1">{formatCurrency(totalEquity, true, locale)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Non-founder cash</div>
+            <div className="font-mono text-base font-semibold mt-1">{formatCurrency(result.totalNonFounderCash, true, locale)}</div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Investor MOIC</div>
+            <div className={`font-mono text-base font-semibold mt-1 ${result.investorMOIC >= 2 ? "text-positive" : ""}`}>
+              {formatMultiple(result.investorMOIC)}
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Investor IRR</div>
+            <div className={`font-mono text-base font-semibold mt-1 ${result.investorIRR >= 0.15 ? "text-positive" : result.investorIRR > 0 ? "" : "text-warning"}`}>
+              {result.investorIRR > 0 ? formatPercent(result.investorIRR) : "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Layer B derivation — surfaced so the bank can audit the +4% bonus
+            instead of taking it as a magic number. */}
+        {grantApproved && (
+          <div className="mt-5 pt-4 border-t border-surface-tertiary">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-2">
+              Layer B derivation
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+              <div>
+                <div className="text-text-tertiary">Grant amount</div>
+                <div className="font-mono font-medium mt-0.5">{formatCurrency(4_013_880, true, locale)}</div>
+              </div>
+              <div>
+                <div className="text-text-tertiary">× 10% success fee</div>
+                <div className="font-mono font-medium mt-0.5">{formatCurrency(4_013_880 * 0.10, true, locale)}</div>
+              </div>
+              <div>
+                <div className="text-text-tertiary">− €200K consultant</div>
+                <div className="font-mono font-medium mt-0.5">{formatCurrency(b.founderNetGrantCash, true, locale)} net</div>
+              </div>
+              <div>
+                <div className="text-text-tertiary">Post-grant equity</div>
+                <div className="font-mono font-medium mt-0.5">{formatCurrency(b.postGrantEquityValue, true, locale)}</div>
+              </div>
+              <div>
+                <div className="text-text-tertiary">= Grant bonus</div>
+                <div className="font-mono font-medium text-brand-700 mt-0.5">
+                  {formatPercent(b.grantBonusPct)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Operating-fee context — these reduce cash distributable to equity. */}
+        <div className="mt-4 pt-4 border-t border-surface-tertiary grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <div className="text-text-tertiary">Founder ManCo fee (5% × revenue)</div>
+            <div className="font-mono font-medium mt-0.5">
+              {formatCurrency(result.totalFounderManCoFee, true, locale)} cumulative
+            </div>
+          </div>
+          <div>
+            <div className="text-text-tertiary">Consultant payment (Layer B)</div>
+            <div className="font-mono font-medium mt-0.5">
+              {result.totalConsultantPayment > 0
+                ? formatCurrency(result.totalConsultantPayment, true, locale)
+                : "—"}
+            </div>
+          </div>
+          <div className="text-text-tertiary leading-snug">
+            Both subtracted from NCF post-tax post-DS before splitting between founder and investors.
+          </div>
+        </div>
+
+        {advisoryExceeded && (
+          <div className="mt-4 rounded-lg p-3 text-xs bg-warning/10 border border-warning/30 text-warning">
+            <span className="font-medium">Advisory:</span> Founder cash exceeds {formatCurrency(advisoryLimit, true, locale)} ({grantApproved ? "grant scenario" : "no-grant scenario"}). Additional cash provides limited upside — the {formatPercent(TOTAL_FOUNDER_CAP)} cap binds and earned equity is reduced.
+          </div>
+        )}
       </div>
 
       {/* Redacted target picker */}
@@ -213,68 +416,13 @@ export default function CapTablePage() {
               ))}
             </select>
             <span className="text-xs text-text-tertiary">
-              Other stakeholders shown as aggregated "Other investors" line.
+              Other stakeholders shown as aggregated &quot;Other investors&quot; line.
             </span>
           </div>
         </div>
       )}
 
-      {/* Waterfall params */}
-      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
-        Waterfall mechanics
-      </h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-        <div className="rounded-xl border border-surface-tertiary bg-white p-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-            Promoter equity
-          </div>
-          <PercentInputSmall
-            value={waterfall.promoterEquityRate}
-            onCommit={(v) => setWaterfallParam("promoterEquityRate", v)}
-          />
-          <div className="text-[11px] text-text-tertiary mt-1">Sponsor's free carry</div>
-        </div>
-        <div className="rounded-xl border border-surface-tertiary bg-white p-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-            Preferred return
-          </div>
-          <PercentInputSmall
-            value={waterfall.preferredReturnRate}
-            onCommit={(v) => setWaterfallParam("preferredReturnRate", v)}
-          />
-          <div className="text-[11px] text-text-tertiary mt-1">Annual pref on PP capital</div>
-        </div>
-        <div className="rounded-xl border border-surface-tertiary bg-white p-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-            LP share above pref
-          </div>
-          <PercentInputSmall
-            value={waterfall.ppShareAbovePref}
-            onCommit={(v) => setWaterfallParam("ppShareAbovePref", v)}
-          />
-          <div className="text-[11px] text-text-tertiary mt-1">{formatPercent(1 - waterfall.ppShareAbovePref)} to sponsor</div>
-        </div>
-        <div className="rounded-xl border border-surface-tertiary bg-white p-3">
-          <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-            Co-invest repaid in
-          </div>
-          <input
-            type="number"
-            min={2028}
-            max={2036}
-            step={1}
-            defaultValue={waterfall.coInvestRepaymentYear}
-            onBlur={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (Number.isFinite(v)) setWaterfallParam("coInvestRepaymentYear", Math.max(2028, Math.min(2036, v)));
-            }}
-            className="w-20 px-2 py-1 text-sm font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-          />
-          <div className="text-[11px] text-text-tertiary mt-1">Founder PP returned</div>
-        </div>
-      </div>
-
-      {/* Cap table summary */}
+      {/* ── Stakeholders table ─────────────────────────────────────────── */}
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
         Stakeholders
       </h2>
@@ -285,8 +433,8 @@ export default function CapTablePage() {
               <tr className="bg-surface-secondary/40">
                 <th className="text-left py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Stakeholder</th>
                 <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Cash in</th>
-                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">% PP</th>
-                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Total stake</th>
+                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">% of pool</th>
+                <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Economic stake</th>
                 <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Total received</th>
                 <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">MOIC</th>
                 <th className="text-right py-3 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">IRR</th>
@@ -300,6 +448,9 @@ export default function CapTablePage() {
                 const sh = r.stakeholder;
                 const hide = redacted && redactedTarget !== sh.id;
                 if (hide) return null;
+                const poolFractionLabel = sh.isPromoter
+                  ? formatPercent(totalEquity > 0 ? sh.cashIn / totalEquity : 0)
+                  : formatPercent(r.ppFraction);
                 return (
                   <tr
                     key={sh.id}
@@ -318,7 +469,7 @@ export default function CapTablePage() {
                         onCommit={(v) => updateStakeholder(sh.id, { cashIn: Math.max(0, v) })}
                       />
                     </td>
-                    <td className="py-2.5 px-4 text-right font-mono">{formatPercent(r.ppFraction)}</td>
+                    <td className="py-2.5 px-4 text-right font-mono">{poolFractionLabel}</td>
                     <td className="py-2.5 px-4 text-right font-mono font-semibold">{formatPercent(r.economicStake)}</td>
                     <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(r.totalReceived, true, locale)}</td>
                     <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(r.moic)}</td>
@@ -357,7 +508,7 @@ export default function CapTablePage() {
                   <tr className="border-t border-surface-secondary/40 bg-surface-secondary/40 font-medium">
                     <td className="py-2.5 px-4 italic text-text-secondary">Other investors (aggregated)</td>
                     <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(aggCashIn, true, locale)}</td>
-                    <td className="py-2.5 px-4 text-right font-mono">{formatPercent(totalPP > 0 ? aggCashIn / totalPP : 0)}</td>
+                    <td className="py-2.5 px-4 text-right font-mono">{formatPercent(totalEquity > 0 ? aggCashIn / totalEquity : 0)}</td>
                     <td className="py-2.5 px-4 text-right font-mono">—</td>
                     <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(aggReceived, true, locale)}</td>
                     <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(othersAvgMoic)}</td>
@@ -370,11 +521,11 @@ export default function CapTablePage() {
               })()}
               <tr className="border-t-2 border-surface-tertiary font-medium">
                 <td className="py-2.5 px-4">Total (cash)</td>
-                <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(totalPP, true, locale)}</td>
+                <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(totalEquity, true, locale)}</td>
                 <td className="py-2.5 px-4 text-right font-mono">100.0%</td>
                 <td className="py-2.5 px-4 text-right font-mono">100.0%</td>
                 <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(result.totalDistributed, true, locale)}</td>
-                <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(totalPP > 0 ? result.totalDistributed / totalPP : 0)}</td>
+                <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(totalEquity > 0 ? result.totalDistributed / totalEquity : 0)}</td>
                 <td></td>
                 <td></td>
                 <td></td>
@@ -402,13 +553,16 @@ export default function CapTablePage() {
         const sh = r.stakeholder;
         if (!expanded[sh.id]) return null;
         if (redacted && redactedTarget !== sh.id) return null;
+        const isFounder = !!sh.isPromoter;
         return (
           <div key={sh.id} className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden mb-6">
             <div className="p-4 border-b border-surface-tertiary flex items-baseline justify-between">
               <div>
                 <h3 className="font-display text-lg">{sh.name}</h3>
                 <p className="text-xs text-text-tertiary mt-0.5">
-                  Cash in {formatCurrency(sh.cashIn, true, locale)} · PP {formatPercent(r.ppFraction)} · Economic {formatPercent(r.economicStake)} · MOIC {formatMultiple(r.moic)} · IRR {formatPercent(r.irr)}
+                  Cash in {formatCurrency(sh.cashIn, true, locale)} ·{" "}
+                  {isFounder ? "Founder economic stake" : "Pool share"} {formatPercent(isFounder ? r.economicStake : r.ppFraction)} ·
+                  Economic {formatPercent(r.economicStake)} · MOIC {formatMultiple(r.moic)} · IRR {formatPercent(r.irr)}
                 </p>
               </div>
               <button
@@ -423,11 +577,15 @@ export default function CapTablePage() {
                 <thead>
                   <tr className="bg-surface-secondary/40">
                     <th className="text-left py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Year</th>
-                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Co-invest return</th>
-                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Pref return</th>
-                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Promoter draw</th>
-                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">PP excess</th>
-                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Sponsor catch</th>
+                    {isFounder ? (
+                      <>
+                        <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Pari-passu</th>
+                        <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Grant bonus</th>
+                        <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Performance ratchet</th>
+                      </>
+                    ) : (
+                      <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Distribution</th>
+                    )}
                     <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Total</th>
                   </tr>
                 </thead>
@@ -435,11 +593,15 @@ export default function CapTablePage() {
                   {r.yearly.map((y) => (
                     <tr key={y.year} className="border-t border-surface-secondary/40">
                       <td className="py-1.5 px-3 font-sans">{y.year}</td>
-                      <td className="py-1.5 px-3 text-right">{y.coInvestReturn > 0 ? formatCurrency(y.coInvestReturn, true, locale) : "—"}</td>
-                      <td className="py-1.5 px-3 text-right">{y.preferredReturn > 0 ? formatCurrency(y.preferredReturn, true, locale) : "—"}</td>
-                      <td className="py-1.5 px-3 text-right">{y.promoterDraw > 0 ? formatCurrency(y.promoterDraw, true, locale) : "—"}</td>
-                      <td className="py-1.5 px-3 text-right">{y.ppExcessShare > 0 ? formatCurrency(y.ppExcessShare, true, locale) : "—"}</td>
-                      <td className="py-1.5 px-3 text-right">{y.sponsorCatch > 0 ? formatCurrency(y.sponsorCatch, true, locale) : "—"}</td>
+                      {isFounder ? (
+                        <>
+                          <td className="py-1.5 px-3 text-right">{y.pariPassuShare > 0 ? formatCurrency(y.pariPassuShare, true, locale) : "—"}</td>
+                          <td className="py-1.5 px-3 text-right">{y.grantBonusShare > 0 ? formatCurrency(y.grantBonusShare, true, locale) : "—"}</td>
+                          <td className="py-1.5 px-3 text-right">{y.performanceRatchetShare > 0 ? formatCurrency(y.performanceRatchetShare, true, locale) : "—"}</td>
+                        </>
+                      ) : (
+                        <td className="py-1.5 px-3 text-right">{y.investorDistribution > 0 ? formatCurrency(y.investorDistribution, true, locale) : "—"}</td>
+                      )}
                       <td className={`py-1.5 px-3 text-right font-semibold ${y.totalCashFlow > 0 ? "text-positive" : ""}`}>
                         {y.totalCashFlow > 0 ? formatCurrency(y.totalCashFlow, true, locale) : "—"}
                       </td>
@@ -447,12 +609,12 @@ export default function CapTablePage() {
                   ))}
                   <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
                     <td className="py-2 px-3 font-sans">Total received</td>
-                    <td colSpan={5}></td>
+                    {isFounder ? <td colSpan={3}></td> : <td></td>}
                     <td className="py-2 px-3 text-right text-positive">{formatCurrency(r.totalReceived, true, locale)}</td>
                   </tr>
                   <tr className="font-semibold">
                     <td className="py-2 px-3 font-sans">Net profit (received − invested)</td>
-                    <td colSpan={5}></td>
+                    {isFounder ? <td colSpan={3}></td> : <td></td>}
                     <td className={`py-2 px-3 text-right ${r.netProfit > 0 ? "text-positive" : "text-warning"}`}>
                       {formatCurrency(r.netProfit, true, locale)}
                     </td>
@@ -464,12 +626,17 @@ export default function CapTablePage() {
         );
       })}
 
-      <div className="text-xs text-text-tertiary mt-6">
-        Tip: click a row to expand its year-by-year detail. Change a contribution amount to
-        recompute the entire waterfall. Use the Path / Scenario / Exit controls in the top bar
-        to stress-test against different futures.
+      <div className="text-xs text-text-tertiary mt-6 space-y-1">
+        <p>
+          <span className="font-medium text-text-secondary">How the waterfall works:</span> the founder&apos;s economic share is determined at exit by the three layers above; investors split the remainder pro-rata to their cash. The performance ratchet uses MOIC floors to prevent quick-exit gaming. Caps protect investors (≥ {formatPercent(MIN_INVESTOR_SHARE)} of distributions guaranteed).
+        </p>
+        <p>
+          <span className="font-medium text-text-secondary">Operating fees (separate from equity):</span> the founder&apos;s ManCo receives 5% of gross revenue (brand + management combined) and a 10% grant success fee at grant approval (half cash to consultant, half re-invested as the Layer B equity bonus).
+        </p>
+        <p>
+          Tip: click a row to expand its year-by-year detail. Change a contribution amount to recompute the waterfall. Switch Path / Scenario / Exit in the top bar to stress-test.
+        </p>
       </div>
-
     </div>
   );
 }

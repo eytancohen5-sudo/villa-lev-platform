@@ -518,6 +518,17 @@ function computeScenario(
     ? (debtResult.equityRequired ?? 0) * (opCo.ownerPriorityReturnRate ?? 0)
     : 0;
 
+  const graceEndYear = 2028;
+  const preAmortSchedule = buildAmortSchedule(
+    debtResult.loanAmount,
+    debtResult.effectiveInterestRate,
+    debtResult.annualDS,
+    debtResult.getDS,
+    2026,
+    2036,
+    graceEndYear
+  );
+
   const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
     'cumulativeNCF' | 'cumulativeYieldOnInitialEquity' |
     'termLoanInterest' | 'termLoanPrincipal' | 'termLoanBalance' |
@@ -635,11 +646,11 @@ function computeScenario(
     const ds = debtResult.getDS(year);
     const ncf = ebitda - ds;
 
+    const amortYear = preAmortSchedule.get(year);
+    const termLoanInterestForTax = amortYear?.interest ?? 0;
+
     const vat = year <= 2027 ? 0 : -(totalRevenue * a.tax.netVATRate);
-    // CIT (corporate income tax) is applied to pre-VAT NCF as a cash-proxy for
-    // taxable profit. This approximates taxable income in the absence of an
-    // explicit depreciation + interest-only split. Floor at zero — no credits.
-    const taxableProfit = Math.max(0, ebitda - ds);
+    const taxableProfit = Math.max(0, ebitda - termLoanInterestForTax);
     const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
@@ -713,17 +724,7 @@ function computeScenario(
     baselineCumByYear
   );
 
-  // Build amortisation schedule for the active path. Grace period spans
-  // 2026–2028 (interest-only via getDS); amortisation starts 2029.
-  const amortSchedule = buildAmortSchedule(
-    debtResult.loanAmount,
-    debtResult.effectiveInterestRate,
-    debtResult.annualDS,
-    debtResult.getDS,
-    2026,
-    2036,
-    2028
-  );
+  const amortSchedule = preAmortSchedule;
 
   // Pass 2: final P&L with WC interest threaded into OPEX, amort merged in.
   let cumulativeNCF = 0;
@@ -769,12 +770,9 @@ function computeScenario(
   const gracePeriodInterestTotal =
     debtResult.getDS(2026) + debtResult.getDS(2027) + debtResult.getDS(2028);
 
-  // Min DSCR is measured *post-ramp* (2031+). Including 2029-2030 picks up
-  // ramp-year troughs that aren't representative of sustained coverage and
-  // banks typically don't covenant-test during the ramp window anyway.
-  // The covenant headroom is computed against this post-ramp minimum.
+  const dscrWindowStart = graceEndYear + 1;
   const operationalDscrs = pnl
-    .filter((p) => p.year >= 2031 && p.dscr > 0)
+    .filter((p) => p.year >= dscrWindowStart && p.dscr > 0)
     .map((p) => p.dscr);
   const minDSCRLoanLife = operationalDscrs.length
     ? Math.min(...operationalDscrs)
