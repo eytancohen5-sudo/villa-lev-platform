@@ -72,6 +72,7 @@ const LR: Record<
     perNight: string;
     nightsBooked: string;
     nights: string; // bare unit suffix (e.g. "95 nights"), no "booked"
+    bookingOnly: string; // "Booking only" — clarifier on YTD revenue figure
     available: string;
     sourceNote: string;
     // ── New keys for the conservatism-cushion restructure ──
@@ -110,6 +111,7 @@ const LR: Record<
     perNight: "/ night",
     nightsBooked: "nights booked",
     nights: "nights",
+    bookingOnly: "Booking only",
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
@@ -148,6 +150,7 @@ const LR: Record<
     perNight: "/ nuit",
     nightsBooked: "nuits réservées",
     nights: "nuits",
+    bookingOnly: "Réservations uniquement",
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
@@ -186,6 +189,7 @@ const LR: Record<
     perNight: "/ βραδιά",
     nightsBooked: "βραδιές κρατημένες",
     nights: "βραδιές",
+    bookingOnly: "Μόνο κρατήσεις",
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
@@ -224,6 +228,7 @@ const LR: Record<
     perNight: "/ לילה",
     nightsBooked: "לילות תפוסים",
     nights: "לילות",
+    bookingOnly: "הזמנות בלבד",
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
@@ -394,8 +399,27 @@ export function LiveTrackRecord({
 
   const adr = currentSeason.netADR;
   const occupancy = currentSeason.occupancy; // 0..1
-  const ytdRevenue = currentSeason.totalRevenueNet;
+  // YTD revenue: rental net of commissions ONLY — services intentionally
+  // stripped per Eytan 2026-05-22 so the headline figure tracks pure
+  // booking revenue, matching the rental-only history table below.
+  const ytdRevenue = currentSeason.rentalNet;
   const revpar = adr * occupancy;
+
+  // Prior-year rental for the YTD YoY badge. Picks the most recent year
+  // strictly before currentSeason.year from historicalYears. yoy field on
+  // the snapshot is computed against `total` (rental + services) so we
+  // recompute on rental here to stay consistent with ytdRevenue above and
+  // with the history-table YoY column.
+  const priorYear = historicalYears
+    .filter((h) => h.year < currentSeason.year)
+    .reduce<(typeof historicalYears)[number] | null>(
+      (best, h) => (!best || h.year > best.year ? h : best),
+      null,
+    );
+  const ytdYoYRental =
+    priorYear && priorYear.rental > 0
+      ? (ytdRevenue - priorYear.rental) / priorYear.rental
+      : null;
 
   // ── BP per-villa assumptions for the conservatism strip ──
   const bp = assumptions.revenueRealistic;
@@ -616,11 +640,26 @@ export function LiveTrackRecord({
             <Figure
               label={lr.ytdRevenue}
               value={formatCurrency(ytdRevenue, true, locale)}
-              sub={
-                hasNow
-                  ? `${lr.asOf} ${monthName} ${year} · ${lr.updatedFromPMS}`
-                  : lr.updatedFromPMS
-              }
+              sub={(() => {
+                // Sub line composes 3 parts (joined by " · "):
+                //   1. "Booking only" — clarifier that services are excluded
+                //   2. "+XX.X% vs YYYY" — YoY growth on rental vs the most
+                //      recent completed year (omitted if no prior year)
+                //   3. "as of {month} {year} · updated daily from PMS"
+                const parts: string[] = [lr.bookingOnly];
+                if (ytdYoYRental !== null && priorYear) {
+                  const sign = ytdYoYRental >= 0 ? "+" : "−";
+                  parts.push(
+                    `${sign}${(Math.abs(ytdYoYRental) * 100).toFixed(1)}% ${lr.versus} ${priorYear.year}`,
+                  );
+                }
+                parts.push(
+                  hasNow
+                    ? `${lr.asOf} ${monthName} ${year} · ${lr.updatedFromPMS}`
+                    : lr.updatedFromPMS,
+                );
+                return parts.join(" · ");
+              })()}
             />
             <Figure
               label={lr.occupancy}
