@@ -219,6 +219,20 @@ export interface TranslationDictionary {
   'dash.years': string;
   'dash.section.headline': string;
   'dash.headlineSub': string;
+  'dash.section.marketPosition': string;
+  'dash.marketPositionSub': string;
+  'market.bp': string;
+  'market.market': string;
+  'market.belowMarket': string;
+  'market.aboveMarket': string;
+  'market.atMarket': string;
+  'market.standardRoom': string;
+  'market.doubleSuite': string;
+  'market.tierStandard': string;
+  'market.tierDouble': string;
+  'market.coverage': string;
+  'market.awaitingCapture': string;
+  'market.sourceNote': string;
   'dash.drillDown': string;
   'dash.founderDrillDown': string;
   'dash.pnlDrillDown': string;
@@ -473,6 +487,12 @@ export interface TranslationDictionary {
   'config.noSaved': string;
   'config.unsaved': string;
   'config.active': string;
+
+  // ── Reference scenario (admin-designated default) ──
+  'ref.setAsReference': string;
+  'ref.referenceBadge': string;
+  'ref.viewingReference': string;
+  'ref.dismiss': string;
 
   // ── Property count ──
   'field.numPropB': string;

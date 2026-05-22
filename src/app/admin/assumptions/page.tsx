@@ -10,6 +10,11 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { FinancingPath, PropertyTemplate, VillaRoom, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea } from "@/lib/engine/types";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
+import { getDb } from "@/lib/firebase";
+import {
+  setReferenceScenarioId,
+  subscribeReferenceScenarioId,
+} from "@/lib/data/referenceScenario";
 
 // ── Shared Components ──
 
@@ -897,11 +902,56 @@ export default function AssumptionsPage() {
     templates,
     projects,
     addTemplate,
+    activeConfigId,
+    editsSinceLastSave,
+    savedConfigs,
   } = useModelStore();
   const [tab, setTab] = useState<
     "portfolio" | "templates" | "general" | "revenue" | "opex" | "financing"
   >("portfolio");
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
+
+  // ── Reference scenario (admin-designated default) ──
+  // Live-subscribe to appConfig/current. On first hydration where the
+  // visitor hasn't touched anything yet (editsSinceLastSave === 0 AND
+  // no activeConfigId), auto-load the reference scenario. Once they
+  // make ANY change, this stops applying — their local state wins.
+  //
+  // The banner state mirrors `referenceScenarioId` and is shown only
+  // when the active config matches the reference AND no edits are
+  // pending. Dismissible via local-only flag.
+  const [referenceScenarioId, setReferenceScenarioIdState] = useState<
+    string | null
+  >(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const autoLoadAttempted = useRef(false);
+
+  useEffect(() => {
+    const db = getDb();
+    if (!db) return;
+    const unsub = subscribeReferenceScenarioId(db, (id) => {
+      setReferenceScenarioIdState(id);
+    });
+    return () => unsub();
+  }, []);
+
+  // First-visit auto-load: applies once per mount, only if the user
+  // has not edited locally AND the reference scenario doc exists.
+  // editsSinceLastSave === 0 is the "untouched" signal per the perf
+  // audit — every assumption mutator bumps it. Depends on savedConfigs
+  // so we retry once the background server fetch in init() lands the
+  // shared scenario list.
+  useEffect(() => {
+    if (autoLoadAttempted.current) return;
+    if (!referenceScenarioId) return;
+    const state = useModelStore.getState();
+    if (state.editsSinceLastSave > 0) return;
+    if (state.activeConfigId === referenceScenarioId) return;
+    const exists = state.savedConfigs.some((c) => c.id === referenceScenarioId);
+    if (!exists) return; // Scenario list hasn't hydrated yet — try again on next render.
+    autoLoadAttempted.current = true;
+    state.loadConfig(referenceScenarioId);
+  }, [referenceScenarioId, savedConfigs]);
 
   // Clear highlight after animation
   useEffect(() => {
@@ -923,6 +973,18 @@ export default function AssumptionsPage() {
 
   const a = assumptions;
   const totalPlots = a.portfolio.reduce((s, p) => s + p.count, 0);
+
+  // Banner is visible when the active config matches the reference,
+  // the user has no pending edits, and they haven't dismissed it.
+  const referenceScenario = referenceScenarioId
+    ? savedConfigs.find((c) => c.id === referenceScenarioId) ?? null
+    : null;
+  const showReferenceBanner =
+    !bannerDismissed &&
+    referenceScenarioId !== null &&
+    activeConfigId === referenceScenarioId &&
+    editsSinceLastSave === 0 &&
+    referenceScenario !== null;
 
   return (
     <div>
@@ -950,6 +1012,50 @@ export default function AssumptionsPage() {
           {t('as.resetDefaults')}
         </button>
       </div>
+
+      {/* Reference scenario banner — visible whenever the live state
+          matches the admin-designated default and the user hasn't yet
+          dirtied anything. "Reset to defaults" already exists at the
+          top right; this strip just makes the reference state visible. */}
+      {showReferenceBanner && referenceScenario && (
+        <div
+          className="mb-6 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-brand-200 bg-brand-50/60 text-sm"
+          role="status"
+        >
+          <span className="text-brand-700">★</span>
+          <span className="text-text-secondary">
+            {t('ref.viewingReference')}
+            <span className="mx-1.5 text-text-tertiary">·</span>
+            <strong className="text-text-primary">{referenceScenario.name}</strong>
+          </span>
+          <span className="ms-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                useModelStore.getState().requestConfirm({
+                  title: 'Reset all assumptions to defaults?',
+                  message: 'This cannot be undone. Your current edits to assumptions, templates, and projects will be lost. Saved scenarios are not affected — you can reload one from the Scenarios panel.',
+                  confirmLabel: 'Reset everything',
+                  danger: true,
+                  onConfirm: resetToDefaults,
+                });
+              }}
+              className="text-xs text-text-secondary hover:text-negative transition-colors underline-offset-2 hover:underline"
+            >
+              {t('as.resetDefaults')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBannerDismissed(true)}
+              aria-label={t('ref.dismiss')}
+              title={t('ref.dismiss')}
+              className="px-1.5 text-text-tertiary hover:text-text-primary transition-colors"
+            >
+              &times;
+            </button>
+          </span>
+        </div>
+      )}
 
       {/* Portfolio Summary Bar */}
       <div className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
@@ -1583,6 +1689,46 @@ function ConfigPanel() {
     lastSavedConfigId, lastSavedConfigName, editsSinceLastSave,
     saveConfig, updateConfig, loadConfig, deleteConfig, renameConfig, importConfigs,
   } = useModelStore();
+
+  // Live-subscribe to the reference scenario id so the badge and
+  // "Set as reference" affordance reflect what other admins set
+  // without a manual refresh.
+  const [referenceScenarioId, setReferenceScenarioIdState] = useState<
+    string | null
+  >(null);
+  useEffect(() => {
+    const db = getDb();
+    if (!db) return;
+    const unsub = subscribeReferenceScenarioId(db, (id) => {
+      setReferenceScenarioIdState(id);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSetReference = useCallback(
+    async (scenarioId: string | null, uid: string | undefined) => {
+      const db = getDb();
+      const store = useModelStore.getState();
+      if (!uid) {
+        store.requestAlert({
+          title: 'Sign-in required',
+          message: 'You must be signed in as an admin to set the reference scenario.',
+          tone: 'warning',
+        });
+        return;
+      }
+      try {
+        await setReferenceScenarioId(db, scenarioId, uid);
+      } catch (err) {
+        store.requestAlert({
+          title: 'Could not update reference scenario',
+          message: (err as Error).message,
+          tone: 'error',
+        });
+      }
+    },
+    [],
+  );
   // Auth gates *write* actions only — listing/loading scenarios stays public
   // so unauthenticated visitors (e.g. bankers on a share link) can still see
   // and inspect saved scenarios. See firestore.rules:29 — create/update now
@@ -1797,7 +1943,28 @@ function ConfigPanel() {
                 />
               ) : (
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-text-primary truncate">{config.name}</div>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-sm font-medium text-text-primary truncate">{config.name}</span>
+                    {/* Reference badge — visible to EVERYONE, not just admins,
+                        so unauthenticated visitors see which scenario the
+                        admin designated as the default. */}
+                    {referenceScenarioId === config.id && (
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-brand-100 text-brand-700 text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                        {t('ref.referenceBadge')}
+                        {canWrite && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetReference(null, user?.uid)}
+                            aria-label={t('ref.dismiss')}
+                            title={t('ref.dismiss')}
+                            className="ms-0.5 text-brand-700/70 hover:text-brand-900 transition-colors"
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-text-tertiary">
                     {new Date(config.savedAt).toLocaleDateString()} {new Date(config.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -1810,6 +1977,15 @@ function ConfigPanel() {
                 <button onClick={() => loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
                 {canWrite && (
                   <>
+                    {referenceScenarioId !== config.id && (
+                      <button
+                        onClick={() => handleSetReference(config.id, user?.uid)}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
+                        title={t('ref.setAsReference')}
+                      >
+                        ★ {t('ref.setAsReference')}
+                      </button>
+                    )}
                     <button
                       onClick={() => useModelStore.getState().requestConfirm({
                         title: `Overwrite "${config.name}"?`,
