@@ -119,4 +119,53 @@ describe("computeModel — sanity invariants (not snapshots)", () => {
       out.keyMetrics.totalCapex,
     );
   });
+
+  it("TEPIX III cap does not bind at current BASE_CASE scope (~€4.9M)", () => {
+    // BASE_CASE produces a primaryLoan well under the €8M program ceiling, so
+    // the cap is a no-op. If this fails, either BASE_CASE has grown past €8M
+    // (great — re-baseline snapshots and review the equity gap) or the cap
+    // logic introduced a regression.
+    const out = computeModel(withFinancingPath(BASE_CASE, "tepix-loan"));
+    expect(out.keyMetrics.tepixCapBindingBy).toBe(0);
+    expect(out.keyMetrics.tepixLoanCap).toBe(8_000_000);
+    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(8_000_000);
+  });
+
+  it("TEPIX III cap binds and absorbs excess into equity when scope > €8M loan", () => {
+    // Synthetic 3x-scope: triple the portfolio so the unconstrained TEPIX
+    // primary loan exceeds €8M (BASE_CASE primary ≈ €3.5M, so 2x is still
+    // under the cap; 3x clears it). The cap should clamp primaryLoan to
+    // €8M, surface a positive tepixCapBindingBy, and route the shortfall
+    // to equity / supplementary commercial debt via the existing landGap +
+    // nonLandCost residual logic.
+    const triplePortfolio = [
+      ...BASE_CASE.portfolio,
+      ...BASE_CASE.portfolio.map((p, i) => ({
+        ...p,
+        id: `${p.id}-dup1-${i}`,
+        roomAreas: { ...p.roomAreas },
+      })),
+      ...BASE_CASE.portfolio.map((p, i) => ({
+        ...p,
+        id: `${p.id}-dup2-${i}`,
+        roomAreas: { ...p.roomAreas },
+      })),
+    ];
+    const scaledUp: ModelAssumptions = {
+      ...BASE_CASE,
+      financingPath: "tepix-loan",
+      portfolio: triplePortfolio,
+    };
+    const out = computeModel(scaledUp);
+    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(8_000_000);
+    expect(out.keyMetrics.tepixCapBindingBy).toBeGreaterThan(0);
+    expect(out.keyMetrics.tepixLoanCap).toBe(8_000_000);
+    // Equity ask grows when the cap binds — the excess flows into a
+    // combination of supplementary commercial debt and sponsor equity.
+    // Loose lower bound: equity must be MEANINGFULLY larger than the
+    // uncapped BASE_CASE equity, not pixel-precise.
+    const baseEquity = computeModel(withFinancingPath(BASE_CASE, "tepix-loan"))
+      .keyMetrics.equityRequired;
+    expect(out.keyMetrics.equityRequired).toBeGreaterThan(baseEquity);
+  });
 });

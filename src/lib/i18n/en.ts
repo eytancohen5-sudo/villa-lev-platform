@@ -197,15 +197,13 @@ export const en: TranslationDictionary = {
 
   // ── Conservatism Triangle (hero strip) ──
   'triangle.stripTitle': 'Market position — Conservatism Triangle',
-  'triangle.stripSub': 'BP vs the live villa vs the Greek-market average — Greek-only headline, international comparables in the drill-down.',
+  'triangle.stripSub': 'BP vs the Greek-market average — Greek-only headline, international comparables in the drill-down.',
   'triangle.barBP': 'BP',
-  'triangle.barLive': 'Villa Lev (live)',
   'triangle.barMarket': 'Greek-market avg',
   'triangle.tierStandard': 'Standard suite (per-night)',
   'triangle.tierPremium': 'Premium suite (per-night)',
-  'triangle.deltaVsLive': '{pct} vs live actuals',
   'triangle.deltaVsMarket': '{pct} vs market',
-  'triangle.defenceCopy': "BP standard suite (€650) compared against the Greek market's Basic-room tier — not because Villa Lev sells rooms, but because the suite-night price is the per-night unit a hotel banker underwrites. The Villa-tier line is intentionally absent here — Villa Lev's own actuals (above) are the truer comparable.",
+  'triangle.defenceCopy': "BP suite-night prices are compared against the Greek market's basic-room and premium-suite tiers — the per-key unit a hotel banker underwrites. Villa Lev's own whole-villa actuals describe a different unit (one buyer rents the entire property) and aren't repeated here — they appear in the live track-record above.",
   'triangle.seeComparables': 'See the {n} comparables →',
   'triangle.bpFloor': 'BP is the floor',
   // ── MarketComparablesDrawer ──

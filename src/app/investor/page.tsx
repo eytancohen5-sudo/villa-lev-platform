@@ -5,7 +5,6 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { ConservatismTriangle } from "@/components/ConservatismTriangle";
-import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { BANK_TOUR } from "@/lib/tours/configs";
 import {
@@ -40,7 +39,6 @@ export default function InvestorPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, projects, activeScenario, capTable, waterfall } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(BANK_TOUR.storageKey);
-  const { currentSeason } = useSeasonSnapshot();
   if (!model) return <div className="flex items-center justify-center h-96 text-text-tertiary">{t('common.loading')}</div>;
 
   const handleDownloadXlsx = async () => {
@@ -149,7 +147,6 @@ export default function InvestorPage() {
         <ConservatismTriangle
           bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
           bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
-          liveVillaADR={currentSeason.netADR}
         />
       </div>
 

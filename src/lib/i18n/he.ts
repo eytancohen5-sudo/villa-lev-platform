@@ -197,15 +197,13 @@ export const he: TranslationDictionary = {
 
   // ── משולש שמרנות (מיקום בשוק) ──
   'triangle.stripTitle': 'מיקום בשוק — משולש השמרנות',
-  'triangle.stripSub': 'BP מול הוילה הפעילה מול ממוצע השוק היווני — הכותרת יוונית בלבד, ההשוואות הבינלאומיות בהרחבה.',
+  'triangle.stripSub': 'BP מול ממוצע השוק היווני — הכותרת יוונית בלבד, ההשוואות הבינלאומיות בהרחבה.',
   'triangle.barBP': 'BP',
-  'triangle.barLive': 'Villa Lev (בפועל)',
   'triangle.barMarket': 'ממוצע שוק יווני',
   'triangle.tierStandard': 'סוויטה סטנדרטית (ללילה)',
   'triangle.tierPremium': 'סוויטה פרימיום (ללילה)',
-  'triangle.deltaVsLive': '{pct} מול בפועל',
   'triangle.deltaVsMarket': '{pct} מול שוק',
-  'triangle.defenceCopy': 'סוויטת ה-BP הסטנדרטית (650€) מושווית לקטגוריית חדר Basic של השוק היווני — לא משום ש-Villa Lev מוכרת חדרים, אלא משום שתעריף הלילה הוא היחידה שהבנקאי המלונאי חותם עליה. שורת ה-Villa נעדרת כאן בכוונה — המספרים של Villa Lev עצמה (למעלה) הם ההשוואה האמיתית.',
+  'triangle.defenceCopy': 'מחירי BP לסוויטה-לילה מושווים לקטגוריות חדר Basic וסוויטה Premium של השוק היווני — היחידה לכל מפתח שהבנקאי המלונאי חותם עליה. המספרים בפועל של השכרת הוילה כולה ב-Villa Lev מתארים יחידה אחרת (קונה אחד שוכר את כל הנכס) ואינם חוזרים כאן — הם מופיעים בטראק-רקורד החי שמעל.',
   'triangle.seeComparables': 'הצג את {n} ההשוואות →',
   'triangle.bpFloor': 'BP הוא הרצפה',
   // ── מגירת השוואות ──

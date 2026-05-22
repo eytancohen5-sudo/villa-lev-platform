@@ -19,6 +19,8 @@ exports[`computeModel — keyMetrics snapshots > pessimistic occupancy (-20% nig
   "stabilisedNCF": 7035.566770775913,
   "stabilisedRevenue": 953425,
   "supplementaryLoan": 795104,
+  "tepixCapBindingBy": 0,
+  "tepixLoanCap": 8000000,
   "totalCapex": 4911200,
 }
 `;
@@ -42,6 +44,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / commercial path 1`]
   "stabilisedNCF": 205440.02825420332,
   "stabilisedRevenue": 1072425,
   "supplementaryLoan": 0,
+  "tepixCapBindingBy": 0,
+  "tepixLoanCap": 0,
   "totalCapex": 4911200,
 }
 `;
@@ -65,6 +69,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / grant path 1`] = `
   "stabilisedNCF": 364181.78795108944,
   "stabilisedRevenue": 1072425,
   "supplementaryLoan": 0,
+  "tepixCapBindingBy": 0,
+  "tepixLoanCap": 0,
   "totalCapex": 4911200,
 }
 `;
@@ -88,6 +94,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / rrf path 1`] = `
   "stabilisedNCF": 162794.86066549647,
   "stabilisedRevenue": 1072425,
   "supplementaryLoan": 0,
+  "tepixCapBindingBy": 0,
+  "tepixLoanCap": 0,
   "totalCapex": 4911200,
 }
 `;
@@ -111,6 +119,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / tepix-loan path 1`]
   "stabilisedNCF": 91525.56677077591,
   "stabilisedRevenue": 1072425,
   "supplementaryLoan": 795104,
+  "tepixCapBindingBy": 0,
+  "tepixLoanCap": 8000000,
   "totalCapex": 4911200,
 }
 `;

@@ -197,15 +197,13 @@ export const fr: TranslationDictionary = {
 
   // ── Triangle de conservatisme (bandeau Position marché) ──
   'triangle.stripTitle': 'Position marché — Triangle de conservatisme',
-  'triangle.stripSub': 'BP vs villa en exploitation vs moyenne marché grec — chiffre principal grec uniquement, comparables internationaux dans le détail.',
+  'triangle.stripSub': 'BP vs moyenne marché grec — chiffre principal grec uniquement, comparables internationaux dans le détail.',
   'triangle.barBP': 'BP',
-  'triangle.barLive': 'Villa Lev (réel)',
   'triangle.barMarket': 'Moyenne marché grec',
   'triangle.tierStandard': 'Suite standard (par nuit)',
   'triangle.tierPremium': 'Suite premium (par nuit)',
-  'triangle.deltaVsLive': '{pct} vs réel',
   'triangle.deltaVsMarket': '{pct} vs marché',
-  'triangle.defenceCopy': "La suite standard BP (650 €) est comparée à la catégorie chambre Basic du marché grec — non parce que Villa Lev vend des chambres, mais parce que le tarif par nuit est l'unité que le banquier hôtelier sous-écrit. La ligne « Villa » est volontairement absente ici — les chiffres réels de Villa Lev (ci-dessus) sont le vrai comparable.",
+  'triangle.defenceCopy': "Les tarifs BP par suite-nuit sont comparés aux catégories chambre Basic et suite Premium du marché grec — l'unité par clé que le banquier hôtelier sous-écrit. Les chiffres réels de Villa Lev en location pleine villa concernent une unité différente (un seul acheteur loue tout le bien) et ne sont pas répétés ici — ils figurent dans le bandeau live ci-dessus.",
   'triangle.seeComparables': 'Voir les {n} comparables →',
   'triangle.bpFloor': 'BP est le plancher',
   // ── Tiroir comparables ──

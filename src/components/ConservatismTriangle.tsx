@@ -1,22 +1,23 @@
 "use client";
 
-// ConservatismTriangle — the "BP vs Villa Lev live vs 2025 Greek-market avg"
-// hero strip that replaces the static Market Position KPI grid on the
-// /admin/dashboard, /investor, and /pitch pages.
+// ConservatismTriangle — the "BP vs 2026 Greek-market average" hero strip
+// that replaces the static Market Position KPI grid on the /admin/dashboard,
+// /investor, and /pitch pages.
 //
-// Each tier row (Standard suite, Premium suite) renders three horizontal bars
+// Each tier row (Standard suite, Premium suite) renders two horizontal bars
 // anchored to the same x-axis:
 //   - BP            — the floor (green-tone)
-//   - Villa Lev     — what the running villa charges today (amber)
 //   - 2025 market   — Greek market average for the tier-matched comparable (slate)
 //
-// Below the bars: two delta chips, "X% vs live actuals · Y% vs 2025 market".
+// Below the bars: one delta chip, "X% vs 2025 market".
 //
-// Below the strip: defence copy explaining the per-night-unit tier mapping,
-// plus a "See the N comparables" link that opens the MarketComparablesDrawer.
+// Below the strip: defence copy explaining why per-suite-night is the right
+// unit to compare, plus a "See the N comparables" link that opens the
+// MarketComparablesDrawer.
 //
-// Villa tier is intentionally absent — Villa Lev's own live actuals (shown in
-// the LiveTrackRecord card above this component) ARE the villa comparable.
+// Villa Lev's own whole-villa actuals are NOT shown here — they describe a
+// different unit (one buyer rents the entire property) and are presented
+// separately in the LiveTrackRecord card above this component.
 
 import { useState } from "react";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -43,41 +44,28 @@ function deltaPct(bp: number, ref: number): number {
 function TierRow({
   label,
   bp,
-  live,
   market,
-  liveLabel,
   marketLabel,
   bpLabel,
-  deltaVsLiveTmpl,
   deltaVsMarketTmpl,
   locale,
 }: {
   label: string;
   bp: number;
-  live: number | null;
   market: number;
-  liveLabel: string;
   marketLabel: string;
   bpLabel: string;
-  deltaVsLiveTmpl: string;
   deltaVsMarketTmpl: string;
   locale: Parameters<typeof formatCurrency>[2];
 }) {
-  // Scale bars to the max across the three so a banker can read relative
-  // heights at a glance. Live can be null for static / pre-mount renders.
+  // Scale bars to the max across the two so a banker can read relative
+  // heights at a glance.
   const values: Array<{ key: BarColor; value: number; tone: string; label: string }> = [
     { key: "bp", value: bp, tone: "bg-positive", label: bpLabel },
-    {
-      key: "live",
-      value: live ?? 0,
-      tone: "bg-warning",
-      label: liveLabel,
-    },
     { key: "market", value: market, tone: "bg-text-tertiary/60", label: marketLabel },
   ];
-  const max = Math.max(bp, live ?? 0, market) || 1;
+  const max = Math.max(bp, market) || 1;
 
-  const dLive = live === null ? null : deltaPct(bp, live);
   const dMarket = deltaPct(bp, market);
 
   const chipClass = (pct: number) => {
@@ -121,16 +109,6 @@ function TierRow({
         ))}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5 pt-2 border-t border-surface-tertiary">
-        {dLive !== null && (
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${chipClass(dLive)}`}
-          >
-            {deltaVsLiveTmpl.replace("{pct}", fmtPct(dLive))}
-          </span>
-        )}
-        <span aria-hidden="true" className="text-text-tertiary/40 text-[11px]">
-          ·
-        </span>
         <span
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${chipClass(dMarket)}`}
         >
@@ -144,16 +122,10 @@ function TierRow({
 export function ConservatismTriangle({
   bpStandardADR,
   bpPremiumADR,
-  liveVillaADR,
   id,
 }: {
   bpStandardADR: number;
   bpPremiumADR: number;
-  /**
-   * Villa Lev's live per-night rate (whole-villa). Null on SSR before the
-   * snapshot hydrates; render skips the live bar gracefully when null.
-   */
-  liveVillaADR: number | null;
   /** Optional scroll anchor id (used by the dashboard page-tour). */
   id?: string;
 }) {
@@ -180,24 +152,18 @@ export function ConservatismTriangle({
         <TierRow
           label={t("triangle.tierStandard")}
           bp={bpStandardADR}
-          live={liveVillaADR}
           market={marketStandard}
           bpLabel={t("triangle.barBP")}
-          liveLabel={t("triangle.barLive")}
           marketLabel={t("triangle.barMarket")}
-          deltaVsLiveTmpl={t("triangle.deltaVsLive")}
           deltaVsMarketTmpl={t("triangle.deltaVsMarket")}
           locale={locale}
         />
         <TierRow
           label={t("triangle.tierPremium")}
           bp={bpPremiumADR}
-          live={liveVillaADR}
           market={marketPremium}
           bpLabel={t("triangle.barBP")}
-          liveLabel={t("triangle.barLive")}
           marketLabel={t("triangle.barMarket")}
-          deltaVsLiveTmpl={t("triangle.deltaVsLive")}
           deltaVsMarketTmpl={t("triangle.deltaVsMarket")}
           locale={locale}
         />

@@ -195,7 +195,7 @@ export default function PitchPage() {
   // doing its first read (`loading === true`), `historicalYears` already holds
   // the static fallback from `currentVillaActuals.ts`, but we deliberately hide
   // the 2026 bar to avoid showing a stale projection as a confirmed datapoint.
-  const { historicalYears, currentSeason, loading: snapshotLoading } = useSeasonSnapshot();
+  const { historicalYears, loading: snapshotLoading } = useSeasonSnapshot();
 
   // BP per-villa assumptions in scope for the ConservatismTriangle on the
   // Market Tailwind slide. Render is gated on `model` being ready so this is
@@ -471,7 +471,6 @@ export default function PitchPage() {
             <ConservatismTriangle
               bpStandardADR={rev.suiteStandardADR}
               bpPremiumADR={rev.suiteDoubleADR}
-              liveVillaADR={currentSeason.netADR}
             />
           </div>
         </Slide>

@@ -557,7 +557,6 @@ export default function DashboardPage() {
         id="section-market-position"
         bpStandardADR={rev.suiteStandardADR}
         bpPremiumADR={rev.suiteDoubleADR}
-        liveVillaADR={liveADR}
       />
 
 

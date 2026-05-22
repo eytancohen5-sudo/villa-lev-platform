@@ -248,11 +248,9 @@ export interface TranslationDictionary {
   'triangle.stripTitle': string;
   'triangle.stripSub': string;
   'triangle.barBP': string;
-  'triangle.barLive': string;
   'triangle.barMarket': string;
   'triangle.tierStandard': string;
   'triangle.tierPremium': string;
-  'triangle.deltaVsLive': string;        // template — uses {pct}
   'triangle.deltaVsMarket': string;      // template — uses {pct}
   'triangle.defenceCopy': string;
   'triangle.seeComparables': string;     // template — uses {n}
