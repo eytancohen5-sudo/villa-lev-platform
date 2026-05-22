@@ -300,6 +300,17 @@ export interface ModelAssumptions {
   // Greek/EU commercial real estate loans typically carry 1.20–1.30. Surfaced
   // on the Coverage sheet of the BP export with a Pass/Fail row.
   dscrCovenantThreshold: number;
+  // Toggle between two cash-waterfall structures inside `computePnLYear`.
+  //  - 'internal' (default): legacy/admin view. OpCo paid in full; DSCR /
+  //    NCF / CFADS / taxableProfit reflect EBITDA *after* the full OpCo fee
+  //    is subtracted (i.e. OpCo is senior to debt service).
+  //  - 'bank': what bankers underwrite. OpCo is subordinated to debt
+  //    service — paid only out of residual cash after DS; DSCR uses
+  //    ebitdaPreOpCo / DS so management fees can't crowd out lenders.
+  // Default is 'internal' to preserve historical numbers on /admin/*.
+  // Investor / pitch routes and the View-As-Banker impersonation override
+  // this to 'bank' at the call site, not via the global defaults.
+  viewMode?: 'internal' | 'bank';
 }
 
 // ============================================================

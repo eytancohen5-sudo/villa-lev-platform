@@ -3,6 +3,9 @@
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { LiveTrackRecord } from "@/components/LiveTrackRecord";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { BANK_TOUR } from "@/lib/tours/configs";
 import {
   BarChart,
   Bar,
@@ -34,6 +37,7 @@ function HeroKPI({ value, label, sublabel }: { value: string; label: string; sub
 export default function InvestorPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, projects, activeScenario, capTable, waterfall } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(BANK_TOUR.storageKey);
   if (!model) return <div className="flex items-center justify-center h-96 text-text-tertiary">{t('common.loading')}</div>;
 
   const handleDownloadXlsx = async () => {
@@ -110,7 +114,7 @@ export default function InvestorPage() {
         <p className="text-text-secondary max-w-xl mx-auto">
           {t('app.loanApp')} &middot; {pathLabel} &middot; {t('app.confidential')}
         </p>
-        <div className="mt-6 flex items-center justify-center gap-3 print:hidden">
+        <div className="mt-6 flex items-center justify-center gap-3 print:hidden flex-wrap">
           <button
             onClick={handleDownloadXlsx}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
@@ -126,7 +130,14 @@ export default function InvestorPage() {
           >
             🖨 Print / Save as PDF
           </button>
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
         </div>
+      </div>
+
+      {/* Live Track Record — prominent banker-facing proof that the
+          underlying numbers are operating data, not modelled forecasts. */}
+      <div className="mb-10 print:hidden">
+        <LiveTrackRecord />
       </div>
 
       {/* Hero KPIs */}
@@ -383,6 +394,8 @@ export default function InvestorPage() {
           {t('app.title')} &middot; Agios Georgios, Antiparos, Greece &middot; {t('app.confidential')}
         </p>
       </div>
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BANK_TOUR} />
     </div>
   );
 }

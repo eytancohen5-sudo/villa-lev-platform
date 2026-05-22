@@ -8,7 +8,7 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 
 export default function InvestorLayout({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
-  const { init } = useModelStore();
+  const { init, setViewModeOverride } = useModelStore();
 
   const initialized = useRef(false);
   useEffect(() => {
@@ -17,6 +17,15 @@ export default function InvestorLayout({ children }: { children: React.ReactNode
       init();
     }
   }, [init]);
+
+  // /investor is banker-facing: force OpCo-subordinated cash waterfall
+  // regardless of the persisted assumptions. Cleared on unmount so an
+  // admin who navigates here and back to /admin/* sees their own toggle
+  // state (or the legacy default) restored.
+  useEffect(() => {
+    setViewModeOverride('bank');
+    return () => setViewModeOverride(null);
+  }, [setViewModeOverride]);
 
   return (
     <div className="min-h-screen bg-surface-primary">

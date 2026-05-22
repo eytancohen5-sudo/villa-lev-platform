@@ -185,6 +185,36 @@ body {
   100% { transform: scale(1.4); opacity: 0; }
 }
 
+/* ── LIVE badge pulse (LiveTrackRecord component) ──
+   Subtle — designed to convey "data is live" without strobing.
+   Respects prefers-reduced-motion. */
+@keyframes live-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(74, 124, 63, 0.55);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(74, 124, 63, 0);
+    opacity: 0.85;
+  }
+}
+
+.live-pulse-dot {
+  animation: live-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pulse-dot {
+    animation: none;
+  }
+  .tour-spotlight {
+    animation: none;
+  }
+  .tour-trigger-pulse::after {
+    animation: none;
+  }
+}
+
 /* ── RTL support ── */
 [dir="rtl"] .data-cell {
   direction: ltr;

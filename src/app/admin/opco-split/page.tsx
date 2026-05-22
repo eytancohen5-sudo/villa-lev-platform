@@ -9,6 +9,8 @@ import {
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { Locale } from "@/lib/i18n/types";
 import { PageSkeleton } from "@/components/Skeleton";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { OPCO_SPLIT_TOUR } from "@/lib/tours/configs";
 import type { ModelAssumptions, ModelOutput, ScenarioOutput } from "@/lib/engine/types";
 import {
   BarChart,
@@ -113,6 +115,7 @@ function RateInput({
 export default function OpCoSplitPage() {
   const { locale, t } = useTranslation();
   const { model, assumptions, activeScenario, setAssumption } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(OPCO_SPLIT_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -151,18 +154,21 @@ export default function OpCoSplitPage() {
             owner (PropCo) holds the real estate.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAssumption("opCoFee.enabled", !opCoOn, "OpCo split")}
-          className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
-            opCoOn
-              ? "bg-positive/15 text-positive border-positive/30"
-              : "bg-surface-secondary text-text-secondary border-surface-tertiary hover:bg-surface-tertiary"
-          }`}
-        >
-          <span className={`w-2 h-2 rounded-full ${opCoOn ? "bg-positive" : "bg-text-tertiary"}`} />
-          {opCoOn ? t('opco.splitOn') : t('opco.splitOff')}
-        </button>
+        <div className="flex items-center gap-2">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+          <button
+            type="button"
+            onClick={() => setAssumption("opCoFee.enabled", !opCoOn, "OpCo split")}
+            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+              opCoOn
+                ? "bg-positive/15 text-positive border-positive/30"
+                : "bg-surface-secondary text-text-secondary border-surface-tertiary hover:bg-surface-tertiary"
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${opCoOn ? "bg-positive" : "bg-text-tertiary"}`} />
+            {opCoOn ? t('opco.splitOn') : t('opco.splitOff')}
+          </button>
+        </div>
       </div>
 
       {/* Explainer */}
@@ -583,6 +589,8 @@ export default function OpCoSplitPage() {
           </div>
         </>
       )}
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={OPCO_SPLIT_TOUR} />
     </div>
   );
 }

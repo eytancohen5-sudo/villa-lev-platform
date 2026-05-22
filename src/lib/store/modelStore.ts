@@ -633,12 +633,25 @@ export type UiPrompt =
   | ({ kind: 'confirm' } & ConfirmOpts)
   | ({ kind: 'alert' } & AlertOpts);
 
+// Engine view-mode override. When set, recompute() forces the engine into
+// that viewMode regardless of the persisted assumption value. Used by:
+//   - /investor, /pitch route layouts (always 'bank')
+//   - admin "Bank view" toggle (admin opts into 'bank' on /admin/*)
+//   - useEffectiveAuth bridge for View-As-Banker impersonation
+// `null` = honour assumptions.viewMode (which defaults to 'internal').
+export type ViewModeOverride = 'internal' | 'bank' | null;
+
 interface ModelStore {
   assumptions: ModelAssumptions;
   model: ModelOutput | null;
   loading: boolean;
   computeTimeMs: number;
   activeScenario: ScenarioName;
+  // See ViewModeOverride above. Not persisted to assumptions storage —
+  // lives only in the in-memory store and is set/cleared by layouts +
+  // the admin toggle. Default null.
+  viewModeOverride: ViewModeOverride;
+  setViewModeOverride: (mode: ViewModeOverride) => void;
 
   // Templates & Projects
   templates: PropertyTemplate[];
@@ -746,6 +759,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   loading: false,
   computeTimeMs: 0,
   activeScenario: 'realistic' as ScenarioName,
+  viewModeOverride: null as ViewModeOverride,
+  setViewModeOverride: (mode: ViewModeOverride) => {
+    const current = get().viewModeOverride;
+    if (current === mode) return;
+    set({ viewModeOverride: mode });
+    get().recompute();
+  },
   templates: [...BUILT_IN_TEMPLATES],
   projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
   savedConfigs: [],
@@ -1032,8 +1052,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const portfolio = resolvePortfolio(state.templates, state.projects);
     // Update assumptions with resolved portfolio
     const assumptions = { ...state.assumptions, portfolio };
-    const model = computeModel(assumptions);
-    set({ assumptions, model, loading: false, computeTimeMs: model.computeTimeMs });
+    // Apply viewMode override (banker routes, admin toggle, banker
+    // impersonation). When null we fall through to assumptions.viewMode
+    // (which defaults to 'internal' via BASE_CASE).
+    const computed = state.viewModeOverride
+      ? computeModel({ ...assumptions, viewMode: state.viewModeOverride })
+      : computeModel(assumptions);
+    set({ assumptions, model: computed, loading: false, computeTimeMs: computed.computeTimeMs });
   },
 
   init: () => {

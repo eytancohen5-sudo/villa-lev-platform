@@ -8,6 +8,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { AssumptionPrompts } from "@/components/AssumptionPrompts";
 import { ViewAsControl } from "@/components/ViewAsControl";
+import { BankViewToggle, BankViewBadge } from "@/components/BankViewToggle";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
@@ -274,6 +275,7 @@ export default function AdminLayout({
         <div className="p-4 border-t border-surface-tertiary space-y-2">
           <LanguageToggle />
           <ViewAsControl />
+          <BankViewToggle />
           {model && (
             <div className="text-xs text-text-tertiary flex justify-between">
               <span>{t("bar.engine")}</span>
@@ -303,6 +305,9 @@ export default function AdminLayout({
             Live KPIs removed (they're on the dashboard, one home only). */}
         <div id="control-bar" className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary scroll-mt-24">
           <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+            {/* Bank-view indicator (only renders when the admin has toggled
+                into Bank view; hidden otherwise so the bar stays clean). */}
+            <BankViewBadge />
             {/* Financing path */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium uppercase tracking-wider text-text-tertiary">

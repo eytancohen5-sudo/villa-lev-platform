@@ -9,9 +9,9 @@ import {
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
+import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
 import {
-  ACTUALS_SOURCE,
   SERVICES_PROFIT_MARGIN,
   BP_ANCILLARY_PROFIT_PER_VILLA,
   BP_ANCILLARY_SUITE_TOTAL,
@@ -145,12 +145,7 @@ export default function DashboardPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario, projects, capTable, waterfall } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(DASHBOARD_TOUR.storageKey);
-  const {
-    currentSeason,
-    lastCompletedSeason,
-    source: snapshotSource,
-    pulledAt: snapshotPulledAt,
-  } = useSeasonSnapshot();
+  const { currentSeason, lastCompletedSeason } = useSeasonSnapshot();
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -721,43 +716,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Section — Conservatism Check (placed after Returns per audit 2026-05-21 fix #3:
-          lands as proof of the headline returns, not pre-emptive defence). */}
+          lands as proof of the headline returns, not pre-emptive defence).
+          The previous announcement card was replaced 2026-05-22 with the
+          shared LiveTrackRecord component so admin + banker views align. */}
       <div id="section-conservatism" className="scroll-mt-24 mb-6 mt-6">
         <SectionHeader
           title="Conservatism Check"
           sub="Per-villa BP assumptions vs the live single villa we already run today"
         />
-        <div className="rounded-xl border border-positive/30 bg-positive/5 p-4 mb-3 flex flex-wrap items-start gap-3">
-          <div className="flex-1 min-w-[260px]">
-            <div className="text-sm font-medium text-text-primary">
-              The business plan models per-villa numbers we already exceed today.
-            </div>
-            <div className="text-xs text-text-secondary mt-1">
-              {snapshotSource === "live" ? "Live data from " : "Snapshot from "}
-              <a href={ACTUALS_SOURCE.url} target="_blank" rel="noreferrer" className="underline hover:text-text-primary">
-                admin.villalevantiparos.com
-              </a>
-              {" "}(2025 complete, {currentSeason.year} in progress) sets a floor — actual portfolio outcomes should beat the plan.
-            </div>
-          </div>
-          <div className="flex gap-2 text-[11px] flex-wrap items-center">
-            {snapshotSource === "live" ? (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-positive/15 text-positive font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
-                LIVE · refreshed {new Date(snapshotPulledAt).toLocaleString(locale, { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })}
-              </span>
-            ) : (
-              <span className="px-2 py-1 rounded-md bg-surface-secondary text-text-tertiary text-[10px] uppercase tracking-wider">
-                Snapshot · {snapshotPulledAt}
-              </span>
-            )}
-            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              {currentSeason.year} booked: <strong>{liveBookedNights} nights</strong> · <strong>€{liveADR.toLocaleString()}</strong> net ADR
-            </span>
-            <span className="px-2 py-1 rounded-md bg-white/70 border border-surface-tertiary">
-              {lastCompletedSeason.year} total: <strong>{formatCurrency(liveTotal2025, true, locale)}</strong>
-            </span>
-          </div>
+        <div className="mb-4">
+          <LiveTrackRecord />
         </div>
         <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
           <div className="overflow-x-auto">

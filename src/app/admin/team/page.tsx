@@ -39,6 +39,8 @@ import {
   type UserProfile,
   ROLES,
 } from "@/lib/data/userProfile";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { TEAM_TOUR } from "@/lib/tours/configs";
 
 function RoleBadge({ role }: { role: Role }) {
   const cls =
@@ -84,6 +86,7 @@ export default function TeamPage() {
   const [roleInput, setRoleInput] = useState<Role>("viewer");
   const [noteInput, setNoteInput] = useState("");
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(TEAM_TOUR.storageKey);
 
   // Live users list. We only subscribe when the caller is admin — rules
   // would reject a non-admin read anyway, but skipping the subscription
@@ -218,11 +221,14 @@ export default function TeamPage() {
 
   return (
     <div className="max-w-3xl space-y-8">
-      <div>
-        <h1 className="font-display text-2xl text-text-primary">Team</h1>
-        <p className="text-sm text-text-tertiary mt-1">
-          Invite people and review who has access to the model.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl text-text-primary">Team</h1>
+          <p className="text-sm text-text-tertiary mt-1">
+            Invite people and review who has access to the model.
+          </p>
+        </div>
+        <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
       </div>
 
       {/* Invite form */}
@@ -355,6 +361,8 @@ export default function TeamPage() {
           <code className="font-mono">villa-lev-admin → Firestore → users</code> in the meantime.
         </p>
       </section>
+
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={TEAM_TOUR} />
     </div>
   );
 }

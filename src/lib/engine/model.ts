@@ -631,6 +631,9 @@ function computeScenario(
 
     // OpCo fees: base on total revenue, brand on room revenue, incentive on
     // GOP above the owner's priority return on equity (computed once outside).
+    // These are the *calculated* (gross / theoretical) fees. Under Option 1
+    // subordination the OpCo is paid out of *residual cash after debt service*,
+    // so the actually-paid amount may be lower (see opCoActuallyPaid below).
     const opCoBaseFee = opCoEnabled ? totalRevenue * opCo.baseFeeRate : 0;
     const opCoBrandFee = opCoEnabled ? roomRevenue * opCo.brandFeeRate : 0;
     const opCoIncentiveBase = ebitdaPreOpCo - opCoBaseFee - opCoBrandFee - opCoPriorityReturn;
@@ -639,36 +642,92 @@ function computeScenario(
       : 0;
     const opCoTotalFee = opCoBaseFee + opCoBrandFee + opCoIncentiveFee;
 
-    // PropCo EBITDA — net of OpCo fees. Drives DSCR, ICR, NCF, IRR.
-    const ebitda = ebitdaPreOpCo - opCoTotalFee;
-    const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
-
     const ds = debtResult.getDS(year);
-    const ncf = ebitda - ds;
 
     const amortYear = preAmortSchedule.get(year);
     const termLoanInterestForTax = amortYear?.interest ?? 0;
-
     const vat = year <= 2027 ? 0 : -(totalRevenue * a.tax.netVATRate);
-    const taxableProfit = Math.max(0, ebitda - termLoanInterestForTax);
+
+    // ─── Cash waterfall — two structures, branched by viewMode ────────────
+    //
+    // 'internal' (default — admin / today's numbers):
+    //   OpCo paid in FULL out of EBITDA (senior to debt service).
+    //     ebitda          = ebitdaPreOpCo - opCoTotalFee
+    //     dscr            = ebitda / ds                   (post-fee EBITDA)
+    //     ncf             = ebitda - ds
+    //     cfads           = ebitda + cit                  (CIT stored negative)
+    //     taxableProfit   = max(0, ebitda - interest)
+    //   This is the legacy behavior — restoring it as default keeps the
+    //   admin dashboard's DSCR / IRR / yield identical to what Eytan sees.
+    //
+    // 'bank' (investor / pitch / View-As-Banker / admin "Bank view" toggle):
+    //   OpCo SUBORDINATED to debt service — paid only out of residual cash
+    //   after DS. Bankers sit ahead of management fees in the priority of
+    //   claims, so this is the conservative underwriting view.
+    //     residualAfterDS = max(0, ebitdaPreOpCo - ds)
+    //     opCoActuallyPaid = min(opCoTotalFee, residualAfterDS)
+    //     ebitda          = ebitdaPreOpCo - opCoActuallyPaid   (post-cap)
+    //     dscr            = ebitdaPreOpCo / ds                 (pre-fee)
+    //     ncf             = ebitdaPreOpCo - ds - opCoActuallyPaid
+    //     cfads           = ebitdaPreOpCo + cit
+    //     taxableProfit   = max(0, ebitdaPreOpCo - opCoActuallyPaid - interest)
+    //   Any OpCo shortfall (residual < opCoTotalFee) is forfeit for the year
+    //   — no accrual / carryover tracking yet. TODO: proper deferral once
+    //   the structure is signed off by tax counsel.
+    //
+    // CIT comment (applies to both branches): OpCo fees to a related entity
+    // are typically deductible at the PropCo level under Greek CIT. We treat
+    // OpCo as a deductible expense in either branch — under 'bank' mode it
+    // is the post-cap (actually paid) amount.
+    const viewMode = a.viewMode ?? 'internal';
+
+    let ebitda: number;
+    let opCoActuallyPaid: number;
+    let ncf: number;
+    let dscr: number;
+    let dscrLoaded: number;
+    let taxableProfit: number;
+
+    if (viewMode === 'bank') {
+      const residualAfterDS = Math.max(0, ebitdaPreOpCo - ds);
+      opCoActuallyPaid = Math.min(opCoTotalFee, residualAfterDS);
+      ebitda = ebitdaPreOpCo - opCoActuallyPaid;
+      ncf = ebitdaPreOpCo - ds - opCoActuallyPaid;
+      dscr = ds > 0 ? ebitdaPreOpCo / ds : 0;
+      dscrLoaded = ds + wcInterestExpense > 0
+        ? ebitdaPreOpCo / (ds + wcInterestExpense)
+        : 0;
+      taxableProfit = Math.max(
+        0,
+        ebitdaPreOpCo - opCoActuallyPaid - termLoanInterestForTax,
+      );
+    } else {
+      // 'internal' — legacy OpCo-senior. OpCo paid in full out of EBITDA.
+      opCoActuallyPaid = opCoTotalFee;
+      ebitda = ebitdaPreOpCo - opCoTotalFee;
+      ncf = ebitda - ds;
+      dscr = ds > 0 ? ebitda / ds : 0;
+      dscrLoaded = ds + wcInterestExpense > 0
+        ? ebitda / (ds + wcInterestExpense)
+        : 0;
+      taxableProfit = Math.max(0, ebitda - termLoanInterestForTax);
+    }
+
+    const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
+
     const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
+    // CFADS for LLCR/PLCR + project IRR. CIT stored negative; adding it
+    // subtracts the tax bill. 'bank' uses pre-fee EBITDA (OpCo junior to DS);
+    // 'internal' uses post-fee EBITDA (OpCo senior). VAT excluded — balance-
+    // sheet pass-through, not an income-statement item.
+    const cfads = viewMode === 'bank' ? ebitdaPreOpCo + cit : ebitda + cit;
+
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
-    // CFADS for LLCR/PLCR + project IRR. CIT is stored negative, so adding it
-    // subtracts the tax bill from EBITDA. VAT is excluded — it is a balance-
-    // sheet pass-through, not an income-statement item.
-    const cfads = ebitda + cit;
     const yieldOnInitialEquity =
       debtResult.equityRequired > 0 && year >= 2028
         ? ncfPostVAT / debtResult.equityRequired
         : 0;
-    const dscr = ds > 0 ? ebitda / ds : 0;
-    // Fully-loaded DSCR: same numerator (EBITDA already nets WC interest under
-    // A1), but adds WC interest into the debt-service denominator. When WC is
-    // inactive this collapses back to the headline DSCR.
-    const dscrLoaded = ds + wcInterestExpense > 0
-      ? ebitda / (ds + wcInterestExpense)
-      : 0;
 
     return {
       year,
@@ -685,7 +744,12 @@ function computeScenario(
       opCoBaseFee,
       opCoBrandFee,
       opCoIncentiveFee,
-      opCoTotalFee,
+      // Reported total is the actually-paid amount (post subordination cap),
+      // not the gross calculated fee. This is what the OpCo actually receives
+      // and is what the equityIRRPreOpCo add-back consumes. The per-line
+      // base/brand/incentive breakdown above stays at the gross calculated
+      // values for informational/breakdown display.
+      opCoTotalFee: opCoActuallyPaid,
       ebitda,
       ebitdaMargin,
       debtService: ds,

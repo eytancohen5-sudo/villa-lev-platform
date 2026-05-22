@@ -457,6 +457,14 @@ export const BASE_CASE: ModelAssumptions = {
   // export; drives the Pass/Fail flag on the Coverage sheet.
   dscrCovenantThreshold: 1.25,
 
+  // Engine view mode. 'internal' = legacy OpCo-senior waterfall (admin
+  // sees this by default — today's dashboard numbers). 'bank' = OpCo
+  // subordinated to debt service, what bankers underwrite. See the
+  // branch block in `computePnLYear` (model.ts) for the cash-waterfall
+  // contract. Investor / pitch / View-As-Banker override to 'bank' at
+  // the call site; admin's "Bank view" toggle does the same.
+  viewMode: 'internal',
+
   // OpCo / PropCo split disabled by default. Toggle on the dashboard to see
   // how a separated owner-and-manager structure shifts equity returns.
   opCoFee: {
