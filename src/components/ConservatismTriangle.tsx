@@ -1,6 +1,6 @@
 "use client";
 
-// ConservatismTriangle — the "BP vs 2026 Greek-market average" hero strip
+// ConservatismTriangle — the "BP vs 2025 Greek-market average" hero strip
 // that replaces the static Market Position KPI grid on the /admin/dashboard,
 // /investor, and /pitch pages.
 //
@@ -31,14 +31,14 @@ function blend(tier: "basicRoom" | "premiumSuite"): number {
   return (b.high + b.med) / 2;
 }
 
-type BarColor = "bp" | "live" | "market";
+type BarColor = "bp" | "market";
 
 function deltaPct(bp: number, ref: number): number {
   if (ref === 0) return 0;
   return (bp - ref) / ref;
 }
 
-// One tier row: label + 3 bars + 2 delta chips. Keeps text outside the bars
+// One tier row: label + 2 bars + 1 delta chip. Keeps text outside the bars
 // (i18n-safe — RTL languages would otherwise reverse the visual order against
 // the numeric x-axis).
 function TierRow({
