@@ -412,17 +412,25 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={async () => {
-              const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
-              const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-              const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall);
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
+              try {
+                const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
+                const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
+                const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                useModelStore.getState().requestAlert({
+                  title: 'Export failed',
+                  message: `Could not generate the Excel file: ${(err as Error).message ?? 'Unknown error'}. Try refreshing the page and exporting again.`,
+                  tone: 'error',
+                });
+              }
             }}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-secondary text-text-secondary hover:bg-surface-tertiary transition-colors"
             title="Download a fully-linked Excel model with editable formulas"
