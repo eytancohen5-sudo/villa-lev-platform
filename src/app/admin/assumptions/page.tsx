@@ -1807,9 +1807,14 @@ function ConfigPanel() {
     try {
       await signIn();
     } catch (err) {
+      const msg = (err as Error).message ?? 'Could not complete Google sign-in.';
+      const isUnauthorizedDomain = msg.includes('auth/unauthorized-domain');
+      const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
       store.requestAlert({
         title: 'Sign-in failed',
-        message: (err as Error).message ?? 'Could not complete Google sign-in.',
+        message: isUnauthorizedDomain
+          ? `Firebase Auth does not allow sign-in from this domain.\n\nTo fix: go to Firebase Console → Authentication → Sign-in method → Authorized domains → Add domain:\n\n${hostname}\n\nThis is a one-time setup step in the Firebase Console (console.firebase.google.com → project villa-lev-admin).`
+          : msg,
         tone: 'error',
       });
     }
