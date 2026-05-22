@@ -71,6 +71,7 @@ const LR: Record<
     loading: string;
     perNight: string;
     nightsBooked: string;
+    nights: string; // bare unit suffix (e.g. "95 nights"), no "booked"
     available: string;
     sourceNote: string;
     // ── New keys for the conservatism-cushion restructure ──
@@ -108,6 +109,7 @@ const LR: Record<
     loading: "Loading live data…",
     perNight: "/ night",
     nightsBooked: "nights booked",
+    nights: "nights",
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
@@ -145,6 +147,7 @@ const LR: Record<
     loading: "Chargement des données en direct…",
     perNight: "/ nuit",
     nightsBooked: "nuits réservées",
+    nights: "nuits",
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
@@ -182,6 +185,7 @@ const LR: Record<
     loading: "Φόρτωση ζωντανών δεδομένων…",
     perNight: "/ βραδιά",
     nightsBooked: "βραδιές κρατημένες",
+    nights: "βραδιές",
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
@@ -219,6 +223,7 @@ const LR: Record<
     loading: "טוען נתונים חיים…",
     perNight: "/ לילה",
     nightsBooked: "לילות תפוסים",
+    nights: "לילות",
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
@@ -551,13 +556,14 @@ export function LiveTrackRecord({
               modelLabel={lr.model}
               liveLabel={lr.liveLabel}
               cushionLabel={lr.cushion}
-              // Displayed as a plain night count (e.g. "95") rather than
-              // percent or a "95 / 120" ratio, at Eytan's request 2026-05-22.
-              // Bankers want the absolute count. occupancyGap is still
-              // computed from the percentage values above so the corner
-              // cushion-% pill stays consistent with the ADR / RevPAR cards.
-              modelValue={`${Math.round(bp.villaBaseNights)}`}
-              liveValue={`${currentSeason.bookedNights}`}
+              // Displayed as a night count with unit (e.g. "95 nights")
+              // rather than percent or a "95 / 120" ratio, at Eytan's
+              // request 2026-05-22. Bankers want the absolute count.
+              // occupancyGap is still computed from the percentage values
+              // above so the corner cushion-% pill stays consistent with
+              // the ADR / RevPAR cards.
+              modelValue={`${Math.round(bp.villaBaseNights)} ${lr.nights}`}
+              liveValue={`${currentSeason.bookedNights} ${lr.nights}`}
               gap={occupancyGap}
             />
             <CushionCard
