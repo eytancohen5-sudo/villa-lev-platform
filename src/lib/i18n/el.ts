@@ -508,9 +508,9 @@ export const el: TranslationDictionary = {
   'scenarios.readOnlyShared': 'Αυτό το σενάριο αποθηκεύτηκε από άλλον χρήστη. Φορτώστε το για να δημιουργήσετε ένα προσωπικό αντίγραφο που μπορείτε να επεξεργαστείτε.',
   'scenarios.signInToSave': 'Πρέπει να συνδεθείτε για να αποθηκεύσετε ένα σενάριο.',
 
-  'ref.setAsReference': 'Ορισμός ως αναφορά',
-  'ref.referenceBadge': '★ Αναφορά',
-  'ref.viewingReference': 'Προβολή σεναρίου αναφοράς',
+  'ref.setAsReference': 'Ορισμός ως βασικό σενάριο',
+  'ref.referenceBadge': '★ Βασικό σενάριο',
+  'ref.viewingReference': 'Προβολή βασικού σεναρίου',
   'ref.dismiss': 'Κλείσιμο',
 
   'field.numPropB': 'Αριθμός ακινήτων B',

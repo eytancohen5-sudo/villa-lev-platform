@@ -508,9 +508,9 @@ export const fr: TranslationDictionary = {
   'scenarios.readOnlyShared': 'Ce scénario a été enregistré par quelqu’un d’autre. Chargez-le pour en créer une copie personnelle modifiable.',
   'scenarios.signInToSave': 'Vous devez être connecté pour enregistrer un scénario.',
 
-  'ref.setAsReference': 'Définir comme référence',
-  'ref.referenceBadge': '★ Référence',
-  'ref.viewingReference': 'Scénario de référence affiché',
+  'ref.setAsReference': 'Définir comme cas de base',
+  'ref.referenceBadge': '★ Cas de base',
+  'ref.viewingReference': 'Scénario de base affiché',
   'ref.dismiss': 'Fermer',
 
   'field.numPropB': 'Nombre de biens B',

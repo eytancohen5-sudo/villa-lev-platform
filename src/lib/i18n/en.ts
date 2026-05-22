@@ -507,9 +507,9 @@ export const en: TranslationDictionary = {
   'scenarios.readOnlyShared': 'This scenario was saved by someone else. Load it to make a personal copy you can edit.',
   'scenarios.signInToSave': 'You need to be signed in to save a scenario.',
 
-  'ref.setAsReference': 'Set as reference',
-  'ref.referenceBadge': '★ Reference',
-  'ref.viewingReference': 'Viewing reference scenario',
+  'ref.setAsReference': 'Set as base case',
+  'ref.referenceBadge': '★ Base case',
+  'ref.viewingReference': 'Viewing base case scenario',
   'ref.dismiss': 'Dismiss',
 
   'field.numPropB': 'Number of Property B units',
