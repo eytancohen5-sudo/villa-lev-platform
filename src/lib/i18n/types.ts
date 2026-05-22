@@ -217,6 +217,11 @@ export interface TranslationDictionary {
   'dash.minDscr': string;
   'dash.never': string;
   'dash.years': string;
+  'dash.section.headline': string;
+  'dash.headlineSub': string;
+  'dash.drillDown': string;
+  'dash.founderDrillDown': string;
+  'dash.pnlDrillDown': string;
 
   // ── Onboarding tour ──
   'tour.takeTour': string;

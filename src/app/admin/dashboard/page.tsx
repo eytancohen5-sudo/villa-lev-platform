@@ -33,7 +33,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import { computeCapTable } from "@/lib/engine/capTable";
-import { MIN_INVESTOR_SHARE } from "@/lib/engine/founderWaterfall";
 
 // ── Shared bits ─────────────────────────────────────────────
 
@@ -233,17 +232,9 @@ export default function DashboardPage() {
           ? t('path.tepixLoan')
           : t('path.commercial');
 
-  // Short variant used in the Deal Snapshot ACTIVE PATH tile so the value
-  // renders at the same kpi-value size as the numeric tiles around it
-  // without overflowing.
-  const pathLabelShort =
-    assumptions.financingPath === "grant"
-      ? t('path.grantShort')
-      : assumptions.financingPath === "rrf"
-        ? t('path.rrfShort')
-        : assumptions.financingPath === "tepix-loan"
-          ? t('path.tepixLoanShort')
-          : t('path.commercialShort');
+  // ACTIVE PATH tile was removed from the KPI grid (restructure 2026-05-22);
+  // path metadata now lives in the page header subtitle as `pathLabel`. The
+  // pathLabelShort variant was only used for that tile and has been dropped.
 
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
 
@@ -392,12 +383,19 @@ export default function DashboardPage() {
           <span className="text-text-tertiary ml-auto text-[11px]">Tune in <em>Assumptions</em>.</span>
         </div>
       )}
-      {/* Header */}
+      {/* Header — active-path metadata lives here (path · scenario · stab year),
+          NOT as a KPICard in the metric grid. Plan 2026-05-22: demote ACTIVE PATH
+          from the KPI grid; the subtitle below is now the single source of truth
+          for "which configuration am I looking at?". */}
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-2xl text-text-primary">{t('dash.title')}</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            {pathLabel} &middot; {scenarioLabel} &middot; {t('dash.stabilisedYear')}
+          <p className="text-sm font-medium text-text-secondary mt-1">
+            <span className="text-text-primary">{pathLabel}</span>
+            <span className="text-text-tertiary"> &middot; </span>
+            {scenarioLabel}
+            <span className="text-text-tertiary"> &middot; </span>
+            {t('dash.stabilisedYear')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -424,7 +422,13 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Term sheet at a glance — what the credit committee skims first. */}
+      {/* Term sheet at a glance — what the credit committee skims first.
+          Restructure 2026-05-22: condensed horizontal STRIP (no per-cell
+          kpi-value sized boxes — those competed visually with the Headline
+          KPI grid below). The deal terms a banker scans for first sit in
+          one inline row that stacks on <md. Source-of-truth for Loan, Term ·
+          Grace, Rate, Annual DS, DSCR covenant — these are NOT repeated in
+          the Headline KPI grid. */}
       {(() => {
         const path = assumptions.financingPath;
         const ratePct =
@@ -448,7 +452,9 @@ export default function DashboardPage() {
         const covenant = assumptions.dscrCovenantThreshold;
         const minDscr = activeScenarioOutput.minDSCRLoanLife;
         const dscrPass = minDscr >= covenant;
-        const totalPlots = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
+        // Term Sheet strip cells: deal terms only. Equity Required moved to
+        // the Headline KPI grid below — it's an underwriting figure, not a
+        // term-sheet field. Keeps the strip to 5 banker-scan cells.
         const cells: Array<{ label: string; value: string; sub?: string; tone?: "positive" | "warning" }> = [
           {
             label: t('dash.termsheet.loan'),
@@ -476,11 +482,6 @@ export default function DashboardPage() {
             sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`,
             tone: dscrPass ? "positive" : "warning",
           },
-          {
-            label: t('dash.termsheet.equityRequired'),
-            value: formatCurrency(km.equityRequired, true, locale),
-            sub: `${t('dash.termsheet.security')} · ${totalPlots} ${totalPlots === 1 ? t('kpi.plotsSingular') : t('kpi.plots')} + ${t('term.ffe')}`,
-          },
         ];
         return (
           <div id="section-termsheet" className="scroll-mt-24 mb-6">
@@ -488,15 +489,21 @@ export default function DashboardPage() {
               title={t('dash.termsheet.title')}
               sub={`${pathLabel} · ${scenarioLabel}`}
             />
-            <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-surface-tertiary/60">
-                {cells.map((c) => (
-                  <div key={c.label} className="p-5">
-                    <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">
+            {/* Horizontal condensed strip: flex on md+, stacks vertically
+                on mobile. NO kpi-value sizing — the value sits inline with
+                the label so the strip stays bar-shaped, not card-grid-shaped. */}
+            <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-4 md:px-5 py-3 md:py-3.5">
+              <div className="flex flex-col md:flex-row md:items-center md:flex-wrap md:gap-x-6 md:gap-y-2 gap-y-2.5 md:divide-x md:divide-surface-tertiary/60">
+                {cells.map((c, i) => (
+                  <div
+                    key={c.label}
+                    className={`flex flex-col md:flex-row md:items-baseline md:gap-2 ${i > 0 ? "md:pl-6" : ""} text-sm`}
+                  >
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
                       {c.label}
-                    </div>
-                    <div
-                      className={`kpi-value ${
+                    </span>
+                    <span
+                      className={`font-mono font-semibold ${
                         c.tone === "positive"
                           ? "text-positive"
                           : c.tone === "warning"
@@ -505,11 +512,11 @@ export default function DashboardPage() {
                       }`}
                     >
                       {c.value}
-                    </div>
+                    </span>
                     {c.sub && (
-                      <div className="text-xs text-text-tertiary mt-1 leading-snug">
+                      <span className="text-[11px] text-text-tertiary leading-snug md:before:content-['·'] md:before:mr-1.5 md:before:text-text-tertiary/60">
                         {c.sub}
-                      </div>
+                      </span>
                     )}
                   </div>
                 ))}
@@ -519,10 +526,24 @@ export default function DashboardPage() {
         );
       })()}
 
-      {/* Section 0 — Deal Snapshot */}
+      {/* LiveTrackRecord — banker proof, lifted ABOVE the Headline KPI grid so
+          the first thing under the Term Sheet is the real-villa track record,
+          not modeled figures. Used to sit inside the Conservatism Check
+          section; restructure 2026-05-22 surfaces it as the lede. */}
+      <div className="mb-6">
+        <LiveTrackRecord />
+      </div>
+
+      {/* Section 0 — Headline KPIs (was "Deal Snapshot").
+          Restructure 2026-05-22: stripped duplicates with the Term Sheet
+          strip above. Removed: Loan Amount, Annual DS (both in Term Sheet);
+          ACTIVE PATH tile (demoted to the page subtitle in the header).
+          Kept: Total Investment, Equity Required, DSCR · 2030, Stabilised
+          DSCR, Equity IRR — the 5 underwriting figures a banker reads after
+          the deal terms. Anchor id preserved for the page tour. */}
       <div id="section-deal-snapshot" className="scroll-mt-24">
-        <SectionHeader title={t('dash.section.dealSnapshot')} sub={t('dash.dealSnapshotSub')} />
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <SectionHeader title={t('dash.section.headline')} sub={t('dash.headlineSub')} />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <KPICard
             label={t('kpi.totalInvestment')}
             value={formatCurrency(km.totalCapex, true, locale)}
@@ -532,48 +553,28 @@ export default function DashboardPage() {
             })()}
           />
           <KPICard
-            label={t('kpi.loanAmount')}
-            value={formatCurrency(km.loanAmount, true, locale)}
-            sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} ${t('kpi.ofTotal')}`}
-          />
-          <KPICard
             label={t('kpi.equityRequired')}
             value={formatCurrency(km.equityRequired, true, locale)}
             sublabel={`${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}`}
           />
           <KPICard
-            label={t('kpi.annualDS')}
-            value={formatCurrency(km.annualDS, true, locale)}
-            sublabel={t('kpi.annualDSSub')}
+            label={t('kpi.dscrPostRamp')}
+            value={km.dscrPostRamp > 0 ? formatMultiple(km.dscrPostRamp) : "—"}
+            sublabel={t('kpi.dscrPostRampSub')}
+            tone={dscrTone}
           />
-          {(() => {
-            const grantAmt = assumptions.financingPath === "grant"
-              ? Number(model.financingComparison.find((c) => c.key === 'grantReceived')?.grant ?? 0)
-              : 0;
-            if (grantAmt > 0) {
-              return (
-                <KPICard
-                  label={t('kpi.activePath')}
-                  value={formatCurrency(grantAmt, true, locale)}
-                  sublabel={`${pathLabelShort} · ${t('field.grantAmount')} (${formatPercent(grantAmt / km.totalCapex, 0)})`}
-                  tone="positive"
-                />
-              );
-            }
-            return (
-              <KPICard
-                label={t('kpi.activePath')}
-                value={pathLabelShort}
-                sublabel={t('kpi.activeScenario') + ': ' + scenarioLabel}
-              />
-            );
-          })()}
           <KPICard
             label={t('term.dscr')}
             value={formatMultiple(km.stabilisedDSCR)}
             sublabel={t('kpi.debtServiceCoverage')}
-            tone={dscrTone}
+            tone={km.stabilisedDSCR >= 1.5 ? "positive" : km.stabilisedDSCR >= 1.25 ? undefined : "warning"}
             accent={km.stabilisedDSCR >= 1.5}
+          />
+          <KPICard
+            label={t('kpi.equityIRR')}
+            value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
+            sublabel={t('kpi.equityIRRSub')}
+            tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
           />
         </div>
       </div>
@@ -605,18 +606,15 @@ export default function DashboardPage() {
         </ResponsiveContainer>
       </div>
 
-      {/* Section 1 — Coverage Ratios */}
+      {/* Section 1 — Coverage Ratios.
+          Restructure 2026-05-22: DSCR · 2030 moved to the Headline KPI grid
+          above (the single source of truth for the headline DSCR figure).
+          This section keeps the 4 secondary coverage metrics — ICR, LLCR,
+          PLCR, covenant headroom — which are what a credit committee asks
+          about AFTER the headline DSCR. */}
       <div id="section-coverage" className="scroll-mt-24">
       <SectionHeader title={t('dash.section.coverage')} sub={t('dash.coverageSub')} />
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KPICard
-          label={t('kpi.dscrPostRamp')}
-          value={km.dscrPostRamp > 0 ? formatMultiple(km.dscrPostRamp) : "—"}
-          sublabel={t('kpi.dscrPostRampSub')}
-          threshold={t('dash.kpi.dscrThreshold')}
-          tone={dscrTone}
-          accent={km.dscrPostRamp >= 1.5}
-        />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPICard
           label={t('kpi.icr')}
           value={km.icrStabilised > 0 ? formatMultiple(km.icrStabilised) : "—"}
@@ -749,18 +747,16 @@ export default function DashboardPage() {
       </div>
       </div>
 
-      {/* Section — Conservatism Check (placed after Returns per audit 2026-05-21 fix #3:
-          lands as proof of the headline returns, not pre-emptive defence).
-          The previous announcement card was replaced 2026-05-22 with the
-          shared LiveTrackRecord component so admin + banker views align. */}
+      {/* Section — Conservatism Check.
+          Restructure 2026-05-22: LiveTrackRecord was lifted out of this
+          section and placed directly under the Term Sheet strip (banker-
+          proof lede). What stays here is the per-villa BP-vs-live comparison
+          table — the audit detail that proves the conservatism story. */}
       <div id="section-conservatism" className="scroll-mt-24 mb-6 mt-6">
         <SectionHeader
           title="Conservatism Check"
           sub="Per-villa BP assumptions vs the live single villa we already run today"
         />
-        <div className="mb-4">
-          <LiveTrackRecord />
-        </div>
         <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -926,86 +922,53 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section 3b — Founder waterfall (3-layer model). Full detail on /admin/cap-table. */}
+      {/* Section 3b — Founder waterfall.
+          Restructure 2026-05-22: the full 6-tile inline grid duplicated the
+          dedicated /admin/cap-table page. Replaced with a compact summary
+          row + drill-down link so the dashboard surfaces just the headline
+          founder/investor split, not the full 3-layer breakdown. Anchor id
+          `section-founder` preserved for the page tour. */}
       <div id="section-founder" className="scroll-mt-24">
       <SectionHeader title={t('dash.founder.section')} sub={t('dash.founder.sectionSub')} />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard
-          label={t('dash.founder.pariPassu')}
-          value={formatPercent(founderBd.pariPassuPct)}
-          sublabel={`€${Math.round(founderResult.founderCashInvested / 1000)}K / €${Math.round(founderResult.totalEquityRaised / 1000)}K`}
-        />
-        <KPICard
-          label={t('dash.founder.grantBonus')}
-          value={founderBd.grantBonusPct > 0 ? `+${formatPercent(founderBd.grantBonusPct)}` : "—"}
-          sublabel={
-            founderBd.grantBonusPct > 0
-              ? `€${Math.round(founderBd.founderNetGrantCash / 1000)}K net / €${Math.round((founderBd.postGrantEquityValue + founderBd.founderNetGrantCash) / 1000)}K`
-              : t('dash.founder.grantBonusInactive')
-          }
-          threshold={
-            founderBd.grantBonusPct > 0
-              ? `Derived: founder_net (€${Math.round(founderBd.founderNetGrantCash / 1000)}K = 10% gross fee − €${Math.round(founderResult.totalConsultantPayment / 1000)}K consultant) ÷ (post-grant equity €${Math.round(founderBd.postGrantEquityValue / 1_000_000 * 10) / 10}M + founder_net)`
-              : undefined
-          }
-        />
-        <KPICard
-          label={t('dash.founder.performanceRatchet')}
-          value={`+${formatPercent(founderBd.performanceRatchetPct)}`}
-          sublabel={`${t('dash.founder.ratchetTier')}: ${founderBd.ratchetTierLabel}${founderBd.moicFloorReduction ? ` · ${t('dash.founder.moicFloor')}` : ""}`}
-        />
-        <KPICard
-          label={t('dash.founder.founderTotal')}
-          value={formatPercent(founderBd.founderTotalPct)}
-          sublabel={`${formatPercent(founderBd.pariPassuPct)} + ${formatPercent(founderBd.earnedPct)} ${t('dash.founder.earned')}`}
-          tone={founderBd.capBinding === "total_75" ? "warning" : undefined}
-          accent
-        />
-        <KPICard
-          label={t('dash.founder.investorsKeep')}
-          value={formatPercent(founderBd.investorTotalPct)}
-          sublabel={`${t('dash.founder.floorProtected')} ${formatPercent(MIN_INVESTOR_SHARE)}`}
-          tone="positive"
-        />
-        <KPICard
-          label={t('dash.founder.capStatus')}
-          value={
-            founderBd.capBinding === "total_75"
-              ? t('dash.founder.capBinding75')
-              : founderBd.capBinding === "earned_33"
-                ? t('dash.founder.capEarned33')
-                : t('dash.founder.capFree')
-          }
-          sublabel={capStatusLabel}
-          tone={
-            founderBd.capBinding === "total_75"
-              ? "warning"
-              : founderBd.capBinding === "earned_33"
-                ? undefined
-                : "positive"
-          }
-        />
-      </div>
-      {/* Operating-fee context — these reduce cash distributable to equity. */}
-      <div className="mt-2 text-[11px] text-text-tertiary flex flex-wrap gap-x-5 gap-y-1 px-1">
-        <span>
-          {t('dash.founder.manCoFee')}:
-          <span className="font-mono text-text-secondary ms-1">
-            {formatCurrency(founderResult.totalFounderManCoFee, true, locale)} {t('dash.founder.cumulative')}
+      <a
+        href="/admin/cap-table"
+        className="block bg-white rounded-xl border border-surface-tertiary hover:border-brand-300 hover:shadow-sm transition-all p-5 group"
+      >
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 items-baseline">
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                {t('dash.founder.founderTotal')}
+              </div>
+              <div className="font-display text-xl text-text-primary">
+                {formatPercent(founderBd.founderTotalPct)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                {t('dash.founder.investorsKeep')}
+              </div>
+              <div className="font-display text-xl text-positive">
+                {formatPercent(founderBd.investorTotalPct)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                {t('dash.founder.capStatus')}
+              </div>
+              <div className={`text-sm font-medium ${founderBd.capBinding === "total_75" ? "text-warning" : founderBd.capBinding === "earned_33" ? "text-text-primary" : "text-positive"}`}>
+                {capStatusLabel}
+              </div>
+            </div>
+          </div>
+          <span className="text-xs text-brand-700 group-hover:text-brand-800 font-medium">
+            {t('dash.drillDown')}
           </span>
-        </span>
-        {founderResult.totalConsultantPayment > 0 && (
-          <span>
-            {t('dash.founder.consultantPayment')}:
-            <span className="font-mono text-text-secondary ms-1">
-              {formatCurrency(founderResult.totalConsultantPayment, true, locale)}
-            </span>
-          </span>
-        )}
-        <span className="text-text-tertiary/70">
-          {t('dash.founder.feesNote')}
-        </span>
-      </div>
+        </div>
+        <div className="text-[11px] text-text-tertiary mt-3 pt-3 border-t border-surface-tertiary/50">
+          {t('dash.founderDrillDown')}
+        </div>
+      </a>
       </div>
 
       {/* Section 4 — Capital Structure & Debt */}
@@ -1176,193 +1139,58 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Section 7 — Compact P&L Snapshot */}
-      <div id="section-pnl-summary" className="bg-white rounded-xl border border-surface-tertiary p-5 mt-8 scroll-mt-24">
-        <div className="flex items-baseline justify-between mb-4">
-          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
-            {t('dash.pnlSummary')} — {scenarioLabel}
-          </h3>
+      {/* Section 7 — P&L Summary drill-down.
+          Restructure 2026-05-22: the inline year-by-year P&L table (~180
+          lines, 13 rows × every year) duplicated the dedicated /admin/pnl
+          page. Replaced with a compact "drill down" card showing the active-
+          scenario stabilised headline figures (already shown in Operating
+          Performance above) + a link to the full timeline. Anchor id
+          `section-pnl-summary` preserved for the page tour. */}
+      <a
+        id="section-pnl-summary"
+        href="/admin/pnl"
+        className="block bg-white rounded-xl border border-surface-tertiary hover:border-brand-300 hover:shadow-sm transition-all p-5 mt-8 scroll-mt-24 group"
+      >
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+              {t('dash.pnlSummary')} — {scenarioLabel}
+            </h3>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm">
+              <span className="text-text-secondary">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
+                  {t('pnl.totalRevenue')}
+                </span>
+                <span className="font-mono font-semibold text-text-primary">
+                  {finalYear && finalYear.totalRevenue > 0 ? formatCurrency(finalYear.totalRevenue, true, locale) : "—"}
+                </span>
+              </span>
+              <span className="text-text-secondary">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
+                  {t('term.ebitda')}
+                </span>
+                <span className="font-mono font-semibold text-positive">
+                  {finalYear && finalYear.ebitda !== 0 ? formatCurrency(finalYear.ebitda, true, locale) : "—"}
+                </span>
+              </span>
+              <span className="text-text-secondary">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
+                  {t('pnl.ncfPostVAT')}
+                </span>
+                <span className={`font-mono font-semibold ${finalYear && finalYear.netCashFlowPostVAT >= 0 ? "text-positive" : "text-negative"}`}>
+                  {finalYear ? formatCurrency(finalYear.netCashFlowPostVAT, true, locale) : "—"}
+                </span>
+              </span>
+            </div>
+          </div>
+          <span className="text-xs text-brand-700 group-hover:text-brand-800 font-medium">
+            {t('dash.drillDown')}
+          </span>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-tertiary">
-                <th className="text-left py-2 pr-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('pnl.item')}
-                </th>
-                {activePnL.map((p) => (
-                  <th
-                    key={p.year}
-                    className="text-right py-2 px-2 text-text-tertiary font-medium text-xs uppercase tracking-wider"
-                  >
-                    {p.year}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.totalRevenue')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell">
-                    {p.totalRevenue > 0 ? formatCurrency(p.totalRevenue, true, locale) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="font-medium border-t border-surface-secondary/50">
-                <td className="py-2 pr-4">{t('term.ebitda')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${p.ebitda > 0 ? "text-positive" : p.ebitda < 0 ? "text-negative" : "text-text-tertiary"}`}
-                  >
-                    {p.ebitda !== 0 ? formatCurrency(p.ebitda, true, locale) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.ebitdaMargin')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell text-text-tertiary">
-                    {p.totalRevenue > 0 ? formatPercent(p.ebitdaMargin) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.debtService')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell text-negative">
-                    {p.debtService > 0 ? formatCurrency(p.debtService, true, locale) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="font-medium border-t border-surface-secondary/50">
-                <td className="py-2 pr-4">{t('pnl.ncfPostVAT')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${p.netCashFlowPostVAT >= 0 ? "text-positive" : "text-negative"}`}
-                  >
-                    {formatCurrency(p.netCashFlowPostVAT, true, locale)}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.cit')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell text-negative">
-                    {p.citPayable !== 0 ? formatCurrency(p.citPayable, true, locale) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('term.dscr')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${
-                      p.dscr >= 1.25
-                        ? "text-positive"
-                        : p.dscr > 0
-                          ? "text-warning"
-                          : "text-text-tertiary"
-                    }`}
-                  >
-                    {p.dscr > 0 ? formatMultiple(p.dscr) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.dscrLoaded')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${
-                      p.dscrLoaded >= 1.25
-                        ? "text-positive"
-                        : p.dscrLoaded > 0
-                          ? "text-warning"
-                          : "text-text-tertiary"
-                    }`}
-                  >
-                    {p.dscrLoaded > 0 ? formatMultiple(p.dscrLoaded) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.icr')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${
-                      p.interestCoverageRatio >= 3
-                        ? "text-positive"
-                        : p.interestCoverageRatio >= 1.5
-                          ? "text-warning"
-                          : "text-text-tertiary"
-                    }`}
-                  >
-                    {p.interestCoverageRatio > 0 ? formatMultiple(p.interestCoverageRatio) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.yieldOnEquity')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${
-                      p.yieldOnInitialEquity > 0
-                        ? "text-positive"
-                        : p.yieldOnInitialEquity < 0
-                          ? "text-negative"
-                          : "text-text-tertiary"
-                    }`}
-                  >
-                    {p.yieldOnInitialEquity !== 0 ? formatPercent(p.yieldOnInitialEquity) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="font-medium border-t border-surface-secondary/50">
-                <td className="py-2 pr-4">{t('pnl.totalYieldOnEquity')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${
-                      p.cumulativeYieldOnInitialEquity > 0
-                        ? "text-positive"
-                        : p.cumulativeYieldOnInitialEquity < 0
-                          ? "text-negative"
-                          : "text-text-tertiary"
-                    }`}
-                  >
-                    {p.cumulativeYieldOnInitialEquity !== 0 ? formatPercent(p.cumulativeYieldOnInitialEquity) : "—"}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.cumulativeNCF')}</td>
-                {activePnL.map((p) => (
-                  <td
-                    key={p.year}
-                    className={`text-right py-2 px-2 data-cell ${p.cumulativeNCF >= 0 ? "text-positive" : "text-negative"}`}
-                  >
-                    {formatCurrency(p.cumulativeNCF, true, locale)}
-                  </td>
-                ))}
-              </tr>
-              <tr className="border-t border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('pnl.termLoanBalance')}</td>
-                {activePnL.map((p) => (
-                  <td key={p.year} className="text-right py-2 px-2 data-cell text-text-tertiary">
-                    {p.termLoanBalance > 0 ? formatCurrency(p.termLoanBalance, true, locale) : "—"}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+        <div className="text-[11px] text-text-tertiary mt-3 pt-3 border-t border-surface-tertiary/50">
+          {t('dash.pnlDrillDown')}
         </div>
-      </div>
+      </a>
 
       {/* Section 8 — Sensitivity & Stress */}
       <SectionHeader title={t('dash.section.sensitivity')} />
