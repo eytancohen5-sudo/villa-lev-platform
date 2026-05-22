@@ -7,12 +7,17 @@
 // Renders on /investor, /bank, and inside the dashboard's "Conservatism
 // Check" region — so admin and banker views stay aligned.
 
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useModelStore } from "@/lib/store/modelStore";
 import type { Locale } from "@/lib/i18n/types";
+
+// Stabilised year — matches engine model.ts `stabilisedYear = pnl.find(p => p.year === 2031)`.
+// Kept as a module constant so this component does not need to import from
+// the engine just to display the headline number.
+const STABILISED_YEAR = 2031;
 
 // ── "Now" external store ──
 // We need the current month name and the current millisecond stamp for the
@@ -68,6 +73,21 @@ const LR: Record<
     nightsBooked: string;
     available: string;
     sourceNote: string;
+    // ── New keys for the conservatism-cushion restructure ──
+    headlineConservatism: string; // template — uses {year} {years} {gap}
+    cushion: string;
+    model: string;
+    liveLabel: string;
+    showDetail: string;
+    hideDetail: string;
+    roomsPending: string;
+    villaADR: string;
+    villaOccupancy: string;
+    villaRevPAR: string;
+    history: string;
+    historyYear: string;
+    historyTotal: string;
+    historyYoY: string;
   }
 > = {
   en: {
@@ -90,6 +110,22 @@ const LR: Record<
     nightsBooked: "nights booked",
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
+    headlineConservatism:
+      "Our stabilised projections (year {year}, in {years} years) sit on average {gap}% below what the existing Antiparos villa delivers today. That gap is the conservatism cushion bankers underwrite against.",
+    cushion: "Cushion",
+    model: "Model",
+    liveLabel: "Live",
+    showDetail: "Show detail",
+    hideDetail: "Hide detail",
+    roomsPending:
+      "Room assumptions benchmarked against Antiparos boutique-hotel comparables — Market Study currently in preparation.",
+    villaADR: "Villa ADR",
+    villaOccupancy: "Villa occupancy",
+    villaRevPAR: "Villa RevPAR",
+    history: "History · existing villa",
+    historyYear: "Year",
+    historyTotal: "Total revenue",
+    historyYoY: "YoY",
   },
   fr: {
     header: "Track record en direct · Antiparos",
@@ -111,6 +147,22 @@ const LR: Record<
     nightsBooked: "nuits réservées",
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
+    headlineConservatism:
+      "Nos projections stabilisées (année {year}, dans {years} ans) se situent en moyenne {gap}% sous ce que la villa d'Antiparos réalise déjà aujourd'hui. C'est le coussin de prudence sur lequel les banquiers s'appuient.",
+    cushion: "Coussin",
+    model: "Modèle",
+    liveLabel: "Réel",
+    showDetail: "Afficher le détail",
+    hideDetail: "Masquer le détail",
+    roomsPending:
+      "Hypothèses des chambres calées sur les comparables hôtels boutique d'Antiparos — étude de marché en cours de préparation.",
+    villaADR: "ADR villa",
+    villaOccupancy: "Occupation villa",
+    villaRevPAR: "RevPAR villa",
+    history: "Historique · villa existante",
+    historyYear: "Année",
+    historyTotal: "CA total",
+    historyYoY: "YoY",
   },
   el: {
     header: "Ζωντανό track record · Αντίπαρος",
@@ -132,6 +184,22 @@ const LR: Record<
     nightsBooked: "βραδιές κρατημένες",
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
+    headlineConservatism:
+      "Οι σταθεροποιημένες προβλέψεις μας (έτος {year}, σε {years} χρόνια) βρίσκονται κατά μέσο όρο {gap}% κάτω από αυτό που η υπάρχουσα βίλα στην Αντίπαρο ήδη αποδίδει σήμερα. Αυτό το περιθώριο είναι το «μαξιλάρι» συντηρητισμού που εμπιστεύονται οι τραπεζίτες.",
+    cushion: "Μαξιλάρι",
+    model: "Μοντέλο",
+    liveLabel: "Πραγματικό",
+    showDetail: "Εμφάνιση λεπτομερειών",
+    hideDetail: "Απόκρυψη λεπτομερειών",
+    roomsPending:
+      "Οι παραδοχές δωματίων συγκρίνονται με boutique ξενοδοχεία της Αντιπάρου — Μελέτη Αγοράς σε εξέλιξη.",
+    villaADR: "ADR βίλας",
+    villaOccupancy: "Πληρότητα βίλας",
+    villaRevPAR: "RevPAR βίλας",
+    history: "Ιστορικό · υπάρχουσα βίλα",
+    historyYear: "Έτος",
+    historyTotal: "Συνολικά έσοδα",
+    historyYoY: "YoY",
   },
   he: {
     header: "Track record חי · אנטיפרוס",
@@ -153,6 +221,22 @@ const LR: Record<
     nightsBooked: "לילות תפוסים",
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
+    headlineConservatism:
+      "התחזיות המיוצבות שלנו (שנת {year}, בעוד {years} שנים) ממוקמות בממוצע {gap}% מתחת למה שהווילה הקיימת באנטיפרוס כבר מספקת היום. הפער הזה הוא כרית השמרנות שהבנקאים מסתמכים עליה.",
+    cushion: "כרית",
+    model: "מודל",
+    liveLabel: "בפועל",
+    showDetail: "הצג פירוט",
+    hideDetail: "הסתר פירוט",
+    roomsPending:
+      "הנחות החדרים מבוססות על מלונות בוטיק באנטיפרוס — מחקר שוק בהכנה.",
+    villaADR: "ADR וילה",
+    villaOccupancy: "תפוסת וילה",
+    villaRevPAR: "RevPAR וילה",
+    history: "היסטוריה · וילה קיימת",
+    historyYear: "שנה",
+    historyTotal: "סך הכנסות",
+    historyYoY: "YoY",
   },
 };
 
@@ -164,6 +248,82 @@ function FigureSkeleton() {
       <div className="h-3 w-20 rounded bg-brand-100/60 animate-pulse" />
       <div className="h-9 w-28 rounded bg-brand-100/60 animate-pulse" />
       <div className="h-2.5 w-24 rounded bg-brand-100/40 animate-pulse" />
+    </div>
+  );
+}
+
+// CushionCard — one row of the new headline grid (Villa ADR / Occupancy /
+// RevPAR). Pairs the model assumption with the live equivalent and ends with
+// a coloured "cushion" chip showing the gap %.
+//
+// Colour discipline (per spec):
+//   - positive gap (model below live, conservative)  → green / positive tone
+//   - negative gap (model above live, aggressive)    → warning tone
+//   - |gap| < 0.5% rounding noise                    → neutral
+function CushionCard({
+  label,
+  modelLabel,
+  liveLabel,
+  cushionLabel,
+  modelValue,
+  liveValue,
+  gap,
+}: {
+  label: string;
+  modelLabel: string;
+  liveLabel: string;
+  cushionLabel: string;
+  modelValue: string;
+  liveValue: string;
+  gap: number; // fractional (e.g. 0.07 = 7%)
+}) {
+  // Round to nearest 0.5% for display so the chip never shows misleadingly
+  // precise figures (e.g. "+2.34%") that imply more confidence than we have.
+  const rounded = Math.round(gap * 200) / 200;
+  const pct = Math.round(rounded * 1000) / 10;
+  const tone: "positive" | "negative" | "neutral" =
+    Math.abs(rounded) < 0.005 ? "neutral" : rounded > 0 ? "positive" : "negative";
+  const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
+  const chipClass =
+    tone === "positive"
+      ? "bg-positive/15 text-positive"
+      : tone === "negative"
+        ? "bg-warning/15 text-warning"
+        : "bg-surface-secondary text-text-tertiary";
+  return (
+    <div className="rounded-xl bg-white/70 border border-brand-200/70 px-4 py-3 backdrop-blur-sm min-w-0">
+      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-600 mb-2">
+        {label}
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wider text-text-tertiary">
+            {modelLabel}
+          </span>
+          <span className="font-mono text-text-secondary tabular-nums">
+            {modelValue}
+          </span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wider text-positive">
+            {liveLabel}
+          </span>
+          <span className="font-mono text-text-primary tabular-nums font-semibold">
+            {liveValue}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 pt-2 border-t border-brand-200/50 flex items-center justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wider text-text-tertiary">
+          {cushionLabel}
+        </span>
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${chipClass}`}
+        >
+          {sign}
+          {pct.toFixed(1)}%
+        </span>
+      </div>
     </div>
   );
 }
@@ -203,11 +363,18 @@ export function LiveTrackRecord({
   const lr = LR[locale] ?? LR.en;
   const {
     currentSeason,
+    historicalYears,
     source: snapshotSource,
     pulledAt,
     loading,
   } = useSeasonSnapshot();
   const { assumptions } = useModelStore();
+
+  // ── Detail-toggle state ──
+  // Default collapsed per spec: bankers see the headline + 3 cushion cards
+  // in one glance; the existing 4-figure block + history table sit behind a
+  // Show detail toggle.
+  const [showDetail, setShowDetail] = useState(false);
 
   // ── Compute live KPIs ──
   // `nowMs` comes from a useSyncExternalStore so we don't call impure
@@ -231,6 +398,28 @@ export function LiveTrackRecord({
   // BP nights are over the full base year; convert to a comparable peak-
   // season occupancy figure against the 120 available nights.
   const bpOccupancy = Math.min(1, bp.villaBaseNights / currentSeason.availableNights);
+  const bpRevPAR = bpADR * (bp.villaBaseNights / currentSeason.availableNights);
+
+  // ── Three conservatism cushions — model stabilised vs live (today) ──
+  // Gap % is (live - model) / live: positive = model is BELOW live (cushion),
+  // negative = model assumes more than today's reality (aggressive). Guard
+  // against zero live values so the headline never blows up if the live feed
+  // returns 0 (e.g. mid-season-start before the first booking).
+  const safeDiv = (num: number, denom: number) => (denom === 0 ? 0 : num / denom);
+  const adrGap = safeDiv(adr - bpADR, adr);
+  const occupancyGap = safeDiv(occupancy - bpOccupancy, occupancy);
+  const revparGap = safeDiv(revpar - bpRevPAR, revpar);
+  const averageGap = (adrGap + occupancyGap + revparGap) / 3;
+  // Round to nearest 0.5% for the headline. Step = 0.005 in fractional units.
+  const averageGapRounded = Math.round(averageGap * 200) / 200;
+  const averageGapPct = Math.round(averageGapRounded * 1000) / 10; // one decimal
+
+  // ── Years to stabilisation ──
+  // Uses the existing useSyncExternalStore Now pattern (see `nowMs` above).
+  // SSR / static-export: nowMs===0 → fall back to the season year so the
+  // headline still renders a sensible integer until the client mounts.
+  const currentYearForGap = hasNow ? year : currentSeason.year;
+  const yearsToStabilisation = Math.max(0, STABILISED_YEAR - currentYearForGap);
 
   // ── Freshness ──
   const isStale = (() => {
@@ -317,21 +506,102 @@ export function LiveTrackRecord({
         )}
       </header>
 
-      {/* Four prominent figures */}
-      <div
-        className={`grid gap-5 md:gap-8 mb-5 ${
-          isCompact ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4"
-        }`}
-      >
+      {/* ── Headline conservatism statement ──
+          One sentence that frames the whole section: "stabilised projections
+          sit X% below today's live performance — that gap is the cushion."
+          Tokens are spliced in with String#replace so we don't drag a full
+          i18n template runtime into this component. */}
+      {!loading && (
+        <p className="text-sm md:text-base text-text-primary leading-relaxed max-w-3xl mb-5">
+          {(() => {
+            const tmpl = lr.headlineConservatism;
+            const gapDisplay =
+              averageGapPct > 0 ? `${averageGapPct}` : `${Math.abs(averageGapPct)}`;
+            return tmpl
+              .replace("{year}", String(STABILISED_YEAR))
+              .replace("{years}", String(yearsToStabilisation))
+              .replace("{gap}", gapDisplay);
+          })()}
+        </p>
+      )}
+
+      {/* ── Three cushion cards (Villa ADR / Occupancy / RevPAR) ──
+          Default-visible. Each card pairs model vs live with a coloured
+          cushion chip. Cards stack on <md. */}
+      <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3 mb-4">
         {loading ? (
           <>
-            <FigureSkeleton />
             <FigureSkeleton />
             <FigureSkeleton />
             <FigureSkeleton />
           </>
         ) : (
           <>
+            <CushionCard
+              label={lr.villaADR}
+              modelLabel={lr.model}
+              liveLabel={lr.liveLabel}
+              cushionLabel={lr.cushion}
+              modelValue={formatCurrency(bpADR, false, locale)}
+              liveValue={formatCurrency(adr, false, locale)}
+              gap={adrGap}
+            />
+            <CushionCard
+              label={lr.villaOccupancy}
+              modelLabel={lr.model}
+              liveLabel={lr.liveLabel}
+              cushionLabel={lr.cushion}
+              modelValue={formatPercent(bpOccupancy, 0)}
+              liveValue={formatPercent(occupancy, 0)}
+              gap={occupancyGap}
+            />
+            <CushionCard
+              label={lr.villaRevPAR}
+              modelLabel={lr.model}
+              liveLabel={lr.liveLabel}
+              cushionLabel={lr.cushion}
+              modelValue={formatCurrency(bpRevPAR, false, locale)}
+              liveValue={formatCurrency(revpar, false, locale)}
+              gap={revparGap}
+            />
+          </>
+        )}
+      </div>
+
+      {/* ── Show / hide detail toggle ──
+          Keeps the existing 4-figure block + history out of the bankers'
+          first glance, but accessible for anyone who wants the underlying
+          numbers. */}
+      {!loading && (
+        <div className="mb-1">
+          <button
+            type="button"
+            onClick={() => setShowDetail((v) => !v)}
+            aria-expanded={showDetail}
+            aria-controls="live-track-record-detail"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900 underline underline-offset-4 decoration-brand-400/60 hover:decoration-brand-700 transition-colors"
+          >
+            <span aria-hidden="true" className="text-[10px] leading-none">
+              {showDetail ? "▲" : "▼"}
+            </span>
+            {showDetail ? lr.hideDetail : lr.showDetail}
+          </button>
+        </div>
+      )}
+
+      {/* ── Detail block (collapsed by default) ──
+          Existing 4-figure block + per-year history table + rooms-pending
+          footnote. */}
+      {!loading && showDetail && (
+        <div
+          id="live-track-record-detail"
+          className="mt-4 pt-4 border-t border-brand-200/70"
+        >
+          <div
+            className={`grid gap-5 md:gap-8 mb-5 ${
+              isCompact ? "grid-cols-2 md:grid-cols-4" : "grid-cols-2 md:grid-cols-4"
+            }`}
+          >
             <Figure
               label={lr.ytdRevenue}
               value={formatCurrency(ytdRevenue, true, locale)}
@@ -356,32 +626,48 @@ export function LiveTrackRecord({
               value={formatCurrency(revpar, false, locale)}
               sub={lr.perNight}
             />
-          </>
-        )}
-      </div>
-
-      {/* Conservatism strip — model vs live */}
-      {!loading && (
-        <div className="rounded-xl bg-white/60 border border-brand-200/60 px-4 py-3 backdrop-blur-sm">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="text-text-tertiary font-medium uppercase tracking-wider text-[10px]">
-                {lr.modelAssumes}
-              </span>
-              <span className="font-mono text-text-secondary">
-                {formatCurrency(bpADR, false, locale)} ADR · {formatPercent(bpOccupancy, 0)}
-              </span>
-            </div>
-            <span className="text-text-tertiary">{lr.versus}</span>
-            <div className="flex items-center gap-2">
-              <span className="text-positive font-medium uppercase tracking-wider text-[10px]">
-                {lr.liveTracking}
-              </span>
-              <span className="font-mono text-text-primary font-semibold">
-                {formatCurrency(adr, false, locale)} ADR · {formatPercent(occupancy, 0)}
-              </span>
-            </div>
           </div>
+
+          {historicalYears.length > 0 && (
+            <div className="rounded-xl bg-white/60 border border-brand-200/60 px-4 py-3 backdrop-blur-sm mb-3">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-600 mb-2">
+                {lr.history}
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs tabular-nums">
+                  <thead>
+                    <tr className="text-text-tertiary text-[10px] uppercase tracking-wider">
+                      <th className="text-left font-medium py-1 pr-3">{lr.historyYear}</th>
+                      <th className="text-right font-medium py-1 px-3">{lr.historyTotal}</th>
+                      <th className="text-right font-medium py-1 pl-3">{lr.historyYoY}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historicalYears.map((h) => (
+                      <tr
+                        key={h.year}
+                        className="border-t border-brand-200/40 text-text-secondary"
+                      >
+                        <td className="py-1 pr-3 font-medium text-text-primary">
+                          {h.year}
+                        </td>
+                        <td className="py-1 px-3 text-right">
+                          {formatCurrency(h.total, true, locale)}
+                        </td>
+                        <td className="py-1 pl-3 text-right">
+                          {h.yoy === null ? "—" : formatPercent(h.yoy, 1)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <p className="text-[11px] text-text-tertiary leading-snug max-w-3xl">
+            {lr.roomsPending}
+          </p>
         </div>
       )}
 
