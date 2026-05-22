@@ -538,12 +538,17 @@ export default function DashboardPage() {
           Restructure 2026-05-22: stripped duplicates with the Term Sheet
           strip above. Removed: Loan Amount, Annual DS (both in Term Sheet);
           ACTIVE PATH tile (demoted to the page subtitle in the header).
-          Kept: Total Investment, Equity Required, DSCR · 2030, Stabilised
-          DSCR, Equity IRR — the 5 underwriting figures a banker reads after
-          the deal terms. Anchor id preserved for the page tour. */}
+          Kept: Total Investment, Equity Required, DSCR · 2030, Equity IRR —
+          the 4 underwriting figures a banker reads after the deal terms.
+          Stabilised DSCR removed 2026-05-22 — it's the same metric as
+          DSCR · 2030 at a later horizon; bankers quote the 2030 figure
+          because that's the post-ramp, covenant-relevant year. The
+          stabilised value still lives in `km.stabilisedDSCR` for the
+          downside-scenario block and the comparison table further down.
+          Anchor id preserved for the page tour. */}
       <div id="section-deal-snapshot" className="scroll-mt-24">
         <SectionHeader title={t('dash.section.headline')} sub={t('dash.headlineSub')} />
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <KPICard
             label={t('kpi.totalInvestment')}
             value={formatCurrency(km.totalCapex, true, locale)}
@@ -562,13 +567,6 @@ export default function DashboardPage() {
             value={km.dscrPostRamp > 0 ? formatMultiple(km.dscrPostRamp) : "—"}
             sublabel={t('kpi.dscrPostRampSub')}
             tone={dscrTone}
-          />
-          <KPICard
-            label={t('term.dscr')}
-            value={formatMultiple(km.stabilisedDSCR)}
-            sublabel={t('kpi.debtServiceCoverage')}
-            tone={km.stabilisedDSCR >= 1.5 ? "positive" : km.stabilisedDSCR >= 1.25 ? undefined : "warning"}
-            accent={km.stabilisedDSCR >= 1.5}
           />
           <KPICard
             label={t('kpi.equityIRR')}
@@ -636,15 +634,19 @@ export default function DashboardPage() {
         <KPICard
           label={t('kpi.covHeadroom')}
           value={(() => {
-            // Headroom as an absolute multiple delta (e.g. "+0.20×") instead
-            // of a percentage. Avoids the unit-mismatch ("49.4% vs 1.25×") and
-            // tracks the same DSCR shown in the headline tile (dscrPostRamp)
-            // so the dashboard tells one coherent story.
+            // Headroom as percent of the covenant threshold:
+            //   (dscrPostRamp − 1.25) / 1.25
+            // e.g. dscrPostRamp = 1.42 → +13.6%. Reverted 2026-05-22 from
+            // the absolute multiple-delta format ("+0.17×") at Eytan's
+            // request — bankers read "we're 14% above covenant" more
+            // naturally than "+0.17×". The covenant target itself stays in
+            // multiples in the sublabel ("vs. 1.25× covenant") because
+            // that's how the covenant is written in the loan document.
             if (km.dscrPostRamp <= 0) return "—";
             const covenant = 1.25;
-            const delta = km.dscrPostRamp - covenant;
-            const sign = delta >= 0 ? "+" : "−";
-            return `${sign}${Math.abs(delta).toFixed(2)}×`;
+            const deltaPct = (km.dscrPostRamp - covenant) / covenant;
+            const sign = deltaPct >= 0 ? "+" : "−";
+            return `${sign}${(Math.abs(deltaPct) * 100).toFixed(1)}%`;
           })()}
           sublabel={t('kpi.covHeadroomSub')}
           tone={
