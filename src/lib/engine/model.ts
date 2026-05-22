@@ -618,22 +618,61 @@ function computeScenario(
     const roomRevenue = propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0);
     const totalRevenue = roomRevenue + revenueEvents + revenueAncillary;
 
-    const propertyOpex = propertyBreakdown.reduce(
+    const propertyOpexAll = propertyBreakdown.reduce(
       (sum, p) => sum + p.totalOpex,
       0
     );
 
+    // Bank view restructures the management-fee line:
+    //   internal view: per-villa `managementFee` lives inside propertyOpex
+    //                  (sum across portfolio ≈ €100K @ BASE_CASE).
+    //   bank view:     strip per-villa managementFee from OpEx; replace it
+    //                  with a single `opCoSeniorFloor` (€24K @ BASE_CASE)
+    //                  paid SENIOR to debt service. Anything OpCo bills
+    //                  above that floor is JUNIOR (paid out of residual
+    //                  cash after DS — see waterfall block below).
+    const viewMode = a.viewMode ?? 'internal';
+    const isBankView = viewMode === 'bank';
+
+    // Per-villa managementFee aggregated across the portfolio. Only non-zero
+    // during operational years (computeOpexForProperty returns 0 pre-2028,
+    // which zeroes the entire propertyBreakdown[].totalOpex line).
+    const perVillaMgmtFeeTotal =
+      year <= 2027
+        ? 0
+        : a.portfolio.reduce(
+            (sum, prop) => sum + prop.opex.managementFee * prop.count,
+            0,
+          );
+
+    // Senior management fee paid inside OpEx (bank view only; zero pre-ops).
+    // The floor is PER VILLA, not portfolio-level: each villa carries its own
+    // €24K minimum operator fee. Per Eytan 2026-05-22 — the structure mirrors
+    // the per-villa managementFee line item this is replacing, so portfolio-
+    // total senior payment ≈ today's aggregate (~€96K at 4 villas vs ~€100K).
+    const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
+    const seniorMgmtFee =
+      isBankView && year > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
+
+    // OpEx that flows into EBITDA pre-OpCo.
+    //   internal: legacy — keep per-villa managementFee in propertyOpex.
+    //   bank:     remove per-villa managementFee, add the senior floor.
+    const propertyOpex = isBankView
+      ? propertyOpexAll - perVillaMgmtFeeTotal + seniorMgmtFee
+      : propertyOpexAll;
+
     // Decision A1: WC interest sits inside OPEX, reducing EBITDA.
     const totalOpex = propertyOpex + wcInterestExpense;
 
-    // EBITDA pre-OpCo (= GOP) before any management-company fees are taken.
+    // EBITDA pre-OpCo (= GOP) before any *junior* management-company fees
+    // are taken. In bank view, EBITDA pre-OpCo is already net of the senior
+    // floor — that's the point: the floor crosses DSCR; the overage does not.
     const ebitdaPreOpCo = totalRevenue - totalOpex;
 
     // OpCo fees: base on total revenue, brand on room revenue, incentive on
     // GOP above the owner's priority return on equity (computed once outside).
-    // These are the *calculated* (gross / theoretical) fees. Under Option 1
-    // subordination the OpCo is paid out of *residual cash after debt service*,
-    // so the actually-paid amount may be lower (see opCoActuallyPaid below).
+    // These are the *calculated* (gross / theoretical) fees. The actually-paid
+    // amount may be lower under bank-view subordination — see waterfall block.
     const opCoBaseFee = opCoEnabled ? totalRevenue * opCo.baseFeeRate : 0;
     const opCoBrandFee = opCoEnabled ? roomRevenue * opCo.brandFeeRate : 0;
     const opCoIncentiveBase = ebitdaPreOpCo - opCoBaseFee - opCoBrandFee - opCoPriorityReturn;
@@ -651,58 +690,71 @@ function computeScenario(
     // ─── Cash waterfall — two structures, branched by viewMode ────────────
     //
     // 'internal' (default — admin / today's numbers):
-    //   OpCo paid in FULL out of EBITDA (senior to debt service).
+    //   Per-villa managementFee already in propertyOpex. OpCo (if enabled)
+    //   paid in FULL out of EBITDA (senior to debt service).
     //     ebitda          = ebitdaPreOpCo - opCoTotalFee
     //     dscr            = ebitda / ds                   (post-fee EBITDA)
     //     ncf             = ebitda - ds
     //     cfads           = ebitda + cit                  (CIT stored negative)
     //     taxableProfit   = max(0, ebitda - interest)
-    //   This is the legacy behavior — restoring it as default keeps the
-    //   admin dashboard's DSCR / IRR / yield identical to what Eytan sees.
+    //   Legacy behavior — preserves the admin dashboard's DSCR/IRR/yield.
     //
     // 'bank' (investor / pitch / View-As-Banker / admin "Bank view" toggle):
-    //   OpCo SUBORDINATED to debt service — paid only out of residual cash
-    //   after DS. Bankers sit ahead of management fees in the priority of
-    //   claims, so this is the conservative underwriting view.
-    //     residualAfterDS = max(0, ebitdaPreOpCo - ds)
-    //     opCoActuallyPaid = min(opCoTotalFee, residualAfterDS)
-    //     ebitda          = ebitdaPreOpCo - opCoActuallyPaid   (post-cap)
-    //     dscr            = ebitdaPreOpCo / ds                 (pre-fee)
-    //     ncf             = ebitdaPreOpCo - ds - opCoActuallyPaid
-    //     cfads           = ebitdaPreOpCo + cit
-    //     taxableProfit   = max(0, ebitdaPreOpCo - opCoActuallyPaid - interest)
-    //   Any OpCo shortfall (residual < opCoTotalFee) is forfeit for the year
-    //   — no accrual / carryover tracking yet. TODO: proper deferral once
-    //   the structure is signed off by tax counsel.
+    //   Per-villa managementFee REMOVED from propertyOpex (above); replaced
+    //   by `opCoSeniorFloor` paid SENIOR (inside OpEx, already in
+    //   ebitdaPreOpCo). Any OpCo billing ABOVE the floor is JUNIOR — paid
+    //   only out of residual cash after DS, so it can never crowd out the
+    //   bank.
+    //     juniorRequested  = max(0, opCoTotalFee - seniorMgmtFee)
+    //     opCoJuniorPaid   = min(juniorRequested, max(0, ebitdaPreOpCo - ds))
+    //     opCoActuallyPaid = seniorMgmtFee + opCoJuniorPaid   (senior+junior)
+    //     ebitda           = ebitdaPreOpCo - opCoJuniorPaid   (senior already out)
+    //     dscr             = ebitdaPreOpCo / ds               (junior subordinated)
+    //     ncf              = ebitdaPreOpCo - ds - opCoJuniorPaid
+    //     cfads            = ebitdaPreOpCo + cit
+    //     taxableProfit    = max(0, ebitdaPreOpCo - opCoJuniorPaid - interest)
+    //   When OpCo is disabled, junior tranche = 0 and the bank view still
+    //   applies the senior floor — that's the typical case today.
+    //   Junior shortfall is forfeit for the year (no accrual / carryover).
     //
     // CIT comment (applies to both branches): OpCo fees to a related entity
-    // are typically deductible at the PropCo level under Greek CIT. We treat
-    // OpCo as a deductible expense in either branch — under 'bank' mode it
-    // is the post-cap (actually paid) amount.
-    const viewMode = a.viewMode ?? 'internal';
+    // are deductible at the PropCo level under Greek CIT. Both branches
+    // expense the actually-paid amount; in bank view the senior floor is
+    // already implicit in `ebitdaPreOpCo` so we only subtract the junior.
 
     let ebitda: number;
     let opCoActuallyPaid: number;
+    let opCoSeniorPaid: number;
     let ncf: number;
     let dscr: number;
     let dscrLoaded: number;
     let taxableProfit: number;
 
-    if (viewMode === 'bank') {
+    if (isBankView) {
+      opCoSeniorPaid = seniorMgmtFee;
+      // Junior overage above the senior floor — only billed when OpCo
+      // toggle is on. When disabled, the bank view still applies the floor
+      // structurally but bills zero overage.
+      const juniorRequested = opCoEnabled
+        ? Math.max(0, opCoTotalFee - seniorMgmtFee)
+        : 0;
       const residualAfterDS = Math.max(0, ebitdaPreOpCo - ds);
-      opCoActuallyPaid = Math.min(opCoTotalFee, residualAfterDS);
-      ebitda = ebitdaPreOpCo - opCoActuallyPaid;
-      ncf = ebitdaPreOpCo - ds - opCoActuallyPaid;
+      const opCoJuniorPaid = Math.min(juniorRequested, residualAfterDS);
+      opCoActuallyPaid = opCoSeniorPaid + opCoJuniorPaid;
+      ebitda = ebitdaPreOpCo - opCoJuniorPaid;
+      ncf = ebitdaPreOpCo - ds - opCoJuniorPaid;
       dscr = ds > 0 ? ebitdaPreOpCo / ds : 0;
       dscrLoaded = ds + wcInterestExpense > 0
         ? ebitdaPreOpCo / (ds + wcInterestExpense)
         : 0;
       taxableProfit = Math.max(
         0,
-        ebitdaPreOpCo - opCoActuallyPaid - termLoanInterestForTax,
+        ebitdaPreOpCo - opCoJuniorPaid - termLoanInterestForTax,
       );
     } else {
       // 'internal' — legacy OpCo-senior. OpCo paid in full out of EBITDA.
+      // No senior floor concept here; per-villa managementFee already in OpEx.
+      opCoSeniorPaid = 0;
       opCoActuallyPaid = opCoTotalFee;
       ebitda = ebitdaPreOpCo - opCoTotalFee;
       ncf = ebitda - ds;
@@ -717,10 +769,10 @@ function computeScenario(
 
     const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     // CFADS for LLCR/PLCR + project IRR. CIT stored negative; adding it
-    // subtracts the tax bill. 'bank' uses pre-fee EBITDA (OpCo junior to DS);
-    // 'internal' uses post-fee EBITDA (OpCo senior). VAT excluded — balance-
-    // sheet pass-through, not an income-statement item.
-    const cfads = viewMode === 'bank' ? ebitdaPreOpCo + cit : ebitda + cit;
+    // subtracts the tax bill. 'bank' uses pre-fee EBITDA (junior OpCo
+    // subordinated to DS); 'internal' uses post-fee EBITDA (OpCo senior).
+    // VAT excluded — balance-sheet pass-through, not an income-statement item.
+    const cfads = isBankView ? ebitdaPreOpCo + cit : ebitda + cit;
 
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
@@ -745,11 +797,13 @@ function computeScenario(
       opCoBrandFee,
       opCoIncentiveFee,
       // Reported total is the actually-paid amount (post subordination cap),
-      // not the gross calculated fee. This is what the OpCo actually receives
-      // and is what the equityIRRPreOpCo add-back consumes. The per-line
-      // base/brand/incentive breakdown above stays at the gross calculated
-      // values for informational/breakdown display.
+      // not the gross calculated fee. In bank view this equals
+      // `opCoSeniorPaid + opCoJuniorPaid` (senior floor + capped overage);
+      // in internal view it equals `opCoTotalFee` (no cap, no floor split).
+      // The per-line base/brand/incentive breakdown above stays at the gross
+      // calculated values for informational/breakdown display.
       opCoTotalFee: opCoActuallyPaid,
+      opCoSeniorPaid,
       ebitda,
       ebitdaMargin,
       debtService: ds,

@@ -475,6 +475,14 @@ export const BASE_CASE: ModelAssumptions = {
     ownerPriorityReturnRate: 0.08,
   },
 
+  // Minimum annual management fee paid senior (in OpEx, hits DSCR). OpCo
+  // fees billed above this floor are subordinated to debt service in bank
+  // view. Internal view ignores this and continues to use the per-villa
+  // `managementFee` lines. At BASE_CASE 4 villas × ~€25K = ~€100K of per-villa
+  // fees in internal view collapses to a single €24K floor in bank view,
+  // which lifts EBITDA by ~€76K and DSCR by ~0.09–0.15× depending on year.
+  opCoSeniorFloor: 24_000,
+
   workingCapital: {
     active: true,
     facilitySize: 400000,

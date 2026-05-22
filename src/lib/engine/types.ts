@@ -273,6 +273,17 @@ export interface OpCoFeeParams {
   ownerPriorityReturnRate: number;
 }
 
+// Bank-view structural floor for the OpCo management fee. Under the
+// OpCo / PropCo split, OpCo bills a portfolio-level minimum that is paid
+// SENIOR to debt service (lives inside OpEx, hits DSCR). Any OpCo billing
+// above this floor is JUNIOR — paid only out of residual cash after debt
+// service, so it cannot starve the bank. Bank view replaces the per-villa
+// `managementFee` lines with this single floor + a junior tranche; internal
+// view keeps the legacy per-villa fees unchanged.
+//
+// Internal view = legacy / admin (per-villa managementFee in OpEx).
+// Bank view     = floor at the portfolio level + subordinated overage.
+
 // ── Model Input ──
 
 export interface ModelAssumptions {
@@ -288,6 +299,12 @@ export interface ModelAssumptions {
   acquisitionLegalPerPlot: number;
   financingPath: FinancingPath;
   opCoFee: OpCoFeeParams;
+  // Minimum annual management fee paid SENIOR to debt service in bank view
+  // (lives inside OpEx, hits DSCR). OpCo billing above this floor is
+  // subordinated to debt service. Bank view replaces the per-villa
+  // managementFee lines with this floor + the junior overage; internal
+  // view ignores it. See cash-waterfall block in `computePnLYear` (model.ts).
+  opCoSeniorFloor: number;
   workingCapital: WorkingCapitalParams;
   // Multiple applied to EBITDA at the exit year to produce a terminal asset
   // value for IRR calculations. e.g. 10 means terminal value = 10 × exit EBITDA.
@@ -372,6 +389,10 @@ export interface AnnualPnL {
   opCoBrandFee: number;
   opCoIncentiveFee: number;
   opCoTotalFee: number;
+  // Bank view only: senior portion of the OpCo fee paid inside OpEx
+  // (= `opCoSeniorFloor`). Junior tranche = opCoTotalFee − opCoSeniorPaid.
+  // Zero in internal view (no floor concept there).
+  opCoSeniorPaid: number;
   // PropCo EBITDA — net of OpCo fees. All downstream PropCo metrics
   // (DSCR, ICR, NCF, IRR, yield) flow from this.
   ebitda: number;

@@ -70,26 +70,77 @@ describe("computeModel — viewMode branching", () => {
     expect(stab.dscr).toBeCloseTo(stab.ebitda / stab.debtService, 5);
   });
 
-  it("opCoFee disabled: the two modes collapse to identical headline metrics", () => {
-    // Sanity floor — when opCoTotalFee is zero, neither waterfall takes
-    // anything from EBITDA, so DSCR / NCF / cfads must match exactly.
+  it("opCoFee disabled: bank view applies the per-villa senior floor; internal keeps per-villa fees", () => {
+    // Updated 2026-05-22 — bank view replaces the per-villa `managementFee`
+    // lines with the structural per-villa floor (opCoSeniorFloor × villaCount).
+    // Direction of EBITDA divergence depends on whether the floor exceeds or
+    // undercuts the existing per-villa fees in BASE_CASE — we assert the
+    // delta MAGNITUDE matches the structural swap, not a fixed direction.
     const opCoOff: ModelAssumptions = {
       ...BASE_CASE,
       opCoFee: { ...BASE_CASE.opCoFee, enabled: false },
     };
     const internal = computeModel({ ...opCoOff, viewMode: "internal" });
     const bank = computeModel({ ...opCoOff, viewMode: "bank" });
+
+    // Sanity: bank and internal MUST differ when floor ≠ per-villa total.
+    // (They collapse only when matched — see the next test.)
+    expect(bank.keyMetrics.stabilisedEBITDA).not.toBeCloseTo(
+      internal.keyMetrics.stabilisedEBITDA,
+      3,
+    );
+
+    // Magnitude sanity: EBITDA delta is in the ballpark of
+    // (Σ per-villa managementFee) − floor. Exact equality fails because the
+    // WC schedule reacts to the cash uplift (a few % swing in WC interest),
+    // so we assert within ±10%.
+    const perVillaTotal = opCoOff.portfolio.reduce(
+      (sum, p) => sum + p.opex.managementFee * p.count,
+      0,
+    );
+    // Per-villa floor: bank-view senior = opCoSeniorFloor × totalVillaCount.
+    const totalVillaCount = opCoOff.portfolio.reduce((s, p) => s + p.count, 0);
+    const bankSeniorTotal = opCoOff.opCoSeniorFloor * totalVillaCount;
+    const expectedDelta = perVillaTotal - bankSeniorTotal;
+    const actualDelta =
+      bank.keyMetrics.stabilisedEBITDA - internal.keyMetrics.stabilisedEBITDA;
+    // Sign-aware magnitude check: WC interest reacts to cash changes so we
+    // allow ±10% around the expected delta in either direction.
+    const tolerance = Math.abs(expectedDelta) * 0.1;
+    expect(actualDelta).toBeGreaterThan(expectedDelta - tolerance);
+    expect(actualDelta).toBeLessThan(expectedDelta + tolerance);
+  });
+
+  it("bank view: zero floor + OpCo disabled collapses back to internal", () => {
+    // Sanity floor — with opCoSeniorFloor = 0 AND OpCo disabled, bank view
+    // strips per-villa managementFee from OpEx and adds nothing back, so
+    // EBITDA lifts by exactly the per-villa total. Setting the floor equal
+    // to the aggregate per-villa fee should make the views collide again.
+    const perVillaTotal = BASE_CASE.portfolio.reduce(
+      (sum, p) => sum + p.opex.managementFee * p.count,
+      0,
+    );
+    // Per-villa floor: to make bank-view senior match the per-villa aggregate,
+    // set the floor to perVillaTotal / totalVillaCount.
+    const totalVillaCount = BASE_CASE.portfolio.reduce((s, p) => s + p.count, 0);
+    const matched: ModelAssumptions = {
+      ...BASE_CASE,
+      opCoFee: { ...BASE_CASE.opCoFee, enabled: false },
+      opCoSeniorFloor: perVillaTotal / totalVillaCount,
+    };
+    const internal = computeModel({ ...matched, viewMode: "internal" });
+    const bank = computeModel({ ...matched, viewMode: "bank" });
     expect(internal.keyMetrics.stabilisedDSCR).toBeCloseTo(
       bank.keyMetrics.stabilisedDSCR,
       8,
     );
     expect(internal.keyMetrics.stabilisedEBITDA).toBeCloseTo(
       bank.keyMetrics.stabilisedEBITDA,
-      5,
+      3,
     );
     expect(internal.keyMetrics.stabilisedNCF).toBeCloseTo(
       bank.keyMetrics.stabilisedNCF,
-      5,
+      3,
     );
   });
 

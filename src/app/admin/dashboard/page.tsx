@@ -637,9 +637,25 @@ export default function DashboardPage() {
         />
         <KPICard
           label={t('kpi.covHeadroom')}
-          value={km.minDSCRLoanLife > 0 ? formatPercent(km.dscrCovenantHeadroom) : "—"}
+          value={(() => {
+            // Headroom as an absolute multiple delta (e.g. "+0.20×") instead
+            // of a percentage. Avoids the unit-mismatch ("49.4% vs 1.25×") and
+            // tracks the same DSCR shown in the headline tile (dscrPostRamp)
+            // so the dashboard tells one coherent story.
+            if (km.dscrPostRamp <= 0) return "—";
+            const covenant = 1.25;
+            const delta = km.dscrPostRamp - covenant;
+            const sign = delta >= 0 ? "+" : "−";
+            return `${sign}${Math.abs(delta).toFixed(2)}×`;
+          })()}
           sublabel={t('kpi.covHeadroomSub')}
-          tone={headroomTone}
+          tone={
+            km.dscrPostRamp - 1.25 >= 0.2
+              ? "positive"
+              : km.dscrPostRamp >= 1.25
+                ? undefined
+                : "warning"
+          }
         />
       </div>
       </div>
@@ -1356,22 +1372,25 @@ export default function DashboardPage() {
           value={formatPercent(km.bufferToBreakEven)}
           sublabel={t('kpi.bufferBreakEvenSub')}
         />
-        <KPICard
-          label={`${t('kpi.minDSCR')} — ${t('scenario.downside')}`}
-          value={
-            model.scenarios.downside.minDSCRLoanLife > 0
-              ? formatMultiple(model.scenarios.downside.minDSCRLoanLife)
-              : "—"
-          }
-          sublabel={t('kpi.minDSCRSub')}
-          tone={
-            model.scenarios.downside.minDSCRLoanLife >= 1.25
-              ? "positive"
-              : model.scenarios.downside.minDSCRLoanLife > 0
-                ? "warning"
-                : "neutral"
-          }
-        />
+        {(() => {
+          const downsideStab = model.scenarios.downside.stabilisedYear?.dscr ?? 0;
+          const downsideMin = model.scenarios.downside.minDSCRLoanLife;
+          const minDisplay = downsideMin > 0 ? formatMultiple(downsideMin) : "—";
+          return (
+            <KPICard
+              label={t('kpi.stabilisedDSCRDownside')}
+              value={downsideStab > 0 ? formatMultiple(downsideStab) : "—"}
+              sublabel={`${t('kpi.stabilisedDSCRDownsideSub')} · ${t('kpi.minOverLoanLife')}: ${minDisplay}`}
+              tone={
+                downsideStab >= 1.25
+                  ? "positive"
+                  : downsideStab > 0
+                    ? "warning"
+                    : "neutral"
+              }
+            />
+          );
+        })()}
         <KPICard
           label={`${t('kpi.equityIRR')} — ${t('scenario.downside')}`}
           value={
