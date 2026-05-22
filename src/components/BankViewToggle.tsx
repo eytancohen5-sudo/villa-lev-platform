@@ -14,7 +14,7 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 
@@ -109,6 +109,47 @@ export function BankViewToggle() {
       }`}
     >
       {isBank ? "Bank view" : "Internal view"}
+    </button>
+  );
+}
+
+// Admin-only "Copy bank link" button. Copies the absolute URL of /bank
+// (the public route hard-pinned to bank view in src/app/bank/layout.tsx)
+// to the clipboard, so admins can paste it into an email to a lender.
+// Same admin gate as BankViewToggle; placed next to it in the sidebar.
+export function CopyBankLinkButton() {
+  const { loading, isAdmin } = useEffectiveAuth();
+  const [copied, setCopied] = useState(false);
+
+  if (loading) return <div className="h-7" aria-hidden="true" />;
+  if (!isAdmin) return null;
+
+  const onCopy = async () => {
+    if (typeof window === "undefined") return;
+    const url = `${window.location.origin}/bank`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Insecure context or clipboard blocked — fall back to a prompt
+      // so the admin can still grab the URL.
+      window.prompt("Copy this link:", url);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      title="Copy the public bank-view URL (/bank) — pinned to the OpCo-subordinated waterfall — to share with lenders."
+      className={`px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors border ${
+        copied
+          ? "bg-emerald-50 text-emerald-800 border-emerald-300"
+          : "bg-surface-secondary text-text-secondary border-surface-tertiary hover:bg-surface-tertiary"
+      }`}
+    >
+      {copied ? "Copied ✓" : "Copy bank link"}
     </button>
   );
 }

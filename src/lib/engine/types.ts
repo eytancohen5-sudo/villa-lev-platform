@@ -308,11 +308,19 @@ export interface ModelAssumptions {
   workingCapital: WorkingCapitalParams;
   // Multiple applied to EBITDA at the exit year to produce a terminal asset
   // value for IRR calculations. e.g. 10 means terminal value = 10 × exit EBITDA.
+  // Floored at 4× in the UI but otherwise uncapped — sponsor can model an
+  // aggressive ceiling without the input silently clamping.
   exitEbitdaMultiple: number;
   // Year the asset is sold. IRR / MOIC / equity payback all truncate to this
   // year; terminal asset value uses the year's EBITDA × exitEbitdaMultiple.
   // Allowed range 2029–2040 (must be ≥ stabilised year and ≤ last modeled year).
   exitYear: number;
+  // Parallel exit-valuation path: instead of EBITDA × multiple, value the
+  // built surface as raw real estate at €/m². Drives `terminalAssetValuePropertySale`
+  // / `equityIRRPropertySale` in the keyMetrics so the sponsor can compare
+  // "sell the operating hotel" vs "sell the underlying property" side by side.
+  // Defaults to 9 000 (matches the `collateral.market` mid tier).
+  exitValuationPerM2?: number;
   // DSCR threshold below which a year fails the lender's covenant test.
   // Greek/EU commercial real estate loans typically carry 1.20–1.30. Surfaced
   // on the Coverage sheet of the BP export with a Pass/Fail row.
@@ -490,6 +498,22 @@ export interface ScenarioOutput {
   terminalUnderwater: boolean;
   exitEbitdaMultiple: number;         // multiple applied to EBITDA at exit
   exitYear: number;                   // year used as the exit (truncates IRR window)
+  // ── Property-sale (real-estate) exit path ──
+  // Parallel valuation: builtSurface × exitValuationPerM2. Computed alongside
+  // the EBITDA-multiple path so the UI can display two exit-IRR scenarios:
+  // "sell the operating hotel" vs "sell the underlying property". The path
+  // with the higher terminal asset value drives the actual sale economics —
+  // a rational seller picks whichever exit is worth more.
+  exitValuationPerM2: number;         // €/m² used in the property-sale path
+  terminalAssetValuePropertySale: number;
+  terminalEquityValuePropertySale: number;
+  equityIRRPropertySale: number;      // IRR with property-sale exit
+  projectIRRPropertySale: number;     // unlevered IRR with property-sale exit
+  totalMOICPropertySale: number;      // (Σ NCF + terminal equity property) / equity
+  // True when property-sale path > hotel-sale path at exit, i.e. the
+  // sponsor would rationally elect to sell the real estate rather than the
+  // operating hotel. Computed on TERMINAL ASSET value (gross), not equity.
+  propertyExitDominates: boolean;
 }
 
 // Stable identifier for each comparison row, locale-independent. Add cases
@@ -543,6 +567,16 @@ export interface ModelOutput {
     supplementaryLoan: number;
     landFundedByTepix: number;
     landFundedByCommercial: number;
+    // TEPIX III €8M program-cap binding amount. 0 unless the active path
+    // is tepix-loan AND the unconstrained primary loan exceeded 8M. When
+    // >0, the excess has been routed to commercial supplementary debt +
+    // sponsor equity via the engine's landGap + nonLandCost residual
+    // logic. Surfaced for the dashboard / investor page so the equity
+    // gap created by the cap can be called out explicitly.
+    tepixCapBindingBy: number;
+    // The cap value used (8_000_000 per HDB program rules). 0 on
+    // non-tepix paths. Surfaced for UI tooltips.
+    tepixLoanCap: number;
   };
   dscrByYear: {
     year: number;

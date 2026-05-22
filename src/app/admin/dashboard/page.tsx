@@ -10,6 +10,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
+import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
 import {
   SERVICES_PROFIT_MARGIN,
@@ -196,6 +197,16 @@ export default function DashboardPage() {
     equityIRR: activeScenarioOutput.equityIRR,
     projectIRR: activeScenarioOutput.projectIRR,
     roic: activeScenarioOutput.roic,
+    // Parallel exit-valuation path: sell the underlying property instead of
+    // the operating hotel. terminalAssetValuePropertySale = builtSurface × €/m².
+    terminalAssetValue: activeScenarioOutput.terminalAssetValue,
+    terminalAssetValuePropertySale: activeScenarioOutput.terminalAssetValuePropertySale,
+    terminalEquityValuePropertySale: activeScenarioOutput.terminalEquityValuePropertySale,
+    equityIRRPropertySale: activeScenarioOutput.equityIRRPropertySale,
+    projectIRRPropertySale: activeScenarioOutput.projectIRRPropertySale,
+    totalMOICPropertySale: activeScenarioOutput.totalMOICPropertySale,
+    propertyExitDominates: activeScenarioOutput.propertyExitDominates,
+    exitValuationPerM2: activeScenarioOutput.exitValuationPerM2,
   };
 
   // Founder waterfall — derived once, shared with Cap Table page. The
@@ -534,6 +545,22 @@ export default function DashboardPage() {
         <LiveTrackRecord />
       </div>
 
+      {/* Market Position — Conservatism Triangle. Replaces the old static
+          KPI grid (ADR 0003, 2026-05-22): two-tier hero strip with BP vs
+          Villa Lev live vs 2025 Greek-market average, plus a drawer of all
+          41 comparables behind the "See the N comparables" link. Greek-only
+          headline; international comparables stay in the drawer only as
+          supporting evidence (never weighted into the strip). Villa row
+          intentionally absent — Villa Lev's own actuals in LiveTrackRecord
+          above are the truer villa-tier comparable. */}
+      <ConservatismTriangle
+        id="section-market-position"
+        bpStandardADR={rev.suiteStandardADR}
+        bpPremiumADR={rev.suiteDoubleADR}
+        liveVillaADR={liveADR}
+      />
+
+
       {/* Section 0 — Headline KPIs (was "Deal Snapshot").
           Restructure 2026-05-22: stripped duplicates with the Term Sheet
           strip above. Removed: Loan Amount, Annual DS (both in Term Sheet);
@@ -745,6 +772,48 @@ export default function DashboardPage() {
           value={km.projectIRR > 0 ? formatPercent(km.projectIRR) : "—"}
           sublabel={t('kpi.projectIRRSub')}
           tone={km.projectIRR >= 0.10 ? "positive" : km.projectIRR > 0 ? undefined : "warning"}
+        />
+      </div>
+
+      {/* Exit path comparison — hotel sale (EBITDA × multiple) vs property
+          sale (builtSurface × €/m²). A rational sponsor elects whichever
+          terminal asset value is higher; the DOMINANT EXIT badge marks it.
+          Both paths share the same operating-year cash flows; only the
+          terminal lump sum differs. €/m² is editable in the top bar. */}
+      <div className="mt-6 mb-2 px-1 flex items-baseline justify-between gap-3 flex-wrap">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+          Exit path comparison
+        </h3>
+        <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
+          Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²). Sponsor elects the higher exit at sale. Adjust €/m² in the top bar to stress the property-sale path.
+        </p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KPICard
+          label="Exit value — hotel sale"
+          value={km.terminalAssetValue > 0 ? formatCurrency(km.terminalAssetValue, true, locale) : "—"}
+          sublabel={`EBITDA × ${(activeScenarioOutput.exitEbitdaMultiple ?? 10).toFixed(1)}× at ${activeScenarioOutput.exitYear ?? 2036}`}
+          tone={!km.propertyExitDominates && km.terminalAssetValue > 0 ? "positive" : undefined}
+          chip={!km.propertyExitDominates && km.terminalAssetValue > 0 ? { label: "DOMINANT", ok: true } : undefined}
+        />
+        <KPICard
+          label="Equity IRR — hotel sale"
+          value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
+          sublabel={`MOIC ${km.totalMOIC > 0 ? km.totalMOIC.toFixed(2) + "×" : "—"}`}
+          tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
+        />
+        <KPICard
+          label="Exit value — property sale"
+          value={km.terminalAssetValuePropertySale > 0 ? formatCurrency(km.terminalAssetValuePropertySale, true, locale) : "—"}
+          sublabel={`Built surface × ${formatCurrency(km.exitValuationPerM2, false, locale)}/m²`}
+          tone={km.propertyExitDominates ? "positive" : undefined}
+          chip={km.propertyExitDominates ? { label: "DOMINANT", ok: true } : undefined}
+        />
+        <KPICard
+          label="Equity IRR — property sale"
+          value={km.equityIRRPropertySale > 0 ? formatPercent(km.equityIRRPropertySale) : "—"}
+          sublabel={`MOIC ${km.totalMOICPropertySale > 0 ? km.totalMOICPropertySale.toFixed(2) + "×" : "—"}`}
+          tone={km.equityIRRPropertySale >= 0.15 ? "positive" : km.equityIRRPropertySale > 0 ? undefined : "warning"}
         />
       </div>
       </div>

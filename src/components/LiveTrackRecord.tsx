@@ -14,7 +14,7 @@ import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   computeMarketPositionWithFallback,
-  MARKET_2025_PER_HOTEL,
+  distinctHotelCount,
   type CoverageStatus,
   type MarketRowWithFallback,
 } from "@/lib/data/marketBenchmarks";
@@ -883,7 +883,10 @@ export function LiveTrackRecord({
             >
               {lr.marketSeeComparables.replace(
                 "{n}",
-                String(MARKET_2025_PER_HOTEL.length),
+                // Distinct hotel count (23 Greek + 18 international = 41),
+                // not raw tier-row count — matches the CTA on the
+                // ConservatismTriangle strip below.
+                String(distinctHotelCount()),
               )}
             </button>
           </div>

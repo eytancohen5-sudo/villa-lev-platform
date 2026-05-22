@@ -102,7 +102,10 @@ export const lastCompletedSeason = historicalYears.find((y) => y.year === 2025)!
 
 export const ACTUALS_SOURCE = {
   url: "https://admin.villalevantiparos.com/dashboard",
-  pulledAt: "2026-05-14",
+  // Refresh cadence: bump after each verified pull from the admin dashboard.
+  // The freshness banner in admin/layout.tsx surfaces when Firestore returns
+  // nothing and this static value is in use.
+  pulledAt: "2026-05-22",
 } as const;
 
 // Available nights per villa per season (15 May → 15 Sept). Used by the

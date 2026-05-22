@@ -8,7 +8,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { AssumptionPrompts } from "@/components/AssumptionPrompts";
 import { ViewAsControl } from "@/components/ViewAsControl";
-import { BankViewToggle, BankViewBadge } from "@/components/BankViewToggle";
+import { BankViewToggle, BankViewBadge, CopyBankLinkButton } from "@/components/BankViewToggle";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
@@ -275,7 +275,10 @@ export default function AdminLayout({
         <div className="p-4 border-t border-surface-tertiary space-y-2">
           <LanguageToggle />
           <ViewAsControl />
-          <BankViewToggle />
+          <div className="flex flex-wrap items-center gap-2">
+            <BankViewToggle />
+            <CopyBankLinkButton />
+          </div>
           {model && (
             <div className="text-xs text-text-tertiary flex justify-between">
               <span>{t("bar.engine")}</span>
@@ -404,24 +407,52 @@ export default function AdminLayout({
                 </span>
                 <input
                   type="number"
-                  min={6}
-                  max={14}
+                  min={4}
                   step={0.5}
                   value={assumptions.exitEbitdaMultiple ?? 10}
                   onChange={(e) => {
                     const v = parseFloat(e.target.value);
                     if (Number.isFinite(v)) {
-                      setAssumption("exitEbitdaMultiple", Math.max(6, Math.min(14, v)), "Exit EBITDA multiple");
+                      // Floor at 4× (below which the buyer would be paying < cap rate cost of debt);
+                      // no upper bound — sponsor can model the optimistic ceiling without the input
+                      // silently clamping per Eytan 2026-05-22.
+                      setAssumption("exitEbitdaMultiple", Math.max(4, v), "Exit EBITDA multiple");
                     }
                   }}
                   className="w-14 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                   title={
                     (assumptions.exitEbitdaMultiple ?? 10) < 7
                       ? "Warning: below market floor for boutique hotels"
-                      : (assumptions.exitEbitdaMultiple ?? 10) > 12
-                        ? "Warning: above market ceiling"
+                      : (assumptions.exitEbitdaMultiple ?? 10) > 14
+                        ? "Aggressive: above typical boutique-hotel range — sponsor sensitivity"
                         : "Exit EBITDA multiple"
                   }
+                />
+              </div>
+              {/* Property-sale exit valuation €/m². Drives the parallel
+                  exit-IRR shown alongside the hotel-sale IRR. Default 9 000
+                  is the market mid (matches the `collateral.market` tier). */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                  €/m²
+                </span>
+                <input
+                  type="number"
+                  min={1000}
+                  step={100}
+                  value={assumptions.exitValuationPerM2 ?? 9000}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (Number.isFinite(v)) {
+                      setAssumption(
+                        "exitValuationPerM2",
+                        Math.max(1000, v),
+                        "Property-sale exit valuation (€/m²)",
+                      );
+                    }
+                  }}
+                  className="w-20 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  title="Property-sale exit valuation (€/m²). Drives the parallel exit-IRR alongside the EBITDA-multiple hotel-sale IRR."
                 />
               </div>
             </div>

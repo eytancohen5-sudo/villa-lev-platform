@@ -297,9 +297,11 @@ export default function SensitivityPage() {
     });
 
     // Exit year × multiple matrix — equity IRR for every cell. The headline
-    // sensitivity for exit-side underwriting. 4 years × 5 multiples = 20 runs.
+    // sensitivity for exit-side underwriting. 4 years × 8 multiples = 32 runs.
+    // Multiple range widened past the legacy 14× cap per Eytan 2026-05-22 —
+    // sponsor wants to stress the optimistic ceiling without the input clamp.
     const exitYears = [2030, 2032, 2034, 2036];
-    const exitMultiples = [6, 8, 10, 12, 14];
+    const exitMultiples = [6, 8, 10, 12, 14, 16, 18, 20];
     const exitMatrix = exitYears.map((year) => ({
       year,
       cells: exitMultiples.map((mult) => {
@@ -426,7 +428,7 @@ export default function SensitivityPage() {
           </table>
         </div>
         <p className="mt-3 text-[11px] text-text-tertiary leading-relaxed">
-          Equity IRR for every combination of exit year (2030–2036) and exit EBITDA multiple (6× to 14×).
+          Equity IRR for every combination of exit year (2030–2036) and exit EBITDA multiple (6× to 20×).
           Active configuration is ringed; cells in <span className="text-warning">amber</span> are underwater
           (remaining debt &gt; asset value, equity sale proceeds floor at €0). Hover for MOIC.
         </p>

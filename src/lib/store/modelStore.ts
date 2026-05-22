@@ -218,39 +218,81 @@ import {
   setDoc,
   deleteDoc,
   writeBatch,
+  query,
+  where,
 } from 'firebase/firestore';
 
-async function fetchServerConfigs(): Promise<SavedConfiguration[] | null> {
+// Fetch every scenario this caller is permitted to read. The rules layer
+// allows: (a) any `published == true` doc to any reader (including the
+// banker / unauthenticated view) and (b) any doc whose `userId == auth.uid`
+// to its owner. We split the read into two indexed queries so each one is
+// permitted by a single rules predicate — a single `getDocs(collection)`
+// would fail closed under rules since some docs in the collection aren't
+// readable by every caller.
+async function fetchServerConfigs(
+  uid: string | null,
+): Promise<SavedConfiguration[] | null> {
   const db = getDb();
   if (!db) return null;
   try {
-    const snap = await getDocs(collection(db, SCENARIOS_COLLECTION));
-    const out: SavedConfiguration[] = [];
-    snap.forEach((d) => out.push(d.data() as SavedConfiguration));
-    return out;
+    const col = collection(db, SCENARIOS_COLLECTION);
+    const publishedQ = query(col, where('published', '==', true));
+    const ownQ = uid ? query(col, where('userId', '==', uid)) : null;
+    const [publishedSnap, ownSnap] = await Promise.all([
+      getDocs(publishedQ),
+      ownQ ? getDocs(ownQ) : Promise.resolve(null),
+    ]);
+    const byId = new Map<string, SavedConfiguration>();
+    publishedSnap.forEach((d) => byId.set(d.id, d.data() as SavedConfiguration));
+    ownSnap?.forEach((d) => byId.set(d.id, d.data() as SavedConfiguration));
+    return Array.from(byId.values());
   } catch (err) {
     console.warn('[scenarios] fetch failed; using local cache', err);
     return null;
   }
 }
 
+// Throws on Firestore error so callers (saveConfig / updateConfig /
+// loadConfig copy-on-load / deleteConfig / renameConfig) can wrap in
+// try/catch and surface the failure via the existing requestAlert flow
+// — mirrors referenceScenario.ts:111-136. The previous swallow-and-log
+// behaviour made permission-denied silent, which under the sharing model
+// is exactly what we need to surface.
 async function pushServerConfig(config: SavedConfiguration): Promise<void> {
   const db = getDb();
-  if (!db) return;
+  if (!db) {
+    throw new Error(
+      'Firestore is not available. The scenario was not saved to the shared list.',
+    );
+  }
   try {
     await setDoc(doc(db, SCENARIOS_COLLECTION, config.id), config);
   } catch (err) {
-    console.warn('[scenarios] push failed; will rely on local cache', err);
+    const message =
+      err instanceof Error ? err.message : 'Unknown Firestore error.';
+    throw new Error(
+      `Failed to save scenario "${config.name}": ${message}. ` +
+        `Check that you are signed in.`,
+    );
   }
 }
 
 async function deleteServerConfig(id: string): Promise<void> {
   const db = getDb();
-  if (!db) return;
+  if (!db) {
+    throw new Error(
+      'Firestore is not available. The scenario was not removed from the shared list.',
+    );
+  }
   try {
     await deleteDoc(doc(db, SCENARIOS_COLLECTION, id));
   } catch (err) {
-    console.warn('[scenarios] delete failed; will rely on local cache', err);
+    const message =
+      err instanceof Error ? err.message : 'Unknown Firestore error.';
+    throw new Error(
+      `Failed to delete scenario: ${message}. ` +
+        `You can only delete scenarios you saved yourself.`,
+    );
   }
 }
 
@@ -609,6 +651,24 @@ export interface SavedConfiguration {
   templates?: PropertyTemplate[];
   projects?: ProjectAllocation[];
   savedAt: number;
+  // Sharing extension (revisions 1–5):
+  //   - All fields optional on the TYPE so legacy localStorage docs (no
+  //     ownership stamp) keep hydrating without runtime crashes.
+  //   - SERVER-write paths must populate them — saveConfig / updateConfig /
+  //     loadConfig (copy-on-load) / importConfigs all stamp userId and
+  //     ownerDisplayName when the caller is authenticated. The denormalized
+  //     ownerDisplayName side-steps `users/{uid}` being admin-only-readable
+  //     (villa-lev-admin/firestore.rules:172) — readers fan out to that doc
+  //     instead of a forbidden cross-user lookup.
+  userId?: string;
+  ownerDisplayName?: string;
+  published?: boolean;
+  copiedFrom?: {
+    userId: string;
+    displayName: string;
+    scenarioId: string;
+    copiedAt: number;
+  } | null;
 }
 
 export interface ConfirmOpts {
@@ -682,7 +742,7 @@ interface ModelStore {
   savePromptDisabled: boolean;   // persistent — user opted out across sessions
   confirmUserName: (name: string) => void;
   dismissNameModal: () => void;
-  acceptSaveSuggestion: (name: string) => void;
+  acceptSaveSuggestion: (name: string, opts?: { published?: boolean }) => void;
   acceptUpdateExisting: () => void;
   dismissSaveModal: (disablePermanently?: boolean) => void;
   setSavePromptDisabled: (disabled: boolean) => void;
@@ -743,12 +803,53 @@ interface ModelStore {
   renameProperty: (id: string, newName: string) => void;
 
   // Config management
-  saveConfig: (name: string) => void;
-  updateConfig: (id: string) => void;
-  loadConfig: (id: string) => void;
-  deleteConfig: (id: string) => void;
-  renameConfig: (id: string, newName: string) => void;
+  saveConfig: (name: string, opts?: { published?: boolean }) => Promise<void>;
+  updateConfig: (id: string) => Promise<void>;
+  loadConfig: (id: string) => Promise<void>;
+  deleteConfig: (id: string) => Promise<void>;
+  renameConfig: (id: string, newName: string) => Promise<void>;
   importConfigs: (incoming: SavedConfiguration[]) => { added: number; updated: number };
+
+  // ── Auth identity bridge (sharing extension) ──
+  // useAuth/useEffectiveAuth lives in React-land; the store is plain TS.
+  // ConfigPanel mounts an effect that pushes the current uid/displayName
+  // /email into the store on mount and on uid/displayName/email change so
+  // saveConfig & friends can stamp ownership without a hook.
+  currentUserUid: string | null;
+  currentUserDisplayName: string | null;
+  currentUserEmail: string | null;
+  // Revision 1 — race guard for hydrateForUser. The counter is bumped at
+  // the start of each call and re-checked after the async fetch resolves;
+  // a stale snapshot is dropped. hydratingFor dedupes parallel calls for
+  // the same uid (a re-render in the bridge effect could otherwise fire
+  // overlapping fetches).
+  hydrationToken: number;
+  hydratingFor: string | null;
+  setCurrentAuthIdentity: (identity: {
+    uid: string | null;
+    displayName: string | null;
+    email: string | null;
+  }) => void;
+  hydrateForUser: (uid: string | null) => Promise<void>;
+}
+
+// Revision 2 — resolve the displayName to stamp on a SavedConfiguration.
+// users/{uid} is admin-only-readable in villa-lev-admin/firestore.rules, so
+// we cannot lazily look up another user's name. Instead, we denormalize:
+// stamp `ownerDisplayName` at write time and have readers consume it
+// directly. Fallback chain: displayName → email-local-part → 'Unknown'.
+function resolveOwnerDisplayName(state: {
+  currentUserDisplayName: string | null;
+  currentUserEmail: string | null;
+}): string {
+  if (state.currentUserDisplayName && state.currentUserDisplayName.trim()) {
+    return state.currentUserDisplayName.trim();
+  }
+  if (state.currentUserEmail) {
+    const localPart = state.currentUserEmail.split('@')[0];
+    if (localPart) return localPart;
+  }
+  return 'Unknown';
 }
 
 // ── Store ──
@@ -785,6 +886,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   capTable: DEFAULT_CAP_TABLE.map((sh) => ({ ...sh })),
   waterfall: { ...DEFAULT_WATERFALL },
+
+  // Auth identity bridge — populated by an effect in ConfigPanel from
+  // useEffectiveAuth. Default null on the server (SSR) and pre-mount.
+  currentUserUid: null,
+  currentUserDisplayName: null,
+  currentUserEmail: null,
+  hydrationToken: 0,
+  hydratingFor: null,
 
   updateStakeholder: (id, patch) => {
     const next = get().capTable.map((sh) => (sh.id === id ? { ...sh, ...patch } : sh));
@@ -849,17 +958,18 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     set({ nameModalOpen: false, userHasSetName: true });
   },
 
-  acceptSaveSuggestion: (name: string) => {
+  acceptSaveSuggestion: (name: string, opts?: { published?: boolean }) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    get().saveConfig(trimmed);
+    // Fire-and-forget — saveConfig surfaces failures via requestAlert.
+    void get().saveConfig(trimmed, opts);
     set({ saveModalOpen: false, editsSinceLastSave: 0 });
   },
 
   acceptUpdateExisting: () => {
     const { lastSavedConfigId } = get();
     if (!lastSavedConfigId) return;
-    get().updateConfig(lastSavedConfigId);
+    void get().updateConfig(lastSavedConfigId);
     set({ saveModalOpen: false, editsSinceLastSave: 0 });
   },
 
@@ -1120,11 +1230,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     get().recompute();
 
-    // Background-fetch shared scenarios from the server and merge them in.
-    // Server wins for matching ids when its savedAt is newer; otherwise local
-    // entries are preserved. After merge we push the union back so the server
-    // ends up holding any local-only entries the user had.
-    fetchServerConfigs().then(async (serverConfigs) => {
+    // Background-fetch shared scenarios from the server (banker view: uid
+    // is null → published-only). When auth wires up, ConfigPanel bridges
+    // currentUserUid into the store and calls hydrateForUser(uid) to
+    // re-fetch with the own-scenarios query in addition. The merge logic
+    // below stays identical (server wins on newer savedAt); we just no
+    // longer auto-push local-only entries, because every persisted doc
+    // now needs a userId and we don't have one at init time.
+    fetchServerConfigs(get().currentUserUid).then((serverConfigs) => {
       if (!serverConfigs) return;
       const local = get().savedConfigs;
       const byId = new Map(local.map((c) => [c.id, c]));
@@ -1139,18 +1252,118 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           changed = true;
         }
       }
-      const merged = Array.from(byId.values());
       if (changed) {
+        const merged = Array.from(byId.values());
         set({ savedConfigs: merged });
         saveToStorage(merged);
       }
-      // Push any local-only entries up to the server so everyone connecting sees them.
-      const serverIds = new Set(serverConfigs.map((c) => c.id));
-      const localOnly = local.filter((c) => !serverIds.has(c.id));
-      if (localOnly.length > 0) {
-        await bulkServerConfigs(merged);
-      }
     });
+  },
+
+  // ── Auth identity bridge ──────────────────────────────────────────
+  // Called from ConfigPanel's bridge effect. We don't re-hydrate here —
+  // hydrateForUser is called separately to keep the side effects
+  // explicit at the call site (so React's strict-mode double-invoke
+  // doesn't double-fetch).
+  setCurrentAuthIdentity: ({ uid, displayName, email }) => {
+    const cur = get();
+    if (
+      cur.currentUserUid === uid &&
+      cur.currentUserDisplayName === displayName &&
+      cur.currentUserEmail === email
+    ) {
+      return;
+    }
+    // ── Shared-machine hygiene (security-auditor m1, 2026-05-22) ──
+    // When a previously-signed-in user is replaced by a DIFFERENT signed-in
+    // user (uid → different uid), drop any localStorage-hydrated configs
+    // that lack a `userId` field. Those are pre-migration legacy local
+    // docs from the previous session and must not appear under the new
+    // user's "Your scenarios". We DO NOT touch entries with a userId set —
+    // those are either the new user's own docs (correctly stamped) or
+    // foreign docs which the picker filter already handles.
+    //
+    // Intentionally does NOT fire on null → uid (first sign-in) or
+    // uid → null (sign-out), only on uid → different uid (account switch).
+    const prevUid = cur.currentUserUid;
+    const isAccountSwitch =
+      prevUid !== null && uid !== null && prevUid !== uid;
+    if (isAccountSwitch) {
+      const filtered = cur.savedConfigs.filter((c) => !!c.userId);
+      if (filtered.length !== cur.savedConfigs.length) {
+        set({
+          currentUserUid: uid,
+          currentUserDisplayName: displayName,
+          currentUserEmail: email,
+          savedConfigs: filtered,
+        });
+        saveToStorage(filtered);
+        return;
+      }
+    }
+    set({
+      currentUserUid: uid,
+      currentUserDisplayName: displayName,
+      currentUserEmail: email,
+    });
+  },
+
+  // Re-fetch the scenario list for a freshly-known uid. Revision 1:
+  //   1. Bump hydrationToken so stale fetches drop their results.
+  //   2. Set hydratingFor=uid so a parallel call for the same uid
+  //      short-circuits (React strict-mode double-invoke guard).
+  //   3. After fetch resolves, re-check the token; bail on mismatch.
+  hydrateForUser: async (uid) => {
+    const state = get();
+    // Dedupe: a hydration is already in flight for this exact uid.
+    if (state.hydratingFor === uid) return;
+    const token = state.hydrationToken + 1;
+    set({ hydrationToken: token, hydratingFor: uid });
+    let fetched: SavedConfiguration[] | null = null;
+    try {
+      fetched = await fetchServerConfigs(uid);
+    } finally {
+      // Always clear hydratingFor even on throw so a transient error
+      // doesn't permanently block subsequent hydrations.
+      if (get().hydratingFor === uid) {
+        set({ hydratingFor: null });
+      }
+    }
+    // Stale-token check: a newer hydrateForUser superseded us.
+    if (get().hydrationToken !== token) return;
+    if (!fetched) return;
+    const local = get().savedConfigs;
+    const byId = new Map(local.map((c) => [c.id, c]));
+    let changed = false;
+    for (const sc of fetched) {
+      const cur = byId.get(sc.id);
+      if (!cur) {
+        byId.set(sc.id, sc);
+        changed = true;
+      } else if ((sc.savedAt ?? 0) > (cur.savedAt ?? 0)) {
+        byId.set(sc.id, sc);
+        changed = true;
+      }
+    }
+    // Also drop local-only docs that are NOT mine — they came from a
+    // previous session's shared list and are no longer published.
+    // Keep local entries that have no userId (legacy localStorage) or
+    // that I own (might be in the middle of being saved).
+    const fetchedIds = new Set(fetched.map((c) => c.id));
+    for (const c of local) {
+      if (fetchedIds.has(c.id)) continue;
+      const isLegacy = !c.userId;
+      const isMine = c.userId && uid && c.userId === uid;
+      if (!isLegacy && !isMine) {
+        byId.delete(c.id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      const merged = Array.from(byId.values());
+      set({ savedConfigs: merged });
+      saveToStorage(merged);
+    }
   },
 
   // ── Template Management ──
@@ -1440,9 +1653,23 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   // ── Config Management ──
 
-  saveConfig: (name: string) => {
-    const id = crypto.randomUUID();
+  saveConfig: async (name: string, opts?: { published?: boolean }) => {
     const state = get();
+    const uid = state.currentUserUid;
+    if (!uid) {
+      // Hard-require sign-in for server writes. Surfaces via the same
+      // requestAlert flow used elsewhere so the user sees a real message
+      // rather than a silent permission-denied later.
+      state.requestAlert({
+        title: 'Sign-in required',
+        message:
+          'You need to be signed in to save a scenario. Click "Sign in to save" above the scenario list.',
+        tone: 'warning',
+      });
+      return;
+    }
+    const id = crypto.randomUUID();
+    const ownerDisplayName = resolveOwnerDisplayName(state);
     const config: SavedConfiguration = {
       id,
       name,
@@ -1450,6 +1677,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       templates: JSON.parse(JSON.stringify(state.templates)),
       projects: JSON.parse(JSON.stringify(state.projects)),
       savedAt: Date.now(),
+      userId: uid,
+      ownerDisplayName,
+      published: !!opts?.published,
+      copiedFrom: null,
     };
     const configs = [...state.savedConfigs, config];
     set({
@@ -1462,19 +1693,58 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     saveToStorage(configs);
     saveLastSavedConfig({ id, name });
-    pushServerConfig(config);
+    try {
+      await pushServerConfig(config);
+    } catch (err) {
+      get().requestAlert({
+        title: 'Could not save to the shared list',
+        message: (err as Error).message,
+        tone: 'error',
+      });
+    }
   },
 
-  updateConfig: (id: string) => {
+  updateConfig: async (id: string) => {
     const state = get();
     const existing = state.savedConfigs.find((c) => c.id === id);
     if (!existing) return;
+    // Revision 5 — owner-only edit. Construct from `existing`, never from
+    // form state, so a malicious / accidental local mutation can't smuggle
+    // a different userId past the rules layer.
+    const uid = state.currentUserUid;
+    if (existing.userId && uid && existing.userId !== uid) {
+      state.requestAlert({
+        title: 'Read-only scenario',
+        message:
+          'This scenario was saved by someone else. Load it instead to make a personal copy you can edit.',
+        tone: 'warning',
+      });
+      return;
+    }
+    // Defensive guard — existing.userId can be undefined on legacy docs;
+    // adopt the current uid in that case so we don't write a doc with no
+    // owner field (the rules require one).
+    const ownerUid = existing.userId ?? uid;
+    if (!ownerUid) {
+      state.requestAlert({
+        title: 'Sign-in required',
+        message: 'You need to be signed in to update a scenario.',
+        tone: 'warning',
+      });
+      return;
+    }
+    const ownerDisplayName =
+      existing.ownerDisplayName ?? resolveOwnerDisplayName(state);
     const updated: SavedConfiguration = {
       ...existing,
       assumptions: JSON.parse(JSON.stringify(state.assumptions)),
       templates: JSON.parse(JSON.stringify(state.templates)),
       projects: JSON.parse(JSON.stringify(state.projects)),
       savedAt: Date.now(),
+      userId: ownerUid,
+      ownerDisplayName,
+      published: existing.published ?? false,
+      copiedFrom: existing.copiedFrom ?? null,
     };
     const configs = state.savedConfigs.map((c) => (c.id === id ? updated : c));
     set({
@@ -1487,12 +1757,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     saveToStorage(configs);
     saveLastSavedConfig({ id, name: existing.name });
-    pushServerConfig(updated);
+    try {
+      await pushServerConfig(updated);
+    } catch (err) {
+      get().requestAlert({
+        title: 'Could not update the shared list',
+        message: (err as Error).message,
+        tone: 'error',
+      });
+    }
   },
 
-  loadConfig: (id: string) => {
-    const config = get().savedConfigs.find((c) => c.id === id);
-    if (!config) return;
+  loadConfig: async (id: string) => {
+    const state = get();
+    const source = state.savedConfigs.find((c) => c.id === id);
+    if (!source) return;
 
     // Backfill schema fields added since the config was saved (e.g. exitEbitdaMultiple),
     // mirroring the init() merge so old scenarios don't render with undefined props.
@@ -1501,13 +1780,31 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         ...BASE_CASE,
         portfolio: BASE_CASE.portfolio.map((p) => ({ ...p, opex: { ...p.opex } })),
       } as unknown as Record<string, unknown>,
-      (config.assumptions ?? {}) as unknown as Record<string, unknown>,
+      (source.assumptions ?? {}) as unknown as Record<string, unknown>,
     ) as unknown as ModelAssumptions;
 
-    // If config has templates+projects, use them
-    if (config.projects && config.projects.length > 0) {
-      const savedTemplates = config.templates ?? [];
-      const allTemplates = [
+    // Copy-on-load semantics: if I am signed in AND this scenario belongs
+    // to another editor, hydrate from it AND fork a personal copy with
+    // provenance. The original stays untouched. Legacy docs without a
+    // userId (pre-sharing) are treated as my own — no copy needed.
+    const currentUid = state.currentUserUid;
+    const isForeign = !!(
+      source.userId &&
+      currentUid &&
+      source.userId !== currentUid
+    );
+
+    // Branch 1: legacy config has no projects/templates yet — migrate from
+    // raw portfolio. Independent of foreign/own; we still hydrate state.
+    const hasNewSchema =
+      Array.isArray(source.projects) && source.projects.length > 0;
+
+    let targetTemplates: PropertyTemplate[];
+    let targetProjects: ProjectAllocation[];
+    let targetAssumptions: ModelAssumptions;
+    if (hasNewSchema) {
+      const savedTemplates = source.templates ?? [];
+      targetTemplates = [
         ...BUILT_IN_TEMPLATES.map((bt) => {
           const saved = savedTemplates.find((st) => st.id === bt.id);
           return saved ? ensureRoomAreas({ ...saved, builtIn: true as const }) : bt;
@@ -1516,45 +1813,122 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           .filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id))
           .map(ensureRoomAreas),
       ];
-      set({
-        assumptions: mergedAssumptions,
-        templates: allTemplates,
-        projects: config.projects,
-        activeConfigId: id,
-        activeConfigName: config.name,
-        lastSavedConfigId: id,
-        lastSavedConfigName: config.name,
-      });
-      saveTemplatesToStorage(allTemplates);
-      saveAssumptionsToStorage(mergedAssumptions);
-      saveProjectsToStorage(config.projects);
-      saveLastSavedConfig({ id, name: config.name });
+      targetProjects = source.projects!;
+      targetAssumptions = mergedAssumptions;
     } else {
-      // Legacy config: migrate portfolio to projects
       const migrated = migrateToPortfolio(mergedAssumptions);
-      const projects: ProjectAllocation[] = migrated.portfolio.map((p) => ({
+      targetTemplates = get().templates;
+      targetProjects = migrated.portfolio.map((p) => ({
         id: p.id || generateId('proj'),
         templateId: p.villaUnits > 0 ? 'tpl-twin-villa' : 'tpl-boutique-suite',
         name: p.name,
         count: p.count,
       }));
-      set({
-        assumptions: migrated,
-        projects,
-        activeConfigId: id,
-        activeConfigName: config.name,
-        lastSavedConfigId: id,
-        lastSavedConfigName: config.name,
-      });
-      saveAssumptionsToStorage(migrated);
-      saveProjectsToStorage(projects);
-      saveLastSavedConfig({ id, name: config.name });
+      targetAssumptions = migrated;
     }
+
+    if (!isForeign) {
+      // Own scenario (or legacy / banker view): hydrate state and pin
+      // the active pointer to the source id, as before.
+      set({
+        assumptions: targetAssumptions,
+        templates: targetTemplates,
+        projects: targetProjects,
+        activeConfigId: id,
+        activeConfigName: source.name,
+        lastSavedConfigId: id,
+        lastSavedConfigName: source.name,
+      });
+      saveTemplatesToStorage(targetTemplates);
+      saveAssumptionsToStorage(targetAssumptions);
+      saveProjectsToStorage(targetProjects);
+      saveLastSavedConfig({ id, name: source.name });
+      get().recompute();
+      return;
+    }
+
+    // Foreign scenario + signed-in user → copy-on-load.
+    // Revision 3 — guard against double-click race: if a copy of this
+    // exact source already exists for the current user, focus it instead
+    // of creating another.
+    const existingCopy = state.savedConfigs.find(
+      (c) => c.copiedFrom?.scenarioId === source.id && c.userId === currentUid,
+    );
+    if (existingCopy) {
+      // Recursive call into our own non-foreign branch by simply loading
+      // the existing copy by id. The recursion terminates because the
+      // copy's userId equals currentUid → isForeign === false.
+      await get().loadConfig(existingCopy.id);
+      return;
+    }
+
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : generateId('cfg');
+    const ownerDisplayName = resolveOwnerDisplayName(state);
+    const copy: SavedConfiguration = {
+      id: newId,
+      name: source.name,
+      assumptions: JSON.parse(JSON.stringify(targetAssumptions)),
+      templates: JSON.parse(JSON.stringify(targetTemplates)),
+      projects: JSON.parse(JSON.stringify(targetProjects)),
+      savedAt: Date.now(),
+      userId: currentUid!,
+      ownerDisplayName,
+      published: false,
+      copiedFrom: {
+        userId: source.userId!,
+        // Revision 2 — read ownerDisplayName directly off the source doc.
+        displayName: source.ownerDisplayName ?? 'Unknown',
+        scenarioId: source.id,
+        copiedAt: Date.now(),
+      },
+    };
+    const configs = [...state.savedConfigs, copy];
+    set({
+      savedConfigs: configs,
+      assumptions: targetAssumptions,
+      templates: targetTemplates,
+      projects: targetProjects,
+      activeConfigId: copy.id,
+      activeConfigName: copy.name,
+      lastSavedConfigId: copy.id,
+      lastSavedConfigName: copy.name,
+    });
+    saveToStorage(configs);
+    saveTemplatesToStorage(targetTemplates);
+    saveAssumptionsToStorage(targetAssumptions);
+    saveProjectsToStorage(targetProjects);
+    saveLastSavedConfig({ id: copy.id, name: copy.name });
     get().recompute();
+    try {
+      await pushServerConfig(copy);
+    } catch (err) {
+      get().requestAlert({
+        title: 'Could not save your copy to the shared list',
+        message: (err as Error).message,
+        tone: 'error',
+      });
+    }
   },
 
-  deleteConfig: (id: string) => {
+  deleteConfig: async (id: string) => {
     const state = get();
+    const existing = state.savedConfigs.find((c) => c.id === id);
+    if (!existing) return;
+    // Owner-only delete. Legacy docs (no userId) are deletable by anyone
+    // who can see them — they predate the sharing model and have no
+    // recoverable owner. The rules layer also enforces this.
+    const uid = state.currentUserUid;
+    if (existing.userId && uid && existing.userId !== uid) {
+      state.requestAlert({
+        title: 'Read-only scenario',
+        message:
+          'This scenario was saved by someone else. You can load it (which makes a personal copy) but only its owner can delete it.',
+        tone: 'warning',
+      });
+      return;
+    }
     const configs = state.savedConfigs.filter((c) => c.id !== id);
     const lastCleared = state.lastSavedConfigId === id;
     set({
@@ -1566,14 +1940,40 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     saveToStorage(configs);
     if (lastCleared) saveLastSavedConfig(null);
-    deleteServerConfig(id);
+    try {
+      await deleteServerConfig(id);
+    } catch (err) {
+      get().requestAlert({
+        title: 'Could not delete from the shared list',
+        message: (err as Error).message,
+        tone: 'error',
+      });
+    }
   },
 
-  renameConfig: (id: string, newName: string) => {
+  renameConfig: async (id: string, newName: string) => {
     const state = get();
-    const configs = state.savedConfigs.map((c) =>
-      c.id === id ? { ...c, name: newName } : c
-    );
+    const existing = state.savedConfigs.find((c) => c.id === id);
+    if (!existing) return;
+    // Owner-only rename — same predicate as updateConfig / deleteConfig.
+    const uid = state.currentUserUid;
+    if (existing.userId && uid && existing.userId !== uid) {
+      state.requestAlert({
+        title: 'Read-only scenario',
+        message:
+          'This scenario was saved by someone else. Only its owner can rename it.',
+        tone: 'warning',
+      });
+      return;
+    }
+    // Revision 5 — construct the payload from `existing`, never from form
+    // state. The new `name` is the only field that should change.
+    const renamed: SavedConfiguration = { ...existing, name: newName };
+    if (!renamed.userId && uid) renamed.userId = uid;
+    if (!renamed.ownerDisplayName) {
+      renamed.ownerDisplayName = resolveOwnerDisplayName(state);
+    }
+    const configs = state.savedConfigs.map((c) => (c.id === id ? renamed : c));
     const lastChanged = state.lastSavedConfigId === id;
     set({
       savedConfigs: configs,
@@ -1582,33 +1982,81 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     saveToStorage(configs);
     if (lastChanged) saveLastSavedConfig({ id, name: newName });
-    const renamed = configs.find((c) => c.id === id);
-    if (renamed) pushServerConfig(renamed);
+    try {
+      await pushServerConfig(renamed);
+    } catch (err) {
+      get().requestAlert({
+        title: 'Could not rename in the shared list',
+        message: (err as Error).message,
+        tone: 'error',
+      });
+    }
   },
 
   // Merge incoming saved scenarios into the store. Same id ⇒ overwrite if the
   // incoming version is newer (by savedAt); different id ⇒ append. Returns
   // counts so the caller can show feedback.
+  //
+  // Revision 4 — ownership semantics on import:
+  //   - If the importer is the original owner of the incoming doc
+  //     (incoming.userId === currentUid && !incoming.copiedFrom), preserve
+  //     `published` (they're restoring their own backup; if it was shared
+  //     before, keep it shared).
+  //   - Otherwise re-stamp `userId` and `ownerDisplayName` from the current
+  //     identity, reset `published: false`, and clear `copiedFrom` (an
+  //     import from a backup is NOT a copy-on-load with provenance).
+  //   - If the importer is signed out, drop docs that have a userId set —
+  //     we cannot write them under the rules without ownership.
   importConfigs: (incoming: SavedConfiguration[]) => {
     const state = get();
+    const uid = state.currentUserUid;
+    const ownerDisplayName = uid ? resolveOwnerDisplayName(state) : null;
     const byId = new Map(state.savedConfigs.map((c) => [c.id, c]));
     let added = 0;
     let updated = 0;
+    const toPush: SavedConfiguration[] = [];
     for (const inc of incoming) {
       if (!inc || typeof inc !== 'object' || !inc.id || !inc.name) continue;
+      const isOwnBackup =
+        !!uid && inc.userId === uid && !inc.copiedFrom;
+      let normalised: SavedConfiguration;
+      if (isOwnBackup) {
+        normalised = {
+          ...inc,
+          userId: uid!,
+          ownerDisplayName: inc.ownerDisplayName ?? ownerDisplayName ?? 'Unknown',
+          published: inc.published ?? false,
+          copiedFrom: inc.copiedFrom ?? null,
+        };
+      } else if (uid) {
+        normalised = {
+          ...inc,
+          userId: uid,
+          ownerDisplayName: ownerDisplayName ?? 'Unknown',
+          published: false,
+          copiedFrom: null,
+        };
+      } else {
+        // Signed-out import: skip docs that originated from a foreign
+        // owner (we can't re-stamp), but keep legacy local-only docs.
+        if (inc.userId) continue;
+        normalised = inc;
+      }
       const existing = byId.get(inc.id);
       if (!existing) {
-        byId.set(inc.id, inc);
+        byId.set(inc.id, normalised);
         added++;
+        if (uid) toPush.push(normalised);
       } else if ((inc.savedAt ?? 0) > (existing.savedAt ?? 0)) {
-        byId.set(inc.id, inc);
+        byId.set(inc.id, normalised);
         updated++;
+        if (uid) toPush.push(normalised);
       }
     }
     const configs = Array.from(byId.values());
     set({ savedConfigs: configs });
     saveToStorage(configs);
-    bulkServerConfigs(configs);
+    if (toPush.length > 0) bulkServerConfigs(toPush);
     return { added, updated };
   },
 }));

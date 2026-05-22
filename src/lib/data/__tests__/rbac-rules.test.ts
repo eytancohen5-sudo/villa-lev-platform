@@ -176,33 +176,146 @@ describe("firestore.rules — RBAC structural guards", () => {
     );
   });
 
-  // ── Scenarios write — must use canEdit() ──────────────────────────────
+  // ── Scenarios per-owner sharing model (ADR-0004) ──────────────────────
+  // The scenarios block was rewritten 2026-05-22 to support cross-user
+  // share-by-publish. READ is no longer blanket-public — published==true OR
+  // owner-auth. WRITE gates on canEdit() AND owner match. DELETE is now
+  // owner-gated (was `if false`). copiedFrom is immutable field-by-field
+  // (NOT whole-map equality — Revision M1 guard).
 
-  it("scenarios/{scenarioId} write predicate gates on canEdit()", () => {
-    const scenariosBlock = extractMatchBlock(
-      loadRules(),
-      "match /scenarios/{scenarioId}",
-    );
-    expect(scenariosBlock).toMatch(
-      /allow\s+create\s*,\s*update\s*:[\s\S]*?canEdit\s*\(\s*\)/,
+  it("scenarios/{scenarioId} read allows published==true", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+read\s*:[\s\S]*?resource\.data\.published\s*==\s*true/,
     );
   });
 
-  it("scenarios/{scenarioId} read is still public (`allow read: if true`)", () => {
-    const scenariosBlock = extractMatchBlock(
-      loadRules(),
-      "match /scenarios/{scenarioId}",
+  it("scenarios/{scenarioId} read also allows owner-auth (unpublished drafts)", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+read\s*:[\s\S]*?request\.auth\s*!=\s*null[\s\S]*?resource\.data\.userId\s*==\s*request\.auth\.uid/,
     );
-    // Preserves the banker share-link path.
-    expect(scenariosBlock).toMatch(/allow\s+read\s*:\s*if\s+true\s*;/);
   });
 
-  it("scenarios/{scenarioId} delete stays blocked", () => {
-    const scenariosBlock = extractMatchBlock(
-      loadRules(),
-      "match /scenarios/{scenarioId}",
+  it("scenarios/{scenarioId} read is no longer blanket-public (`if true`)", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).not.toMatch(/allow\s+read\s*:\s*if\s+true\s*;/);
+  });
+
+  it("scenarios/{scenarioId} create gates on canEdit()", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/allow\s+create\s*:[\s\S]*?canEdit\s*\(\s*\)/);
+  });
+
+  it("scenarios/{scenarioId} create stamps caller as userId", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+create\s*:[\s\S]*?request\.resource\.data\.userId\s*==\s*request\.auth\.uid/,
     );
-    expect(scenariosBlock).toMatch(/allow\s+delete\s*:\s*if\s+false\s*;/);
+  });
+
+  it("scenarios/{scenarioId} create validates ownerDisplayName is string", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/ownerDisplayName\s+is\s+string/);
+  });
+
+  it("scenarios/{scenarioId} create validates published is bool", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/published\s+is\s+bool/);
+  });
+
+  it("scenarios/{scenarioId} create validates copiedFrom shape when present", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/copiedFrom\s*==\s*null/);
+    expect(b).toMatch(/copiedFrom\.userId\s+is\s+string/);
+    expect(b).toMatch(/copiedFrom\.scenarioId\s+is\s+string/);
+    expect(b).toMatch(/copiedFrom\.displayName\s+is\s+string/);
+    expect(b).toMatch(/copiedFrom\.copiedAt\s+is\s+number/);
+  });
+
+  it("scenarios/{scenarioId} update gates on canEdit() and caller-is-owner", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/allow\s+update\s*:[\s\S]*?canEdit\s*\(\s*\)/);
+    expect(b).toMatch(
+      /allow\s+update\s*:[\s\S]*?resource\.data\.userId\s*==\s*request\.auth\.uid/,
+    );
+  });
+
+  it("scenarios/{scenarioId} update enforces userId immutability", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+update\s*:[\s\S]*?request\.resource\.data\.userId\s*==\s*resource\.data\.userId/,
+    );
+  });
+
+  it("scenarios/{scenarioId} update enforces id immutability", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+update\s*:[\s\S]*?request\.resource\.data\.id\s*==\s*resource\.data\.id/,
+    );
+  });
+
+  it("scenarios/{scenarioId} update enforces copiedFrom immutability field-by-field (NOT whole-map equality)", () => {
+    // Revision M1 guard: rules-language map equality has surprising semantics
+    // (key-order, missing-vs-null), so each subfield is compared explicitly.
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /copiedFrom\.userId\s*==\s*resource\.data\.copiedFrom\.userId/,
+    );
+    expect(b).toMatch(
+      /copiedFrom\.scenarioId\s*==\s*resource\.data\.copiedFrom\.scenarioId/,
+    );
+    expect(b).toMatch(
+      /copiedFrom\.displayName\s*==\s*resource\.data\.copiedFrom\.displayName/,
+    );
+    expect(b).toMatch(
+      /copiedFrom\.copiedAt\s*==\s*resource\.data\.copiedFrom\.copiedAt/,
+    );
+    // And explicitly: whole-map equality must NOT be the guard.
+    expect(b).not.toMatch(
+      /request\.resource\.data\.copiedFrom\s*==\s*resource\.data\.copiedFrom\b/,
+    );
+  });
+
+  it("scenarios/{scenarioId} update has the null-vs-null branch (set-once-at-create when null)", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /request\.resource\.data\.copiedFrom\s*==\s*null\s*&&\s*resource\.data\.copiedFrom\s*==\s*null/,
+    );
+  });
+
+  it("scenarios/{scenarioId} delete is owner-gated, not `if false`", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(
+      /allow\s+delete\s*:[\s\S]*?canEdit\s*\(\s*\)[\s\S]*?resource\.data\.userId\s*==\s*request\.auth\.uid/,
+    );
+    expect(b).not.toMatch(/allow\s+delete\s*:\s*if\s+false\s*;/);
+  });
+
+  it("scenarios/{scenarioId} keeps the size() <= 50 guard", () => {
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/size\s*\(\s*\)\s*<=\s*50/);
+  });
+
+  it("scenarios/{scenarioId} create caps copiedFrom map size at 4", () => {
+    // security-auditor M3: without an exact size() check on copiedFrom, an
+    // attacker who satisfies the four typed-key gates can still smuggle
+    // arbitrary extra keys into the map for doc-bloat / stash storage.
+    const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
+    expect(b).toMatch(/copiedFrom\.size\s*\(\s*\)\s*==\s*4/);
+  });
+
+  it("appConfig/{docId} block is untouched by the scenarios rewrite", () => {
+    // Sanity: confirm the admin-pinned reference-scenario flow didn't regress
+    // when the adjacent scenarios block was rewritten. Public read + admin-
+    // only write + locked doc id + key-set fence must all still be present.
+    const b = extractMatchBlock(loadRules(), "match /appConfig/{docId}");
+    expect(b).toMatch(/allow\s+read\s*:\s*if\s+true\s*;/);
+    expect(b).toMatch(/allow\s+write\s*:[\s\S]*?isAdmin\s*\(\s*\)/);
+    expect(b).toMatch(/docId\s*==\s*'current'/);
+    expect(b).toMatch(
+      /keys\s*\(\s*\)\s*\.\s*hasOnly\s*\(\s*\[\s*'referenceScenarioId'\s*,\s*'updatedAt'\s*,\s*'updatedBy'\s*\]\s*\)/,
+    );
   });
 
   it("seasonSnapshots read is still public (banker share-link path)", () => {

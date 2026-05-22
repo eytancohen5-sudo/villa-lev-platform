@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
+import { useTranslation } from "@/lib/i18n/I18nProvider";
 
 function Modal({
   children,
@@ -79,6 +80,7 @@ function NameModal() {
 }
 
 function SaveModal() {
+  const { t } = useTranslation();
   const {
     acceptSaveSuggestion,
     acceptUpdateExisting,
@@ -90,6 +92,12 @@ function SaveModal() {
   const [name, setName] = useState("");
   const [showSaveAsNew, setShowSaveAsNew] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
+  // Shared-scenarios extension: share-with-team checkbox. Default OFF so
+  // the user has to opt into making their work visible to other editors.
+  // Threaded through acceptSaveSuggestion → saveConfig as opts.published.
+  // We do NOT show this on the Update-existing branch — preserving the
+  // current published flag is handled inside updateConfig.
+  const [publishToTeam, setPublishToTeam] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hasExisting = !!lastSavedConfigId && !!lastSavedConfigName;
@@ -119,7 +127,7 @@ function SaveModal() {
 
   const submitNew = () => {
     if (!name.trim()) return;
-    acceptSaveSuggestion(name);
+    acceptSaveSuggestion(name, { published: publishToTeam });
     persistDontAskAgain();
   };
 
@@ -159,6 +167,18 @@ function SaveModal() {
             }}
             className="w-full px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
           />
+          {/* Sharing checkbox — only on the "save as new" branch. The
+              update-existing branch preserves whatever published flag the
+              scenario was last saved with (handled in updateConfig). */}
+          <label className="flex items-center gap-2 mt-3 text-xs text-text-secondary cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={publishToTeam}
+              onChange={(e) => setPublishToTeam(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-surface-tertiary text-brand-600 focus:ring-brand-500/30"
+            />
+            {t('scenarios.shareWithTeam')}
+          </label>
         </>
       )}
 

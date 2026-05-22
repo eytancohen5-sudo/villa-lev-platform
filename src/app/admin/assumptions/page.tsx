@@ -1737,12 +1737,70 @@ function ConfigPanel() {
   // Use the impersonation-aware wrapper so View-As propagates here. `user`,
   // `signIn`, `signOut` pass through untouched from useAuth; only the
   // role-derived flag `canEdit` reflects the active impersonation.
-  const { user, canEdit, loading: authLoading, signIn, signOut } = useEffectiveAuth();
+  const {
+    user,
+    profile,
+    canEdit,
+    loading: authLoading,
+    signIn,
+    signOut,
+    isImpersonating,
+    effectiveRole,
+  } = useEffectiveAuth();
   const canWrite = canEdit;
+  // SECURITY: while admin is previewing as banker, treat the session as
+  // unauthenticated for scenario-ownership purposes. Without this guard
+  // useEffectiveAuth preserves the real `user`, so the real uid would
+  // leak into the store (setCurrentAuthIdentity) and into the picker's
+  // "Your scenarios" filter — defeating the View-As contract.
+  // See security-auditor M1 (2026-05-22).
+  const isPreviewAsBanker = isImpersonating && effectiveRole === 'banker';
+  const mineUid = isPreviewAsBanker ? null : (user?.uid ?? null);
   const [newName, setNewName] = useState('');
+  // Inline save row also gets the share-with-team toggle. Default off, so
+  // users opt into sharing each time. Independent of the modal's state.
+  const [publishToTeam, setPublishToTeam] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Auth identity bridge (sharing extension) ─────────────────────
+  // Push uid / displayName / email into the store so saveConfig & friends
+  // can stamp ownership without a hook (the store is plain TS). Also
+  // trigger hydrateForUser to re-fetch the scenario list with the
+  // own-scenarios query in addition to the published one.
+  //
+  // Dep array intentionally narrow — primitive uid / displayName / email
+  // values, NOT the whole `user` / `profile` objects (which Firebase
+  // re-creates on every token refresh and would thrash the effect).
+  //
+  // SECURITY: bridge `mineUid` (not `user?.uid`) so impersonation-as-banker
+  // reports the session as unauthenticated to the store. Likewise blank the
+  // displayName/email when previewing as banker so attribution can't leak.
+  const uid = mineUid;
+  // Prefer the users/{uid} displayName (admin-curated) over the auth
+  // user displayName (Google profile) since the former is what other
+  // editors expect to see in "Saved by X" attribution.
+  const displayName = isPreviewAsBanker
+    ? null
+    : (profile?.displayName ?? user?.displayName ?? null);
+  const email = isPreviewAsBanker ? null : (user?.email ?? null);
+  useEffect(() => {
+    if (authLoading) return;
+    const store = useModelStore.getState();
+    store.setCurrentAuthIdentity({ uid, displayName, email });
+    // Only re-hydrate when the uid actually changes — display name flips
+    // don't change which docs are readable, only how we render them.
+    void store.hydrateForUser(uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, authLoading]);
+  // Separate effect so a displayName change (e.g. admin edits profile)
+  // updates the store identity but doesn't trigger a re-fetch.
+  useEffect(() => {
+    if (authLoading) return;
+    useModelStore.getState().setCurrentAuthIdentity({ uid, displayName, email });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displayName, email, authLoading]);
 
   const handleSignIn = async () => {
     const store = useModelStore.getState();
@@ -1759,8 +1817,9 @@ function ConfigPanel() {
 
   const handleSave = () => {
     if (!newName.trim()) return;
-    saveConfig(newName.trim());
+    void saveConfig(newName.trim(), { published: publishToTeam });
     setNewName('');
+    setPublishToTeam(false);
   };
 
   const handleExport = () => {
@@ -1875,29 +1934,40 @@ function ConfigPanel() {
       {authLoading ? (
         <div className="flex gap-2 mb-6 h-[46px]" aria-hidden="true" />
       ) : canWrite ? (
-        <div className="flex gap-2 mb-6">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-            placeholder={t('config.nameLabel')}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
-          />
-          <button
-            onClick={handleSave}
-            disabled={!newName.trim()}
-            className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-          >
-            {t('config.save')}
-          </button>
-          <button
-            onClick={signOut}
-            className="px-3 py-2.5 rounded-xl bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-all"
-            title={`Signed in as ${user?.email ?? 'admin'}`}
-          >
-            Sign out
-          </button>
+        <div className="mb-6">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              placeholder={t('config.nameLabel')}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all"
+            />
+            <button
+              onClick={handleSave}
+              disabled={!newName.trim()}
+              className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+            >
+              {t('config.save')}
+            </button>
+            <button
+              onClick={signOut}
+              className="px-3 py-2.5 rounded-xl bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-all"
+              title={`Signed in as ${user?.email ?? 'admin'}`}
+            >
+              Sign out
+            </button>
+          </div>
+          <label className="flex items-center gap-2 mt-2 text-xs text-text-secondary cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={publishToTeam}
+              onChange={(e) => setPublishToTeam(e.target.checked)}
+              className="w-3.5 h-3.5 rounded border-surface-tertiary text-brand-600 focus:ring-brand-500/30"
+            />
+            {t('scenarios.shareWithTeam')}
+          </label>
         </div>
       ) : (
         <div className="flex gap-2 mb-6 items-center">
@@ -1915,11 +1985,47 @@ function ConfigPanel() {
         </div>
       )}
 
-      {savedConfigs.length === 0 ? (
-        <p className="text-sm text-text-tertiary text-center py-6">{t('config.noSaved')}</p>
-      ) : (
-        <div className="space-y-2">
-          {savedConfigs.map((config) => (
+      {(() => {
+        // ── Sharing extension: split into "Your scenarios" / "Shared scenarios" ──
+        // Own scenarios = no userId (legacy local) OR userId matches mine.
+        // Shared scenarios = userId != mine AND published == true.
+        // Banker view (uid == null) sees ONLY shared — the "Your" section
+        // is hidden entirely so it doesn't dangle empty.
+        //
+        // `mineUid` is computed at the top of ConfigPanel and is null when
+        // (a) signed-out or (b) admin is previewing as banker (security M1).
+        const own = mineUid
+          ? savedConfigs
+              .filter((c) => !c.userId || c.userId === mineUid)
+              .slice()
+              .sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))
+          : [];
+        const shared = savedConfigs
+          .filter(
+            (c) => c.userId && c.userId !== mineUid && c.published,
+          )
+          .slice()
+          .sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
+
+        if (savedConfigs.length === 0) {
+          return (
+            <p className="text-sm text-text-tertiary text-center py-6">
+              {t('config.noSaved')}
+            </p>
+          );
+        }
+
+        const renderCard = (
+          config: typeof savedConfigs[number],
+          isOwn: boolean,
+        ) => {
+          const ownerName =
+            config.ownerDisplayName ??
+            config.copiedFrom?.displayName ??
+            'Unknown';
+          const savedDate = new Date(config.savedAt);
+          const dateStr = `${savedDate.toLocaleDateString()} ${savedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          return (
             <div
               key={config.id}
               className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
@@ -1928,16 +2034,16 @@ function ConfigPanel() {
                   : 'border-surface-tertiary hover:border-surface-tertiary/80 hover:bg-surface-secondary/20'
               }`}
             >
-              {editingId === config.id && canWrite ? (
+              {editingId === config.id && canWrite && isOwn ? (
                 <input
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') { renameConfig(config.id, editName); setEditingId(null); }
+                    if (e.key === 'Enter') { void renameConfig(config.id, editName); setEditingId(null); }
                     if (e.key === 'Escape') setEditingId(null);
                   }}
-                  onBlur={() => { renameConfig(config.id, editName); setEditingId(null); }}
+                  onBlur={() => { void renameConfig(config.id, editName); setEditingId(null); }}
                   autoFocus
                   className="flex-1 px-3 py-1 rounded-lg border border-brand-500/30 text-sm focus:outline-none"
                 />
@@ -1954,7 +2060,7 @@ function ConfigPanel() {
                         {canWrite && (
                           <button
                             type="button"
-                            onClick={() => handleSetReference(null, user?.uid)}
+                            onClick={() => handleSetReference(null, mineUid ?? undefined)}
                             aria-label={t('ref.dismiss')}
                             title={t('ref.dismiss')}
                             className="ms-0.5 text-brand-700/70 hover:text-brand-900 transition-colors"
@@ -1964,22 +2070,46 @@ function ConfigPanel() {
                         )}
                       </span>
                     )}
+                    {/* Shared-with-team badge on own cards that I published.
+                        Lets me see at a glance which of mine other editors
+                        can see. */}
+                    {isOwn && config.published && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-positive/15 text-positive text-[10px] font-semibold uppercase tracking-wider shrink-0">
+                        Shared
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs text-text-tertiary">
-                    {new Date(config.savedAt).toLocaleDateString()} {new Date(config.savedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </div>
+                  {/* Step L — attribution line. Foreign card: "Saved by X · date".
+                      Own card with copiedFrom: small "Copied from X" sub-line
+                      under the date. */}
+                  {isOwn ? (
+                    <div className="text-xs text-text-tertiary">
+                      {dateStr}
+                      {config.copiedFrom && (
+                        <span className="ms-1 text-text-tertiary/80">
+                          · {t('scenarios.copiedFrom').replace('{name}', config.copiedFrom.displayName || 'Unknown')}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-text-tertiary">
+                      {t('scenarios.savedBy')
+                        .replace('{name}', ownerName)
+                        .replace('{date}', dateStr)}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex items-center gap-1.5">
-                {/* Load is read-only (client-side store hydration) so it stays
-                    available to anonymous visitors. The mutating buttons —
-                    Save here, rename, delete — are hidden when !canWrite. */}
-                <button onClick={() => loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
-                {canWrite && (
+                {/* Load is read-only (client-side store hydration) so it
+                    stays available to anonymous visitors. For shared cards
+                    it ALSO triggers copy-on-load in modelStore.loadConfig. */}
+                <button onClick={() => void loadConfig(config.id)} className="px-3 py-1.5 text-xs font-medium rounded-lg bg-brand-600/10 text-brand-600 hover:bg-brand-600/20 transition-colors">{t('config.load')}</button>
+                {canWrite && isOwn && (
                   <>
                     {referenceScenarioId !== config.id && (
                       <button
-                        onClick={() => handleSetReference(config.id, user?.uid)}
+                        onClick={() => handleSetReference(config.id, mineUid ?? undefined)}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors"
                         title={t('ref.setAsReference')}
                       >
@@ -1992,7 +2122,7 @@ function ConfigPanel() {
                         message: 'The saved state for this scenario will be replaced with your current assumptions, templates, and projects. Other scenarios in the list are not affected.',
                         confirmLabel: 'Overwrite',
                         danger: true,
-                        onConfirm: () => updateConfig(config.id),
+                        onConfirm: () => { void updateConfig(config.id); },
                       })}
                       className="px-3 py-1.5 text-xs font-medium rounded-lg bg-positive/10 text-positive hover:bg-positive/20 transition-colors"
                       title="Save current state on top of this scenario"
@@ -2003,21 +2133,69 @@ function ConfigPanel() {
                     <button
                       onClick={() => useModelStore.getState().requestConfirm({
                         title: `Delete "${config.name}"?`,
-                        message: 'This removes the scenario from the shared list. Anyone connecting will no longer see it. This cannot be undone — export a backup first if you might want it back.',
+                        message: config.published
+                          ? 'This removes the scenario from the shared list. Other editors will no longer see it. This cannot be undone — export a backup first if you might want it back.'
+                          : 'This removes the scenario. This cannot be undone — export a backup first if you might want it back.',
                         confirmLabel: 'Delete scenario',
                         danger: true,
-                        onConfirm: () => deleteConfig(config.id),
+                        onConfirm: () => { void deleteConfig(config.id); },
                       })}
                       className="px-2.5 py-1.5 text-xs rounded-lg text-negative/60 hover:text-negative hover:bg-red-50 transition-colors"
                       title={t('config.delete')}
                     >&times;</button>
                   </>
                 )}
+                {/* Read-only indicator on shared cards, so the user knows
+                    why Save here / rename / delete aren't offered. */}
+                {!isOwn && (
+                  <span
+                    className="px-2 py-1 text-[10px] uppercase tracking-wider text-text-tertiary"
+                    title={t('scenarios.readOnlyShared')}
+                  >
+                    Read-only
+                  </span>
+                )}
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        };
+
+        return (
+          <div className="space-y-6">
+            {mineUid && (
+              <div>
+                <h4 className="text-xs uppercase tracking-wider text-text-tertiary mb-2">
+                  {t('scenarios.yourScenarios')}
+                </h4>
+                {own.length === 0 ? (
+                  <p className="text-sm text-text-tertiary py-2">
+                    {t('config.noSaved')}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {own.map((c) => renderCard(c, true))}
+                  </div>
+                )}
+              </div>
+            )}
+            {shared.length > 0 && (
+              <div>
+                <h4 className="text-xs uppercase tracking-wider text-text-tertiary mb-2">
+                  {t('scenarios.sharedScenarios')}
+                </h4>
+                <div className="space-y-2">
+                  {shared.map((c) => renderCard(c, false))}
+                </div>
+              </div>
+            )}
+            {!mineUid && shared.length === 0 && (
+              <p className="text-sm text-text-tertiary text-center py-6">
+                {t('config.noSaved')}
+              </p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

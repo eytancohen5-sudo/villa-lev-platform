@@ -233,6 +233,53 @@ export interface TranslationDictionary {
   'market.coverage': string;
   'market.awaitingCapture': string;
   'market.sourceNote': string;
+  'market.openInNewTab': string;
+  // Extended for /pitch + admin/dashboard with 2025 backstop fallback
+  'market.villa': string;
+  'market.tierVilla': string;
+  'market.statusFresh': string;
+  'market.statusBackstop': string;
+  'market.backstopFootnote': string;
+  'pitch.market.bpVsHeading': string;
+  'pitch.market.bpVsSub': string;
+
+  // ── Conservatism Triangle (Market Position hero strip + drawer) ──
+  // Hero strip
+  'triangle.stripTitle': string;
+  'triangle.stripSub': string;
+  'triangle.barBP': string;
+  'triangle.barLive': string;
+  'triangle.barMarket': string;
+  'triangle.tierStandard': string;
+  'triangle.tierPremium': string;
+  'triangle.deltaVsLive': string;        // template — uses {pct}
+  'triangle.deltaVsMarket': string;      // template — uses {pct}
+  'triangle.defenceCopy': string;
+  'triangle.seeComparables': string;     // template — uses {n}
+  'triangle.bpFloor': string;            // small caption: "BP is the floor"
+  // Drawer
+  'drawer.title': string;
+  'drawer.close': string;
+  'drawer.filterGreek': string;
+  'drawer.filterInternational': string;
+  'drawer.filterAll': string;
+  'drawer.tierBasic': string;
+  'drawer.tierPremium': string;
+  'drawer.tierLuxury': string;
+  'drawer.tierVilla': string;
+  'drawer.showVilla': string;
+  'drawer.colHotel': string;
+  'drawer.colLocation': string;
+  'drawer.colStars': string;
+  'drawer.colRooms': string;
+  'drawer.colHighEur': string;
+  'drawer.colMedEur': string;
+  'drawer.colAnnual': string;
+  'drawer.colTier': string;
+  'drawer.sourceFootnote': string;
+  'drawer.empty': string;
+  'drawer.countLabel': string;           // template — uses {n}
+
   'dash.drillDown': string;
   'dash.founderDrillDown': string;
   'dash.pnlDrillDown': string;
@@ -487,6 +534,17 @@ export interface TranslationDictionary {
   'config.noSaved': string;
   'config.unsaved': string;
   'config.active': string;
+
+  // ── Scenario sharing (REVISIONS-based extension) ──
+  // Templates use {name} / {date} placeholders — substitution happens at
+  // the render site (no helper baked into I18nProvider yet).
+  'scenarios.shareWithTeam': string;
+  'scenarios.savedBy': string;
+  'scenarios.copiedFrom': string;
+  'scenarios.yourScenarios': string;
+  'scenarios.sharedScenarios': string;
+  'scenarios.readOnlyShared': string;
+  'scenarios.signInToSave': string;
 
   // ── Reference scenario (admin-designated default) ──
   'ref.setAsReference': string;

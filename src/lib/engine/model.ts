@@ -244,6 +244,17 @@ interface DebtServiceResult {
   supplementaryAnnualDS?: number;
   landFundedByTepix?: number;
   landFundedByCommercial?: number;
+  // ── TEPIX III program cap (€8M / business) ──
+  // Gross amount by which the unconstrained TEPIX primary loan exceeded the
+  // €8M program ceiling, clamped down to 8M. 0 when the cap does not bind.
+  // The excess flows downstream into commercial supplementary debt + sponsor
+  // equity via the existing landGap / nonLandCost residual logic — see the
+  // tepix-loan branch of computeDebtService for the mechanism. Only set on
+  // the tepix-loan path; undefined on commercial / grant / rrf.
+  tepixCapBindingBy?: number;
+  // The cap value applied (constant; surfaced for UI tooltips). Only set on
+  // the tepix-loan path.
+  tepixLoanCap?: number;
 }
 
 function computeTotalLand(a: ModelAssumptions): number {
@@ -365,15 +376,43 @@ function computeDebtService(
 
   if (path === 'tepix-loan') {
     const tp = a.tepixLoan;
-    const cap = tp.landCapOnFundContribution;
+    const landCapRatio = tp.landCapOnFundContribution;
 
     const totalLand = computeTotalLand(a);
     const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
     const nonLandCost = totalCost - totalLand - acqLegal;
 
-    const nonLandLoan = nonLandCost * tp.coverageRate;
-    const landFundedByTepix = (cap * nonLandLoan) / (1 - cap);
-    const primaryLoan = nonLandLoan + landFundedByTepix;
+    // ── Unconstrained sizing (what TEPIX would lend if no program ceiling) ──
+    const uncappedNonLandLoan = nonLandCost * tp.coverageRate;
+    const uncappedLandFundedByTepix =
+      (landCapRatio * uncappedNonLandLoan) / (1 - landCapRatio);
+    const uncappedPrimaryLoan =
+      uncappedNonLandLoan + uncappedLandFundedByTepix;
+
+    // ── €8M TEPIX III program cap (per business, per HDB program rules) ──
+    // Source: tepix/milestones.yaml meta.program.loan_amount_range_eur.max.
+    // If the uncapped sizing exceeds 8M, clamp the primary loan and let the
+    // shortfall flow through the existing landGap + nonLandCost residual
+    // logic — extra land funding becomes commercial supplementary debt, and
+    // extra non-land cost becomes sponsor equity. Surface tepixCapBindingBy
+    // so the dashboard / investor page can call out the equity gap created
+    // by the cap rather than silently understating financing capacity.
+    const TEPIX_LOAN_CAP = 8_000_000;
+    const tepixCapBindingBy = Math.max(0, uncappedPrimaryLoan - TEPIX_LOAN_CAP);
+    const primaryLoan = Math.min(uncappedPrimaryLoan, TEPIX_LOAN_CAP);
+
+    // When the cap binds, preserve the program's land-cap ratio (HDB
+    // requires a fixed fraction of the loan to fund land vs. non-land).
+    // Both subcomponents shrink in lockstep so the 40/60 HDB/bank split
+    // and the land/non-land split remain program-compliant.
+    const nonLandLoan =
+      tepixCapBindingBy > 0
+        ? primaryLoan * (1 - landCapRatio)
+        : uncappedNonLandLoan;
+    const landFundedByTepix =
+      tepixCapBindingBy > 0
+        ? primaryLoan * landCapRatio
+        : uncappedLandFundedByTepix;
 
     const landGap = Math.max(0, totalLand + acqLegal - landFundedByTepix);
     const suppLoanAmount = landGap * a.commercialLoan.loanCoverageRate;
@@ -416,6 +455,8 @@ function computeDebtService(
       supplementaryAnnualDS: suppAnnualDS,
       landFundedByTepix,
       landFundedByCommercial: landGap,
+      tepixCapBindingBy,
+      tepixLoanCap: TEPIX_LOAN_CAP,
       getDS: (year: number) => {
         if (year === 2026 || year === 2027) {
           const subsidisedRate = Math.max(0, tp.bankInterestRate - tp.interestSubsidy);
@@ -992,6 +1033,66 @@ function computeScenario(
   const projectIRRRaw = irr(projectCFs);
   const projectIRR = isFinite(projectIRRRaw) ? projectIRRRaw : 0;
 
+  // ── Parallel exit path: sell the underlying property instead of the
+  //    operating hotel. terminalAssetValuePropertySale = builtSurface × €/m².
+  //    Computed alongside the EBITDA-multiple path so the sponsor can see
+  //    both exits side by side; the higher of the two drives the rational
+  //    sale decision. €/m² defaults to 9 000 (matches collateral.market).
+  const builtSurfaceScenario = a.portfolio.reduce(
+    (sum, p) => sum + areaOf(p) * p.count,
+    0,
+  );
+  const exitValuationPerM2 = a.exitValuationPerM2 ?? 9000;
+  const terminalAssetValuePropertySale = builtSurfaceScenario * exitValuationPerM2;
+  const terminalEquityValuePropertySale = Math.max(
+    0,
+    terminalAssetValuePropertySale - remainingDebt,
+  );
+
+  // Equity IRR under the property-sale exit. Identical operating-year cash
+  // flows; only the terminal value differs.
+  const equityCFsPropertySale: number[] = [-debtResult.equityRequired];
+  truncatedPnL.forEach((p, i) => {
+    const cf =
+      i === truncatedPnL.length - 1
+        ? p.netCashFlowPostVAT + terminalEquityValuePropertySale
+        : p.netCashFlowPostVAT;
+    equityCFsPropertySale.push(cf);
+  });
+  const equityIRRPropertySaleRaw = irr(equityCFsPropertySale);
+  const equityIRRPropertySale = isFinite(equityIRRPropertySaleRaw)
+    ? equityIRRPropertySaleRaw
+    : 0;
+
+  // Project IRR under the property-sale exit (unlevered).
+  const projectCFsPropertySale: number[] = [-totalCapex];
+  truncatedPnL.forEach((p, i) => {
+    const cf =
+      i === truncatedPnL.length - 1
+        ? p.cfads + terminalAssetValuePropertySale
+        : p.cfads;
+    projectCFsPropertySale.push(cf);
+  });
+  const projectIRRPropertySaleRaw = irr(projectCFsPropertySale);
+  const projectIRRPropertySale = isFinite(projectIRRPropertySaleRaw)
+    ? projectIRRPropertySaleRaw
+    : 0;
+
+  // Total MOIC under the property-sale exit. Mirrors `totalMOIC` above with
+  // the property-sale terminal equity substituted in.
+  const totalMOICPropertySale =
+    debtResult.equityRequired > 0
+      ? (operatingDistributions + terminalEquityValuePropertySale) /
+        debtResult.equityRequired
+      : 0;
+
+  // True when the property sale would yield a larger terminal asset value
+  // than the hotel sale at exit — a rational seller picks the larger.
+  // Compared on GROSS asset value, not equity (equity floors at 0 in either
+  // path, so the gross comparison is the meaningful one).
+  const propertyExitDominates =
+    terminalAssetValuePropertySale > terminalAssetValue;
+
   // ROIC stabilised: NOPAT proxy / total CapEx. EBITDA + CIT ≈ post-tax
   // operating cash; treats D&A as ignored (cash proxy).
   const roic =
@@ -1051,6 +1152,14 @@ function computeScenario(
     terminalUnderwater,
     exitEbitdaMultiple: exitMultiple,
     exitYear,
+    // Property-sale exit path (parallel to EBITDA × multiple)
+    exitValuationPerM2,
+    terminalAssetValuePropertySale,
+    terminalEquityValuePropertySale,
+    equityIRRPropertySale,
+    projectIRRPropertySale,
+    totalMOICPropertySale,
+    propertyExitDominates,
   };
 }
 
@@ -1314,6 +1423,10 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     supplementaryLoan: activeDebt.supplementaryLoan ?? 0,
     landFundedByTepix: activeDebt.landFundedByTepix ?? 0,
     landFundedByCommercial: activeDebt.landFundedByCommercial ?? 0,
+    // TEPIX III €8M program-cap binding amount. 0 when the cap does not
+    // apply (non-tepix path) or doesn't bind (uncapped primary loan ≤ 8M).
+    tepixCapBindingBy: activeDebt.tepixCapBindingBy ?? 0,
+    tepixLoanCap: activeDebt.tepixLoanCap ?? 0,
   };
 
   const computeTimeMs = performance.now() - startTime;
