@@ -76,17 +76,22 @@ export function ViewAsControl() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors ${
-          isImpersonating
-            ? "bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100"
-            : "bg-surface-secondary text-text-secondary border border-surface-tertiary hover:bg-surface-tertiary"
-        }`}
         title={currentLabel(activeTarget)}
+        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-colors border ${
+          isImpersonating
+            ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100"
+            : open
+              ? "bg-brand-50 text-brand-700 border-brand-200"
+              : "bg-surface-secondary text-text-secondary border-surface-tertiary hover:bg-surface-tertiary"
+        }`}
       >
-        {currentLabel(activeTarget)}
+        <span>{currentLabel(activeTarget)}</span>
+        <svg className="w-3 h-3 opacity-50 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
       {open && (
-        <div className="absolute top-full mt-2 right-0 z-30 bg-white border border-surface-tertiary rounded-xl shadow-lg py-1 min-w-[220px]">
+        <div className="absolute bottom-full mb-1 left-0 right-0 z-30 bg-white border border-surface-tertiary rounded-xl shadow-lg py-1">
           {OPTIONS.map((opt) => {
             const isActive = opt.value === activeTarget;
             return (

@@ -272,19 +272,21 @@ export default function AdminLayout({
           ))}
         </nav>
 
-        <div className="p-4 border-t border-surface-tertiary space-y-2">
+        <div className="p-4 border-t border-surface-tertiary space-y-1.5">
           <LanguageToggle />
           <ViewAsControl />
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 pt-0.5">
             <BankViewToggle />
             <CopyBankLinkButton />
+            {model && (
+              <span
+                className="ms-auto text-[10px] font-mono text-text-tertiary opacity-60 tabular-nums"
+                title="Model compute time"
+              >
+                {computeTimeMs.toFixed(0)}ms
+              </span>
+            )}
           </div>
-          {model && (
-            <div className="text-xs text-text-tertiary flex justify-between">
-              <span>{t("bar.engine")}</span>
-              <span className="font-mono">{computeTimeMs.toFixed(1)}ms</span>
-            </div>
-          )}
         </div>
       </aside>
 

@@ -19,16 +19,25 @@ export function LanguageToggle() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
+  const currentConfig = LOCALE_CONFIG[locale];
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="px-2 py-1 rounded text-xs font-mono font-medium bg-surface-secondary text-text-secondary hover:bg-surface-tertiary transition-colors uppercase"
+        aria-expanded={open}
+        aria-label={`Language: ${currentConfig.nativeName}`}
+        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-[11px] font-medium transition-colors border ${
+          open
+            ? "bg-brand-50 text-brand-700 border-brand-200"
+            : "bg-surface-secondary text-text-secondary border-surface-tertiary hover:bg-surface-tertiary"
+        }`}
       >
-        {locale}
+        <span>{currentConfig.nativeName}</span>
+        <span className="font-mono uppercase text-text-tertiary">{locale}</span>
       </button>
       {open && (
-        <div className="absolute top-full mt-1 end-0 bg-white rounded-lg shadow-lg border border-surface-tertiary py-1 z-50 min-w-[140px]">
+        <div className="absolute bottom-full mb-1 start-0 end-0 bg-white rounded-lg shadow-lg border border-surface-tertiary py-1 z-50">
           {locales.map((l) => (
             <button
               key={l}
@@ -36,16 +45,14 @@ export function LanguageToggle() {
                 setLocale(l);
                 setOpen(false);
               }}
-              className={`w-full text-start px-3 py-2 text-sm transition-colors flex items-center justify-between ${
+              className={`w-full text-start px-3 py-2 text-xs transition-colors flex items-center justify-between ${
                 l === locale
                   ? "bg-brand-50 text-brand-700 font-medium"
                   : "text-text-secondary hover:bg-surface-secondary"
               }`}
             >
               <span>{LOCALE_CONFIG[l].nativeName}</span>
-              <span className="text-xs font-mono uppercase text-text-tertiary">
-                {l}
-              </span>
+              <span className="font-mono uppercase text-text-tertiary">{l}</span>
             </button>
           ))}
         </div>
