@@ -313,7 +313,19 @@ async function doSignIn(): Promise<void> {
   if (!auth) throw new Error("Auth not available (SSR or Firebase not initialised)");
   const db = getDb();
   const provider = new GoogleAuthProvider();
-  const cred = await signInWithPopup(auth, provider);
+  // Diagnostic logging — surface the exact Firebase error code in the
+  // console so misconfiguration (unauthorized-domain, operation-not-allowed,
+  // popup-blocked) is debuggable without devtools-attached source maps.
+  let cred;
+  try {
+    cred = await signInWithPopup(auth, provider);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[useAuth.doSignIn] signInWithPopup failed:", err);
+    const code = (err as { code?: string })?.code ?? "unknown";
+    const msg = (err as Error)?.message ?? "no message";
+    throw new Error(`Google sign-in failed (${code}): ${msg}`);
+  }
 
   // First attempt: claim an invite if one is pending. This converts an
   // invites/{email} doc into a users/{uid} doc atomically. If the user
