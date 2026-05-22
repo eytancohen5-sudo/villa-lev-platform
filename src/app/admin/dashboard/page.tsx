@@ -233,6 +233,18 @@ export default function DashboardPage() {
           ? t('path.tepixLoan')
           : t('path.commercial');
 
+  // Short variant used in the Deal Snapshot ACTIVE PATH tile so the value
+  // renders at the same kpi-value size as the numeric tiles around it
+  // without overflowing.
+  const pathLabelShort =
+    assumptions.financingPath === "grant"
+      ? t('path.grantShort')
+      : assumptions.financingPath === "rrf"
+        ? t('path.rrfShort')
+        : assumptions.financingPath === "tepix-loan"
+          ? t('path.tepixLoanShort')
+          : t('path.commercialShort');
+
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
 
   // ── Chart data ────────────────────────────────────────────
@@ -479,12 +491,12 @@ export default function DashboardPage() {
             <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-surface-tertiary/60">
                 {cells.map((c) => (
-                  <div key={c.label} className="p-4">
-                    <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                  <div key={c.label} className="p-5">
+                    <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">
                       {c.label}
                     </div>
                     <div
-                      className={`mt-1 font-mono text-lg font-semibold ${
+                      className={`kpi-value ${
                         c.tone === "positive"
                           ? "text-positive"
                           : c.tone === "warning"
@@ -495,7 +507,7 @@ export default function DashboardPage() {
                       {c.value}
                     </div>
                     {c.sub && (
-                      <div className="text-[11px] text-text-tertiary mt-1 leading-snug">
+                      <div className="text-xs text-text-tertiary mt-1 leading-snug">
                         {c.sub}
                       </div>
                     )}
@@ -542,9 +554,8 @@ export default function DashboardPage() {
               return (
                 <KPICard
                   label={t('kpi.activePath')}
-                  value={`${pathLabel} · ${formatCurrency(grantAmt, true, locale)}`}
-                  sublabel={`${t('field.grantAmount')} (${formatPercent(grantAmt / km.totalCapex, 0)})`}
-                  valueSize="compact"
+                  value={formatCurrency(grantAmt, true, locale)}
+                  sublabel={`${pathLabelShort} · ${t('field.grantAmount')} (${formatPercent(grantAmt / km.totalCapex, 0)})`}
                   tone="positive"
                 />
               );
@@ -552,9 +563,8 @@ export default function DashboardPage() {
             return (
               <KPICard
                 label={t('kpi.activePath')}
-                value={pathLabel}
+                value={pathLabelShort}
                 sublabel={t('kpi.activeScenario') + ': ' + scenarioLabel}
-                valueSize="compact"
               />
             );
           })()}
