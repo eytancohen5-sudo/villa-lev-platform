@@ -126,7 +126,7 @@ const LR: Record<
     villaRevPAR: "Villa RevPAR",
     history: "History · existing villa",
     historyYear: "Year",
-    historyTotal: "Total revenue",
+    historyTotal: "Booking revenue",
     historyYoY: "YoY",
   },
   fr: {
@@ -164,7 +164,7 @@ const LR: Record<
     villaRevPAR: "RevPAR villa",
     history: "Historique · villa existante",
     historyYear: "Année",
-    historyTotal: "CA total",
+    historyTotal: "Revenus locatifs",
     historyYoY: "YoY",
   },
   el: {
@@ -202,7 +202,7 @@ const LR: Record<
     villaRevPAR: "RevPAR βίλας",
     history: "Ιστορικό · υπάρχουσα βίλα",
     historyYear: "Έτος",
-    historyTotal: "Συνολικά έσοδα",
+    historyTotal: "Έσοδα κρατήσεων",
     historyYoY: "YoY",
   },
   he: {
@@ -240,7 +240,7 @@ const LR: Record<
     villaRevPAR: "RevPAR וילה",
     history: "היסטוריה · וילה קיימת",
     historyYear: "שנה",
-    historyTotal: "סך הכנסות",
+    historyTotal: "הכנסות מהזמנות",
     historyYoY: "YoY",
   },
 };
@@ -654,22 +654,37 @@ export function LiveTrackRecord({
                     </tr>
                   </thead>
                   <tbody>
-                    {historicalYears.map((h) => (
-                      <tr
-                        key={h.year}
-                        className="border-t border-brand-200/40 text-text-secondary"
-                      >
-                        <td className="py-1 pr-3 font-medium text-text-primary">
-                          {h.year}
-                        </td>
-                        <td className="py-1 px-3 text-right">
-                          {formatCurrency(h.total, true, locale)}
-                        </td>
-                        <td className="py-1 pl-3 text-right">
-                          {h.yoy === null ? "—" : formatPercent(h.yoy, 1)}
-                        </td>
-                      </tr>
-                    ))}
+                    {/* Booking-revenue only (h.rental). 2026-05-22: was
+                        h.total (rental + services) but Eytan asked for the
+                        history to track booking revenue cleanly without the
+                        services line. h.yoy on the snapshot is computed
+                        against total, so we recompute YoY against rental
+                        here. Assumes historicalYears is sorted by year
+                        ascending (which it is in both the static fallback
+                        and the live writer). */}
+                    {historicalYears.map((h, i) => {
+                      const prev = i > 0 ? historicalYears[i - 1] : null;
+                      const yoyRental =
+                        prev && prev.rental > 0
+                          ? (h.rental - prev.rental) / prev.rental
+                          : null;
+                      return (
+                        <tr
+                          key={h.year}
+                          className="border-t border-brand-200/40 text-text-secondary"
+                        >
+                          <td className="py-1 pr-3 font-medium text-text-primary">
+                            {h.year}
+                          </td>
+                          <td className="py-1 px-3 text-right">
+                            {formatCurrency(h.rental, true, locale)}
+                          </td>
+                          <td className="py-1 pl-3 text-right">
+                            {yoyRental === null ? "—" : formatPercent(yoyRental, 1)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
