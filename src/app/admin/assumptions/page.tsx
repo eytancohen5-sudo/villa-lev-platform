@@ -2014,9 +2014,16 @@ function ConfigPanel() {
 
         if (savedConfigs.length === 0) {
           return (
-            <p className="text-sm text-text-tertiary text-center py-6">
-              {t('config.noSaved')}
-            </p>
+            <div className="text-sm text-text-tertiary text-center py-6 space-y-2">
+              <p>{t('config.noSaved')}</p>
+              <p className="text-xs max-w-xs mx-auto leading-snug">
+                Scenarios are saved to Firestore (requires sign-in) and also
+                cached in your browser. If you saved scenarios before and they
+                are missing, open the original browser and use{' '}
+                <span className="font-medium text-text-secondary">Export backup</span>{' '}
+                to download a JSON file, then import it here.
+              </p>
+            </div>
           );
         }
 
