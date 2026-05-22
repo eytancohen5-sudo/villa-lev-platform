@@ -174,6 +174,8 @@ export const en: TranslationDictionary = {
   'kpi.activeScenario': 'Active scenario',
   'kpi.minDSCR': 'Min DSCR (post-ramp)',
   'kpi.minDSCRSub': 'Lowest annual DSCR 2031–2036 (after Y1-Y2 ramp)',
+  'kpi.dscrPostRamp': 'DSCR · 2030 (post-ramp)',
+  'kpi.dscrPostRampSub': 'Year 2 post-opening, before stabilisation',
   'kpi.icr': 'Interest coverage (ICR)',
   'kpi.icrSub': 'EBITDA / interest, stabilised',
   'kpi.llcr': 'LLCR',

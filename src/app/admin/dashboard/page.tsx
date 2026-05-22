@@ -175,6 +175,13 @@ export default function DashboardPage() {
     wcSelfLiqViolation: activePnL.some((p) => p.wcSelfLiquidatingViolation),
     // New: bank metrics from active scenario
     minDSCRLoanLife: activeScenarioOutput.minDSCRLoanLife,
+    // DSCR at year openingYear+2 (= 2030): post-ramp, pre-stabilisation.
+    // Used as the headline DSCR figure on the dashboard because the absolute
+    // loan-life minimum (often ~1.0× in the very first amortising year) is
+    // covenant-relevant but visually misleading as a headline. The 2030 figure
+    // shows what bankers actually underwrite against once the ramp is past.
+    // Falls back to minDSCRLoanLife if 2030 isn't in the pnl array (defensive).
+    dscrPostRamp: activePnL.find((p) => p.year === 2030)?.dscr ?? activeScenarioOutput.minDSCRLoanLife,
     dscrCovenantHeadroom: activeScenarioOutput.dscrCovenantHeadroom,
     icrStabilised: activeScenarioOutput.icrStabilised,
     llcr: activeScenarioOutput.llcr,
@@ -247,9 +254,10 @@ export default function DashboardPage() {
       balance: Math.round(q.closingBalance),
     }));
 
-  // Threshold helpers
+  // Threshold helpers — headline DSCR tone reflects the post-ramp (2030)
+  // figure, not the absolute loan-life minimum.
   const dscrTone =
-    km.minDSCRLoanLife >= 1.5 ? "positive" : km.minDSCRLoanLife >= 1.25 ? undefined : "warning";
+    km.dscrPostRamp >= 1.5 ? "positive" : km.dscrPostRamp >= 1.25 ? undefined : "warning";
   const ltvTone = km.ltv <= 0.75 ? "positive" : "warning";
   const acTone =
     km.assetCoverage >= 1.5 ? "positive" : km.assetCoverage >= 1.3 ? undefined : "warning";
@@ -592,12 +600,12 @@ export default function DashboardPage() {
       <SectionHeader title={t('dash.section.coverage')} sub={t('dash.coverageSub')} />
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <KPICard
-          label={t('kpi.minDSCR')}
-          value={km.minDSCRLoanLife > 0 ? formatMultiple(km.minDSCRLoanLife) : "—"}
-          sublabel={t('kpi.minDSCRSub')}
+          label={t('kpi.dscrPostRamp')}
+          value={km.dscrPostRamp > 0 ? formatMultiple(km.dscrPostRamp) : "—"}
+          sublabel={t('kpi.dscrPostRampSub')}
           threshold={t('dash.kpi.dscrThreshold')}
           tone={dscrTone}
-          accent={km.minDSCRLoanLife >= 1.5}
+          accent={km.dscrPostRamp >= 1.5}
         />
         <KPICard
           label={t('kpi.icr')}

@@ -174,6 +174,8 @@ export const el: TranslationDictionary = {
   'kpi.activeScenario': 'Ενεργό σενάριο',
   'kpi.minDSCR': 'Ελάχιστο DSCR (μετά την εκκίνηση)',
   'kpi.minDSCRSub': 'Χαμηλότερο ετήσιο DSCR 2031–2036 (μετά τη φάση Y1-Y2)',
+  'kpi.dscrPostRamp': 'DSCR · 2030 (μετά την ανάπτυξη)',
+  'kpi.dscrPostRampSub': 'Έτος 2 μετά το άνοιγμα, πριν τη σταθεροποίηση',
   'kpi.icr': 'Κάλυψη τόκων (ICR)',
   'kpi.icrSub': 'EBITDA / τόκοι, σταθεροποιημένο',
   'kpi.llcr': 'LLCR',

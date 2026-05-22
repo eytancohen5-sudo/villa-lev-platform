@@ -169,6 +169,8 @@ export interface TranslationDictionary {
   'kpi.activeScenario': string;
   'kpi.minDSCR': string;
   'kpi.minDSCRSub': string;
+  'kpi.dscrPostRamp': string;
+  'kpi.dscrPostRampSub': string;
   'kpi.icr': string;
   'kpi.icrSub': string;
   'kpi.llcr': string;

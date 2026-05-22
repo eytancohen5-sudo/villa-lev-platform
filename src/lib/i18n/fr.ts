@@ -174,6 +174,8 @@ export const fr: TranslationDictionary = {
   'kpi.activeScenario': 'Scénario actif',
   'kpi.minDSCR': 'DSCR min (post-montée)',
   'kpi.minDSCRSub': 'DSCR annuel le plus bas 2031–2036 (après montée Y1-Y2)',
+  'kpi.dscrPostRamp': 'DSCR · 2030 (post-montée)',
+  'kpi.dscrPostRampSub': 'Année 2 après ouverture, avant stabilisation',
   'kpi.icr': 'Couverture intérêts (ICR)',
   'kpi.icrSub': 'EBITDA / intérêts, stabilisé',
   'kpi.llcr': 'LLCR',

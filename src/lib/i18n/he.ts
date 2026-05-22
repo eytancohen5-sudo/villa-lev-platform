@@ -174,6 +174,8 @@ export const he: TranslationDictionary = {
   'kpi.activeScenario': 'תרחיש פעיל',
   'kpi.minDSCR': 'DSCR מינימום (לאחר הרצה)',
   'kpi.minDSCRSub': 'DSCR שנתי נמוך ביותר 2031–2036 (אחרי שנים Y1-Y2)',
+  'kpi.dscrPostRamp': 'DSCR · 2030 (אחרי הריצה)',
+  'kpi.dscrPostRampSub': 'שנה 2 לאחר הפתיחה, לפני התייצבות',
   'kpi.icr': 'כיסוי ריבית (ICR)',
   'kpi.icrSub': 'EBITDA / ריבית, מיוצב',
   'kpi.llcr': 'LLCR',
