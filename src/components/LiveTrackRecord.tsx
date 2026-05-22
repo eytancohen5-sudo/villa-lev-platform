@@ -12,6 +12,13 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useModelStore } from "@/lib/store/modelStore";
+import {
+  computeMarketPositionWithFallback,
+  MARKET_2025_PER_HOTEL,
+  type CoverageStatus,
+  type MarketRowWithFallback,
+} from "@/lib/data/marketBenchmarks";
+import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
 import type { Locale } from "@/lib/i18n/types";
 
 // Stabilised year — matches engine model.ts `stabilisedYear = pnl.find(p => p.year === 2031)`.
@@ -90,6 +97,22 @@ const LR: Record<
     historyYear: string;
     historyTotal: string;
     historyYoY: string;
+    // ── Market comparison strip (Conservatism Check "Market" column) ──
+    marketHeader: string;
+    marketSub: string;
+    marketBP: string;
+    market: string;
+    marketStandardSuite: string;
+    marketDoubleSuite: string;
+    marketVilla: string;
+    marketBelow: string;
+    marketAbove: string;
+    marketOnPar: string;
+    marketStatusFresh: string; // template — uses {n}
+    marketStatusBackstop: string;
+    marketFootnoteFresh: string; // template — uses {n}
+    marketFootnoteBackstop: string;
+    marketSeeComparables: string; // template — uses {n}
   }
 > = {
   en: {
@@ -130,6 +153,23 @@ const LR: Record<
     historyYear: "Year",
     historyTotal: "Booking revenue",
     historyYoY: "YoY",
+    marketHeader: "Market position · Paros + Antiparos",
+    marketSub:
+      "BP per-night rates vs the 2025 Greek Islands Hotel Market Study, tier-matched and 50/50 HIGH/MED season-blended. Villa tier omitted — Villa Lev's own actuals above are the comparable.",
+    marketBP: "BP",
+    market: "Market",
+    marketStandardSuite: "Standard suite",
+    marketDoubleSuite: "Double suite",
+    marketVilla: "Villa",
+    marketBelow: "Below market",
+    marketAbove: "Above market",
+    marketOnPar: "On par",
+    marketStatusFresh: "2026 capture · {n} hotels",
+    marketStatusBackstop: "2025 backstop",
+    marketFootnoteFresh: "Fresh data: live 2026 medians from {n} captured Paros + Antiparos hotels.",
+    marketFootnoteBackstop:
+      "Source: 2025 Greek Islands Hotel Market Study — pre-computed Basic / Premium tier averages across the Cyclades comparable set. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
+    marketSeeComparables: "See the {n} comparables →",
   },
   fr: {
     header: "Track record en direct · Antiparos",
@@ -169,6 +209,24 @@ const LR: Record<
     historyYear: "Année",
     historyTotal: "Revenus locatifs",
     historyYoY: "YoY",
+    marketHeader: "Position marché · Paros + Antiparos",
+    marketSub:
+      "Tarifs nuit BP vs l'étude de marché 2025 des hôtels des îles grecques, par catégorie et lissés saison (50/50 HAUTE/MOY). Catégorie villa omise — les chiffres réels de Villa Lev ci-dessus sont le comparable.",
+    marketBP: "BP",
+    market: "Marché",
+    marketStandardSuite: "Suite standard",
+    marketDoubleSuite: "Suite double",
+    marketVilla: "Villa",
+    marketBelow: "Sous le marché",
+    marketAbove: "Au-dessus du marché",
+    marketOnPar: "Au niveau",
+    marketStatusFresh: "Relevé 2026 · {n} hôtels",
+    marketStatusBackstop: "Référence 2025",
+    marketFootnoteFresh:
+      "Données fraîches : médianes 2026 sur {n} hôtels relevés à Paros + Antiparos.",
+    marketFootnoteBackstop:
+      "Source : étude de marché 2025 des hôtels des îles grecques — moyennes pré-calculées des catégories Basic / Premium sur l'ensemble comparable des Cyclades. Mélange saisonnier opérationnel HAUTE (juil-août) et MOY (mai-juin, sept).",
+    marketSeeComparables: "Voir les {n} comparables →",
   },
   el: {
     header: "Ζωντανό track record · Αντίπαρος",
@@ -208,6 +266,24 @@ const LR: Record<
     historyYear: "Έτος",
     historyTotal: "Έσοδα κρατήσεων",
     historyYoY: "YoY",
+    marketHeader: "Θέση αγοράς · Πάρος + Αντίπαρος",
+    marketSub:
+      "Τιμές BP ανά διανυκτέρευση έναντι της Μελέτης Αγοράς Ξενοδοχείων Ελληνικών Νησιών 2025, ανά κατηγορία και με 50/50 HIGH/MED σταθμίσεις. Η κατηγορία βίλας παραλείπεται — τα πραγματικά νούμερα της Villa Lev παραπάνω είναι το συγκρίσιμο.",
+    marketBP: "BP",
+    market: "Αγορά",
+    marketStandardSuite: "Σουίτα standard",
+    marketDoubleSuite: "Σουίτα double",
+    marketVilla: "Βίλα",
+    marketBelow: "Κάτω από την αγορά",
+    marketAbove: "Πάνω από την αγορά",
+    marketOnPar: "Στο επίπεδο",
+    marketStatusFresh: "Καταγραφή 2026 · {n} ξενοδοχεία",
+    marketStatusBackstop: "Backstop 2025",
+    marketFootnoteFresh:
+      "Φρέσκα δεδομένα: διάμεσοι 2026 από {n} ξενοδοχεία Πάρου + Αντιπάρου.",
+    marketFootnoteBackstop:
+      "Πηγή: Μελέτη Αγοράς Ξενοδοχείων Ελληνικών Νησιών 2025 — προ-υπολογισμένοι μέσοι όροι Basic / Premium στο συγκρίσιμο σύνολο των Κυκλάδων. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
+    marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
   },
   he: {
     header: "Track record חי · אנטיפרוס",
@@ -247,6 +323,24 @@ const LR: Record<
     historyYear: "שנה",
     historyTotal: "הכנסות מהזמנות",
     historyYoY: "YoY",
+    marketHeader: "מיקום בשוק · פרוס + אנטיפרוס",
+    marketSub:
+      "מחירי לילה של BP מול מחקר שוק מלונות האיים היווניים 2025, התאמת קטגוריה וממוצע עונתי 50/50 (HIGH/MED). קטגוריית וילה הושמטה — הנתונים בפועל של Villa Lev למעלה הם ההשוואה.",
+    marketBP: "BP",
+    market: "שוק",
+    marketStandardSuite: "סוויטה סטנדרטית",
+    marketDoubleSuite: "סוויטה כפולה",
+    marketVilla: "וילה",
+    marketBelow: "מתחת לשוק",
+    marketAbove: "מעל השוק",
+    marketOnPar: "ברמת השוק",
+    marketStatusFresh: "איסוף 2026 · {n} מלונות",
+    marketStatusBackstop: "גיבוי 2025",
+    marketFootnoteFresh:
+      "נתונים טריים: חציוני 2026 מ-{n} מלונות שנאספו בפרוס + אנטיפרוס.",
+    marketFootnoteBackstop:
+      "מקור: מחקר שוק מלונות האיים היווניים 2025 — ממוצעי קטגוריות Basic / Premium מחושבים מראש על פני סט המשווים בקיקלאדס. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
+    marketSeeComparables: "ראו את {n} המשווים →",
   },
 };
 
@@ -338,6 +432,88 @@ function CushionCard({
   );
 }
 
+// MarketCard — one card of the Market position strip. Pairs the BP rate
+// with the market rate (tier-matched, season-blended) and ends with a
+// coloured delta chip. Carries a small status pill showing whether the
+// market figure is fresh 2026 capture or 2025 backstop. Colour discipline
+// mirrors CushionCard above:
+//   - BP below market (deltaPct < 0)   → positive tone (conservative)
+//   - BP above market (deltaPct > 0)   → warning tone
+//   - |delta| < 0.5% rounding noise    → neutral
+function MarketCard({
+  label,
+  bpLabel,
+  marketLabel,
+  bpValue,
+  marketValue,
+  deltaPct,
+  statusBadge,
+  statusBadgeTone,
+}: {
+  label: string;
+  bpLabel: string;
+  marketLabel: string;
+  bpValue: string;
+  marketValue: string;
+  deltaPct: number;
+  statusBadge: string;
+  statusBadgeTone: "fresh" | "backstop";
+}) {
+  const rounded = Math.round(deltaPct * 200) / 200;
+  const pct = Math.round(rounded * 1000) / 10;
+  const tone: "positive" | "negative" | "neutral" =
+    Math.abs(rounded) < 0.005 ? "neutral" : rounded < 0 ? "positive" : "negative";
+  const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
+  const chipClass =
+    tone === "positive"
+      ? "bg-positive/15 text-positive"
+      : tone === "negative"
+        ? "bg-warning/15 text-warning"
+        : "bg-surface-secondary text-text-tertiary";
+  const statusBadgeClass =
+    statusBadgeTone === "fresh"
+      ? "bg-positive/10 text-positive border-positive/30"
+      : "bg-surface-secondary text-text-tertiary border-brand-200/60";
+  return (
+    <div className="rounded-xl bg-white/70 border border-brand-200/70 px-4 py-3 backdrop-blur-sm min-w-0">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-600">
+          {label}
+        </div>
+        <span
+          className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium uppercase tracking-wider border ${statusBadgeClass}`}
+        >
+          {statusBadge}
+        </span>
+      </div>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wider text-text-tertiary">
+            {bpLabel}
+          </span>
+          <span className="font-mono text-text-secondary tabular-nums">{bpValue}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-[11px] uppercase tracking-wider text-text-tertiary">
+            {marketLabel}
+          </span>
+          <span className="font-mono text-text-primary tabular-nums font-semibold">
+            {marketValue}
+          </span>
+        </div>
+      </div>
+      <div className="mt-3 pt-2 border-t border-brand-200/50 flex items-center justify-end gap-2">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${chipClass}`}
+        >
+          {sign}
+          {pct.toFixed(1)}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Figure({
   label,
   value,
@@ -386,6 +562,12 @@ export function LiveTrackRecord({
   // Show detail toggle.
   const [showDetail, setShowDetail] = useState(false);
 
+  // ── Market comparables drawer ──
+  // Same drawer surfaced from ConservatismTriangle below. Opening from the
+  // strip lets a banker drill from the BP-vs-market deltas straight into the
+  // 2025 Greek Islands hotel set without scrolling further down the page.
+  const [marketDrawerOpen, setMarketDrawerOpen] = useState(false);
+
   // ── Compute live KPIs ──
   // `nowMs` comes from a useSyncExternalStore so we don't call impure
   // Date.now() in render. On SSR/static-export it's 0; on client mount the
@@ -428,6 +610,52 @@ export function LiveTrackRecord({
   // season occupancy figure against the 120 available nights.
   const bpOccupancy = Math.min(1, bp.villaBaseNights / currentSeason.availableNights);
   const bpRevPAR = bpADR * (bp.villaBaseNights / currentSeason.availableNights);
+
+  // ── Market position rows (BP vs 2025 Greek Islands market study) ──
+  // Single source of truth: pass `benchmarks=[]` so every tier falls back to
+  // MARKET_2025_BACKSTOP. The 2026 booking.com capture was retired per Eytan
+  // 2026-05-22 — bankers want one consistent comparable basis with the
+  // ConservatismTriangle panel below (which also uses MARKET_2025_BACKSTOP)
+  // and the protected business-plan xlsx, all anchored to the same 2025
+  // Greek Islands Hotel Market Study. Villa row is filtered out for display
+  // because Villa Lev's own live actuals (in the cushion cards above) are
+  // the truer villa-tier comparable — mirrors ConservatismTriangle.tsx:18.
+  // Decision and re-introduction criteria: docs/adr/0004-revert-market-strip-to-2025-only.md.
+  const marketPosition = computeMarketPositionWithFallback(
+    {
+      suiteStandardADR: bp.suiteStandardADR,
+      suiteDoubleADR: bp.suiteDoubleADR,
+      villaADR: bp.villaADR,
+    },
+    [],
+  );
+  const visibleMarketRows = marketPosition.rows.filter((r) => r.metric !== "villaADR");
+  // freshHotelCount / anyFresh derived from visible rows only so the footer
+  // narrative matches what's actually rendered. With benchmarks=[] every row
+  // is 2025-backstop, so freshHotelCount stays at 0 and the fresh footnote
+  // is never rendered — kept here for future re-introduction of fresh data.
+  const freshHotelCount = (() => {
+    let n = 0;
+    for (const row of visibleMarketRows) {
+      if (row.coverageHotels > n) n = row.coverageHotels;
+    }
+    return n;
+  })();
+  const anyBackstop = visibleMarketRows.some((r) => r.status === "2025-backstop");
+  const anyFresh = visibleMarketRows.some((r) => r.status === "fresh");
+
+  // Per-row metadata for the card labels (tier copy + value formatter source).
+  const marketRowLabel = (row: MarketRowWithFallback): string => {
+    if (row.metric === "suiteStandardADR") return lr.marketStandardSuite;
+    if (row.metric === "suiteDoubleADR") return lr.marketDoubleSuite;
+    return lr.marketVilla;
+  };
+  const marketStatusBadge = (status: CoverageStatus, coverageHotels: number): string => {
+    if (status === "fresh") {
+      return lr.marketStatusFresh.replace("{n}", String(coverageHotels));
+    }
+    return lr.marketStatusBackstop;
+  };
 
   // ── Three conservatism cushions — model stabilised vs live (today) ──
   // Gap % is (live - model) / live: positive = model is BELOW live (cushion),
@@ -602,6 +830,69 @@ export function LiveTrackRecord({
           </>
         )}
       </div>
+
+      {/* ── Market position strip ──
+          Surfaces the third comparator (BP vs the 2025 Greek Islands hotel
+          market study) alongside the BP vs Live cushions above. Each card
+          is BP-only (no Live, since the live villa doesn't operate suites
+          today) with a tier-matched market figure (50/50 HIGH/MED blend).
+          Villa tier intentionally omitted — Villa Lev's own actuals in
+          the cushion cards above are the truer villa comparable. Anchored
+          to the same dataset ConservatismTriangle below uses, so the two
+          panels never contradict each other. */}
+      {!loading && (
+        <div className="mb-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+              {lr.marketHeader}
+            </h3>
+            <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
+              {lr.marketSub}
+            </p>
+          </div>
+          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+            {visibleMarketRows.map((row) => (
+              <MarketCard
+                key={row.metric}
+                label={marketRowLabel(row)}
+                bpLabel={lr.marketBP}
+                marketLabel={lr.market}
+                bpValue={formatCurrency(row.bp, false, locale)}
+                marketValue={formatCurrency(row.market, false, locale)}
+                deltaPct={row.deltaPct}
+                statusBadge={marketStatusBadge(row.status, row.coverageHotels)}
+                statusBadgeTone={row.status === "fresh" ? "fresh" : "backstop"}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-text-tertiary leading-snug mt-2 max-w-3xl">
+            {anyFresh
+              ? lr.marketFootnoteFresh.replace("{n}", String(freshHotelCount))
+              : ""}
+            {anyFresh && anyBackstop ? " · " : ""}
+            {anyBackstop ? lr.marketFootnoteBackstop : ""}
+          </p>
+          {/* "See the N comparables" → reuses the MarketComparablesDrawer
+              that ConservatismTriangle below also opens, so bankers reach
+              the same 2025 hotel set from either panel. */}
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setMarketDrawerOpen(true)}
+              className="text-[12px] font-medium text-brand-700 hover:text-brand-900 underline underline-offset-4 decoration-brand-400/60 hover:decoration-brand-700 transition-colors"
+            >
+              {lr.marketSeeComparables.replace(
+                "{n}",
+                String(MARKET_2025_PER_HOTEL.length),
+              )}
+            </button>
+          </div>
+          <MarketComparablesDrawer
+            open={marketDrawerOpen}
+            onClose={() => setMarketDrawerOpen(false)}
+          />
+        </div>
+      )}
 
       {/* ── Show / hide detail toggle ──
           Keeps the existing 4-figure block + history out of the bankers'
