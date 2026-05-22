@@ -93,6 +93,9 @@ const LR: Record<
     villaADR: string;
     villaOccupancy: string;
     villaRevPAR: string;
+    // ── Symmetric sub-section headers ──
+    cushionHeader: string;
+    cushionSub: string;
     history: string;
     historyYear: string;
     historyTotal: string;
@@ -116,8 +119,8 @@ const LR: Record<
   }
 > = {
   en: {
-    header: "Live track record · Antiparos",
-    yourTrackRecord: "Real operating numbers from the existing single villa we run today — not modelled projections.",
+    header: "Conservatism evidence · Antiparos",
+    yourTrackRecord: "Two independent benchmarks — live villa performance and the 2025 market study — confirm our model is deliberately conservative.",
     ytdRevenue: "YTD revenue",
     occupancy: "Occupancy",
     adr: "ADR (net)",
@@ -149,6 +152,8 @@ const LR: Record<
     villaADR: "Villa ADR",
     villaOccupancy: "Villa occupancy",
     villaRevPAR: "Villa RevPAR",
+    cushionHeader: "Live villa vs model assumptions",
+    cushionSub: "Stabilised-year projections (2031) vs what the existing single villa delivers today. A positive cushion means the model assumes less than live reality.",
     history: "History · existing villa",
     historyYear: "Year",
     historyTotal: "Booking revenue",
@@ -172,8 +177,8 @@ const LR: Record<
     marketSeeComparables: "See the {n} comparables →",
   },
   fr: {
-    header: "Track record en direct · Antiparos",
-    yourTrackRecord: "Chiffres réels de la villa en exploitation aujourd'hui — pas des projections.",
+    header: "Preuve de prudence · Antiparos",
+    yourTrackRecord: "Deux référentiels indépendants — performance réelle de la villa et étude de marché 2025 — confirment que notre modèle est délibérément conservateur.",
     ytdRevenue: "CA YTD",
     occupancy: "Occupation",
     adr: "ADR (net)",
@@ -205,6 +210,8 @@ const LR: Record<
     villaADR: "ADR villa",
     villaOccupancy: "Occupation villa",
     villaRevPAR: "RevPAR villa",
+    cushionHeader: "Villa réelle vs hypothèses du modèle",
+    cushionSub: "Projections stabilisées (2031) vs ce que la villa existante réalise aujourd'hui. Un coussin positif signifie que le modèle suppose moins que la réalité.",
     history: "Historique · villa existante",
     historyYear: "Année",
     historyTotal: "Revenus locatifs",
@@ -229,8 +236,8 @@ const LR: Record<
     marketSeeComparables: "Voir les {n} comparables →",
   },
   el: {
-    header: "Ζωντανό track record · Αντίπαρος",
-    yourTrackRecord: "Πραγματικά λειτουργικά νούμερα από τη villa που τρέχουμε σήμερα — όχι μοντελοποιημένες προβλέψεις.",
+    header: "Τεκμήρια συντηρητισμού · Αντίπαρος",
+    yourTrackRecord: "Δύο ανεξάρτητα σημεία αναφοράς — πραγματική απόδοση βίλας και μελέτη αγοράς 2025 — επιβεβαιώνουν ότι το μοντέλο μας είναι σκόπιμα συντηρητικό.",
     ytdRevenue: "Έσοδα YTD",
     occupancy: "Πληρότητα",
     adr: "ADR (καθαρό)",
@@ -262,6 +269,8 @@ const LR: Record<
     villaADR: "ADR βίλας",
     villaOccupancy: "Πληρότητα βίλας",
     villaRevPAR: "RevPAR βίλας",
+    cushionHeader: "Πραγματική βίλα vs παραδοχές μοντέλου",
+    cushionSub: "Σταθεροποιημένες προβολές (2031) vs αυτό που η υπάρχουσα βίλα αποδίδει σήμερα. Θετικό «μαξιλάρι» σημαίνει ότι το μοντέλο παραδέχεται λιγότερα από την πραγματικότητα.",
     history: "Ιστορικό · υπάρχουσα βίλα",
     historyYear: "Έτος",
     historyTotal: "Έσοδα κρατήσεων",
@@ -286,8 +295,8 @@ const LR: Record<
     marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
   },
   he: {
-    header: "Track record חי · אנטיפרוס",
-    yourTrackRecord: "מספרי תפעול אמיתיים מהוילה הפעילה שאנו מפעילים היום — לא תחזיות מודלים.",
+    header: "עדות שמרנות · אנטיפרוס",
+    yourTrackRecord: "שני אמות מידה עצמאיות — ביצועי הוילה בפועל ומחקר שוק 2025 — מאשרים שהמודל שלנו שמרני במכוון.",
     ytdRevenue: "הכנסות YTD",
     occupancy: "תפוסה",
     adr: "ADR (נטו)",
@@ -319,6 +328,8 @@ const LR: Record<
     villaADR: "ADR וילה",
     villaOccupancy: "תפוסת וילה",
     villaRevPAR: "RevPAR וילה",
+    cushionHeader: "וילה בפועל vs הנחות המודל",
+    cushionSub: "תחזיות מיוצבות (2031) מול מה שהוילה הקיימת מספקת היום. כרית חיובית מעידה שהמודל מניח פחות מהמציאות.",
     history: "היסטוריה · וילה קיימת",
     historyYear: "שנה",
     historyTotal: "הכנסות מהזמנות",
@@ -780,6 +791,18 @@ export function LiveTrackRecord({
               .replace("{gap}", gapDisplay);
           })()}
         </p>
+      )}
+
+      {/* ── Section 1 header — parallel to the Market Position header below ── */}
+      {!loading && (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+            {lr.cushionHeader}
+          </h3>
+          <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
+            {lr.cushionSub}
+          </p>
+        </div>
       )}
 
       {/* ── Three cushion cards (Villa ADR / Occupancy / RevPAR) ──
