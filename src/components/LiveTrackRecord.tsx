@@ -551,8 +551,16 @@ export function LiveTrackRecord({
               modelLabel={lr.model}
               liveLabel={lr.liveLabel}
               cushionLabel={lr.cushion}
-              modelValue={formatPercent(bpOccupancy, 0)}
-              liveValue={formatPercent(occupancy, 0)}
+              // Displayed as nights (e.g. "95 / 120") rather than percent at
+              // Eytan's request 2026-05-22 — bankers read the absolute count
+              // more concretely than 79%. Both sides share the same available-
+              // nights denominator (currentSeason.availableNights), so the
+              // ratio implied by the percent is preserved. occupancyGap is
+              // still computed from the percentage values above so the
+              // cushion-% pill in the corner stays consistent with the
+              // adrGap / revparGap cards.
+              modelValue={`${Math.round(bp.villaBaseNights)} / ${currentSeason.availableNights}`}
+              liveValue={`${currentSeason.bookedNights} / ${currentSeason.availableNights}`}
               gap={occupancyGap}
             />
             <CushionCard
