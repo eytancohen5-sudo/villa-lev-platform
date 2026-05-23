@@ -145,7 +145,7 @@ export default function BankPage() {
             {t('app.title')}
           </h1>
           <p className="text-text-secondary max-w-xl mx-auto">
-            {t('app.loanApp')} &middot; {pathLabel} &middot; {t('app.confidential')}
+            {pathLabel} &middot; {t('app.confidential')}
           </p>
 
           {/* 2. Download buttons row */}

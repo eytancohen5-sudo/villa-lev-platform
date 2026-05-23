@@ -229,10 +229,10 @@ export default function DashboardPage() {
   const founderBd = founderResult.founderBreakdown;
   const capStatusLabel =
     founderBd.capBinding === "total_75"
-      ? "75% total cap — earned reduced"
+      ? t('dash.founder.capBinding75')
       : founderBd.capBinding === "earned_33"
-        ? "33% earned cap reached"
-        : "Free (no cap binding)";
+        ? t('dash.founder.capEarned33')
+        : t('dash.founder.capFree');
 
   const pathLabel =
     assumptions.financingPath === "grant"
@@ -375,7 +375,7 @@ export default function DashboardPage() {
           role="alert"
           className="mb-4 rounded-lg border border-warning/40 bg-warning/10 text-warning px-4 py-3 text-sm flex flex-wrap items-baseline gap-x-3 gap-y-1 print:hidden"
         >
-          <strong className="uppercase tracking-wider text-[11px]">Drift alert</strong>
+          <strong className="uppercase tracking-wider text-[11px]">{t('dash.driftAlert')}</strong>
           <span className="text-text-primary">
             BP per-villa assumption is {">"} {Math.round(DRIFT_ALERT_THRESHOLD * 100)}% off live actuals:
           </span>
@@ -391,7 +391,7 @@ export default function DashboardPage() {
               <span className="text-text-tertiary"> (BP {bpNights} vs live {liveBookedNights})</span>
             </span>
           )}
-          <span className="text-text-tertiary ml-auto text-[11px]">Tune in <em>Assumptions</em>.</span>
+          <span className="text-text-tertiary ml-auto text-[11px]">{t('dash.driftAlertTuneIn')}</span>
         </div>
       )}
       {/* Header — active-path metadata lives here (path · scenario · stab year),
@@ -794,7 +794,7 @@ export default function DashboardPage() {
           terminal lump sum differs. €/m² is editable in the top bar. */}
       <div className="mt-6 mb-2 px-1 flex items-baseline justify-between gap-3 flex-wrap">
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-          Exit path comparison
+          {t('dash.section.exitPath')}
         </h3>
         <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
           Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²). Sponsor elects the higher exit at sale. Adjust €/m² in the top bar to stress the property-sale path.
