@@ -2,12 +2,12 @@ import { TranslationDictionary } from './types';
 
 export const fr: TranslationDictionary = {
   'app.title': 'Villa Lev Group',
-  'app.subtitle': 'Expansion du portefeuille · Antiparos, Grèce',
-  'app.platform': 'Plateforme d\'intelligence financière',
-  'app.confidential': 'Confidentiel · Mars 2026',
-  'app.loanApp': 'Demande de prêt commercial',
+  'app.subtitle': 'Expansion du Portefeuille Hôtelier · Antiparos, Grèce',
+  'app.platform': 'Plateforme de Financement',
+  'app.confidential': 'Confidentiel · Villa Lev Group',
+  'app.loanApp': 'Demande de financement',
 
-  'nav.dashboard': 'Tableau de bord',
+  'nav.dashboard': 'Tableau de Bord',
   'nav.pnl': 'Compte de résultat',
   'nav.breakeven': 'Seuil de rentabilité',
   'nav.capex': 'CAPEX',
@@ -17,7 +17,6 @@ export const fr: TranslationDictionary = {
   'nav.opcoSplit': 'OpCo / PropCo',
   'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Passer en mode Admin',
-  'nav.switchInvestor': 'Passer en mode Investisseur',
 
   'bar.path': 'Structure',
   'bar.scenario': 'Scénario',
@@ -72,14 +71,14 @@ export const fr: TranslationDictionary = {
   'kpi.plots': 'parcelles',
   'kpi.plotsSingular': 'parcelle',
   'kpi.stabilisedRevenue': 'Chiffre d\'affaires stabilisé',
-  'kpi.stabilisedRevenueSub': 'Annuel à partir de 2031',
+  'kpi.stabilisedRevenueSub': 'Année stabilisée 2031+',
   'kpi.debtServiceCoverage': 'Couverture du service de la dette',
   'kpi.loanAmount': 'Montant du prêt',
   'kpi.equityRequired': 'Fonds propres requis',
   'kpi.annualDS': 'SD annuel',
-  'kpi.annualDSSub': 'À partir de 2029',
+  'kpi.annualDSSub': 'Amortissement complet à partir de 2029',
   'kpi.netCashFlow': 'FTN (post-impôts)',
-  'kpi.netCashFlowSub': 'Année stabilisée (2031)',
+  'kpi.netCashFlowSub': 'Après impôts et service de la dette · 2031',
   'kpi.portfolioValue': 'Valeur du portefeuille',
   'kpi.portfolioValueSub': '@ 9 000 €/m² · 950 m²',
   'kpi.ltvAtCompletion': 'Ratio prêt/valeur à l\'achèvement',
@@ -99,14 +98,14 @@ export const fr: TranslationDictionary = {
   'kpi.wcSelfLiqOk': 'OK',
   'kpi.wcSelfLiqFail': 'Alerte',
   'kpi.wcSelfLiqSub': 'Creux ≤ 50 K€ chaque sept.',
-  'dash.heroDscr': 'Trajectoire RCSD par voie de financement',
-  'dash.heroDscrSub': '2028–2036 · Grâce se termine en 2028, DS complet dès 2029 · Covenant ≥1,25× · Confort ≥1,5×',
-  'bank.dscrChartSub': '[FR] 2029 est la première année de plein amortissement — la franchise se termine en 2028. Les objectifs de revenus 2028–2029 sont fixés de manière conservatrice en dessous des données actuelles de Villa Lev.', // [NEEDS NATIVE REVIEW]
-  'bank.allPathsChartSub': '[FR] 2029 est la première année de plein amortissement — la franchise se termine en 2028. Les objectifs de revenus 2028–2029 sont fixés de manière conservatrice en dessous des données actuelles de Villa Lev.', // [NEEDS NATIVE REVIEW]
-  'bank.revenueEbitdaSub': '[FR] Montée 2028–2029 : modélisée en dessous des données actuelles de Villa Lev et en dessous des moyennes du marché grec pour les suites comparables.', // [NEEDS NATIVE REVIEW]
-  'bank.stabilisedOpsSub': '[FR] Année stabilisée 2031 — après la montée en charge et le premier cycle complet d\'amortissement.', // [NEEDS NATIVE REVIEW]
-  'bank.heroKpiDscrSub': '[FR] Stabilisé (2031+) · Covenant ≥1,25×', // [NEEDS NATIVE REVIEW]
-  'bank.pnlFooterNote': '[FR] Plancher covenant DSCR 1,25× · Vert ≥1,25× OK, orange 1,00–1,25×, rouge <1,00×. Événements et annexes affichés nets de coûts. 2029 : première année de service complet capital + intérêts après 2 ans de franchise.', // [NEEDS NATIVE REVIEW]
+  'dash.heroDscr': 'Trajectoire DSCR — Tous les Chemins de Financement',
+  'dash.heroDscrSub': '2028–2036 · Franchise se termine en 2028 · Service de la dette complet dès 2029 · Covenant ≥1,25× · Confort ≥1,5×',
+  'bank.dscrChartSub': '2029 est la première année de remboursement intégral du capital — la période de grâce prend fin en 2028. Les objectifs de revenus 2028–2029 sont fixés prudemment en deçà des réalisations actuelles de Villa Lev, qui dépassent déjà nos projections stabilisées.',
+  'bank.allPathsChartSub': '2029 est la première année de remboursement intégral du capital — la période de grâce prend fin en 2028. Les objectifs de revenus 2028–2029 sont fixés prudemment en deçà des réalisations actuelles de Villa Lev, qui dépassent déjà nos projections stabilisées.',
+  'bank.revenueEbitdaSub': 'Montée en charge 2028–2029 : modélisée en deçà des réalisations actuelles de Villa Lev et des moyennes du marché grec pour les suites comparables. La marge de prudence est délibérée — voir le track record ci-dessus.',
+  'bank.stabilisedOpsSub': 'Année de stabilisation 2031 — après la montée en charge et le premier cycle complet de remboursement.',
+  'bank.heroKpiDscrSub': 'Stabilisé 2031+ · Plancher covenant 1,25×',
+  'bank.pnlFooterNote': 'Plancher covenant RCSD 1,25× · Vert ≥1,25× conforme, orange 1,00–1,25×, rouge <1,00×. Événements et revenus annexes présentés nets de charges. 2029 : première année de service complet de la dette (capital + intérêts) après 2 ans de différé d\'amortissement. Les revenus de la phase de montée sont modélisés en deçà des performances actuelles de Villa Lev — les chiffres stabilisés 2031+ les dépassent.',
 
   // BankControlBar
   'bank.bar.commercial': 'Commercial',
