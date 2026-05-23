@@ -6,7 +6,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { BankStressTest } from "@/components/BankStressTest";
-import { resolvePortfolio, BUILT_IN_TEMPLATES } from "@/lib/engine/defaults";
+import { resolvePortfolio } from "@/lib/engine/defaults";
 import BankControlBar from "@/components/BankControlBar";
 import {
   BarChart,
@@ -47,6 +47,7 @@ export default function BankPage() {
     waterfall,
     financingPathOverride,
     setFinancingPathOverride,
+    templates,
   } = useModelStore();
 
   if (!model) return (
@@ -118,10 +119,9 @@ export default function BankPage() {
   const propertyExitDominates = activeScenarioOutput.propertyExitDominates;
 
   // Resolve full portfolio so "About the project" shows exact unit counts and m².
-  // Uses BUILT_IN_TEMPLATES as the source; custom templates stored only in the
-  // store would require a store read — keep it simple since the built-in templates
-  // are the ones actively used in the default model config.
-  const portfolio = resolvePortfolio(BUILT_IN_TEMPLATES, projects);
+  // Uses the store's templates (includes custom) so all 4 plots — including the
+  // 11-suite custom template — are reflected correctly.
+  const portfolio = resolvePortfolio(templates, projects);
   const totalPlots = portfolio.reduce((s, p) => s + p.count, 0);
   const totalVillas = portfolio.reduce((s, p) => s + p.count * p.villaUnits, 0);
   const totalStdSuites = portfolio.reduce((s, p) => s + p.count * p.standardSuites, 0);
@@ -201,7 +201,16 @@ export default function BankPage() {
               <><span className="font-semibold text-text-primary">{totalSuites} boutique hotel suite{totalSuites > 1 ? "s" : ""}</span></>
             )}
             {" "}under a single branded hospitality concept.
-            The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live today and provides the operating track record for all projections in this package.
+            The anchor asset —{" "}
+            <a
+              href="https://www.airbnb.com/rooms/49627193?guests=1&adults=1&s=67&unique_share_id=20f5564b-2002-4925-a2c1-17be7c330dea"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
+            >
+              Villa Lev Antiparos
+            </a>{" "}
+            — is live today and provides the operating track record for all projections in this package.
           </p>
 
           {/* Per-plot portfolio breakdown */}
