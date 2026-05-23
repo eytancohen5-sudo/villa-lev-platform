@@ -441,6 +441,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Executive summary + presentation link */}
+      <div className="rounded-2xl border border-surface-tertiary bg-white shadow-sm p-6 mb-6">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3">About the project</h2>
+        <p className="text-sm text-text-secondary leading-relaxed max-w-3xl">
+          <span className="font-semibold text-text-primary">Villa Lev Group</span> is a boutique hospitality operator based on Antiparos, Greece, developing a portfolio of premium villa-style properties under a unified brand. The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live and generating revenue today, providing a real operating track record for all projections in this platform. The Group expansion model replicates the proven formula across additional curated properties in the Cyclades, targeting the mid-to-premium villa rental segment with ancillary services (events, experiences, brand licensing).
+        </p>
+        <div className="mt-4 flex items-center gap-3">
+          <a
+            href="/presentation"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100 transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M2 2h6.5L12 5.5V12H2V2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+              <path d="M8 2v4h4" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+            </svg>
+            Full Presentation
+          </a>
+          <span className="text-xs text-text-tertiary">VillaLevGroup_Presentation_v6 — confidential</span>
+        </div>
+      </div>
+
       {/* LiveTrackRecord — banker proof, lifted ABOVE the Headline KPI grid so
           the first thing under the Term Sheet is the real-villa track record,
           not modeled figures. Used to sit inside the Conservatism Check

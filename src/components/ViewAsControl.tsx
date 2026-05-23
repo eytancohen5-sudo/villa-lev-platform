@@ -15,10 +15,8 @@ import {
 } from "@/lib/data/useEffectiveAuth";
 
 const OPTIONS: { value: ImpersonationTarget | null; label: string }[] = [
-  { value: null, label: "View as Admin (default)" },
-  { value: "editor", label: "View as Editor" },
-  { value: "viewer", label: "View as Viewer" },
-  { value: "banker", label: "View as Banker (public)" },
+  { value: null, label: "View as Admin" },
+  { value: "banker", label: "View as Banker" },
 ];
 
 function currentLabel(

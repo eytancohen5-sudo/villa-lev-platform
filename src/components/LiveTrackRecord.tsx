@@ -120,7 +120,7 @@ const LR: Record<
 > = {
   en: {
     header: "Conservatism evidence · Antiparos",
-    yourTrackRecord: "Two independent benchmarks — live villa performance and the 2025 market study — confirm our model is deliberately conservative.",
+    yourTrackRecord: "Two independent benchmarks — live villa performance and the market study — confirm our model is deliberately conservative.",
     ytdRevenue: "YTD revenue",
     occupancy: "Occupancy",
     adr: "ADR (net)",
@@ -152,15 +152,15 @@ const LR: Record<
     villaADR: "Villa ADR",
     villaOccupancy: "Villa occupancy",
     villaRevPAR: "Villa RevPAR",
-    cushionHeader: "Live villa vs model assumptions",
-    cushionSub: "Stabilised-year projections (2031) vs what the existing single villa delivers today. A positive cushion means the model assumes less than live reality.",
+    cushionHeader: "Villa · existing property",
+    cushionSub: "Stabilised projections (2031) vs today's live villa. A positive cushion means the model assumes less than live reality.",
     history: "History · existing villa",
     historyYear: "Year",
     historyTotal: "Booking revenue",
     historyYoY: "YoY",
-    marketHeader: "Market position · Paros + Antiparos",
+    marketHeader: "Hotel rooms · Paros + Antiparos",
     marketSub:
-      "BP per-night rates vs the 2025 Greek Islands Hotel Market Study, tier-matched and 50/50 HIGH/MED season-blended. Villa tier omitted — Villa Lev's own actuals above are the comparable.",
+      "BP per-night rates vs the Greek Islands Hotel Market Study, tier-matched and 50/50 HIGH/MED season-blended. Villa tier omitted — Villa Lev's own actuals above are the comparable.",
     marketBP: "BP",
     market: "Market",
     marketStandardSuite: "Standard suite",
@@ -170,15 +170,15 @@ const LR: Record<
     marketAbove: "Above market",
     marketOnPar: "On par",
     marketStatusFresh: "2026 capture · {n} hotels",
-    marketStatusBackstop: "2025 backstop",
+    marketStatusBackstop: "Market study",
     marketFootnoteFresh: "Fresh data: live 2026 medians from {n} captured Paros + Antiparos hotels.",
     marketFootnoteBackstop:
-      "Source: 2025 Greek Islands Hotel Market Study — pre-computed Basic / Premium tier averages across the Cyclades comparable set. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
+      "Source: Greek Islands Hotel Market Study — pre-computed Basic / Premium tier averages across the Cyclades comparable set. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
     marketSeeComparables: "See the {n} comparables →",
   },
   fr: {
     header: "Preuve de prudence · Antiparos",
-    yourTrackRecord: "Deux référentiels indépendants — performance réelle de la villa et étude de marché 2025 — confirment que notre modèle est délibérément conservateur.",
+    yourTrackRecord: "Deux référentiels indépendants — performance réelle de la villa et étude de marché — confirment que notre modèle est délibérément conservateur.",
     ytdRevenue: "CA YTD",
     occupancy: "Occupation",
     adr: "ADR (net)",
@@ -210,15 +210,15 @@ const LR: Record<
     villaADR: "ADR villa",
     villaOccupancy: "Occupation villa",
     villaRevPAR: "RevPAR villa",
-    cushionHeader: "Villa réelle vs hypothèses du modèle",
-    cushionSub: "Projections stabilisées (2031) vs ce que la villa existante réalise aujourd'hui. Un coussin positif signifie que le modèle suppose moins que la réalité.",
+    cushionHeader: "Villa · bien existant",
+    cushionSub: "Projections stabilisées (2031) vs la villa réelle aujourd'hui. Un coussin positif signifie que le modèle suppose moins que la réalité.",
     history: "Historique · villa existante",
     historyYear: "Année",
     historyTotal: "Revenus locatifs",
     historyYoY: "YoY",
-    marketHeader: "Position marché · Paros + Antiparos",
+    marketHeader: "Chambres · Paros + Antiparos",
     marketSub:
-      "Tarifs nuit BP vs l'étude de marché 2025 des hôtels des îles grecques, par catégorie et lissés saison (50/50 HAUTE/MOY). Catégorie villa omise — les chiffres réels de Villa Lev ci-dessus sont le comparable.",
+      "Tarifs nuit BP vs l'étude de marché des hôtels des îles grecques, par catégorie et lissés saison (50/50 HAUTE/MOY). Catégorie villa omise — les chiffres réels de Villa Lev ci-dessus sont le comparable.",
     marketBP: "BP",
     market: "Marché",
     marketStandardSuite: "Suite standard",
@@ -228,16 +228,16 @@ const LR: Record<
     marketAbove: "Au-dessus du marché",
     marketOnPar: "Au niveau",
     marketStatusFresh: "Relevé 2026 · {n} hôtels",
-    marketStatusBackstop: "Référence 2025",
+    marketStatusBackstop: "Étude de marché",
     marketFootnoteFresh:
       "Données fraîches : médianes 2026 sur {n} hôtels relevés à Paros + Antiparos.",
     marketFootnoteBackstop:
-      "Source : étude de marché 2025 des hôtels des îles grecques — moyennes pré-calculées des catégories Basic / Premium sur l'ensemble comparable des Cyclades. Mélange saisonnier opérationnel HAUTE (juil-août) et MOY (mai-juin, sept).",
+      "Source : étude de marché des hôtels des îles grecques — moyennes pré-calculées des catégories Basic / Premium sur l'ensemble comparable des Cyclades. Mélange saisonnier opérationnel HAUTE (juil-août) et MOY (mai-juin, sept).",
     marketSeeComparables: "Voir les {n} comparables →",
   },
   el: {
     header: "Τεκμήρια συντηρητισμού · Αντίπαρος",
-    yourTrackRecord: "Δύο ανεξάρτητα σημεία αναφοράς — πραγματική απόδοση βίλας και μελέτη αγοράς 2025 — επιβεβαιώνουν ότι το μοντέλο μας είναι σκόπιμα συντηρητικό.",
+    yourTrackRecord: "Δύο ανεξάρτητα σημεία αναφοράς — πραγματική απόδοση βίλας και μελέτη αγοράς — επιβεβαιώνουν ότι το μοντέλο μας είναι σκόπιμα συντηρητικό.",
     ytdRevenue: "Έσοδα YTD",
     occupancy: "Πληρότητα",
     adr: "ADR (καθαρό)",
@@ -269,15 +269,15 @@ const LR: Record<
     villaADR: "ADR βίλας",
     villaOccupancy: "Πληρότητα βίλας",
     villaRevPAR: "RevPAR βίλας",
-    cushionHeader: "Πραγματική βίλα vs παραδοχές μοντέλου",
-    cushionSub: "Σταθεροποιημένες προβολές (2031) vs αυτό που η υπάρχουσα βίλα αποδίδει σήμερα. Θετικό «μαξιλάρι» σημαίνει ότι το μοντέλο παραδέχεται λιγότερα από την πραγματικότητα.",
+    cushionHeader: "Βίλα · υπάρχον ακίνητο",
+    cushionSub: "Σταθεροποιημένες προβολές (2031) vs τη βίλα σήμερα. Θετικό «μαξιλάρι» σημαίνει ότι το μοντέλο παραδέχεται λιγότερα από την πραγματικότητα.",
     history: "Ιστορικό · υπάρχουσα βίλα",
     historyYear: "Έτος",
     historyTotal: "Έσοδα κρατήσεων",
     historyYoY: "YoY",
-    marketHeader: "Θέση αγοράς · Πάρος + Αντίπαρος",
+    marketHeader: "Δωμάτια ξενοδοχείου · Πάρος + Αντίπαρος",
     marketSub:
-      "Τιμές BP ανά διανυκτέρευση έναντι της Μελέτης Αγοράς Ξενοδοχείων Ελληνικών Νησιών 2025, ανά κατηγορία και με 50/50 HIGH/MED σταθμίσεις. Η κατηγορία βίλας παραλείπεται — τα πραγματικά νούμερα της Villa Lev παραπάνω είναι το συγκρίσιμο.",
+      "Τιμές BP ανά διανυκτέρευση έναντι της Μελέτης Αγοράς Ξενοδοχείων Ελληνικών Νησιών, ανά κατηγορία και με 50/50 HIGH/MED σταθμίσεις. Η κατηγορία βίλας παραλείπεται — τα πραγματικά νούμερα της Villa Lev παραπάνω είναι το συγκρίσιμο.",
     marketBP: "BP",
     market: "Αγορά",
     marketStandardSuite: "Σουίτα standard",
@@ -287,16 +287,16 @@ const LR: Record<
     marketAbove: "Πάνω από την αγορά",
     marketOnPar: "Στο επίπεδο",
     marketStatusFresh: "Καταγραφή 2026 · {n} ξενοδοχεία",
-    marketStatusBackstop: "Backstop 2025",
+    marketStatusBackstop: "Μελέτη αγοράς",
     marketFootnoteFresh:
       "Φρέσκα δεδομένα: διάμεσοι 2026 από {n} ξενοδοχεία Πάρου + Αντιπάρου.",
     marketFootnoteBackstop:
-      "Πηγή: Μελέτη Αγοράς Ξενοδοχείων Ελληνικών Νησιών 2025 — προ-υπολογισμένοι μέσοι όροι Basic / Premium στο συγκρίσιμο σύνολο των Κυκλάδων. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
+      "Πηγή: Μελέτη Αγοράς Ξενοδοχείων Ελληνικών Νησιών — προ-υπολογισμένοι μέσοι όροι Basic / Premium στο συγκρίσιμο σύνολο των Κυκλάδων. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
     marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
   },
   he: {
     header: "עדות שמרנות · אנטיפרוס",
-    yourTrackRecord: "שני אמות מידה עצמאיות — ביצועי הוילה בפועל ומחקר שוק 2025 — מאשרים שהמודל שלנו שמרני במכוון.",
+    yourTrackRecord: "שני אמות מידה עצמאיות — ביצועי הוילה בפועל ומחקר שוק — מאשרים שהמודל שלנו שמרני במכוון.",
     ytdRevenue: "הכנסות YTD",
     occupancy: "תפוסה",
     adr: "ADR (נטו)",
@@ -328,15 +328,15 @@ const LR: Record<
     villaADR: "ADR וילה",
     villaOccupancy: "תפוסת וילה",
     villaRevPAR: "RevPAR וילה",
-    cushionHeader: "וילה בפועל vs הנחות המודל",
-    cushionSub: "תחזיות מיוצבות (2031) מול מה שהוילה הקיימת מספקת היום. כרית חיובית מעידה שהמודל מניח פחות מהמציאות.",
+    cushionHeader: "וילה · נכס קיים",
+    cushionSub: "תחזיות מיוצבות (2031) מול הוילה כיום. כרית חיובית מעידה שהמודל מניח פחות מהמציאות.",
     history: "היסטוריה · וילה קיימת",
     historyYear: "שנה",
     historyTotal: "הכנסות מהזמנות",
     historyYoY: "YoY",
-    marketHeader: "מיקום בשוק · פרוס + אנטיפרוס",
+    marketHeader: "חדרי מלון · פרוס + אנטיפרוס",
     marketSub:
-      "מחירי לילה של BP מול מחקר שוק מלונות האיים היווניים 2025, התאמת קטגוריה וממוצע עונתי 50/50 (HIGH/MED). קטגוריית וילה הושמטה — הנתונים בפועל של Villa Lev למעלה הם ההשוואה.",
+      "מחירי לילה של BP מול מחקר שוק מלונות האיים היווניים, התאמת קטגוריה וממוצע עונתי 50/50 (HIGH/MED). קטגוריית וילה הושמטה — הנתונים בפועל של Villa Lev למעלה הם ההשוואה.",
     marketBP: "BP",
     market: "שוק",
     marketStandardSuite: "סוויטה סטנדרטית",
@@ -346,11 +346,11 @@ const LR: Record<
     marketAbove: "מעל השוק",
     marketOnPar: "ברמת השוק",
     marketStatusFresh: "איסוף 2026 · {n} מלונות",
-    marketStatusBackstop: "גיבוי 2025",
+    marketStatusBackstop: "מחקר שוק",
     marketFootnoteFresh:
       "נתונים טריים: חציוני 2026 מ-{n} מלונות שנאספו בפרוס + אנטיפרוס.",
     marketFootnoteBackstop:
-      "מקור: מחקר שוק מלונות האיים היווניים 2025 — ממוצעי קטגוריות Basic / Premium מחושבים מראש על פני סט המשווים בקיקלאדס. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
+      "מקור: מחקר שוק מלונות האיים היווניים — ממוצעי קטגוריות Basic / Premium מחושבים מראש על פני סט המשווים בקיקלאדס. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
     marketSeeComparables: "ראו את {n} המשווים →",
   },
 };
@@ -682,6 +682,13 @@ export function LiveTrackRecord({
   const averageGapRounded = Math.round(averageGap * 200) / 200;
   const averageGapPct = Math.round(averageGapRounded * 1000) / 10; // one decimal
 
+  // Average delta across visible market rows (negative = BP below market = conservative).
+  const marketAvgDelta =
+    visibleMarketRows.length > 0
+      ? visibleMarketRows.reduce((sum, r) => sum + r.deltaPct, 0) / visibleMarketRows.length
+      : 0;
+  const marketAvgDeltaPct = Math.round((Math.round(marketAvgDelta * 200) / 200) * 1000) / 10;
+
   // ── Years to stabilisation ──
   // Uses the existing useSyncExternalStore Now pattern (see `nowMs` above).
   // SSR / static-export: nowMs===0 → fall back to the season year so the
@@ -760,7 +767,7 @@ export function LiveTrackRecord({
               {lr.header}
             </h2>
           </div>
-          <p className="text-xs md:text-sm text-text-secondary max-w-2xl leading-snug">
+          <p className="text-sm md:text-base font-medium text-text-primary max-w-2xl leading-snug">
             {lr.yourTrackRecord}
           </p>
         </div>
@@ -774,31 +781,42 @@ export function LiveTrackRecord({
         )}
       </header>
 
-      {/* ── Headline conservatism statement ──
-          One sentence that frames the whole section: "stabilised projections
-          sit X% below today's live performance — that gap is the cushion."
-          Tokens are spliced in with String#replace so we don't drag a full
-          i18n template runtime into this component. */}
+      {/* ── Headline conservatism statement ── */}
       {!loading && (
-        <p className="text-sm md:text-base text-text-primary leading-relaxed max-w-3xl mb-5">
-          {(() => {
-            const tmpl = lr.headlineConservatism;
-            const gapDisplay =
-              averageGapPct > 0 ? `${averageGapPct}` : `${Math.abs(averageGapPct)}`;
-            return tmpl
-              .replace("{year}", String(STABILISED_YEAR))
-              .replace("{years}", String(yearsToStabilisation))
-              .replace("{gap}", gapDisplay);
-          })()}
-        </p>
+        <div className="rounded-xl bg-brand-50/80 border-l-[3px] border-brand-400 px-4 py-3 mb-5">
+          <p className="text-sm md:text-base font-medium text-text-primary leading-relaxed max-w-3xl">
+            {(() => {
+              const tmpl = lr.headlineConservatism;
+              const gapDisplay =
+                averageGapPct > 0 ? `${averageGapPct}` : `${Math.abs(averageGapPct)}`;
+              return tmpl
+                .replace("{year}", String(STABILISED_YEAR))
+                .replace("{years}", String(yearsToStabilisation))
+                .replace("{gap}", gapDisplay);
+            })()}
+          </p>
+        </div>
       )}
 
-      {/* ── Section 1 header — parallel to the Market Position header below ── */}
+      {/* ── Section 1 header ── */}
       {!loading && (
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-            {lr.cushionHeader}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+              {lr.cushionHeader}
+            </h3>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
+                Math.abs(averageGapPct) < 0.5
+                  ? "bg-surface-secondary text-text-tertiary"
+                  : averageGapPct > 0
+                    ? "bg-positive/15 text-positive"
+                    : "bg-warning/15 text-warning"
+              }`}
+            >
+              {averageGapPct > 0 ? "+" : ""}{averageGapPct.toFixed(1)}%
+            </span>
+          </div>
           <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
             {lr.cushionSub}
           </p>
@@ -866,9 +884,22 @@ export function LiveTrackRecord({
       {!loading && (
         <div className="mb-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-              {lr.marketHeader}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+                {lr.marketHeader}
+              </h3>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
+                  Math.abs(marketAvgDeltaPct) < 0.5
+                    ? "bg-surface-secondary text-text-tertiary"
+                    : marketAvgDeltaPct < 0
+                      ? "bg-positive/15 text-positive"
+                      : "bg-warning/15 text-warning"
+                }`}
+              >
+                {marketAvgDeltaPct > 0 ? "+" : ""}{marketAvgDeltaPct.toFixed(1)}%
+              </span>
+            </div>
             <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
               {lr.marketSub}
             </p>

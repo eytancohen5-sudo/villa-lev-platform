@@ -10,6 +10,7 @@
 
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 
 function labelFor(role: string | null | undefined): string {
@@ -23,6 +24,8 @@ function labelFor(role: string | null | undefined): string {
 export function ImpersonationBanner() {
   const { isImpersonating, effectiveRole, setImpersonation, loading } =
     useEffectiveAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // No flash: while loading, render nothing. An actual unauthenticated
   // visitor never satisfies isImpersonating, so they never see this.
@@ -45,7 +48,10 @@ export function ImpersonationBanner() {
       </span>
       <button
         type="button"
-        onClick={() => setImpersonation(null)}
+        onClick={() => {
+          setImpersonation(null);
+          if (!pathname.startsWith("/admin")) router.push("/admin");
+        }}
         className="px-2.5 py-1 rounded-md bg-amber-200 hover:bg-amber-300 text-amber-900 font-medium uppercase tracking-wider text-[10px] transition-colors"
       >
         Exit →

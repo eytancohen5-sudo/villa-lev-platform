@@ -4,7 +4,6 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
-import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { BankStressTest } from "@/components/BankStressTest";
 import BankControlBar from "@/components/BankControlBar";
@@ -147,7 +146,30 @@ export default function BankPage() {
           </p>
         </div>
 
-        {/* 2. Term Sheet — The Ask */}
+        {/* 2. Executive Summary */}
+        <div className="rounded-2xl border border-surface-tertiary bg-white shadow-sm p-6 mb-8 print:mb-4 print:border-0 print:shadow-none print:p-0">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3">About the project</h2>
+          <p className="text-sm text-text-secondary leading-relaxed max-w-3xl">
+            <span className="font-semibold text-text-primary">Villa Lev Group</span> is a boutique hospitality operator based on Antiparos, Greece, developing a portfolio of premium villa-style properties under a unified brand. The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live and generating revenue today, providing a real operating track record for all projections in this package. The Group expansion model replicates the proven formula across additional curated properties in the Cyclades, targeting the mid-to-premium villa rental segment with ancillary services (events, experiences, brand licensing).
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <a
+              href="/presentation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M2 2h6.5L12 5.5V12H2V2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+                <path d="M8 2v4h4" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
+              </svg>
+              Full Presentation
+            </a>
+            <span className="text-xs text-text-tertiary">VillaLevGroup_Presentation_v6.docx — confidential</span>
+          </div>
+        </div>
+
+        {/* 3. Term Sheet — The Ask */}
         {(() => {
           const rate =
             activePath === "tepix-loan"
@@ -537,15 +559,7 @@ export default function BankPage() {
           <BankPnLSection />
         </div>
 
-        {/* 15. Market Position / Conservatism */}
-        <div className="mb-10 print:hidden">
-          <ConservatismTriangle
-            bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
-            bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
-          />
-        </div>
-
-        {/* 16. Footer */}
+        {/* 15. Footer */}
         <div className="text-center py-8 border-t border-surface-tertiary">
           <p className="text-xs text-text-tertiary">
             {t('app.title')} &middot; Agios Georgios, Antiparos, Greece &middot; {t('app.confidential')}

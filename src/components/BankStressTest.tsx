@@ -45,7 +45,7 @@ function formatDisplay(val: number, type: InputDef["type"]): string {
 
 export function BankStressTest() {
   const { t } = useTranslation();
-  const { assumptions, setAssumption, resetToDefaults } = useModelStore();
+  const { assumptions, setAssumption } = useModelStore();
   const [open, setOpen] = useState(true);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
@@ -87,7 +87,7 @@ export function BankStressTest() {
 
   const baseValue = (inp: InputDef): string => {
     const v = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
-    return typeof v === "number" ? formatDisplay(v, inp.type) : "—";
+    return typeof v === "number" ? formatDisplay(v as number, inp.type) : "—";
   };
 
   return (
@@ -164,7 +164,10 @@ export function BankStressTest() {
               <button
                 onClick={() => {
                   setLocalValues({});
-                  resetToDefaults();
+                  INPUTS.forEach((inp) => {
+                    const v = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
+                    if (typeof v === "number") setAssumption(inp.path, v, inp.historyLabel);
+                  });
                 }}
                 className="px-4 py-2 rounded-xl border border-negative/40 text-negative text-sm font-medium hover:bg-negative/5 transition-colors"
               >

@@ -83,13 +83,18 @@ export interface CapTableStakeholder {
   // entries deserialise without TS errors.
   isCoInvest?: boolean;
   notes?: string;
+  // When true, cashIn is derived at render time as
+  //   max(0, equityRequired − Σ(other stakeholders' cashIn))
+  // so the cap table always sums to the model's equity requirement.
+  // The page resolves this before calling computeCapTable; the stored
+  // cashIn is a stale hint only.
+  autoBalance?: boolean;
 }
 
-// New 3-layer model has no user-tunable knobs — the rules are deal terms.
-// `grantApproved` is derived from `assumptions.financingPath === 'grant'`;
-// `founderCash` lives on the founder stakeholder's `cashIn`. The interface
-// stays for forward-compat with future inputs (e.g. vesting schedules).
 export interface WaterfallParams {
+  // Developer/promote equity granted at inception (configurable, default 25%).
+  // Applied to operating distributions only; exit reverts to pari-passu.
+  developerEquityPct?: number;
   // Reserved. Legacy `promoterEquityRate`, `preferredReturnRate`,
   // `ppShareAbovePref`, `coInvestRepaymentYear` are ignored.
   reserved?: never;
@@ -97,10 +102,14 @@ export interface WaterfallParams {
 
 export interface StakeholderYearDistribution {
   year: number;
-  // For the founder this splits the total into its layers (pari-passu /
-  // grant bonus / performance ratchet — the latter two = founder's
-  // "earned" share). For investors only `investorDistribution` is non-zero.
+  // For the founder this splits the total into its layers:
+  //   pariPassuShare         — exit pari-passu + any ops pari-passu above dev equity
+  //   developerEquityShare   — developer/promote equity (operations only)
+  //   grantBonusShare        — Layer B grant bonus (operations only)
+  //   performanceRatchetShare— Layer C ratchet (operations only)
+  // For investors only `investorDistribution` is non-zero.
   pariPassuShare: number;
+  developerEquityShare: number;
   grantBonusShare: number;
   performanceRatchetShare: number;
   investorDistribution: number;
@@ -155,7 +164,6 @@ export function computeCapTable(
   _params: WaterfallParams,
   options?: { grantApproved?: boolean } & ResolveOptions,
 ): CapTableResult {
-  void _params; // no-op under new model; param kept for call-site compatibility
   const founder = stakeholders.find((s) => s.isPromoter);
   const founderCash = founder?.cashIn ?? 0;
   const totalEquity = stakeholders.reduce((s, sh) => s + sh.cashIn, 0);
@@ -175,6 +183,7 @@ export function computeCapTable(
       bankLoanAmount: options?.bankLoanAmount,
       founderManCoFeeRate: options?.founderManCoFeeRate,
       loanDisbursementYear: options?.loanDisbursementYear,
+      developerEquityPct: _params.developerEquityPct,
     },
   );
   const b = resolved.breakdown;
@@ -192,33 +201,29 @@ export function computeCapTable(
   let projectDistributable = 0;
   resolved.yearly.forEach((y) => {
     projectDistributable += y.totalDistribution;
-    const founderYearly = y.totalDistribution * b.founderTotalPct;
-    // Split the founder's bucket into the 3 layers (proportional to the
-    // post-cap allocation; sums to founderYearly).
-    const founderPP = y.totalDistribution * b.pariPassuPct;
-    // After caps, earned = founderTotal - pariPassu (since total = pp + earned,
-    // pari-passu is preserved). Allocate earned between grant_bonus and
-    // performance_ratchet proportionally to their pre-cap values when possible.
-    const earnedNet = Math.max(0, b.founderTotalPct - b.pariPassuPct);
-    const earnedTotalRaw = b.grantBonusPct + b.performanceRatchetPct;
-    let grantPortion: number;
-    let ratchetPortion: number;
-    if (earnedTotalRaw > 0) {
-      grantPortion = (b.grantBonusPct / earnedTotalRaw) * earnedNet;
-      ratchetPortion = (b.performanceRatchetPct / earnedTotalRaw) * earnedNet;
-    } else {
-      grantPortion = 0;
-      ratchetPortion = 0;
-    }
-    const founderGrant = y.totalDistribution * grantPortion;
-    const founderRatchet = y.totalDistribution * ratchetPortion;
+
+    // ── Founder layer split ──────────────────────────────────────────
+    // Use y.founderShare (correctly split by operating vs exit rates) as
+    // the canonical total to avoid double-counting the developer equity gap.
+    const total = y.founderShare;
+
+    const opShare = y.operatingDistribution;
+    const exitShare = y.exitDistribution;
+
+    // Developer equity and pari-passu are ADDITIVE — two distinct entitlements
+    // that both apply to operations and exit. Only the ratchet is exit-excluded.
+    const founderDevEq = (opShare + exitShare) * b.developerEquityPct;
+    const founderPP    = (opShare + exitShare) * b.pariPassuPct;
+    const founderGrant = (opShare + exitShare) * b.grantBonusPct;
+    // Ratchet: operations ONLY — excluded from exit/sale proceeds.
+    const founderRatchet = opShare * b.performanceRatchetPct;
 
     stakeholders.forEach((sh) => {
       if (sh.isPromoter) {
-        const total = founderPP + founderGrant + founderRatchet;
         yearlyByStakeholder[sh.id].push({
           year: y.year,
           pariPassuShare: founderPP,
+          developerEquityShare: founderDevEq,
           grantBonusShare: founderGrant,
           performanceRatchetShare: founderRatchet,
           investorDistribution: 0,
@@ -230,6 +235,7 @@ export function computeCapTable(
         yearlyByStakeholder[sh.id].push({
           year: y.year,
           pariPassuShare: 0,
+          developerEquityShare: 0,
           grantBonusShare: 0,
           performanceRatchetShare: 0,
           investorDistribution: inv,
@@ -238,10 +244,6 @@ export function computeCapTable(
       }
     });
 
-    // Sanity: numerical drift from splitting earned into 2 layers can leave
-    // a few cents on the table; we don't carry it forward, the founder bucket
-    // is already correctly sized via founderShare in the resolved yearly.
-    void founderYearly;
   });
 
   // Build per-stakeholder summaries.
@@ -328,6 +330,15 @@ export const DEFAULT_CAP_TABLE: CapTableStakeholder[] = [
     name: 'Friends & Family',
     cashIn: 185000,
   },
+  {
+    id: 'equity-balance',
+    name: 'Equity Investor',
+    cashIn: 0,
+    autoBalance: true,
+    notes: 'Auto-fills remaining equity gap — cashIn = equityRequired − Σ others',
+  },
 ];
 
-export const DEFAULT_WATERFALL: WaterfallParams = {};
+export const DEFAULT_WATERFALL: WaterfallParams = {
+  developerEquityPct: 0.25,
+};

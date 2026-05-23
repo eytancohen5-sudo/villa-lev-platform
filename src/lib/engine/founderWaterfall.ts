@@ -104,10 +104,19 @@ export interface FounderStakeInput {
   // Iterative IRR/MOIC for tier selection (Layer C).
   investorIRR: number;
   investorMOIC: number;
+  // Developer/promote equity granted at inception (separate from cash).
+  // Compensates the developer for sourcing, construction management, and
+  // pledging collateral. ADDITIVE on top of pari-passu cash returns — the
+  // two are distinct entitlements that stack. Both apply to operating
+  // distributions AND exit proceeds. Only the ratchet (Layer C) is excluded
+  // from exit.
+  developerEquityPct?: number;
 }
 
 export interface FounderStakeBreakdown {
   pariPassuPct: number;
+  // Developer/promote equity granted at inception (from WaterfallParams).
+  developerEquityPct: number;
   // Derived from inputs. Tooltip on UI should show:
   //   founder_net_grant_cash / (post_grant_equity + founder_net_grant_cash)
   grantBonusPct: number;
@@ -115,6 +124,14 @@ export interface FounderStakeBreakdown {
   // grant_bonus + ratchet, with ratchet specifically reduced to honour the
   // earned cap (grant bonus is contractual; ratchet flexes).
   earnedPct: number;
+  // Founder % applied to OPERATING cash distributions.
+  // = max(pariPassu, developerEquity) + earnedPct, capped at 75%.
+  founderOperatingPct: number;
+  // Founder % applied to EXIT / sale proceeds.
+  // = max(pariPassu, developerEquity) + grantBonusPct, capped at 75%.
+  // The performance ratchet (Layer C) is the only component excluded from exit.
+  founderExitPct: number;
+  // Backward-compat alias for founderOperatingPct (used by existing UI/tests).
   founderTotalPct: number;
   investorTotalPct: number;
   capBinding: CapBinding;
@@ -231,27 +248,40 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   }
   let earned = Math.min(grantBonus + ratchet, EARNED_EQUITY_CAP);
 
-  // ── Total cap (75%) — reduce earned, preserve pari-passu ───────────
-  let total = pariPassu + earned;
-  if (total > TOTAL_FOUNDER_CAP + 1e-9) {
-    earned = Math.max(0, TOTAL_FOUNDER_CAP - pariPassu);
-    if (earned <= 0) {
-      // Founder cash alone exceeds 75% — pari-passu effectively clipped too
-      // (theoretical edge case; doesn't bind at sane equity raises).
-      earned = 0;
-    }
-    total = pariPassu + earned;
-    if (total > TOTAL_FOUNDER_CAP) total = TOTAL_FOUNDER_CAP;
+  // ── Developer equity (additive on top of pari-passu) ──────────────
+  // Developer equity (promote) and pari-passu (cash returns) are two
+  // separate entitlements — they stack, not substitute.
+  //   • pari-passu      = cash return proportional to cash invested
+  //   • developerEquity = promote for sourcing, construction, collateral
+  // Both apply to operations AND exit; only the ratchet is exit-excluded.
+  const developerEquity = input.developerEquityPct ?? 0;
+  const operationalBase = pariPassu + developerEquity;  // additive
+
+  // ── Total cap (75%) on OPERATING rate — reduce earned if needed ─────
+  let operatingTotal = operationalBase + earned;
+  if (operatingTotal > TOTAL_FOUNDER_CAP + 1e-9) {
+    earned = Math.max(0, TOTAL_FOUNDER_CAP - operationalBase);
+    if (earned < 0) earned = 0;
+    operatingTotal = operationalBase + earned;
+    if (operatingTotal > TOTAL_FOUNDER_CAP) operatingTotal = TOTAL_FOUNDER_CAP;
     cap = 'total_75';
   }
 
+  const founderOperatingPct = operatingTotal;
+  // Exit: developer equity + grant bonus apply, but NOT the ratchet.
+  // The ratchet is the only performance component excluded from sale proceeds.
+  const founderExitPct = Math.min(TOTAL_FOUNDER_CAP, operationalBase + grantBonus);
+
   return {
     pariPassuPct: pariPassu,
+    developerEquityPct: developerEquity,
     grantBonusPct: input.grantApproved ? grantBonus : 0,
     performanceRatchetPct: ratchet,
     earnedPct: earned,
-    founderTotalPct: total,
-    investorTotalPct: 1 - total,
+    founderOperatingPct,
+    founderExitPct,
+    founderTotalPct: founderOperatingPct,   // backward-compat alias
+    investorTotalPct: 1 - founderOperatingPct,
     capBinding: cap,
     ratchetTier: tier.id,
     ratchetTierLabel: tier.label,
@@ -314,6 +344,10 @@ function irrNewton(cashFlows: number[], guess = 0.1): number {
 export interface YearDistribution {
   year: number;
   totalDistribution: number;  // project cash distributable this year (post-fees)
+  // Operating vs exit split — used to apply different founder rates.
+  // operatingDistribution = post-fee NCF; exitDistribution = terminal equity (exit year only).
+  operatingDistribution: number;
+  exitDistribution: number;
   founderShare: number;       // founder equity share this year
   investorShare: number;      // total investor share this year
   // ── Per-year fee deductions (informational) ───────────────────────
@@ -390,14 +424,17 @@ export function buildDistributionStream(
     const ncfPreFees = Math.max(0, p.netCashFlowPostVAT);
     const manCoFee = Math.max(0, p.totalRevenue) * feeRate;
     const advisoryThisYear = advisoryPaymentYears.has(p.year) ? annualAdvisoryFee : 0;
-    let cash = ncfPreFees - manCoFee - advisoryThisYear;
-    if (isExit) cash += scenario.terminalEquityValue;
-    // Floor at zero so we never give the founder negative equity (manCoFee
-    // already absorbed by the founder via their ManCo entity).
-    cash = Math.max(0, cash);
+    // Operating component: post-fee NCF (floored at 0).
+    const operatingDistribution = Math.max(0, ncfPreFees - manCoFee - advisoryThisYear);
+    // Exit component: terminal equity value, added only at the exit year.
+    // Kept separate so the waterfall can apply the developer-equity rate to
+    // operating cash while using pari-passu only for the exit proceeds.
+    const exitDistribution = isExit ? Math.max(0, scenario.terminalEquityValue) : 0;
     return {
       year: p.year,
-      totalDistribution: cash,
+      totalDistribution: operatingDistribution + exitDistribution,
+      operatingDistribution,
+      exitDistribution,
       founderShare: 0,    // populated after waterfall resolves
       investorShare: 0,
       founderManCoFee: manCoFee,
@@ -423,6 +460,8 @@ export interface ResolveOptions {
   // Default: DEFAULT_GRANT_APPROVAL_YEAR + 1 (i.e., year after grant approval).
   loanDisbursementYear?: number;
   maxIterations?: number;
+  // Developer/promote equity granted at inception. See FounderStakeInput.
+  developerEquityPct?: number;
 }
 
 /**
@@ -468,6 +507,7 @@ export function resolveFounderWaterfall(
     projectAssetValue: options.projectAssetValue,
     bankLoanAmount: options.bankLoanAmount,
     loanDisbursementYear: disbursementYear,
+    developerEquityPct: options.developerEquityPct,
   };
 
   // Initial breakdown with ratchet = 0 (i.e. investor IRR = -∞ guess).
@@ -490,7 +530,13 @@ export function resolveFounderWaterfall(
 
   for (let i = 0; i < maxIterations; i++) {
     iterations = i + 1;
-    const investorYearly = stream.map((y) => y.totalDistribution * breakdown.investorTotalPct);
+    // Investors get: (1 − founderOperatingPct) of operating distributions
+    // and (1 − founderExitPct) of exit proceeds (devEq + grant, no ratchet at exit).
+    const investorYearly = stream.map((y) => {
+      const opInvestor = y.operatingDistribution * (1 - breakdown.founderOperatingPct);
+      const exitInvestor = y.exitDistribution * (1 - breakdown.founderExitPct);
+      return opInvestor + exitInvestor;
+    });
     const cfStream = [-totalNonFounderCash, ...investorYearly];
     investorIRR = totalNonFounderCash > 0 ? irrNewton(cfStream) : 0;
     const investorTotalReceived = investorYearly.reduce((s, v) => s + v, 0);
@@ -518,11 +564,13 @@ export function resolveFounderWaterfall(
     breakdown = nextBreakdown;
   }
 
-  const yearly: YearDistribution[] = stream.map((y) => ({
-    ...y,
-    founderShare: y.totalDistribution * breakdown.founderTotalPct,
-    investorShare: y.totalDistribution * breakdown.investorTotalPct,
-  }));
+  const yearly: YearDistribution[] = stream.map((y) => {
+    // Founder: developer equity + grant on both operations and exit; ratchet on operations only.
+    const founderShare =
+      y.operatingDistribution * breakdown.founderOperatingPct +
+      y.exitDistribution * breakdown.founderExitPct;
+    return { ...y, founderShare, investorShare: y.totalDistribution - founderShare };
+  });
 
   return {
     breakdown,
