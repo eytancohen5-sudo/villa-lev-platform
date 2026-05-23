@@ -100,7 +100,32 @@ export const el: TranslationDictionary = {
   'kpi.wcSelfLiqFail': 'Ένδειξη',
   'kpi.wcSelfLiqSub': 'Ελάχιστο ≤ 50K€ κάθε Σεπ',
   'dash.heroDscr': 'Τροχιά ΔΚΕΧ ανά οδό χρηματοδότησης',
-  'dash.heroDscrSub': '2028–2036 · ελάχιστο covenant 1,25× · άνεση 1,5×',
+  'dash.heroDscrSub': '2028–2036 · Περίοδος χάριτος λήγει 2028, πλήρης DS από 2029 · Covenant ≥1,25× · Άνεση ≥1,5×',
+  'bank.dscrChartSub': '[EL] 2029: πρώτο πλήρες έτος απόσβεσης — η περίοδος χάριτος λήγει το 2028. Οι στόχοι εσόδων 2028–2029 ορίζονται συντηρητικά κάτω από τα τρέχοντα πραγματικά μεγέθη της Villa Lev.', // [NEEDS NATIVE REVIEW]
+  'bank.allPathsChartSub': '[EL] 2029: πρώτο πλήρες έτος απόσβεσης — η περίοδος χάριτος λήγει το 2028. Οι στόχοι εσόδων 2028–2029 ορίζονται συντηρητικά κάτω από τα τρέχοντα πραγματικά μεγέθη της Villa Lev.', // [NEEDS NATIVE REVIEW]
+  'bank.revenueEbitdaSub': '[EL] Φάση εκκίνησης 2028–2029: μοντελοποιημένη κάτω από τα τρέχοντα πραγματικά μεγέθη Villa Lev και κάτω από τους μέσους όρους της ελληνικής αγοράς.', // [NEEDS NATIVE REVIEW]
+  'bank.stabilisedOpsSub': '[EL] Σταθεροποιημένο έτος 2031 — μετά την εκκίνηση και τον πρώτο πλήρη κύκλο απόσβεσης.', // [NEEDS NATIVE REVIEW]
+  'bank.heroKpiDscrSub': '[EL] Σταθεροποιημένο (2031+) · Covenant ≥1,25×', // [NEEDS NATIVE REVIEW]
+  'bank.pnlFooterNote': '[EL] Κατώφλι covenant ΔΚΕΧ 1,25× · Πράσινο ≥1,25× ΟΚ, πορτοκαλί 1,00–1,25×, κόκκινο <1,00×. 2029: πρώτο έτος πλήρους εξυπηρέτησης κεφαλαίου + τόκων μετά από 2 χρόνια χάριτος.', // [NEEDS NATIVE REVIEW]
+
+  // BankControlBar
+  'bank.bar.commercial': 'Εμπορική',
+  'bank.bar.rrf': 'ΤΑΑ',
+  'bank.bar.grant': 'Επιδότηση',
+  'bank.bar.tepix': 'ΤΕΠΙΧ',
+  'bank.bar.realistic': 'Ρεαλιστικό',
+  'bank.bar.upside': 'Αισιόδοξο',
+  'bank.bar.downside': 'Απαισιόδοξο',
+
+  // bank/page.tsx hero & section headings
+  'bank.hero.eyebrow': 'Αίτηση Χρηματοδότησης · Αντίπαρος, Ελλάδα',
+  'bank.section.repaymentCapacity': 'Ικανότητα Αποπληρωμής',
+  'bank.section.projectedRevenue': 'Προβλεπόμενα Έσοδα & EBITDA',
+  'bank.section.collateral': 'Εξασφαλίσεις & Κάλυψη Ενεργητικού',
+
+  // BankStressTest
+  'bank.stress.title': 'Έλεγχος Σεναρίων & Παραδοχών',
+  'bank.stress.description': 'Τροποποιήστε οποιαδήποτε παράμετρο — όλα τα γραφήματα και KPI ενημερώνονται άμεσα.',
   'dash.section.operating': 'Λειτουργική απόδοση',
   'dash.section.capital': 'Δομή κεφαλαίου',
   'dash.section.workingCapital': 'Κεφάλαιο κίνησης — αφήγημα πίστωσης',

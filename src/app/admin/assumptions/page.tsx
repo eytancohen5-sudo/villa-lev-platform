@@ -8,6 +8,8 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
 import { FinancingPath, PropertyTemplate, VillaRoom, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea } from "@/lib/engine/types";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { getDb } from "@/lib/firebase";
@@ -906,6 +908,7 @@ export default function AssumptionsPage() {
     editsSinceLastSave,
     savedConfigs,
   } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
     "portfolio" | "templates" | "general" | "revenue" | "opex" | "financing"
   >("portfolio");
@@ -997,20 +1000,23 @@ export default function AssumptionsPage() {
             {t('as.subtitle')}
           </p>
         </div>
-        <button
-          onClick={() => {
-            useModelStore.getState().requestConfirm({
-              title: 'Reset all assumptions to defaults?',
-              message: 'This cannot be undone. Your current edits to assumptions, templates, and projects will be lost. Saved scenarios are not affected — you can reload one from the Scenarios panel.',
-              confirmLabel: 'Reset everything',
-              danger: true,
-              onConfirm: resetToDefaults,
-            });
-          }}
-          className="text-sm text-text-tertiary hover:text-negative transition-colors"
-        >
-          {t('as.resetDefaults')}
-        </button>
+        <div className="flex items-center gap-3">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+          <button
+            onClick={() => {
+              useModelStore.getState().requestConfirm({
+                title: 'Reset all assumptions to defaults?',
+                message: 'This cannot be undone. Your current edits to assumptions, templates, and projects will be lost. Saved scenarios are not affected — you can reload one from the Scenarios panel.',
+                confirmLabel: 'Reset everything',
+                danger: true,
+                onConfirm: resetToDefaults,
+              });
+            }}
+            className="text-sm text-text-tertiary hover:text-negative transition-colors"
+          >
+            {t('as.resetDefaults')}
+          </button>
+        </div>
       </div>
 
       {/* Reference scenario banner — visible whenever the live state
@@ -1058,7 +1064,7 @@ export default function AssumptionsPage() {
       )}
 
       {/* Portfolio Summary Bar */}
-      <div className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
+      <div id="assumptions-portfolio-overview" className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-base text-text-primary">Portfolio Overview</h3>
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
@@ -1092,7 +1098,7 @@ export default function AssumptionsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-surface-secondary rounded-lg p-1">
+      <div id="assumptions-tabs" className="flex gap-1 mb-6 bg-surface-secondary rounded-lg p-1">
         {(
           [
             { id: "portfolio", label: "Portfolio" },
@@ -1317,8 +1323,7 @@ export default function AssumptionsPage() {
                   <AssumptionRow label={t('field.rrfRate')} value={a.rrf.rrfInterestRate} path="rrf.rrfInterestRate" format="percent" note="0.35% per annum" />
                   <AssumptionRow label={t('field.commShare')} value={a.rrf.commercialShareRate} path="rrf.commercialShareRate" format="percent" note="20% at commercial rate" />
                   <AssumptionRow label={t('field.commRate')} value={a.rrf.commercialInterestRate} path="rrf.commercialInterestRate" format="percent" note="5% standard" />
-                  <AssumptionRow label={t('field.totalLoanDrawn')} value={a.rrf.totalLoanDrawn} path="rrf.totalLoanDrawn" format="currency" />
-                  <AssumptionRow label={t('field.equityRequired')} value={a.rrf.equityRequired} path="rrf.equityRequired" format="currency" />
+                  <AssumptionRow label="Loan coverage rate (% of CAPEX)" value={a.rrf.coverageRate ?? 0.80} path="rrf.coverageRate" format="percent" note="Fraction of total CAPEX financed — mirrors commercial LTV" />
                 </tbody>
               </table>
             )}
@@ -1531,6 +1536,7 @@ export default function AssumptionsPage() {
 
       {/* ── Saved Configurations ── */}
       <ConfigPanel />
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={ASSUMPTIONS_TOUR} />
     </div>
   );
 }

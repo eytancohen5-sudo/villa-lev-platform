@@ -24,6 +24,11 @@ export const EARNED_EQUITY_CAP = 0.33;      // grant_bonus + ratchet
 export const TOTAL_FOUNDER_CAP = 0.75;      // pari_passu + earned
 export const MIN_INVESTOR_SHARE = 1 - TOTAL_FOUNDER_CAP;
 
+// Bucket 1A — Collateral pledge cap.
+// Eytan pledges up to €1M collateral during building phase; documented for
+// partners. Admin reference only — not a DCF input.
+export const BUCKET_1A_COLLATERAL_CAP = 1_000_000;
+
 // Layer B (grant bonus) is no longer hardcoded — it's *derived* from:
 //   gross_fee   = grant × founderFeePct   (10% by default)
 //   consultant  = grant × consultantPct   (5% by default → €200K cash out)
@@ -32,8 +37,14 @@ export const MIN_INVESTOR_SHARE = 1 - TOTAL_FOUNDER_CAP;
 //   grant_bonus = founder_net / (post_grant_equity + founder_net)
 // At defaults this works out to ≈ 3.92% (vs. the previous hardcoded 4%).
 export const DEFAULT_GRANT_AMOUNT = 4_013_880;
-export const DEFAULT_FOUNDER_FEE_PCT = 0.10;
-export const DEFAULT_CONSULTANT_SHARE_PCT = 0.05;
+/** Bucket 1B — Grant procurement fee (10% of grant). */
+export const DEFAULT_GRANT_PROCUREMENT_FEE_PCT = 0.10;
+/** Bucket 1B — Grant consultant share (5% of grant → ~€200K cash out). */
+export const DEFAULT_GRANT_CONSULTANT_SHARE_PCT = 0.05;
+/** @deprecated Use DEFAULT_GRANT_PROCUREMENT_FEE_PCT */
+export const DEFAULT_FOUNDER_FEE_PCT = DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
+/** @deprecated Use DEFAULT_GRANT_CONSULTANT_SHARE_PCT */
+export const DEFAULT_CONSULTANT_SHARE_PCT = DEFAULT_GRANT_CONSULTANT_SHARE_PCT;
 export const DEFAULT_PROJECT_ASSET_VALUE = 8_440_000;
 // Senior loan used in the Layer B *baseline* — the pre-grant commercial
 // financing case. The grant bonus measures the founder's grant-landing
@@ -44,10 +55,12 @@ export const DEFAULT_PROJECT_ASSET_VALUE = 8_440_000;
 export const DEFAULT_BASELINE_BANK_LOAN = 3_540_000;
 // Year the consultant cash payment hits the PropCo books (grant approval).
 export const DEFAULT_GRANT_APPROVAL_YEAR = 2027;
-// Founder ManCo fee — 5% of gross revenue, subtracted from NCF before
-// distributing to equity. Separate from the existing OPEX €90K/yr property-
-// management line which covers operational costs (cleaning, accounting).
-export const DEFAULT_FOUNDER_MANCO_FEE_RATE = 0.05;
+// Bucket 2A — Base management fee: 5% of gross revenue, subtracted from NCF
+// before distributing to equity. Separate from the existing OPEX €90K/yr
+// property-management line which covers operational costs (cleaning, accounting).
+export const DEFAULT_BASE_MGMT_FEE_RATE = 0.05;
+/** @deprecated Use DEFAULT_BASE_MGMT_FEE_RATE */
+export const DEFAULT_FOUNDER_MANCO_FEE_RATE = DEFAULT_BASE_MGMT_FEE_RATE;
 
 // Practical advisory limits where the 75% cap starts to bind for the
 // default cap-table size. Surfaced as warnings, not hard errors.
@@ -55,11 +68,9 @@ export const ADVISORY_FOUNDER_CASH_GRANT = 400_000;
 export const ADVISORY_FOUNDER_CASH_NO_GRANT = 700_000;
 
 export type RatchetTier =
-  | 'failure'         // IRR < 0%
-  | 'below_pref'      // 0–8%, +5% (needs MOIC ≥ 2.0)
-  | 'pref_met'        // 8–14%, +9% (needs MOIC ≥ 2.5)
-  | 'strong'          // 14–22%, +19% (needs MOIC ≥ 4.0)
-  | 'excellent';      // 22%+, +29% (grant) / +33% (no grant) (needs MOIC ≥ 6.0)
+  | 'miss'            // IRR < 8% → 0% ratchet (merges old failure + below_pref)
+  | 'pref_met'        // 8–22% IRR → +9%
+  | 'excellent';      // ≥ 22% IRR → +29% (no-grant differential removed)
 
 export interface RatchetTierDef {
   id: RatchetTier;
@@ -72,11 +83,9 @@ export interface RatchetTierDef {
 }
 
 export const RATCHET_TIERS: RatchetTierDef[] = [
-  { id: 'failure',    label: 'True failure',  irrMin: -Infinity, irrMax: 0,        moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
-  { id: 'below_pref', label: 'Below pref',    irrMin: 0,         irrMax: 0.08,     moicFloor: 2.0, ratchetGrant: 0.05, ratchetNoGrant: 0.05 },
-  { id: 'pref_met',   label: 'Pref met',      irrMin: 0.08,      irrMax: 0.14,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
-  { id: 'strong',     label: 'Strong',        irrMin: 0.14,      irrMax: 0.22,     moicFloor: 4.0, ratchetGrant: 0.19, ratchetNoGrant: 0.19 },
-  { id: 'excellent',  label: 'Excellent',     irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.29, ratchetNoGrant: 0.33 },
+  { id: 'miss',      label: 'Miss',      irrMin: -Infinity, irrMax: 0.08,     moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
+  { id: 'pref_met',  label: 'Pref met',  irrMin: 0.08,      irrMax: 0.22,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
+  { id: 'excellent', label: 'Excellent', irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.29, ratchetNoGrant: 0.29 },
 ];
 
 export type CapBinding = 'none' | 'earned_33' | 'total_75';
@@ -169,8 +178,8 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
 
   // ── Layer B derivation (transparent from inputs) ───────────────────
   const grantAmount = input.grantAmount ?? DEFAULT_GRANT_AMOUNT;
-  const founderFeePct = input.founderFeePct ?? DEFAULT_FOUNDER_FEE_PCT;
-  const consultantSharePct = input.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT;
+  const founderFeePct = input.founderFeePct ?? DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
+  const consultantSharePct = input.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT;
   const projectAssetValue = input.projectAssetValue ?? DEFAULT_PROJECT_ASSET_VALUE;
   const bankLoanAmount = input.bankLoanAmount ?? DEFAULT_BASELINE_BANK_LOAN;
 
@@ -286,7 +295,7 @@ export interface YearDistribution {
   founderShare: number;       // founder equity share this year
   investorShare: number;      // total investor share this year
   // ── Per-year fee deductions (informational) ───────────────────────
-  founderManCoFee: number;     // 5% × revenue, paid to founder's ManCo
+  founderManCoFee: number;     // Bucket 2A: 5% × revenue (base management fee)
   consultantPayment: number;   // €200K one-time at grant approval year
   ncfPreFees: number;          // NCF post-VAT before founder fees subtracted
 }
@@ -309,8 +318,10 @@ export interface ResolvedFounderWaterfall {
 }
 
 export interface DistributionStreamOptions {
-  // 5% by default; the founder's ManCo executive compensation. Subtracted
-  // from NCF before equity distributions, so equity holders see post-fee cash.
+  // Bucket 2A: 5% of gross revenue — base management fee. Subtracted from
+  // NCF before equity distributions, so equity holders see post-fee cash.
+  baseMgmtFeeRate?: number;
+  /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
   founderManCoFeeRate?: number;
   // Year the €200K consultant payment hits — typically grant approval year.
   consultantPaymentYear?: number;
@@ -329,7 +340,7 @@ export function buildDistributionStream(
   scenario: ScenarioOutput,
   options: DistributionStreamOptions = {},
 ): YearDistribution[] {
-  const feeRate = options.founderManCoFeeRate ?? DEFAULT_FOUNDER_MANCO_FEE_RATE;
+  const feeRate = options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate ?? DEFAULT_BASE_MGMT_FEE_RATE;
   const consultantYear = options.consultantPaymentYear ?? DEFAULT_GRANT_APPROVAL_YEAR;
   const consultantPayment = options.consultantPayment ?? 0;
 
@@ -368,7 +379,9 @@ export interface ResolveOptions {
   consultantSharePct?: number;
   projectAssetValue?: number;
   bankLoanAmount?: number;
-  // Cash-flow stream options (founder ManCo fee + consultant payment year).
+  // Cash-flow stream options (base mgmt fee + consultant payment year).
+  baseMgmtFeeRate?: number;
+  /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
   founderManCoFeeRate?: number;
   consultantPaymentYear?: number;
   maxIterations?: number;
@@ -395,7 +408,7 @@ export function resolveFounderWaterfall(
   const grantAmount = options.grantAmount ?? DEFAULT_GRANT_AMOUNT;
   const consultantPayment = grantApproved ? grantAmount * consultantSharePct : 0;
   const stream = buildDistributionStream(scenario, {
-    founderManCoFeeRate: options.founderManCoFeeRate,
+    baseMgmtFeeRate: options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate,
     consultantPaymentYear: options.consultantPaymentYear,
     consultantPayment,
   });

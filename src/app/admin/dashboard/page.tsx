@@ -613,13 +613,18 @@ export default function DashboardPage() {
 
       {/* HERO — DSCR trajectory */}
       <div id="section-dscr-hero" className="bg-white rounded-2xl border border-surface-tertiary p-5 mt-6 shadow-sm scroll-mt-24">
-        <div className="flex items-baseline justify-between mb-3">
-          <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
-            {t('dash.heroDscr')}
-          </h3>
-          <span className="text-[11px] text-text-tertiary">
-            {t('dash.minDscr')}: {formatMultiple(km.minDSCRLoanLife)} · {t('kpi.gracePeriodInterest')}: {formatCurrency(km.gracePeriodInterestTotal, true, locale)}
-          </span>
+        <div className="mb-3">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+              {t('dash.heroDscr')}
+            </h3>
+            <span className="text-[11px] text-text-tertiary">
+              {t('dash.minDscr')}: {formatMultiple(km.minDSCRLoanLife)} · {t('kpi.gracePeriodInterest')}: {formatCurrency(km.gracePeriodInterestTotal, true, locale)}
+            </span>
+          </div>
+          <p className="text-[11px] text-text-tertiary mt-0.5">
+            {t('dash.heroDscrSub')}
+          </p>
         </div>
         <ResponsiveContainer width="100%" height={260}>
           <LineChart data={dscrTrajectoryData}>
@@ -832,7 +837,7 @@ export default function DashboardPage() {
           table — the audit detail that proves the conservatism story. */}
       <div id="section-conservatism" className="scroll-mt-24 mb-6 mt-6">
         <SectionHeader
-          title="Conservatism Check"
+          title="Stress & Margin Analysis"
           sub="Per-villa BP assumptions vs the live single villa we already run today"
         />
         <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">

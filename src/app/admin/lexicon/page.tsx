@@ -2,6 +2,8 @@
 
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState } from "react";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { LEXICON_TOUR } from "@/lib/tours/configs";
 
 function Formula({ children }: { children: React.ReactNode }) {
   return (
@@ -55,6 +57,7 @@ function Section({
 
 export default function LexiconPage() {
   const { t } = useTranslation();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(LEXICON_TOUR.storageKey);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set(['capex']));
 
   const toggle = (id: string) => {
@@ -76,13 +79,16 @@ export default function LexiconPage() {
           <h1 className="font-display text-2xl text-text-primary">{t('lex.title')}</h1>
           <p className="text-sm text-text-secondary mt-1">{t('lex.subtitle')}</p>
         </div>
-        <button onClick={expandAll} className="text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">
-          Expand all
-        </button>
+        <div className="flex items-center gap-3">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+          <button onClick={expandAll} className="text-xs text-brand-600 hover:text-brand-700 font-medium transition-colors">
+            Expand all
+          </button>
+        </div>
       </div>
 
       {/* Quick nav */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div id="lexicon-quicknav" className="flex flex-wrap gap-2 mb-6">
         {[
           { id: 'capex', label: t('lex.capex') },
           { id: 'revenue', label: t('lex.revenue') },
@@ -377,6 +383,7 @@ export default function LexiconPage() {
       <div className="mt-8 bg-surface-secondary rounded-2xl p-6 text-xs text-text-tertiary">
         <p>This lexicon documents the mathematical methodology implemented in the Villa Lev Group financial engine. All formulas are deterministic and match the Excel Business Plan v4 model. The engine computes all five financing paths simultaneously, producing a complete 11-year P&L projection (2026-2036) for each scenario in under 10ms.</p>
       </div>
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={LEXICON_TOUR} />
     </div>
   );
 }

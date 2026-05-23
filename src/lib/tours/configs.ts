@@ -531,10 +531,10 @@ export const OPCO_SPLIT_TOUR: TourConfig = {
         he: "דגל ההפעלה",
       },
       body: {
-        en: "The Split ON/OFF toggle in the page header is sticky across all pages. When ON, every metric on Dashboard / P&L / Scenarios reflects PropCo's post-fee cash flow. Bank-facing routes (/bank, /investor) pin it ON regardless — bankers always see the subordinated view.",
-        el: "Το toggle Split ON/OFF διατηρείται σε όλες τις σελίδες. Όταν ON, κάθε μετρική σε Dashboard / P&L / Scenarios αντικατοπτρίζει ταμειακή ροή PropCo μετά αμοιβές. Στο /bank και /investor είναι πάντα ON.",
-        fr: "Le toggle Split ON/OFF persiste sur toutes les pages. Activé, chaque indicateur sur Dashboard / P&L / Scénarios reflète le cash post-frais de PropCo. /bank et /investor le forcent toujours sur ON.",
-        he: "ה-toggle Split ON/OFF נשמר בכל הדפים. כאשר ON, כל מדד ב-Dashboard / P&L / Scenarios משקף תזרים PropCo לאחר עמלות. /bank ו-/investor תמיד ON.",
+        en: "The Split ON/OFF toggle in the page header is sticky across all pages. When ON, every metric on Dashboard / P&L / Scenarios reflects PropCo's post-fee cash flow. The /bank route pins it ON regardless — bankers always see the subordinated view.",
+        el: "Το toggle Split ON/OFF διατηρείται σε όλες τις σελίδες. Όταν ON, κάθε μετρική σε Dashboard / P&L / Scenarios αντικατοπτρίζει ταμειακή ροή PropCo μετά αμοιβές. Το /bank είναι πάντα ON.",
+        fr: "Le toggle Split ON/OFF persiste sur toutes les pages. Activé, chaque indicateur sur Dashboard / P&L / Scénarios reflète le cash post-frais de PropCo. La route /bank le force toujours sur ON.",
+        he: "ה-toggle Split ON/OFF נשמר בכל הדפים. כאשר ON, כל מדד ב-Dashboard / P&L / Scenarios משקף תזרים PropCo לאחר עמלות. /bank תמיד ON.",
       },
     },
     {
@@ -610,7 +610,7 @@ export const TEAM_TOUR: TourConfig = {
         he: "התחזות (View-As)",
       },
       body: {
-        en: "From any page, the View-As dropdown in the sidebar lets an admin preview the model as an editor, viewer, or banker — so you can verify what each role sees BEFORE you send the invite. Impersonation as a banker auto-redirects to /investor.",
+        en: "From any page, the View-As dropdown in the sidebar lets an admin preview the model as an editor, viewer, or banker — so you can verify what each role sees BEFORE you send the invite. Impersonation as a banker takes you to the bank-facing view.",
         el: "Από οποιαδήποτε σελίδα, το View-As στο sidebar δείχνει την προβολή ως editor / viewer / banker — επιβεβαιώνετε τι βλέπει κάθε ρόλος ΠΡΙΝ στείλετε το invite.",
         fr: "Depuis n'importe quelle page, le View-As de la barre latérale permet de prévisualiser le modèle en tant qu'éditeur / lecteur / banquier — vérifiez avant d'envoyer l'invitation.",
         he: "מכל דף, ה-View-As בסרגל הצדדי מאפשר לראות את המודל כ-editor / viewer / banker — אמתו לפני שליחת ההזמנה.",
@@ -623,8 +623,10 @@ export const TEAM_TOUR: TourConfig = {
 // Different audience from the admin tours. Less hand-holding on UX, more
 // "here's why these numbers are credible." Short — bankers won't sit
 // through 15 steps.
+// v2 2026-05-23: added spotlight anchors for KPI strip, financing table,
+// collateral, stress test, and P&L sections.
 export const BANK_TOUR: TourConfig = {
-  storageKey: "villaLev.bankTour.seen.v1",
+  storageKey: "villaLev.bankTour.seen.v2",
   showLanguagePicker: true,
   steps: [
     {
@@ -657,6 +659,7 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
+      target: "#bank-kpi-strip",
       title: {
         en: "Headline coverage",
         el: "Κύρια κάλυψη",
@@ -664,10 +667,10 @@ export const BANK_TOUR: TourConfig = {
         he: "כיסוי עיקרי",
       },
       body: {
-        en: "Stabilised DSCR, asset coverage, LTV at completion, and equity IRR are on the KPI strip below. The 1.25× DSCR covenant is the standard bank threshold; this deal sits comfortably above it from year 3 onward even in the Downside scenario.",
-        el: "Σταθεροποιημένο DSCR, κάλυψη ενεργητικού, LTV, IRR ιδίων κεφαλαίων στη γραμμή KPI κάτω. Το covenant 1.25× ξεπερνιέται άνετα από το έτος 3 ακόμη και στο Downside.",
-        fr: "DSCR stabilisé, couverture d'actif, LTV, TRI fonds propres dans la bande KPI ci-dessous. Le covenant 1.25× est dépassé confortablement dès l'année 3 même en Downside.",
-        he: "DSCR מיוצב, כיסוי נכסים, LTV ו-IRR הון בפס ה-KPI למטה. הקובננט 1.25× נחצה בנוחות משנה 3 גם ב-Downside.",
+        en: "Five headline KPIs: total investment, loan amount, LTV at completion, asset coverage, and stabilised DSCR. The 1.25× DSCR covenant is the standard bank threshold — this deal clears it from year 3 onward in every scenario including Downside.",
+        el: "Πέντε κύρια KPIs: συνολική επένδυση, δάνειο, LTV, κάλυψη ενεργητικού, σταθεροποιημένο DSCR. Το covenant 1.25× ξεπερνιέται από το έτος 3 σε κάθε σενάριο.",
+        fr: "Cinq KPIs : investissement total, prêt, LTV, couverture d'actif, DSCR stabilisé. Le covenant 1.25× est dépassé dès l'année 3 dans tous les scénarios.",
+        he: "חמישה KPIs: השקעה כוללת, הלוואה, LTV, כיסוי נכסים, DSCR מיוצב. הקובננט 1.25× נחצה משנה 3 בכל תרחיש.",
       },
     },
     {
@@ -685,6 +688,7 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
+      target: "#bank-financing-comparison",
       title: {
         en: "Financing path comparison",
         el: "Σύγκριση διαδρομών",
@@ -692,24 +696,221 @@ export const BANK_TOUR: TourConfig = {
         he: "השוואת מסלולים",
       },
       body: {
-        en: "Four financing paths sit side-by-side further down: Commercial, RRF, Greek Development Law Grant, and TEPIX III. The headline KPIs reflect the path the sponsor's primary application is built around; all four are real, modelled options.",
-        el: "Τέσσερις διαδρομές χρηματοδότησης παρακάτω: Commercial, ΤΑΑ (RRF), Επιχορήγηση Αναπτυξιακού Νόμου, και ΤΕΠΙΧ ΙΙΙ. Τα κύρια KPIs αντικατοπτρίζουν την κύρια αίτηση· και οι τέσσερις είναι πραγματικές, μοντελοποιημένες επιλογές.",
-        fr: "Quatre voies de financement plus bas : Commercial, RRF, Subvention Loi Développement, et TEPIX III. Les KPIs principaux reflètent la voie de candidature principale ; les quatre sont réelles et modélisées.",
-        he: "ארבעה מסלולי מימון למטה: Commercial, RRF, מענק חוק פיתוח יווני, ו-TEPIX III. ה-KPIs העיקריים משקפים את המסלול הראשי; ארבעתם אמיתיים ומודלים.",
+        en: "Four financing paths side-by-side: Commercial, RRF, Greek Development Law Grant, and TEPIX III. Rows show loan size, equity required, annual debt service, stabilised DSCR, and equity IRR for each. The active path is the sponsor's primary application.",
+        el: "Τέσσερις διαδρομές χρηματοδότησης: Commercial, ΤΑΑ, Επιχορήγηση, ΤΕΠΙΧ ΙΙΙ. Γραμμές: δάνειο, ίδια κεφάλαια, εξυπηρέτηση, DSCR, IRR.",
+        fr: "Quatre voies : Commercial, RRF, Subvention, TEPIX III. Lignes : prêt, fonds propres, DS, DSCR, TRI.",
+        he: "ארבעה מסלולים: Commercial, RRF, מענק, TEPIX III. שורות: הלוואה, הון, DS, DSCR, IRR.",
+      },
+    },
+    {
+      target: "#bank-collateral",
+      title: {
+        en: "Collateral position",
+        el: "Θέση εξασφάλισης",
+        fr: "Position de garantie",
+        he: "עמדת בטחונות",
+      },
+      body: {
+        en: "Asset coverage at three valuation tiers: Stress (conservative), Market (base), Positive (premium). LTV and coverage ratio shown for each. Banks underwrite to the Stress tier — note how the deal remains well-covered even there.",
+        el: "Κάλυψη ενεργητικού σε τρία επίπεδα: Stress, Market, Positive. LTV και δείκτης κάλυψης ανά επίπεδο. Η τράπεζα ανερεύνει στο Stress.",
+        fr: "Couverture à trois niveaux : Stress, Marché, Positif. LTV et ratio de couverture par niveau. Les banques évaluent au niveau Stress.",
+        he: "כיסוי בשלוש רמות: Stress, שוק, חיובי. LTV ויחס כיסוי לכל רמה. בנקים מחתמים ברמת Stress.",
+      },
+    },
+    {
+      target: "#bank-stress-test",
+      title: {
+        en: "Stress test",
+        el: "Stress test",
+        fr: "Test de résistance",
+        he: "מבחן עמידות",
+      },
+      body: {
+        en: "Interactive downside stress: what happens to DSCR when occupancy and ADR drop simultaneously? The widget lets you dial both inputs and see coverage in real time — confirming the 1.25× covenant survives plausible adverse scenarios.",
+        el: "Διαδραστικό stress test: τι συμβαίνει στο DSCR όταν πέσουν ταυτόχρονα πληρότητα και ADR; Ρυθμίστε και δείτε κάλυψη σε πραγματικό χρόνο.",
+        fr: "Stress test interactif : que devient le DSCR quand occupation et ADR chutent simultanément ? Ajustez en temps réel pour vérifier le covenant 1.25×.",
+        he: "מבחן עמידות אינטראקטיבי: מה קורה ל-DSCR כשתפוסה ו-ADR יורדים יחד? כווננו בזמן אמת לאימות הקובננט 1.25×.",
+      },
+    },
+    {
+      target: "#bank-pnl",
+      title: {
+        en: "Full P&L + download",
+        el: "Πλήρες P&L + λήψη",
+        fr: "P&L complet + téléchargement",
+        he: "P&L מלא + הורדה",
+      },
+      body: {
+        en: "The full 11-year P&L table is scrollable below — Revenue, EBITDA, Debt Service, NCF post-tax, DSCR, and yield to equity year by year. Use Download model (.xlsx) at the top to take the full 14-sheet Excel offline; all formulas remain linked and editable.",
+        el: "Πλήρης πίνακας P&L 11 ετών παρακάτω: έσοδα, EBITDA, εξυπηρέτηση, NCF, DSCR. Χρησιμοποιήστε Download model (.xlsx) για να πάρετε το Excel των 14 φύλλων εκτός σύνδεσης.",
+        fr: "Tableau P&L complet sur 11 ans ci-dessous. Utilisez Download model (.xlsx) pour emporter le modèle Excel 14 onglets hors ligne.",
+        he: "טבלת P&L מלאה לכל 11 שנה למטה. השתמשו ב-Download model (.xlsx) להורדת Excel 14 גליונות לעבודה לא מקוונת.",
+      },
+    },
+  ],
+};
+
+// ── Assumptions ──────────────────────────────────────────────
+export const ASSUMPTIONS_TOUR: TourConfig = {
+  storageKey: "villaLev.assumptionsTour.seen.v1",
+  steps: [
+    {
+      title: {
+        en: "Assumptions — the model's cockpit",
+        el: "Παραδοχές — το πιλοτήριο του μοντέλου",
+        fr: "Hypothèses — le cockpit du modèle",
+        he: "הנחות — תא הטייס של המודל",
+      },
+      body: {
+        en: "Every number in the Dashboard, P&L, and Scenarios is derived from the inputs on this page. Change a value here and the entire model recomputes in milliseconds. Six tabs cover the full input surface — Portfolio, Templates, Financing, General, Revenue, and OPEX.",
+        el: "Κάθε νούμερο στο Dashboard, P&L και Σενάρια προέρχεται από τις εισόδους αυτής της σελίδας. Αλλάξτε μια τιμή και όλο το μοντέλο επανυπολογίζεται. Έξι tabs καλύπτουν όλες τις εισόδους.",
+        fr: "Chaque chiffre du Dashboard, P&L et Scénarios provient des entrées de cette page. Modifiez une valeur et tout le modèle se recalcule. Six onglets couvrent la surface complète.",
+        he: "כל מספר ב-Dashboard, P&L ותרחישים נגזר מהקלטים בדף זה. שנו ערך וכל המודל מחושב מחדש. שישה לשוניות מכסות את כל משטח הקלט.",
+      },
+    },
+    {
+      target: "#assumptions-portfolio-overview",
+      title: {
+        en: "Portfolio overview",
+        el: "Επισκόπηση χαρτοφυλακίου",
+        fr: "Vue d'ensemble du portefeuille",
+        he: "סקירת תיק נכסים",
+      },
+      body: {
+        en: "Live snapshot: number of projects, total units, total built surface, and total CapEx. These four cells update the moment you add, remove, or resize a project in the Portfolio tab below.",
+        el: "Ζωντανό στιγμιότυπο: αριθμός projects, συνολικές μονάδες, built surface, συνολικό CapEx. Ενημερώνεται αμέσως με κάθε αλλαγή project.",
+        fr: "Aperçu en direct : projets, unités totales, surface construite, CapEx total. Se met à jour dès qu'un projet est ajouté, retiré ou redimensionné.",
+        he: "תמונת מצב חיה: פרויקטים, יחידות כולל, שטח בנוי, CapEx כולל. מתעדכן מיד עם כל שינוי בפרויקט.",
+      },
+    },
+    {
+      target: "#assumptions-tabs",
+      title: {
+        en: "Six tabs, full control",
+        el: "Έξι tabs, πλήρης έλεγχος",
+        fr: "Six onglets, contrôle total",
+        he: "שש לשוניות, שליטה מלאה",
+      },
+      body: {
+        en: "Portfolio — add/remove plots and set unit counts. Templates — define per-property CAPEX and OPEX. Financing — select path and tune loan terms. General — ramp factors and tax rates. Revenue — ADR, nights, events, ancillary by scenario. OPEX — operating cost overrides per template.",
+        el: "Portfolio — plots και μονάδες. Templates — CAPEX/OPEX ανά property. Financing — διαδρομή και όροι δανείου. General — ramp και φόροι. Revenue — ADR, βραδιές, events ανά σενάριο. OPEX — λειτουργικά κόστη.",
+        fr: "Portfolio — parcelles et unités. Templates — CAPEX/OPEX par propriété. Financement — voie et conditions du prêt. Général — ramp et taxes. Revenus — ADR, nuitées, événements. OPEX — coûts opérationnels.",
+        he: "Portfolio — מגרשים ויחידות. Templates — CAPEX/OPEX לנכס. Financing — מסלול ותנאי הלוואה. General — ramp ומסים. Revenue — ADR, לילות, אירועים. OPEX — עלויות תפעול.",
       },
     },
     {
       title: {
-        en: "Take the model offline",
-        el: "Κατεβάστε το μοντέλο",
-        fr: "Téléchargez le modèle",
-        he: "הורידו את המודל",
+        en: "Blue cells are editable",
+        el: "Τα μπλε κελιά είναι επεξεργάσιμα",
+        fr: "Les cellules bleues sont éditables",
+        he: "תאים כחולים ניתנים לעריכה",
       },
       body: {
-        en: "The Download model (.xlsx) button at the top exports the full 14-sheet Excel with editable formulas — assumptions, P&L, scenarios, sensitivity, capital structure, financing comparison, cap table. Take it offline; the formulas remain linked.",
-        el: "Το κουμπί Download model (.xlsx) στην κορυφή εξάγει πλήρες Excel 14 φύλλων με επεξεργάσιμους τύπους — παραδοχές, P&L, σενάρια, ευαισθησία, κεφαλαιακή δομή, σύγκριση χρηματοδότησης, cap table.",
-        fr: "Le bouton Download model (.xlsx) en haut exporte un Excel complet de 14 onglets avec formules éditables — hypothèses, P&L, scénarios, sensibilité, structure capital, comparaison financement, cap table.",
-        he: "כפתור Download model (.xlsx) למעלה מייצא Excel מלא של 14 גליונות עם נוסחאות עריכה — הנחות, P&L, תרחישים, רגישות, מבנה הון, השוואת מימון, cap table.",
+        en: "Any value shown on a blue background is a live input — click it to edit in place. Numeric fields accept raw numbers (enter 0.05 or 5 for 5% depending on format). Press Enter or Tab to commit; Escape to cancel. The model recomputes as you leave each field.",
+        el: "Κάθε τιμή σε μπλε φόντο είναι ενεργή είσοδος — πατήστε για επεξεργασία. Enter / Tab για αποθήκευση, Escape για ακύρωση. Το μοντέλο επανυπολογίζεται αμέσως.",
+        fr: "Toute valeur sur fond bleu est une entrée active — cliquez pour éditer. Entrée / Tab pour valider, Échap pour annuler. Le modèle se recalcule immédiatement.",
+        he: "כל ערך על רקע כחול הוא קלט פעיל — לחצו לעריכה. Enter / Tab לאישור, Escape לביטול. המודל מחושב מחדש מיד.",
+      },
+    },
+  ],
+};
+
+// ── Cap Table ────────────────────────────────────────────────
+export const CAP_TABLE_TOUR: TourConfig = {
+  storageKey: "villaLev.capTableTour.seen.v1",
+  steps: [
+    {
+      title: {
+        en: "Cap table — who gets what at exit",
+        el: "Cap Table — ποιος παίρνει τι στην έξοδο",
+        fr: "Cap table — qui reçoit quoi à la sortie",
+        he: "Cap Table — מי מקבל מה ביציאה",
+      },
+      body: {
+        en: "This page shows the equity distribution at the active exit year. The model runs a three-layer founder waterfall — pari-passu, grant bonus (if applicable), and performance ratchet — then splits the remainder among investors pro-rata. Change cash contributions to see the waterfall recompute in real time.",
+        el: "Αυτή η σελίδα δείχνει τη διανομή ιδίων κεφαλαίων στο ενεργό έτος εξόδου. Τρία επίπεδα ιδρυτή: pari-passu, bonus επιχορήγησης, performance ratchet — ο υπόλοιπος μοιράζεται ανά-λόγια στους επενδυτές.",
+        fr: "Cette page montre la distribution des fonds propres à l'année de sortie active. Trois couches fondateur — pari-passu, bonus subvention, ratchet — puis le reste aux investisseurs au prorata.",
+        he: "דף זה מציג את חלוקת ההון בשנת היציאה הפעילה. שלוש שכבות יזם — pari-passu, בונוס מענק, רצ'ט — אחר כך השאר למשקיעים לפי יחס.",
+      },
+    },
+    {
+      target: "#captable-founder-waterfall",
+      title: {
+        en: "Founder waterfall",
+        el: "Καταρράκτης ιδρυτή",
+        fr: "Cascade fondateur",
+        he: "מפל יזם",
+      },
+      body: {
+        en: "Layer A (pari-passu): founder's cash-in as a fraction of total equity. Layer B (grant bonus): additional carried interest derived from the 10% grant success fee net of consultant cost — vests only if the development-law application is approved. Layer C (performance ratchet): additional carry by MOIC tier. Investors are guaranteed at least 25% of distributions.",
+        el: "Layer A: μερίδιο ιδρυτή pari-passu. Layer B: bonus επιχορήγησης (10% grant αμοιβή μείον σύμβουλο). Layer C: performance ratchet ανά MOIC tier. Οι επενδυτές εγγυώνται ≥25% διανομών.",
+        fr: "Couche A : part pari-passu. Couche B : bonus subvention (commission 10% nette consultant). Couche C : ratchet de performance par tier MOIC. Investisseurs garantis ≥25% des distributions.",
+        he: "שכבה A: חלק pari-passu. שכבה B: בונוס מענק (10% עמלה נטו מייעוץ). שכבה C: רצ'ט ביצועים לפי שכבת MOIC. משקיעים מובטחים ≥25% מהחלוקות.",
+      },
+    },
+    {
+      target: "#captable-stakeholders",
+      title: {
+        en: "Stakeholder table",
+        el: "Πίνακας συμμετόχων",
+        fr: "Tableau des parties prenantes",
+        he: "טבלת בעלי עניין",
+      },
+      body: {
+        en: "One row per investor: cash in, pool share, economic stake (post-waterfall), total received at exit, MOIC, IRR, and payback year. Click any row to expand year-by-year distributions. Edit a cash contribution directly in the table — the waterfall recomputes instantly. Add investors with the button below.",
+        el: "Μία γραμμή ανά επενδυτή: cash in, μερίδιο, οικονομικό stake, σύνολο, MOIC, IRR, payback. Κλικ για ετήσια ανάλυση. Επεξεργαστείτε cash contribution άμεσα.",
+        fr: "Une ligne par investisseur : cash apporté, part du pool, stake économique, total reçu, MOIC, TRI, remboursement. Cliquez pour le détail annuel. Éditez les contributions directement.",
+        he: "שורה לכל משקיע: cash, חלק בבריכה, stake כלכלי, סך שהתקבל, MOIC, IRR, שנת החזר. לחצו לפירוט שנתי. ערכו תרומות ישירות.",
+      },
+    },
+    {
+      title: {
+        en: "Investor reports",
+        el: "Εκθέσεις επενδυτών",
+        fr: "Rapports investisseurs",
+        he: "דוחות למשקיעים",
+      },
+      body: {
+        en: "The 'Generate investor report' toggle switches to a redacted view: full detail for one named investor, all others shown as aggregated 'Other investors'. Download a personalised PDF per investor from the ↓ PDF link in their row — the report includes their specific cash flows, MOIC, and IRR.",
+        el: "Το 'Generate investor report' εμφανίζει πλήρη ανάλυση για έναν επενδυτή και συγκεντρωτικά τους υπόλοιπους. Κατεβάστε PDF ανά επενδυτή από τον σύνδεσμο ↓ PDF.",
+        fr: "Le basculement 'Generate investor report' passe en vue épurée : détail complet pour un investisseur, les autres agrégés. Téléchargez un PDF personnalisé via le lien ↓ PDF.",
+        he: "ה-toggle 'Generate investor report' מציג פירוט מלא למשקיע אחד וסיכום לשאר. הורידו PDF מותאם אישית דרך קישור ↓ PDF.",
+      },
+    },
+  ],
+};
+
+// ── Lexicon ──────────────────────────────────────────────────
+export const LEXICON_TOUR: TourConfig = {
+  storageKey: "villaLev.lexiconTour.seen.v1",
+  steps: [
+    {
+      title: {
+        en: "Lexicon — the formula dictionary",
+        el: "Λεξικό — λεξικό τύπων",
+        fr: "Lexique — dictionnaire des formules",
+        he: "מילון — מילון הנוסחאות",
+      },
+      body: {
+        en: "Every metric in this model has an exact mathematical definition. This page documents them — CAPEX build-up, revenue drivers, EBITDA, PMT, DSCR, break-even methods, collateral tiers, and all four financing paths. If a number somewhere looks wrong, the formula here is the source of truth.",
+        el: "Κάθε μετρική έχει ακριβή μαθηματικό ορισμό. Αυτή η σελίδα τους τεκμηριώνει — CAPEX, έσοδα, EBITDA, PMT, DSCR, break-even, εξασφαλίσεις και διαδρομές χρηματοδότησης.",
+        fr: "Chaque indicateur a une définition mathématique précise. Cette page les documente — CAPEX, revenus, EBITDA, PMT, DSCR, break-even, garanties et voies de financement.",
+        he: "לכל מדד הגדרה מתמטית מדויקת. דף זה מתעד אותן — CAPEX, הכנסות, EBITDA, PMT, DSCR, break-even, בטחונות ומסלולי מימון.",
+      },
+    },
+    {
+      target: "#lexicon-quicknav",
+      title: {
+        en: "Quick navigation",
+        el: "Γρήγορη πλοήγηση",
+        fr: "Navigation rapide",
+        he: "ניווט מהיר",
+      },
+      body: {
+        en: "Each pill jumps directly to that formula section and auto-expands the accordion. Use 'Expand all' to open every section at once for a full-page scan. All sections are collapsible — click the heading to toggle.",
+        el: "Κάθε pill μεταφέρει απευθείας στην ενότητα και ανοίγει το accordion. 'Expand all' ανοίγει τα πάντα. Κλικ στον τίτλο για εναλλαγή.",
+        fr: "Chaque pastille saute directement à la section et ouvre l'accordéon. 'Tout développer' ouvre toutes les sections. Cliquez sur un titre pour basculer.",
+        he: "כל כדור קופץ ישירות לסעיף ופותח האקורדיון. 'הרחב הכל' פותח הכל. לחצו על כותרת להחלפה.",
       },
     },
   ],

@@ -175,9 +175,9 @@ export default function OpCoSplitPage() {
       <div className="rounded-xl border border-surface-tertiary bg-surface-secondary/40 p-4 mb-6 text-sm text-text-secondary leading-relaxed">
         <p className="mb-2">
           <strong className="text-text-primary">How the split works.</strong>{" "}
-          When enabled, OpCo earns three layers of fees against the portfolio:
-          a base management fee on total revenue, a brand / marketing fee on
-          room revenue, and an incentive fee on the GOP that exceeds the
+          When enabled, OpCo earns two fee streams against the portfolio:
+          Bucket 2A — a base management fee (5% of gross revenue), and
+          Bucket 2B — an incentive fee on the GOP that exceeds the
           owner&apos;s priority return on invested equity.
         </p>
         <p className="mb-0">
@@ -240,22 +240,16 @@ export default function OpCoSplitPage() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
         {t('opco.feeStructure')}
       </h2>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-8">
         <RateInput
-          label="Base fee"
-          sub="% of total revenue"
-          value={opCo.baseFeeRate}
-          onChange={(v) => setAssumption("opCoFee.baseFeeRate", v, "OpCo base fee")}
+          label="Base management fee (Bucket 2A)"
+          sub="5% of gross revenue"
+          value={opCo.baseMgmtFeeRate}
+          onChange={(v) => setAssumption("opCoFee.baseMgmtFeeRate", v, "OpCo base management fee")}
         />
         <RateInput
-          label="Brand / marketing fee"
-          sub="% of room revenue"
-          value={opCo.brandFeeRate}
-          onChange={(v) => setAssumption("opCoFee.brandFeeRate", v, "OpCo brand fee")}
-        />
-        <RateInput
-          label="Incentive fee"
-          sub="% of GOP over hurdle"
+          label="Incentive fee (Bucket 2B)"
+          sub="% of GOP above 8% hurdle"
           value={opCo.incentiveFeeRate}
           onChange={(v) => setAssumption("opCoFee.incentiveFeeRate", v, "OpCo incentive fee")}
         />
@@ -427,26 +421,14 @@ export default function OpCoSplitPage() {
                   locale={locale}
                 />
                 <WaterfallRow
-                  label="Room revenue (basis for brand fee)"
-                  value={stabRoomRevenue}
-                  locale={locale}
-                  indent
-                />
-                <WaterfallRow
                   label="EBITDA (= GOP) before OpCo fees"
                   value={stabEbitdaPreFee}
                   locale={locale}
                   bold
                 />
                 <WaterfallRow
-                  label={`Base fee (${formatPercent(opCo.baseFeeRate)} × total revenue)`}
+                  label={`Base management fee — Bucket 2A (${formatPercent(opCo.baseMgmtFeeRate)} × gross revenue)`}
                   value={-stab.opCoBaseFee}
-                  locale={locale}
-                  tone="negative"
-                />
-                <WaterfallRow
-                  label={`Brand fee (${formatPercent(opCo.brandFeeRate)} × room revenue)`}
-                  value={-stab.opCoBrandFee}
                   locale={locale}
                   tone="negative"
                 />
@@ -508,15 +490,9 @@ export default function OpCoSplitPage() {
                 </thead>
                 <tbody>
                   <YearRow
-                    label="Base fee"
+                    label="Base management fee (Bucket 2A)"
                     pnl={scenario.pnl}
                     pick={(p) => p.opCoBaseFee}
-                    locale={locale}
-                  />
-                  <YearRow
-                    label="Brand fee"
-                    pnl={scenario.pnl}
-                    pick={(p) => p.opCoBrandFee}
                     locale={locale}
                   />
                   <YearRow
@@ -558,8 +534,7 @@ export default function OpCoSplitPage() {
               <BarChart
                 data={scenario.pnl.map((p) => ({
                   year: p.year,
-                  Base: p.opCoBaseFee,
-                  Brand: p.opCoBrandFee,
+                  BaseMgmt: p.opCoBaseFee,
                   Incentive: p.opCoIncentiveFee,
                 }))}
               >
@@ -574,9 +549,8 @@ export default function OpCoSplitPage() {
                   contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="Base" stackId="opco" name="Base fee" fill="#C4A55E" />
-                <Bar dataKey="Brand" stackId="opco" name="Brand fee" fill="#8B6914" />
-                <Bar dataKey="Incentive" stackId="opco" name="Incentive fee" fill="#6B7A3D" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="BaseMgmt" stackId="opco" name="Base management fee (Bucket 2A)" fill="#C4A55E" />
+                <Bar dataKey="Incentive" stackId="opco" name="Incentive fee (Bucket 2B)" fill="#6B7A3D" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

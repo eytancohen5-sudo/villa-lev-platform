@@ -412,15 +412,13 @@ export const BASE_CASE: ModelAssumptions = {
 
   rrf: {
     enabled: false,
-    rrfShareOfLoan: 0.80,
+    coverageRate: 0.80,           // fraction of total CAPEX financed
+    rrfShareOfLoan: 0.80,         // 80% EU RRF funds, 20% commercial
     rrfInterestRate: 0.0035,
     commercialShareRate: 0.20,
     commercialInterestRate: 0.05,
     gracePeriodYears: 2,
     repaymentTermYears: 13,
-    totalLoanDrawn: 4939200,
-    equityRequired: 1234800,
-    annualDS: 439700,
   },
 
   tepixLoan: {
@@ -469,8 +467,7 @@ export const BASE_CASE: ModelAssumptions = {
   // how a separated owner-and-manager structure shifts equity returns.
   opCoFee: {
     enabled: false,
-    baseFeeRate: 0.03,
-    brandFeeRate: 0.02,
+    baseMgmtFeeRate: 0.05,   // Bucket 2A: was baseFeeRate: 0.03 + brandFeeRate: 0.02
     incentiveFeeRate: 0.10,
     ownerPriorityReturnRate: 0.08,
   },

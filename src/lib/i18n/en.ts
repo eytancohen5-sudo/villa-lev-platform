@@ -100,7 +100,32 @@ export const en: TranslationDictionary = {
   'kpi.wcSelfLiqFail': 'Flag',
   'kpi.wcSelfLiqSub': 'Trough ≤ €50K each Sep',
   'dash.heroDscr': 'DSCR trajectory by financing path',
-  'dash.heroDscrSub': '2028–2036 · covenant min 1.25× · comfort 1.5×',
+  'dash.heroDscrSub': '2028–2036 · Grace ends 2028, full DS from 2029 · Covenant ≥1.25× · Comfort ≥1.5×',
+  'bank.dscrChartSub': '2029 is the first full amortisation year — grace period ends 2028. Revenue targets in 2028–2029 are set conservatively below today\'s Villa Lev actuals, which already exceed our stabilised projections.',
+  'bank.allPathsChartSub': '2029 is the first full amortisation year — grace period ends 2028. Revenue targets in 2028–2029 are set conservatively below today\'s Villa Lev actuals, which already exceed our stabilised projections.',
+  'bank.revenueEbitdaSub': '2028–2029 ramp: modelled below current Villa Lev actuals and below Greek market averages for comparable suites. The conservatism cushion is intentional — see track record above.',
+  'bank.stabilisedOpsSub': 'Stabilised year 2031 — after ramp-up and first full amortisation cycle.',
+  'bank.heroKpiDscrSub': 'Stabilised (2031+) · Covenant ≥1.25×',
+  'bank.pnlFooterNote': 'DSCR covenant floor 1.25× · Green ≥1.25× pass, amber 1.00–1.25×, red <1.00×. Events and ancillary shown net-of-cost. 2029: first year of full principal + interest service after 2-year grace period. Ramp-year revenue is modelled below current Villa Lev live performance — the 2031+ stabilised numbers sit above it.',
+
+  // BankControlBar
+  'bank.bar.commercial': 'Commercial',
+  'bank.bar.rrf': 'RRF',
+  'bank.bar.grant': 'Grant',
+  'bank.bar.tepix': 'TEPIX',
+  'bank.bar.realistic': 'Realistic',
+  'bank.bar.upside': 'Upside',
+  'bank.bar.downside': 'Downside',
+
+  // bank/page.tsx hero & section headings
+  'bank.hero.eyebrow': 'Credit Application · Antiparos, Greece',
+  'bank.section.repaymentCapacity': 'Repayment Capacity',
+  'bank.section.projectedRevenue': 'Projected Revenue & EBITDA',
+  'bank.section.collateral': 'Collateral & Asset Coverage',
+
+  // BankStressTest
+  'bank.stress.title': 'Scenario & Assumption Controls',
+  'bank.stress.description': 'Adjust any input — all charts and KPIs update live. Stress-test the model as needed.',
   'dash.section.operating': 'Operating performance',
   'dash.section.capital': 'Capital structure',
   'dash.section.workingCapital': 'Working capital — credit narrative',
@@ -161,11 +186,11 @@ export const en: TranslationDictionary = {
 
   'dash.section.dealSnapshot': 'Deal Snapshot',
   'dash.section.coverage': 'Coverage Ratios',
-  'dash.section.returns': 'Returns to Sponsor',
+  'dash.section.returns': 'Sponsor Returns',
   'dash.section.sensitivity': 'Sensitivity & Stress',
   'dash.dealSnapshotSub': 'Headline figures for the active configuration',
   'dash.coverageSub': 'What banks underwrite against',
-  'dash.returnsSub': 'Cash returns to the equity sponsor',
+  'dash.returnsSub': 'Cash distributions · equity yield · MOIC',
   'dash.collateralTiers': 'Stress · Market · Positive',
   'dash.minDscr': 'min DSCR',
   'dash.never': 'Never',

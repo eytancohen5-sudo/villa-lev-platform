@@ -100,7 +100,32 @@ export const fr: TranslationDictionary = {
   'kpi.wcSelfLiqFail': 'Alerte',
   'kpi.wcSelfLiqSub': 'Creux ≤ 50 K€ chaque sept.',
   'dash.heroDscr': 'Trajectoire RCSD par voie de financement',
-  'dash.heroDscrSub': '2028–2036 · covenant min 1,25× · confort 1,5×',
+  'dash.heroDscrSub': '2028–2036 · Grâce se termine en 2028, DS complet dès 2029 · Covenant ≥1,25× · Confort ≥1,5×',
+  'bank.dscrChartSub': '[FR] 2029 est la première année de plein amortissement — la franchise se termine en 2028. Les objectifs de revenus 2028–2029 sont fixés de manière conservatrice en dessous des données actuelles de Villa Lev.', // [NEEDS NATIVE REVIEW]
+  'bank.allPathsChartSub': '[FR] 2029 est la première année de plein amortissement — la franchise se termine en 2028. Les objectifs de revenus 2028–2029 sont fixés de manière conservatrice en dessous des données actuelles de Villa Lev.', // [NEEDS NATIVE REVIEW]
+  'bank.revenueEbitdaSub': '[FR] Montée 2028–2029 : modélisée en dessous des données actuelles de Villa Lev et en dessous des moyennes du marché grec pour les suites comparables.', // [NEEDS NATIVE REVIEW]
+  'bank.stabilisedOpsSub': '[FR] Année stabilisée 2031 — après la montée en charge et le premier cycle complet d\'amortissement.', // [NEEDS NATIVE REVIEW]
+  'bank.heroKpiDscrSub': '[FR] Stabilisé (2031+) · Covenant ≥1,25×', // [NEEDS NATIVE REVIEW]
+  'bank.pnlFooterNote': '[FR] Plancher covenant DSCR 1,25× · Vert ≥1,25× OK, orange 1,00–1,25×, rouge <1,00×. Événements et annexes affichés nets de coûts. 2029 : première année de service complet capital + intérêts après 2 ans de franchise.', // [NEEDS NATIVE REVIEW]
+
+  // BankControlBar
+  'bank.bar.commercial': 'Commercial',
+  'bank.bar.rrf': 'FRR',
+  'bank.bar.grant': 'Subvention',
+  'bank.bar.tepix': 'TEPIX',
+  'bank.bar.realistic': 'Réaliste',
+  'bank.bar.upside': 'Optimiste',
+  'bank.bar.downside': 'Pessimiste',
+
+  // bank/page.tsx hero & section headings
+  'bank.hero.eyebrow': 'Demande de Crédit · Antiparos, Grèce',
+  'bank.section.repaymentCapacity': 'Capacité de Remboursement',
+  'bank.section.projectedRevenue': 'Revenus & EBITDA Projetés',
+  'bank.section.collateral': 'Garanties & Couverture d\'Actifs',
+
+  // BankStressTest
+  'bank.stress.title': 'Contrôle des Scénarios et Hypothèses',
+  'bank.stress.description': 'Modifiez n\'importe quel paramètre — tous les graphiques et KPI se mettent à jour en direct.',
   'dash.section.operating': 'Performance opérationnelle',
   'dash.section.capital': 'Structure du capital',
   'dash.section.workingCapital': 'Fonds de roulement — narratif crédit',

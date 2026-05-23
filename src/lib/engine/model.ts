@@ -336,9 +336,9 @@ function computeDebtService(
   }
 
   if (path === 'rrf') {
-    const totalLoan = a.rrf.totalLoanDrawn;
-    const equity = a.rrf.equityRequired;
-    const annualDS = a.rrf.annualDS;
+    const totalLoan = totalCost * a.rrf.coverageRate;
+    const equity = totalCost - totalLoan;
+    const annualDS = 0; // fallback unused — computedDS below is always non-zero
 
     const rrfPortion = totalLoan * a.rrf.rrfShareOfLoan;
     const commPortion = totalLoan * a.rrf.commercialShareRate;
@@ -710,12 +710,17 @@ function computeScenario(
     // floor — that's the point: the floor crosses DSCR; the overage does not.
     const ebitdaPreOpCo = totalRevenue - totalOpex;
 
-    // OpCo fees: base on total revenue, brand on room revenue, incentive on
-    // GOP above the owner's priority return on equity (computed once outside).
+    // OpCo fees: Bucket 2A on total revenue, Bucket 2B on GOP above hurdle.
+    // baseMgmtFeeRate (5% gross revenue) replaces the old baseFeeRate +
+    // brandFeeRate split. The fallback handles Firestore-stored scenarios that
+    // still carry the old field shape (missing baseMgmtFeeRate).
     // These are the *calculated* (gross / theoretical) fees. The actually-paid
     // amount may be lower under bank-view subordination — see waterfall block.
-    const opCoBaseFee = opCoEnabled ? totalRevenue * opCo.baseFeeRate : 0;
-    const opCoBrandFee = opCoEnabled ? roomRevenue * opCo.brandFeeRate : 0;
+    const opCoBaseFee = opCoEnabled
+      ? totalRevenue * (opCo.baseMgmtFeeRate ?? ((opCo.baseFeeRate ?? 0) + (opCo.brandFeeRate ?? 0)))
+      : 0;
+    /** @deprecated Merged into opCoBaseFee (Bucket 2A). Kept at zero to avoid removing from AnnualPnL. */
+    const opCoBrandFee = 0;
     const opCoIncentiveBase = ebitdaPreOpCo - opCoBaseFee - opCoBrandFee - opCoPriorityReturn;
     const opCoIncentiveFee = opCoEnabled
       ? Math.max(0, opCoIncentiveBase) * opCo.incentiveFeeRate
@@ -1435,6 +1440,9 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     capex,
     scenarios: { realistic, upside, downside, breakeven },
     grantScenario,
+    rrfScenario: rrfRealistic,
+    commercialScenario: commercialRealistic,
+    tepixLoanScenario: tepixLoanRealistic,
     financingComparison,
     keyMetrics,
     dscrByYear,

@@ -148,10 +148,9 @@ function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; b
 }
 
 function TornadoBar({ bar, maxSwing }: { bar: TornadoBarData; maxSwing: number }) {
-  // Percentage of the half-width to use for each side, scaled to the global max.
-  const lowPct = maxSwing > 0 ? (Math.abs(bar.lowDelta) / maxSwing) * 100 : 0;
-  const highPct = maxSwing > 0 ? (Math.abs(bar.highDelta) / maxSwing) * 100 : 0;
-  // Color: red side = whichever direction lowers IRR; green side = the other.
+  // Fixed to 4dp so SSR and client produce identical strings (avoids hydration mismatch).
+  const lowPct = maxSwing > 0 ? ((Math.abs(bar.lowDelta) / maxSwing) * 100).toFixed(4) : "0";
+  const highPct = maxSwing > 0 ? ((Math.abs(bar.highDelta) / maxSwing) * 100).toFixed(4) : "0";
   const lowColor = bar.lowDelta < 0 ? 'bg-negative/70' : 'bg-positive/70';
   const highColor = bar.highDelta > 0 ? 'bg-positive/70' : 'bg-negative/70';
   return (
@@ -160,33 +159,28 @@ function TornadoBar({ bar, maxSwing }: { bar: TornadoBarData; maxSwing: number }
         {bar.label}
       </div>
       <div className="flex-1 grid grid-cols-2 relative">
-        {/* Centerline (baseline IRR) */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-text-tertiary/40 z-10" />
-        {/* Left half (low side) */}
-        <div className="flex justify-end pr-px">
-          <div className="flex items-center gap-1">
-            <span className="text-[10px] text-text-tertiary font-mono">
-              {(bar.lowIRR * 100).toFixed(1)}%
-            </span>
-            <div
-              className={`h-5 ${lowColor} rounded-l`}
-              style={{ width: `max(${lowPct}%, 2px)` }}
-              title={`${bar.lowLabel}: equity IRR ${(bar.lowIRR * 100).toFixed(2)}% (Δ ${bar.lowDelta >= 0 ? '+' : ''}${(bar.lowDelta * 100).toFixed(2)}pp)`}
-            />
-          </div>
+        {/* Centerline */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-text-tertiary/40 z-10 pointer-events-none" />
+        {/* Left half — bar anchored to right edge, text on left. `relative` block fills grid
+            cell so percentage widths on absolutely-positioned children resolve correctly. */}
+        <div
+          className="relative h-5"
+          title={`${bar.lowLabel}: equity IRR ${(bar.lowIRR * 100).toFixed(2)}% (Δ ${bar.lowDelta >= 0 ? '+' : ''}${(bar.lowDelta * 100).toFixed(2)}pp)`}
+        >
+          <div className={`absolute right-0 inset-y-0 ${lowColor} rounded-l`} style={{ width: `max(${lowPct}%, 2px)` }} />
+          <span className="relative z-10 flex h-full items-center pl-1 text-[10px] text-text-tertiary font-mono">
+            {(bar.lowIRR * 100).toFixed(1)}%
+          </span>
         </div>
-        {/* Right half (high side) */}
-        <div className="flex justify-start pl-px">
-          <div className="flex items-center gap-1">
-            <div
-              className={`h-5 ${highColor} rounded-r`}
-              style={{ width: `max(${highPct}%, 2px)` }}
-              title={`${bar.highLabel}: equity IRR ${(bar.highIRR * 100).toFixed(2)}% (Δ ${bar.highDelta >= 0 ? '+' : ''}${(bar.highDelta * 100).toFixed(2)}pp)`}
-            />
-            <span className="text-[10px] text-text-tertiary font-mono">
-              {(bar.highIRR * 100).toFixed(1)}%
-            </span>
-          </div>
+        {/* Right half — bar anchored to left edge, text on right. */}
+        <div
+          className="relative h-5"
+          title={`${bar.highLabel}: equity IRR ${(bar.highIRR * 100).toFixed(2)}% (Δ ${bar.highDelta >= 0 ? '+' : ''}${(bar.highDelta * 100).toFixed(2)}pp)`}
+        >
+          <div className={`absolute left-0 inset-y-0 ${highColor} rounded-r`} style={{ width: `max(${highPct}%, 2px)` }} />
+          <span className="relative z-10 flex h-full items-center justify-end pr-1 text-[10px] text-text-tertiary font-mono">
+            {(bar.highIRR * 100).toFixed(1)}%
+          </span>
         </div>
       </div>
       <div className="w-20 text-[10px] text-text-tertiary font-mono text-right tabular-nums">
@@ -347,20 +341,24 @@ export default function SensitivityPage() {
           </div>
         </div>
 
-        {/* Centered axis label row */}
-        <div className="flex items-center gap-3 mb-2 text-[10px] uppercase tracking-wider text-text-tertiary">
-          <div className="w-44 text-right">Input</div>
-          <div className="flex-1 grid grid-cols-2">
-            <div className="text-right pr-2">↓ lower equity IRR</div>
-            <div className="pl-2">higher equity IRR ↑</div>
-          </div>
-          <div className="w-20 text-right">Swing</div>
-        </div>
+        <div className="overflow-x-auto">
+          <div className="min-w-[460px]">
+            {/* Centered axis label row */}
+            <div className="flex items-center gap-3 mb-2 text-[10px] uppercase tracking-wider text-text-tertiary">
+              <div className="w-44 text-right">Input</div>
+              <div className="flex-1 grid grid-cols-2">
+                <div className="text-right pr-2">↓ lower equity IRR</div>
+                <div className="pl-2">higher equity IRR ↑</div>
+              </div>
+              <div className="w-20 text-right">Swing</div>
+            </div>
 
-        <div className="border-t border-surface-secondary/50 pt-2">
-          {tornado.bars.map((bar) => (
-            <TornadoBar key={bar.label} bar={bar} maxSwing={tornado.maxSwing} />
-          ))}
+            <div className="border-t border-surface-secondary/50 pt-2">
+              {tornado.bars.map((bar) => (
+                <TornadoBar key={bar.label} bar={bar} maxSwing={tornado.maxSwing} />
+              ))}
+            </div>
+          </div>
         </div>
 
         <p className="mt-4 text-[11px] text-text-tertiary leading-relaxed">

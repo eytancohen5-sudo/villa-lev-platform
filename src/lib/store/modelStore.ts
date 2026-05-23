@@ -695,11 +695,19 @@ export type UiPrompt =
 
 // Engine view-mode override. When set, recompute() forces the engine into
 // that viewMode regardless of the persisted assumption value. Used by:
-//   - /investor, /pitch route layouts (always 'bank')
+//   - /pitch route layouts (always 'bank')
 //   - admin "Bank view" toggle (admin opts into 'bank' on /admin/*)
 //   - useEffectiveAuth bridge for View-As-Banker impersonation
 // `null` = honour assumptions.viewMode (which defaults to 'internal').
 export type ViewModeOverride = 'internal' | 'bank' | null;
+
+// Ephemeral financing-path override for the /bank view. When set, recompute()
+// uses this path instead of assumptions.financingPath. Never persisted to
+// localStorage — lives only in the in-memory store and is set/cleared by
+// BankControlBar + bank/layout.tsx cleanup. This keeps the banker's path
+// selection from corrupting Eytan's admin session.
+// `null` = honour assumptions.financingPath.
+export type FinancingPathOverride = string | null;
 
 interface ModelStore {
   assumptions: ModelAssumptions;
@@ -712,6 +720,12 @@ interface ModelStore {
   // the admin toggle. Default null.
   viewModeOverride: ViewModeOverride;
   setViewModeOverride: (mode: ViewModeOverride) => void;
+
+  // See FinancingPathOverride above. Not persisted to assumptions storage —
+  // set/cleared by BankControlBar and cleared on bank/layout.tsx unmount.
+  // Default null.
+  financingPathOverride: FinancingPathOverride;
+  setFinancingPathOverride: (path: FinancingPathOverride) => void;
 
   // Templates & Projects
   templates: PropertyTemplate[];
@@ -865,6 +879,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const current = get().viewModeOverride;
     if (current === mode) return;
     set({ viewModeOverride: mode });
+    get().recompute();
+  },
+
+  financingPathOverride: null as FinancingPathOverride,
+  setFinancingPathOverride: (path: FinancingPathOverride) => {
+    const current = get().financingPathOverride;
+    if (current === path) return;
+    set({ financingPathOverride: path });
     get().recompute();
   },
   templates: [...BUILT_IN_TEMPLATES],
@@ -1161,14 +1183,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Resolve templates + projects → portfolio
     const portfolio = resolvePortfolio(state.templates, state.projects);
     // Update assumptions with resolved portfolio
-    const assumptions = { ...state.assumptions, portfolio };
+    let assumptions = { ...state.assumptions, portfolio };
+    // Apply ephemeral financing-path override (banker view only). When non-null
+    // it takes precedence over assumptions.financingPath without writing to
+    // localStorage. Cleared on bank/layout.tsx unmount so the admin session
+    // is never affected.
+    if (state.financingPathOverride !== null) {
+      assumptions = { ...assumptions, financingPath: state.financingPathOverride as FinancingPath };
+    }
     // Apply viewMode override (banker routes, admin toggle, banker
     // impersonation). When null we fall through to assumptions.viewMode
     // (which defaults to 'internal' via BASE_CASE).
     const computed = state.viewModeOverride
       ? computeModel({ ...assumptions, viewMode: state.viewModeOverride })
       : computeModel(assumptions);
-    set({ assumptions, model: computed, loading: false, computeTimeMs: computed.computeTimeMs });
+    set({ assumptions: { ...state.assumptions, portfolio }, model: computed, loading: false, computeTimeMs: computed.computeTimeMs });
   },
 
   init: () => {

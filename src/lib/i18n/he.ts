@@ -100,7 +100,32 @@ export const he: TranslationDictionary = {
   'kpi.wcSelfLiqFail': 'דגל',
   'kpi.wcSelfLiqSub': 'שפל ≤ €50K בכל ספט\'',
   'dash.heroDscr': 'מסלול DSCR לפי נתיב מימון',
-  'dash.heroDscrSub': '2028–2036 · קובננט מינ׳ 1.25× · נוחות 1.5×',
+  'dash.heroDscrSub': '2028–2036 · גרייס מסתיים 2028, DS מלא מ-2029 · קובננט ≥1.25× · נוחות ≥1.5×',
+  'bank.dscrChartSub': '[HE] 2029: שנת פירעון מלאה ראשונה — תקופת הגרייס מסתיימת ב-2028. יעדי ההכנסות לשנים 2028–2029 נקבעו בשמרנות מתחת לביצועי Villa Lev הנוכחיים.', // [NEEDS NATIVE REVIEW]
+  'bank.allPathsChartSub': '[HE] 2029: שנת פירעון מלאה ראשונה — תקופת הגרייס מסתיימת ב-2028. יעדי ההכנסות לשנים 2028–2029 נקבעו בשמרנות מתחת לביצועי Villa Lev הנוכחיים.', // [NEEDS NATIVE REVIEW]
+  'bank.revenueEbitdaSub': '[HE] עלייה 2028–2029: מדורגת מתחת לביצועי Villa Lev הנוכחיים ומתחת לממוצעי השוק היווני לסוויטות דומות.', // [NEEDS NATIVE REVIEW]
+  'bank.stabilisedOpsSub': '[HE] שנת התייצבות 2031 — לאחר הרצה הדרגתית ומחזור הפירעון המלא הראשון.', // [NEEDS NATIVE REVIEW]
+  'bank.heroKpiDscrSub': '[HE] מיוצב (2031+) · קובננט ≥1.25×', // [NEEDS NATIVE REVIEW]
+  'bank.pnlFooterNote': '[HE] רצפת קובננט DSCR 1.25× · ירוק ≥1.25× תקין, כתום 1.00–1.25×, אדום <1.00×. 2029: שנה ראשונה לשירות חוב מלא (קרן + ריבית) לאחר 2 שנות גרייס.', // [NEEDS NATIVE REVIEW]
+
+  // BankControlBar
+  'bank.bar.commercial': 'מסחרי',
+  'bank.bar.rrf': 'RRF',
+  'bank.bar.grant': 'מענק',
+  'bank.bar.tepix': 'TEPIX',
+  'bank.bar.realistic': 'ריאליסטי',
+  'bank.bar.upside': 'אופטימי',
+  'bank.bar.downside': 'פסימי',
+
+  // bank/page.tsx hero & section headings
+  'bank.hero.eyebrow': 'בקשת אשראי · אנטיפארוס, יוון',
+  'bank.section.repaymentCapacity': 'יכולת פירעון',
+  'bank.section.projectedRevenue': 'הכנסות ו-EBITDA צפויים',
+  'bank.section.collateral': 'בטחונות וכיסוי נכסים',
+
+  // BankStressTest
+  'bank.stress.title': 'בקרת תרחישים והנחות',
+  'bank.stress.description': 'שנה כל פרמטר — כל הגרפים ומדדי KPI מתעדכנים בזמן אמת.',
   'dash.section.operating': 'ביצועים תפעוליים',
   'dash.section.capital': 'מבנה ההון',
   'dash.section.workingCapital': 'הון חוזר — נרטיב אשראי',

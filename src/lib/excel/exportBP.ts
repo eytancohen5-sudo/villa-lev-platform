@@ -27,6 +27,7 @@ import {
   EARNED_EQUITY_CAP,
   TOTAL_FOUNDER_CAP,
   MIN_INVESTOR_SHARE,
+  BUCKET_1A_COLLATERAL_CAP,
 } from '@/lib/engine/founderWaterfall';
 
 // Column letter from 1-indexed column number.
@@ -141,7 +142,7 @@ export async function exportBusinessPlan(
     '  Waterfall — 3-layer founder economics (pari-passu / grant bonus / performance ratchet) with investor protection caps (33% earned, 75% total). Layer B is derived from live grant, fee, and project-value inputs (auditable). Stress test at €200K/€300K/€400K/€500K founder cash; ManCo fee + consultant payment subtracted from NCF.',
     '',
     'Notes',
-    '  This export reflects the active financing path only. Other paths are available in the in-app dashboard.',
+    '  Financing Comparison sheet shows fully-calculated metrics for all four paths (Commercial / RRF / Grant / TEPIX Loan).',
     '  Working-capital interest is shown as an annual aggregate; the in-app model runs a quarterly compute under the hood.',
     '  All € values are in euro, nominal (no inflation indexation).',
   ];
@@ -228,11 +229,20 @@ export async function exportBusinessPlan(
   writeInput('Net VAT rate (effective)', a.tax.netVATRate, FMT.pct, undefined, 'vatRate');
   r += 1;
 
-  writeSection('Financing — Commercial loan');
+  writeSection('Financing — Commercial loan (active path: see Debt Service sheet)');
   writeInput('Loan coverage rate', a.commercialLoan.loanCoverageRate, FMT.pct, undefined, 'loanCoverage');
   writeInput('Interest rate', a.commercialLoan.interestRate, FMT.pct, undefined, 'loanRate');
   writeInput('Grace period (years)', a.commercialLoan.gracePeriodYears, FMT.num, undefined, 'gracePeriodYears');
   writeInput('Repayment term (years)', a.commercialLoan.repaymentTermYears, FMT.num, undefined, 'repaymentTerm');
+  r += 1;
+
+  writeSection('Financing — RRF blended loan');
+  writeInput('Coverage rate (% of CAPEX)', a.rrf.coverageRate ?? 0.80, FMT.pct, 'Same concept as commercial LTV; applied to total portfolio CAPEX', 'rrfCoverage');
+  writeInput('RRF share of loan (EU funds)', a.rrf.rrfShareOfLoan, FMT.pct, '80% EU RRF tranche at concessional rate');
+  writeInput('RRF interest rate', a.rrf.rrfInterestRate, FMT.pct, '0.35% p.a.');
+  writeInput('Commercial share of loan', a.rrf.commercialShareRate, FMT.pct, '20% at commercial bank rate');
+  writeInput('Commercial portion rate', a.rrf.commercialInterestRate, FMT.pct);
+  writeInput('Repayment term (years)', a.rrf.repaymentTermYears, FMT.num);
   r += 1;
 
   writeSection('Other');
@@ -240,6 +250,12 @@ export async function exportBusinessPlan(
   writeInput('Exit EBITDA multiple', a.exitEbitdaMultiple, FMT.mul, 'Used for terminal asset value & IRR.', 'exitMultiple');
   writeInput('DSCR covenant threshold', a.dscrCovenantThreshold, FMT.mul,
     'Bank covenant floor — typical Greek/EU CRE: 1.20–1.30.', 'dscrCovenantThreshold');
+  writeInput(
+    'Bucket 1A — Collateral cap (admin reference)',
+    BUCKET_1A_COLLATERAL_CAP,
+    FMT.euro,
+    'Admin reference — Eytan collateral pledge cap. Not a DCF input.',
+  );
   r += 2;
 
   // — Per-property block —
@@ -947,16 +963,12 @@ export async function exportBusinessPlan(
   });
   pr2 += 1;
 
-  // Pre-tax / pre-DS "EBITDA - Taxes" line — used as the unlevered free cash
-  // flow basis for the Project IRR on the Coverage sheet (Issue 1a). Engine
-  // equivalent: cfads = ebitda + citPayable (CIT is stored negative). We mirror
-  // that here by adding `taxesRow` (which is stored negative as -CIT-VAT) back
-  // — but only the CIT portion. To stay close to engine cfads we use ebitda +
-  // CIT, computed inline below per year. For workbook simplicity we just
-  // compute EBITDA + the negative tax row, accepting that VAT is included.
-  // Engine cfads excludes VAT; deviation is small (€~70K/yr) and noted.
+  // CFADS — unlevered free cash flow (EBITDA − CIT, approximately).
+  // Engine cfads excludes VAT (a balance-sheet pass-through); the formula
+  // below uses the combined tax row (−CIT − VAT), so it is a small amount
+  // conservative vs the Coverage sheet's CFADS. Difference is noted.
   const cfadsRow = pr2;
-  PnL.getCell(`A${pr2}`).value = 'EBITDA − Taxes (unlevered free cash flow)';
+  PnL.getCell(`A${pr2}`).value = 'CFADS — Cash flow avail. for debt service (EBITDA − taxes)';
   PnL.getCell(`A${pr2}`).font = FONT.italic;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
@@ -964,64 +976,305 @@ export async function exportBusinessPlan(
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
+  pr2 += 2;
+
+  // ── Extended bank rows (match app /admin/pnl full detail) ──────────
+
+  // Term loan closing balance
+  const termBalRow = pr2;
+  PnL.getCell(`A${pr2}`).value = '  Term-loan closing balance';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = pyVal(y, 'termLoanBalance');
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+  void termBalRow;
+
+  // Pre-tax NCF (EBITDA − main loan DS, before tax)
+  const ncfPreTaxRow = pr2;
+  PnL.getCell(`A${pr2}`).value = 'NCF pre-tax (EBITDA − debt service)';
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = pyVal(y, 'netCashFlow');
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+
+  // VAT payable (shown negative — cash outflow)
+  const vatRow = pr2;
+  PnL.getCell(`A${pr2}`).value = '  VAT payable';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const e = py(y);
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = e ? -e.vatPayable : 0;
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+  void vatRow;
+
+  // CIT payable (shown negative)
+  const citRow = pr2;
+  PnL.getCell(`A${pr2}`).value = '  Corporate income tax (CIT)';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const e = py(y);
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = e ? -e.citPayable : 0;
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+  void citRow;
+
+  // Profit after tax
+  const patRow = pr2;
+  PnL.getCell(`A${pr2}`).value = 'Profit after tax';
+  PnL.getCell(`A${pr2}`).font = FONT.bold;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = pyVal(y, 'profitAfterTax');
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+  });
+  pr2 += 1;
+  void patRow;
+
+  // NCF post-VAT (= NCF after CIT + VAT — this is the distributable amount)
+  PnL.getCell(`A${pr2}`).value = 'NCF post-VAT (distributable)';
+  PnL.getCell(`A${pr2}`).font = FONT.bold;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    // Formula: pre-tax NCF − VAT − CIT (both stored negative above, so add)
+    c.value = { formula: `=${col(2 + i)}${ncfPreTaxRow}+${col(2 + i)}${taxesRow}`, result: pyVal(y, 'netCashFlowPostVAT') };
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+  });
+  pr2 += 2;
+
+  // ── Coverage ratios ──────────────────────────────────────────────────
+  PnL.getCell(`A${pr2}`).value = 'Coverage ratios';
+  PnL.getCell(`A${pr2}`).font = FONT.section;
+  pr2 += 1;
+
+  // DSCR realistic — formula-driven (EBITDA / main DS)
+  const dscrRealisticRow = pr2;
+  PnL.getCell(`A${pr2}`).value = 'DSCR — Realistic (EBITDA / main-loan DS)';
+  PnL.getCell(`A${pr2}`).font = FONT.bold;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    const e = py(y);
+    const ds = e ? e.termLoanInterest + e.termLoanPrincipal : 0;
+    const result = ds > 0 ? (e?.ebitda ?? 0) / ds : 0;
+    c.value = { formula: `=IFERROR(${col(2 + i)}${ebitdaRow}/${col(2 + i)}${mainDsRow},0)`, result };
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+  });
+  pr2 += 1;
+
+  // DSCR upside — engine values (upside scenario uses different ADR/occupancy)
+  PnL.getCell(`A${pr2}`).value = '  DSCR — Upside';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    const e = m.scenarios.upside.pnl.find((p) => p.year === y);
+    c.value = e?.dscr ?? 0;
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+
+  // DSCR downside — engine values
+  PnL.getCell(`A${pr2}`).value = '  DSCR — Downside';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    const e = m.scenarios.downside.pnl.find((p) => p.year === y);
+    c.value = e?.dscr ?? 0;
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+
+  // DSCR loaded (EBITDA / total DS incl. WC interest)
+  PnL.getCell(`A${pr2}`).value = '  DSCR loaded (incl. WC interest)';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = pyVal(y, 'dscrLoaded');
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 1;
+
+  // ICR (interest coverage ratio)
+  PnL.getCell(`A${pr2}`).value = '  ICR (EBITDA / interest only)';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = pyVal(y, 'interestCoverageRatio');
+    c.numFmt = FMT.mul;
+    c.fill = STYLE.formulaFill;
+  });
+  pr2 += 2;
+
+  // ── Working capital detail ───────────────────────────────────────────
+  PnL.getCell(`A${pr2}`).value = 'Working capital (annual aggregates)';
+  PnL.getCell(`A${pr2}`).font = FONT.section;
+  pr2 += 1;
+
+  const wcDetailRows: Array<{ label: string; key: keyof typeof scenario.pnl[number] }> = [
+    { label: 'WC average balance', key: 'wcAvgBalance' },
+    { label: 'WC peak balance', key: 'wcPeakBalance' },
+    { label: 'WC net contribution (drawn − repaid)', key: 'wcNetContribution' },
+  ];
+  wcDetailRows.forEach(({ label, key }) => {
+    PnL.getCell(`A${pr2}`).value = `  ${label}`;
+    years.forEach((y, i) => {
+      const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+      c.value = pyVal(y, key as keyof typeof scenario.pnl[number]);
+      c.numFmt = FMT.euro;
+      c.fill = STYLE.formulaFill;
+    });
+    pr2 += 1;
+  });
+
   PnL.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
   // ── 6. Debt Service ─────────────────────────────────────────────────
+  // All four financing paths shown side-by-side. Active path column is bold/gold.
   const D = wb.addWorksheet('Debt Service');
-  D.columns = [{ width: 32 }, { width: 16 }];
-  D.getCell('A1').value = 'Debt Service Summary';
+  D.columns = [{ width: 36 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 30 }];
+  D.getCell('A1').value = 'Debt Service — All Financing Paths';
   D.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
-  let dr = 3;
-  D.getCell(`A${dr}`).value = `Active path: ${pathLabel(path)}`;
-  D.getCell(`A${dr}`).font = FONT.italic;
-  dr += 2;
+  D.getCell('A2').value =
+    `Active path: ${pathLabel(path)}. All four paths use the same CAPEX; each has its own coverage rate, ` +
+    `interest structure, and repayment term. RRF is a blended 80/20 tranche. Grant deducts the ` +
+    `Development Law subsidy before sizing the bank loan.`;
+  D.getCell('A2').font = FONT.italic;
+  D.getCell('A2').alignment = { wrapText: true, vertical: 'top' };
+  D.mergeCells('A2:F2');
+  D.getRow(2).height = 36;
 
+  const dsPaths: Array<{ key: 'commercial' | 'rrf' | 'grant' | 'tepix-loan'; label: string; sc: typeof m.scenarios.realistic }> = [
+    { key: 'commercial', label: 'Commercial', sc: m.commercialScenario },
+    { key: 'rrf',        label: 'RRF Blended', sc: m.rrfScenario },
+    { key: 'grant',      label: 'Grant',       sc: m.grantScenario },
+    { key: 'tepix-loan', label: 'TEPIX Loan',  sc: m.tepixLoanScenario },
+  ];
+
+  let dr = 4;
+  // Header row
+  D.getCell(`A${dr}`).value = 'Metric';
+  D.getCell(`A${dr}`).font = FONT.header;
+  D.getCell(`A${dr}`).fill = STYLE.headerFill;
+  dsPaths.forEach((p, i) => {
+    const c = D.getCell(`${col(2 + i)}${dr}`);
+    c.value = p.key === path ? `${p.label} (ACTIVE)` : p.label;
+    c.font = FONT.header;
+    c.fill = STYLE.headerFill;
+    c.alignment = { horizontal: 'center' };
+  });
+  D.getCell(`F${dr}`).value = 'Notes';
+  D.getCell(`F${dr}`).font = FONT.header;
+  D.getCell(`F${dr}`).fill = STYLE.headerFill;
+  dr += 1;
+
+  // Helper: write one DS metric row
+  const writeDsRow = (
+    label: string,
+    pick: (sc: typeof m.scenarios.realistic) => number | string,
+    fmt: string,
+    note: string,
+    bold = false,
+  ) => {
+    const lc = D.getCell(`A${dr}`);
+    lc.value = label;
+    if (bold) lc.font = FONT.bold;
+    dsPaths.forEach((p, i) => {
+      const c = D.getCell(`${col(2 + i)}${dr}`);
+      const v = pick(p.sc);
+      c.value = v;
+      if (typeof v === 'number') c.numFmt = fmt;
+      else c.alignment = { horizontal: 'center' };
+      c.fill = p.key === path ? STYLE.totalFill : STYLE.formulaFill;
+      if (bold && p.key === path) c.font = FONT.bold;
+    });
+    D.getCell(`F${dr}`).value = note;
+    D.getCell(`F${dr}`).font = FONT.italic;
+    dr += 1;
+  };
+
+  writeDsRow('Total CAPEX', () => m.capex.portfolioTotal, FMT.euro, 'Same for all paths — from CAPEX sheet');
+  writeDsRow('Loan amount', (sc) => sc.pnl[0]?.termLoanBalance ?? 0, FMT.euro, 'Opening balance = loan drawn at start', true);
+  writeDsRow('Grant received', (sc) => {
+    const fc = m.financingComparison.find((r) => r.key === 'grantReceived');
+    if (!fc) return 0;
+    // Map sc back to a path key
+    const pk = dsPaths.find((p) => p.sc === sc)?.key;
+    return pk === 'grant' ? (fc.grant as number) : 0;
+  }, FMT.euro, 'Development Law Grant (grant path only)');
+  writeDsRow('Equity required', (sc) => {
+    const fc = m.financingComparison.find((r) => r.key === 'equityRequired');
+    if (!fc) return 0;
+    const pk = dsPaths.find((p) => p.sc === sc)?.key;
+    if (!pk) return 0;
+    const v = (fc as unknown as Record<string, number>)[pk === 'tepix-loan' ? 'tepixLoan' : pk];
+    return typeof v === 'number' ? v : 0;
+  }, FMT.euro, 'CAPEX − loan − grant');
+  writeDsRow('Annual debt service', (sc) => {
+    const fc = m.financingComparison.find((r) => r.key === 'annualDebtService');
+    if (!fc) return 0;
+    const pk = dsPaths.find((p) => p.sc === sc)?.key;
+    if (!pk) return 0;
+    const v = (fc as unknown as Record<string, number>)[pk === 'tepix-loan' ? 'tepixLoan' : pk];
+    return typeof v === 'number' ? v : 0;
+  }, FMT.euro, 'Annual PMT (fully-amortising, post-grace)', true);
+  writeDsRow('Stabilised DSCR (2031)', (sc) => sc.stabilisedYear?.dscr ?? 0, FMT.mul, 'EBITDA / annual DS — post-ramp steady state', true);
+  writeDsRow('Min DSCR (loan life)', (sc) => sc.minDSCRLoanLife, FMT.mul, 'Worst single year, post-ramp');
+
+  // Year-by-year amortisation section — active path only (full table; other paths: opening/closing only)
+  dr += 1;
+  D.getCell(`A${dr}`).value = `Amortisation schedule — Active path (${pathLabel(path)})`;
+  D.getCell(`A${dr}`).font = FONT.section;
+  D.getCell(`A${dr}`).fill = STYLE.sectionFill;
+  D.mergeCells(`A${dr}:F${dr}`);
+  dr += 1;
+  D.getCell(`A${dr}`).value = 'See the Amortisation Schedule sheet for the full year-by-year active-path table.';
+  D.getCell(`A${dr}`).font = FONT.italic;
+  D.mergeCells(`A${dr}:F${dr}`);
+
+  // Also keep the legacy single-column formula block for the active commercial path
+  // so the Amortisation Schedule sheet's cross-reference to the CAPEX sheet still works.
   if (path === 'commercial') {
-    D.getCell(`A${dr}`).value = 'Total CAPEX (from CAPEX sheet)';
+    dr += 2;
+    D.getCell(`A${dr}`).value = 'Active-path formula block (Commercial)';
+    D.getCell(`A${dr}`).font = FONT.bold;
+    dr += 1;
+    D.getCell(`A${dr}`).value = 'Total CAPEX (formula link)';
     D.getCell(`B${dr}`).value = { formula: `=${capexTotalCell}` };
     D.getCell(`B${dr}`).numFmt = FMT.euro;
     D.getCell(`B${dr}`).fill = STYLE.formulaFill;
     dr += 1;
-    D.getCell(`A${dr}`).value = 'Loan coverage rate';
-    D.getCell(`B${dr}`).value = { formula: '=loanCoverage' };
-    D.getCell(`B${dr}`).numFmt = FMT.pct;
-    D.getCell(`B${dr}`).fill = STYLE.formulaFill;
-    const loanRow = dr + 1;
-    dr += 1;
-    D.getCell(`A${dr}`).value = 'Loan amount';
-    D.getCell(`B${dr}`).value = { formula: `=B${dr - 2}*loanCoverage` };
+    D.getCell(`A${dr}`).value = 'Loan amount (CAPEX × coverage)';
+    D.getCell(`B${dr}`).value = { formula: `=B${dr - 1}*loanCoverage` };
     D.getCell(`B${dr}`).numFmt = FMT.euro;
     D.getCell(`B${dr}`).fill = STYLE.totalFill;
     D.getCell(`B${dr}`).font = FONT.bold;
     dr += 1;
-    D.getCell(`A${dr}`).value = 'Equity required';
-    D.getCell(`B${dr}`).value = { formula: `=B${loanRow - 1}-B${loanRow}` };
-    D.getCell(`B${dr}`).numFmt = FMT.euro;
-    D.getCell(`B${dr}`).fill = STYLE.formulaFill;
-    dr += 1;
-    D.getCell(`A${dr}`).value = 'Annual debt service (PMT)';
-    D.getCell(`B${dr}`).value = { formula: `=-PMT(loanRate,repaymentTerm,B${loanRow})` };
+    D.getCell(`A${dr}`).value = 'Annual PMT (formula)';
+    D.getCell(`B${dr}`).value = { formula: `=-PMT(loanRate,repaymentTerm,B${dr - 1})` };
     D.getCell(`B${dr}`).numFmt = FMT.euro;
     D.getCell(`B${dr}`).fill = STYLE.totalFill;
     D.getCell(`B${dr}`).font = FONT.bold;
-  } else {
-    D.getCell(`A${dr}`).value = 'Loan amount';
-    D.getCell(`B${dr}`).value = m.keyMetrics.loanAmount;
-    D.getCell(`B${dr}`).numFmt = FMT.euro;
-    D.getCell(`B${dr}`).fill = STYLE.inputFill;
-    dr += 1;
-    D.getCell(`A${dr}`).value = 'Equity required';
-    D.getCell(`B${dr}`).value = m.keyMetrics.equityRequired;
-    D.getCell(`B${dr}`).numFmt = FMT.euro;
-    D.getCell(`B${dr}`).fill = STYLE.inputFill;
-    dr += 1;
-    D.getCell(`A${dr}`).value = 'Annual debt service';
-    D.getCell(`B${dr}`).value = m.keyMetrics.annualDS;
-    D.getCell(`B${dr}`).numFmt = FMT.euro;
-    D.getCell(`B${dr}`).fill = STYLE.inputFill;
-    dr += 1;
-    D.getCell(`A${dr + 1}`).value = `Note: ${pathLabel(path)} schedule embedded as values from the engine. Switch path in the app to regenerate.`;
-    D.getCell(`A${dr + 1}`).font = FONT.italic;
   }
 
   // ── 7. Coverage ─────────────────────────────────────────────────────
@@ -1736,7 +1989,7 @@ export async function exportBusinessPlan(
     // Input cells (blue — editable)
     const inputs: Array<{ label: string; cell: string; value: number; fmt: string }> = [
       { label: 'Grant amount', cell: 'B', value: 4_013_880, fmt: FMT.euro },
-      { label: 'Founder fee % (of grant)', cell: 'B', value: 0.10, fmt: FMT.pct },
+      { label: 'Bucket 1B — Grant procurement fee % (of grant)', cell: 'B', value: 0.10, fmt: FMT.pct },
       { label: 'Consultant share % (of grant)', cell: 'B', value: 0.05, fmt: FMT.pct },
       { label: 'Project asset value', cell: 'B', value: 8_440_000, fmt: FMT.euro },
       { label: 'Baseline bank loan (pre-grant commercial)', cell: 'B', value: 3_540_000, fmt: FMT.euro },
@@ -1803,7 +2056,7 @@ export async function exportBusinessPlan(
   WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
   WF.mergeCells(`A${wfr}:G${wfr}`);
   wfr += 1;
-  WF.getCell(`A${wfr}`).value = 'Founder ManCo fee (5% × revenue, cumulative)';
+  WF.getCell(`A${wfr}`).value = 'Base management fee — Bucket 2A (5% × gross revenue, cumulative)';
   WF.getCell(`B${wfr}`).value = capResult.totalFounderManCoFee;
   WF.getCell(`B${wfr}`).numFmt = FMT.euro;
   WF.getCell(`B${wfr}`).fill = STYLE.formulaFill;
@@ -1993,8 +2246,8 @@ export async function exportBusinessPlan(
   FC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
   FC.getCell('A2').value =
     'Side-by-side: each column is one financing path. Bolded column is the ACTIVE path used elsewhere in this workbook. ' +
-    'Rich return / coverage / peak-WC / exit metrics are only computed for the ACTIVE path and (when distinct) the GRANT path; ' +
-    'other columns surface the thin metrics in ModelOutput.financingComparison only.';
+    'All four paths show fully-calculated metrics — each uses the same CAPEX and revenue assumptions with its own financing structure. ' +
+    'DSCR, IRR, NCF, and peak-debt rows are computed for every path, not just the active one.';
   FC.getCell('A2').font = FONT.italic;
   FC.getCell('A2').alignment = { wrapText: true, vertical: 'top' };
   FC.mergeCells('A2:F2');
@@ -2039,11 +2292,12 @@ export async function exportBusinessPlan(
 
   // Helper: pick a value from financingComparison by key.
   const fcRow = (key: string) => m.financingComparison.find((row) => row.key === key);
-  // Helper: full-data scenario for a path, if available.
-  const scenarioForPath = (key: typeof fcPathCols[number]['key']): typeof activeScenario | null => {
-    if (key === activePath) return activeScenario;
+  // Full-data scenario per path — all four paths now available.
+  const scenarioForPath = (key: typeof fcPathCols[number]['key']): typeof activeScenario => {
     if (key === 'grant') return m.grantScenario;
-    return null;
+    if (key === 'rrf') return m.rrfScenario;
+    if (key === 'commercial') return m.commercialScenario;
+    return m.tepixLoanScenario; // 'tepix-loan'
   };
 
   // Write one row across all paths.
@@ -2070,31 +2324,21 @@ export async function exportBusinessPlan(
     fcPathCols.forEach((p, i) => {
       const c = FC.getCell(`${col(2 + i)}${fcr}`);
       const sc = scenarioForPath(p.key);
-      if (sc) {
-        let v: string | number = pickRich(sc);
-        c.numFmt = fmt;
-        if (emphasis === 'sub' && p.key === activePath && activeMinDscrYear !== null) {
-          // Suffix the active-path min-DSCR cell with the year of occurrence.
-          // ExcelJS preserves numFmt only when value is numeric, so when we
-          // attach the year context we switch to a string for that one cell.
-          c.numFmt = '';
-          v = `${(pickRich(sc) as number).toFixed(2)}× · yr ${activeMinDscrYear}`;
-        }
-        c.value = v;
-        c.fill = p.key === activePath ? STYLE.totalFill : STYLE.formulaFill;
-        if (emphasis === 'headline') {
-          c.font = { bold: true, size: 13, color: p.key === activePath ? { argb: 'FF8B6914' } : { argb: 'FF333333' } };
-        } else if (emphasis === 'sub') {
-          c.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
-        } else if (p.key === activePath) {
-          c.font = FONT.bold;
-        }
-      } else {
-        c.value = 'n/a (active-path only)';
-        c.font = FONT.italic;
-        c.alignment = { horizontal: 'center' };
-        c.fill = STYLE.formulaFill;
+      let v: string | number = pickRich(sc);
+      c.numFmt = fmt;
+      // Fill is always set (active = gold, others = grey).
+      c.fill = p.key === activePath ? STYLE.totalFill : STYLE.formulaFill;
+      if (emphasis === 'sub') {
+        const pathMinYr = minDscrYearLookup(sc);
+        c.numFmt = '';
+        v = `${(pickRich(sc) as number).toFixed(2)}× · yr ${pathMinYr ?? '—'}`;
+        c.font = { italic: true, size: 9, color: { argb: 'FF777777' } };
+      } else if (emphasis === 'headline') {
+        c.font = { bold: true, size: 13, color: p.key === activePath ? { argb: 'FF8B6914' } : { argb: 'FF333333' } };
+      } else if (p.key === activePath) {
+        c.font = FONT.bold;
       }
+      c.value = v;
     });
     FC.getCell(`F${fcr}`).value = note;
     FC.getCell(`F${fcr}`).font = FONT.italic;
@@ -2206,9 +2450,9 @@ export async function exportBusinessPlan(
   fcr += 1;
   FC.mergeCells(`A${fcr}:F${fcr}`);
   FC.getCell(`A${fcr}`).value =
-    'Engine note: ModelOutput.FinancingPath = commercial | grant | rrf | tepix-loan. ' +
-    'No tepix-guarantee-short path is currently produced by the engine; that column is omitted ' +
-    'rather than fabricated. Extend the engine first if a guarantee-short comparison is required.';
+    'Engine note: all four paths (Commercial / RRF / Grant / TEPIX Loan) are fully modelled. ' +
+    'RRF loan = total CAPEX × RRF coverage rate (blended 80% EU-RRF at 0.35% + 20% commercial at 5%). ' +
+    'Grant path deducts the Development Law grant from non-land CAPEX before sizing the loan.';
   FC.getCell(`A${fcr}`).font = FONT.italic;
   FC.getCell(`A${fcr}`).alignment = { wrapText: true, vertical: 'top' };
   FC.getRow(fcr).height = 32;

@@ -805,4 +805,31 @@ export interface TranslationDictionary {
   'opco.capStructure': string;
   'opco.feeStructure': string;
   'opco.stabilisedOutcome': string;
+
+  // ── Bank page contextual subtitles (2026-05-23) ──
+  'bank.dscrChartSub': string;
+  'bank.allPathsChartSub': string;
+  'bank.revenueEbitdaSub': string;
+  'bank.stabilisedOpsSub': string;
+  'bank.heroKpiDscrSub': string;
+  'bank.pnlFooterNote': string;
+
+  // ── BankControlBar (2026-05-23) ──
+  'bank.bar.commercial': string;
+  'bank.bar.rrf': string;
+  'bank.bar.grant': string;
+  'bank.bar.tepix': string;
+  'bank.bar.realistic': string;
+  'bank.bar.upside': string;
+  'bank.bar.downside': string;
+
+  // ── bank/page.tsx hero & section headings (2026-05-23) ──
+  'bank.hero.eyebrow': string;
+  'bank.section.repaymentCapacity': string;
+  'bank.section.projectedRevenue': string;
+  'bank.section.collateral': string;
+
+  // ── BankStressTest (2026-05-23) ──
+  'bank.stress.title': string;
+  'bank.stress.description': string;
 }

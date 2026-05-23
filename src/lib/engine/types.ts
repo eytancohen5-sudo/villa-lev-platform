@@ -223,15 +223,18 @@ export interface GrantParams {
 
 export interface RRFParams {
   enabled: boolean;
-  rrfShareOfLoan: number;
+  coverageRate: number;         // fraction of total CAPEX financed (e.g. 0.80)
+  rrfShareOfLoan: number;       // fraction of that loan from EU RRF funds (e.g. 0.80)
   rrfInterestRate: number;
   commercialShareRate: number;
   commercialInterestRate: number;
   gracePeriodYears: number;
   repaymentTermYears: number;
-  totalLoanDrawn: number;
-  equityRequired: number;
-  annualDS: number;
+  // Legacy fields kept for backward-compat with stored Firestore data.
+  // The engine now derives loan / equity from CAPEX × coverageRate.
+  totalLoanDrawn?: number;
+  equityRequired?: number;
+  annualDS?: number;
 }
 
 export interface TepixLoanFundParams {
@@ -259,16 +262,20 @@ export interface TaxAssumptions {
 // deducted from EBITDA so all downstream PropCo metrics (NCF, DSCR, IRR)
 // reflect the post-fee return to the asset owner.
 //
-//   baseFee       = baseFeeRate × Total Revenue
-//   brandFee      = brandFeeRate × Room Revenue (property revenue, no events/ancillary)
-//   incentiveFee  = incentiveFeeRate × max(0, GOP − baseFee − brandFee − priorityReturn)
-//   priorityReturn = ownerPriorityReturnRate × initial equity
+//   Bucket 2A: baseMgmtFee  = baseMgmtFeeRate × Total Revenue   (5% gross revenue)
+//   Bucket 2B: incentiveFee = incentiveFeeRate × max(0, GOP − baseMgmtFee − priorityReturn)
+//   priorityReturn          = ownerPriorityReturnRate × initial equity
 //
 // GOP for this model ≈ EBITDA before OpCo fees.
 export interface OpCoFeeParams {
   enabled: boolean;
-  baseFeeRate: number;
-  brandFeeRate: number;
+  /** Bucket 2A: 5% of gross revenue (replaces baseFeeRate + brandFeeRate) */
+  baseMgmtFeeRate: number;
+  /** @deprecated Merged into baseMgmtFeeRate. Kept for Firestore backward-compat. */
+  baseFeeRate?: number;
+  /** @deprecated Merged into baseMgmtFeeRate. Kept for Firestore backward-compat. */
+  brandFeeRate?: number;
+  /** Bucket 2B: 10% of GOP above hurdle */
   incentiveFeeRate: number;
   ownerPriorityReturnRate: number;
 }
@@ -547,6 +554,9 @@ export interface ModelOutput {
     breakeven: ScenarioOutput;
   };
   grantScenario: ScenarioOutput;
+  rrfScenario: ScenarioOutput;
+  commercialScenario: ScenarioOutput;
+  tepixLoanScenario: ScenarioOutput;
   financingComparison: FinancingComparison[];
   keyMetrics: {
     stabilisedRevenue: number;

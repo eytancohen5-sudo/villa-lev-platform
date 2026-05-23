@@ -5,6 +5,8 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { CAP_TABLE_TOUR } from "@/lib/tours/configs";
 import { computeCapTable } from "@/lib/engine/capTable";
 import {
   EARNED_EQUITY_CAP,
@@ -70,6 +72,7 @@ export default function CapTablePage() {
     removeStakeholder,
     resetCapTable,
   } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(CAP_TABLE_TOUR.storageKey);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [redacted, setRedacted] = useState(false);
   const [redactedTarget, setRedactedTarget] = useState<string | null>(null);
@@ -170,6 +173,7 @@ export default function CapTablePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
           <button
             type="button"
             onClick={() => {
@@ -211,7 +215,7 @@ export default function CapTablePage() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
         Founder compensation
       </h2>
-      <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-6">
+      <div id="captable-founder-waterfall" className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-5">
           <div>
             <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
@@ -426,7 +430,7 @@ export default function CapTablePage() {
       <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3 px-1">
         Stakeholders
       </h2>
-      <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden mb-6">
+      <div id="captable-stakeholders" className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden mb-6">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -637,6 +641,7 @@ export default function CapTablePage() {
           Tip: click a row to expand its year-by-year detail. Change a contribution amount to recompute the waterfall. Switch Path / Scenario / Exit in the top bar to stress-test.
         </p>
       </div>
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={CAP_TABLE_TOUR} />
     </div>
   );
 }
