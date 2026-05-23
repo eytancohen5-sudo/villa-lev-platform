@@ -2,9 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
+import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
   const { init, setViewModeOverride, setFinancingPathOverride } = useModelStore();
+  // Freshness banner: mirrors the same guard in /admin/layout.tsx. When the
+  // Firestore subscription returns nothing (or shape-mismatches), the hook
+  // falls back to the static snapshot in currentVillaActuals.ts. Surface that
+  // to the banker so they know the figures are not live.
+  const { source: snapshotSource, pulledAt: snapshotPulledAt } = useSeasonSnapshot();
+  const showStaleBanner = snapshotSource === "static-fallback";
 
   const initialized = useRef(false);
   useEffect(() => {
@@ -31,6 +38,32 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="min-h-screen bg-surface-primary">
+      {showStaleBanner && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-amber-50 border-b border-amber-300 text-amber-900 text-xs px-6 py-2 flex items-center gap-2 print:hidden"
+        >
+          <span aria-hidden="true">⚠</span>
+          <span>
+            Showing static snapshot from <strong>{snapshotPulledAt}</strong> — live
+            <code className="mx-1 px-1 rounded bg-amber-100 font-mono">seasonSnapshots/latest</code>
+            feed not connected.
+          </span>
+        </div>
+      )}
+      {!showStaleBanner && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-surface-secondary border-b border-surface-tertiary text-text-tertiary text-xs px-6 py-1.5 flex items-center gap-2 print:hidden"
+        >
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
+          <span>
+            Live data · refreshed <time dateTime={snapshotPulledAt}>{snapshotPulledAt}</time>
+          </span>
+        </div>
+      )}
       {children}
     </div>
   );
