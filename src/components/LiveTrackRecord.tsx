@@ -141,7 +141,7 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "At stabilisation in {years} years, our per-night rates sit {gap}% below today's live Villa Lev and {marketGap}% below 2025 Antiparos hotel market rates — in a hospitality market that has grown every single year. These are large, deliberate cushions built into every assumption.",
+      "At stabilisation in {years} years, our villa KPIs (ADR, occupancy, RevPAR) average {gap}% below today's live Villa Lev performance — and our room rates sit {marketGap}% below 2025 Antiparos hotel market rates — in a hospitality market that grows every year. Large, deliberate cushions in every assumption.",
     cushion: "Cushion",
     model: "Model",
     liveLabel: "Live",
@@ -199,7 +199,7 @@ const LR: Record<
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
-      "À la stabilisation dans {years} ans, nos tarifs nuit sont {gap}% sous les performances actuelles de Villa Lev et {marketGap}% sous les tarifs 2025 du marché hôtelier d'Antiparos — dans un marché en croissance constante. Ce sont des marges de prudence importantes, délibérément intégrées dans chaque hypothèse.",
+      "À la stabilisation dans {years} ans, nos KPIs villa (ADR, occupation, RevPAR) sont en moyenne {gap}% sous les performances actuelles de Villa Lev — et nos tarifs chambre {marketGap}% sous le marché hôtelier 2025 d'Antiparos — dans un marché en croissance constante. Des marges de prudence importantes, délibérément intégrées dans chaque hypothèse.",
     cushion: "Coussin",
     model: "Modèle",
     liveLabel: "Réel",
@@ -258,7 +258,7 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Στη σταθεροποίηση σε {years} χρόνια, οι τιμές ανά διανυκτέρευση βρίσκονται {gap}% κάτω από τα σημερινά επίπεδα της Villa Lev και {marketGap}% κάτω από τις τιμές 2025 της αγοράς ξενοδοχείων Αντιπάρου — σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο. Πρόκειται για μεγάλα, σκόπιμα «μαξιλάρια» ενσωματωμένα σε κάθε παραδοχή.",
+      "Στη σταθεροποίηση σε {years} χρόνια, οι KPIs βίλας (ADR, πληρότητα, RevPAR) είναι κατά μέσο όρο {gap}% κάτω από τα σημερινά επίπεδα της Villa Lev — και οι τιμές δωματίων {marketGap}% κάτω από την αγορά ξενοδοχείων Αντιπάρου 2025 — σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο. Μεγάλα, σκόπιμα «μαξιλάρια» σε κάθε παραδοχή.",
     cushion: "Μαξιλάρι",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
@@ -317,7 +317,7 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "בייצוב בעוד {years} שנים, תעריפי הלילה שלנו נמוכים ב-{gap}% מהביצועים הנוכחיים של Villa Lev וב-{marketGap}% מתעריפי שוק המלונות 2025 באנטיפרוס — בשוק אירוח שצמח כל שנה. אלו כריות שמרנות גדולות ומכוונות, הבנויות לתוך כל הנחה.",
+      "בייצוב בעוד {years} שנים, ה-KPIs של הוילה (ADR, תפוסה, RevPAR) נמוכים בממוצע ב-{gap}% מהביצועים הנוכחיים של Villa Lev — ותעריפי החדרים נמוכים ב-{marketGap}% משוק המלונות 2025 באנטיפרוס — בשוק אירוח שצמח כל שנה. כריות שמרנות גדולות ומכוונות בכל הנחה.",
     cushion: "כרית",
     model: "מודל",
     liveLabel: "בפועל",
