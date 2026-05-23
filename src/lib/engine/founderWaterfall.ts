@@ -6,7 +6,7 @@
 //
 //   Layer A  Pari-passu cash equity        = founder_cash / total_equity
 //   Layer B  Grant landing bonus           = +4% if grant approved, else 0
-//   Layer C  Performance ratchet at exit   = 0 / 5 / 9 / 19 / 29 (or 33)%
+//   Layer C  Performance ratchet at exit   = 0 (miss) / 9 (pref_met) / 29 (excellent)%
 //
 // Plus two hard caps that protect investors:
 //   • Earned cap:  grant_bonus + ratchet ≤ +33%
