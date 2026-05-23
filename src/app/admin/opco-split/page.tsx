@@ -13,6 +13,10 @@ import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { OPCO_SPLIT_TOUR } from "@/lib/tours/configs";
 import type { ModelAssumptions, ModelOutput, ScenarioOutput } from "@/lib/engine/types";
 import {
+  DEFAULT_GRANT_AMOUNT,
+  DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
+} from "@/lib/engine/founderWaterfall";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -754,7 +758,7 @@ function EntityDiagram({
           <div><span className="text-text-tertiary">Owns:</span> Brand IP + operational know-how</div>
           <div><span className="text-text-tertiary">Provides:</span> Mgmt services · brand · dev supervision</div>
           <div className="text-text-tertiary pt-1 border-t border-positive/20">
-            Receives: 6 fee streams from PropCo (see below)
+            Receives: 4 fee buckets from PropCo (see below)
           </div>
         </div>
       </div>
@@ -764,7 +768,7 @@ function EntityDiagram({
         <div className="text-xs space-y-1">
           <div><span className="text-text-tertiary">Hold:</span> Equity claims on PropCo</div>
           <div className="text-text-tertiary pt-1 border-t border-surface-tertiary">
-            Receive: distributions per waterfall (8% pref · 70/30 above)
+            Receive: distributions per 3-layer waterfall (pari-passu · dev equity · ratchet)
           </div>
         </div>
       </div>
@@ -784,7 +788,6 @@ function FeeStreamsTable({
   assumptions,
   stab,
   opCoStabilisedFee,
-  scenario,
   locale,
 }: {
   assumptions: ModelAssumptions;
@@ -793,27 +796,15 @@ function FeeStreamsTable({
   scenario: ScenarioOutput;
   locale: Locale;
 }) {
-  // Hard costs (construction + FF&E) — proxy for development fee basis.
-  const hardCosts = assumptions.portfolio.reduce((sum, p) => {
-    const area = (p.constructionArea ?? 0) > 0
-      ? p.constructionArea ?? 0
-      : 0;
-    const construction = area * p.constructionCostPerM2;
-    return sum + (construction + p.ffeCost) * p.count;
-  }, 0);
-  const developmentFee = hardCosts * 0.03;
-  const grantAmount = scenario.pnl.length > 0
-    ? (Math.max(0, assumptions.grant?.grantRate ?? 0)) * hardCosts
-    : 0;
-  // Grant success fee = 10% of grant, less 5% to consultant → 5% net to founder
-  const grantSuccessFee = grantAmount * 0.05;
-  const brandMgmtFee = stab ? (stab.totalRevenue * 0.05) : 0;
-  // Incentive — use stabilised opCo total fee as proxy
+  const isGrant = assumptions.financingPath === "grant";
+  // Bucket 1B — Grant advisory fee: 10% of grant (DEFAULT_GRANT_AMOUNT used by engine)
+  const grantAmount = isGrant ? DEFAULT_GRANT_AMOUNT : 0;
+  const grantAdvisoryGross = grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT; // 10%
+  const grantAdvisoryCash = grantAdvisoryGross * 0.5; // 50% cash deferred to PropCo
+  // Bucket 2A — Base management fee at stabilisation
+  const baseMgmtFee = stab ? stab.totalRevenue * 0.05 : 0;
+  // Bucket 2B — Incentive fee at stabilisation
   const incentiveFee = opCoStabilisedFee;
-  // PG fee — 0.75% × €2.5M
-  const pgFee = 2500000 * 0.0075;
-  // Disposition fee — 1% of sale price (terminal asset value)
-  const dispositionFee = scenario.terminalAssetValue * 0.01;
 
   return (
     <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
@@ -822,46 +813,60 @@ function FeeStreamsTable({
           <tr className="bg-surface-secondary/40">
             <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Fee</th>
             <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Rate</th>
-            <th className="text-right py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Annual €</th>
-            <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Duration</th>
+            <th className="text-right py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Amount</th>
+            <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">When</th>
           </tr>
         </thead>
         <tbody className="text-sm">
+          {/* Bucket 1A */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Development fee</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">3% of hard costs</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(developmentFee, true, locale)}</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">One-time (split Y0/Y1, construction)</td>
+            <td className="py-2.5 px-4 font-medium">
+              Bucket 1A — Developer equity
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">Sourcing · construction mgmt · €2.5M bank collateral</div>
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">25% promote (equity)</td>
+            <td className="py-2 px-4 text-right font-mono text-text-tertiary">— (equity only)</td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">Inception · no PropCo cash outflow</td>
           </tr>
-          <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Grant success fee</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">10% of grant − 5% consultant = 5% net</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(grantSuccessFee, true, locale)}</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">One-time (at grant approval)</td>
+          {/* Bucket 1B */}
+          <tr className={`border-t border-surface-secondary/40 ${isGrant ? "" : "opacity-40"}`}>
+            <td className="py-2.5 px-4 font-medium">
+              Bucket 1B — Grant advisory fee
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">
+                {isGrant
+                  ? `50% cash (${formatCurrency(grantAdvisoryCash, true, locale)} deferred 3 yr) + 50% equity → Layer B`
+                  : "Active on Grant path only"}
+              </div>
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">10% of grant · 50% cash / 50% equity</td>
+            <td className="py-2 px-4 text-right font-mono">
+              {isGrant ? formatCurrency(grantAdvisoryCash, true, locale) : "—"}
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">At grant approval · cash spread over 3 yr</td>
           </tr>
+          {/* Bucket 2A */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Brand + management fee</td>
+            <td className="py-2.5 px-4 font-medium">
+              Bucket 2A — Base management fee
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">Brand + operational management combined</div>
+            </td>
             <td className="py-2 px-4 text-xs text-text-tertiary">5% of gross revenue</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(brandMgmtFee, true, locale)}/yr</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">Years 1–10 of operations</td>
+            <td className="py-2 px-4 text-right font-mono">
+              {baseMgmtFee > 0 ? <>{formatCurrency(baseMgmtFee, true, locale)}/yr</> : "—"}
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">Annual · 2028 → exit</td>
           </tr>
+          {/* Bucket 2B */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Incentive management fee</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">10% of NCF above 8% ROE hurdle</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(incentiveFee, true, locale)}/yr</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">Years 1–10</td>
-          </tr>
-          <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Personal guarantee fee</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">0.75% × €2.5M PG</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(pgFee, true, locale)}/yr</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">Until DSCR &gt; 1.5× sustained (~2031)</td>
-          </tr>
-          <tr className="border-t border-surface-secondary/40">
-            <td className="py-2 px-4">Disposition fee</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">1% of sale price</td>
-            <td className="py-2 px-4 text-right font-mono">{formatCurrency(dispositionFee, true, locale)}</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">One-time (at exit)</td>
+            <td className="py-2.5 px-4 font-medium">
+              Bucket 2B — Incentive fee
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">OpCo share of GOP above owner priority return</div>
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">% of NCF above 8% hurdle</td>
+            <td className="py-2 px-4 text-right font-mono">
+              {incentiveFee > 0 ? <>{formatCurrency(incentiveFee, true, locale)}/yr</> : "—"}
+            </td>
+            <td className="py-2 px-4 text-xs text-text-tertiary">Annual · 2028 → exit</td>
           </tr>
         </tbody>
       </table>
@@ -880,44 +885,42 @@ function FounderCompKPI({
   opCoStabilisedFee: number;
   locale: Locale;
 }) {
-  // Sum across exit horizon — approximate using stabilised rates × years.
-  const hardCosts = assumptions.portfolio.reduce((sum, p) => {
-    const area = (p.constructionArea ?? 0) > 0 ? p.constructionArea ?? 0 : 0;
-    return sum + (area * p.constructionCostPerM2 + p.ffeCost) * p.count;
-  }, 0);
-  const developmentFee = hardCosts * 0.03;
-  const grantSuccessFee = hardCosts * (assumptions.grant?.grantRate ?? 0) * 0.05;
+  const isGrant = assumptions.financingPath === "grant";
+  // Bucket 1B — cash advisory fee (50% of 10% of grant)
+  const grantAdvisoryCash = isGrant
+    ? DEFAULT_GRANT_AMOUNT * DEFAULT_GRANT_PROCUREMENT_FEE_PCT * 0.5
+    : 0;
   const exitYear = scenario.exitYear ?? 2036;
   const operatingYears = Math.max(0, exitYear - 2028 + 1);
   const stab = scenario.stabilisedYear;
-  const brandMgmtAnnual = stab ? stab.totalRevenue * 0.05 : 0;
-  const pgFee = 2500000 * 0.0075;
-  // PG paid until 2031 (3 years post-launch)
-  const pgYears = 3;
-  const dispositionFee = scenario.terminalAssetValue * 0.01;
+  // Bucket 2A — base management fee × operating years
+  const baseMgmtAnnual = stab ? stab.totalRevenue * 0.05 : 0;
+  // Bucket 2B — incentive fee × operating years
   const totalFounderComp =
-    developmentFee +
-    grantSuccessFee +
-    brandMgmtAnnual * operatingYears +
-    opCoStabilisedFee * operatingYears +
-    pgFee * pgYears +
-    dispositionFee;
+    grantAdvisoryCash +
+    baseMgmtAnnual * operatingYears +
+    opCoStabilisedFee * operatingYears;
+
+  const parts = [
+    isGrant ? `Bucket 1B advisory €${Math.round(grantAdvisoryCash / 1000)}K` : null,
+    `Bucket 2A base mgmt × ${operatingYears}yr`,
+    `Bucket 2B incentive × ${operatingYears}yr`,
+  ].filter(Boolean).join(" + ");
 
   return (
     <div className="rounded-xl border border-brand-200 bg-brand-50 p-4 mt-4">
       <div className="flex items-baseline justify-between gap-4">
         <div>
           <div className="text-[10px] font-medium uppercase tracking-wider text-brand-700">
-            Total founder compensation, 2026 → exit
+            Total OpCo fee income, 2026 → exit
           </div>
           <div className="font-display text-2xl text-brand-700 mt-1">
             {formatCurrency(totalFounderComp, true, locale)}
           </div>
         </div>
         <div className="text-xs text-text-tertiary text-right max-w-md">
-          Development + grant success + brand &amp; management × {operatingYears}y +
-          incentive × {operatingYears}y + PG × {pgYears}y + disposition.
-          Approximate (uses stabilised rates × duration).
+          {parts}. Approximate — uses stabilised rates × duration.
+          Excludes Bucket 1A developer equity (equity value, not cash fee).
         </div>
       </div>
     </div>
@@ -926,20 +929,20 @@ function FounderCompKPI({
 
 function WaterfallMechanicsBox() {
   const steps = [
-    { i: 1, label: "Bank gets paid", detail: "Annual debt service first" },
-    { i: 2, label: "OpCo fees paid", detail: "Development phase or ongoing operations" },
-    { i: 3, label: "Tax paid", detail: "Corporate income tax + VAT" },
-    { i: 4, label: "Reserve account funded", detail: "If DSRA required by bank" },
-    { i: 5, label: "Founder co-invest returned", detail: "€200K one-time at hotel launch (2028)" },
-    { i: 6, label: "8% preferred return", detail: "Pro-rata to pari-passu equity" },
-    { i: 7, label: "70% LP / 30% sponsor on excess", detail: "Promote split above pref" },
+    { i: 1, label: "Bank gets paid", detail: "Annual debt service — interest + amortisation — senior and first" },
+    { i: 2, label: "OpCo fees deducted (Buckets 2A + 2B)", detail: "Base management fee + incentive fee subtracted from NCF before splitting" },
+    { i: 3, label: "Bucket 1B advisory fee (Grant path only)", detail: "Deferred cash advisory fee spread over 3 years post-disbursement" },
+    { i: 4, label: "Tax paid", detail: "Corporate income tax on taxable income" },
+    { i: 5, label: "Founder takes Layer A + B + C (operating)", detail: "Pari-passu cash share + 25% developer equity promote + grant bonus + performance ratchet" },
+    { i: 6, label: "Investors split the remainder", detail: "Pro-rata to their cash invested — same IRR for all non-founder equity" },
+    { i: 7, label: "At exit — Layer C excluded", detail: "Sale / terminal proceeds split on pari-passu + dev equity + grant bonus only; ratchet does not apply to exit" },
   ];
   return (
     <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
       <ol className="divide-y divide-surface-secondary/40">
         {steps.map((s) => (
           <li key={s.i} className="px-4 py-3 flex items-start gap-3">
-            <span className="font-display text-lg text-brand-700 w-6 text-center">{s.i}</span>
+            <span className="font-display text-lg text-brand-700 w-6 text-center flex-shrink-0">{s.i}</span>
             <div>
               <div className="font-medium text-sm">{s.label}</div>
               <div className="text-xs text-text-tertiary mt-0.5">{s.detail}</div>
@@ -974,7 +977,7 @@ function CapStructureSummary({
       <div className="rounded-xl border border-surface-tertiary bg-white p-4">
         <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Co-invest (pari-passu)</div>
         <div className="font-display text-2xl mt-1">{formatCurrency(200000, true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">Eytan's cash — returned at hotel launch 2028</div>
+        <div className="text-xs text-text-tertiary mt-1">Eytan's cash — pari-passu with investors until exit</div>
       </div>
       <div className="rounded-xl border border-surface-tertiary bg-white p-4">
         <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Other investors (pari-passu)</div>
