@@ -223,31 +223,55 @@ export default function CapTablePage() {
       {/* Equity coverage */}
       {(() => {
         const totalCommitted = result.totalEquityCommitted;
-        const gap = equityRequired - totalCommitted;
+        const gap = equityRequired - totalCommitted;   // positive = shortfall, negative = over-committed
         const covered = Math.abs(gap) < 1;
+        const overCommitted = gap < -1;
         const pct = equityRequired > 0 ? Math.min(1, totalCommitted / equityRequired) : 1;
+        const borderCls = covered
+          ? "border-positive/30 bg-positive/5"
+          : overCommitted
+            ? "border-surface-tertiary bg-surface-secondary/40"
+            : "border-warning/40 bg-warning/8";
+        const labelCls = covered ? "text-positive" : overCommitted ? "text-text-secondary" : "text-warning";
+        const chipCls = covered
+          ? "bg-positive/15 text-positive"
+          : overCommitted
+            ? "bg-surface-tertiary text-text-secondary"
+            : "bg-warning/15 text-warning";
+        const chipLabel = covered
+          ? "100% covered"
+          : overCommitted
+            ? `${formatCurrency(Math.abs(gap), true, locale)} over`
+            : `${formatCurrency(gap, true, locale)} gap`;
+        const barCls = covered ? "bg-positive" : overCommitted ? "bg-brand-400" : "bg-warning";
         return (
-          <div className={`rounded-xl border p-4 mb-4 ${covered ? "border-positive/30 bg-positive/5" : "border-warning/40 bg-warning/8"}`}>
+          <div className={`rounded-xl border p-4 mb-4 ${borderCls}`}>
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold uppercase tracking-wider ${covered ? "text-positive" : "text-warning"}`}>
+                <span className={`text-xs font-semibold uppercase tracking-wider ${labelCls}`}>
                   Equity coverage
                 </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${covered ? "bg-positive/15 text-positive" : "bg-warning/15 text-warning"}`}>
-                  {covered ? "100% covered" : `${formatCurrency(Math.abs(gap), true, locale)} gap`}
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${chipCls}`}>
+                  {chipLabel}
                 </span>
               </div>
               <span className="text-xs text-text-tertiary font-mono">
                 {formatCurrency(totalCommitted, true, locale)} committed · {formatCurrency(equityRequired, true, locale)} required
               </span>
             </div>
+            {overCommitted && (
+              <p className="text-[11px] text-text-tertiary mb-2">
+                Investors have committed more than the model needs on this path.
+                The <span className="font-medium">Equity Investor</span> auto-balance row will show €0 — named investors absorb the full pool pro-rata.
+              </p>
+            )}
             <div className="h-2 w-full rounded-full bg-surface-tertiary overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all ${covered ? "bg-positive" : "bg-warning"}`}
+                className={`h-full rounded-full transition-all ${barCls}`}
                 style={{ width: `${pct * 100}%` }}
               />
             </div>
-            {!covered && (
+            {!covered && !overCommitted && (
               <p className="text-xs text-text-secondary mt-2">
                 The <span className="font-medium">Equity Investor</span> row below auto-fills this gap. Rename it or split it across named investors — the total will always equal the model&apos;s equity requirement.
               </p>
@@ -415,8 +439,11 @@ export default function CapTablePage() {
             <div className="font-mono text-base font-semibold mt-1">{formatCurrency(totalEquity, true, locale)}</div>
           </div>
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Non-founder cash</div>
-            <div className="font-mono text-base font-semibold mt-1">{formatCurrency(result.totalNonFounderCash, true, locale)}</div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Required from investors</div>
+            <div className="font-mono text-base font-semibold mt-1">{formatCurrency(Math.max(0, totalEquity - founderCash), true, locale)}</div>
+            <div className="text-[10px] text-text-tertiary mt-0.5">
+              Committed: {formatCurrency(result.totalNonFounderCash, true, locale)}
+            </div>
           </div>
           <div>
             <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Investor MOIC</div>
