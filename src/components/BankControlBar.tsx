@@ -69,7 +69,7 @@ export default function BankControlBar() {
           </div>
 
           {/* Language toggle */}
-          <LanguageToggle />
+          <LanguageToggle placement="down" />
         </div>
       </div>
     </div>

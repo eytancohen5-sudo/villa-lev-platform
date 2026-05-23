@@ -118,13 +118,13 @@ export const fr: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Demande de Crédit · Antiparos, Grèce',
-  'bank.section.repaymentCapacity': 'Couverture du Service de la Dette (DSCR)',
+  'bank.section.repaymentCapacity': 'Ratio de Couverture du Service de la Dette (DSCR)',
   'bank.section.projectedRevenue': 'Revenus & EBITDA Projetés',
   'bank.section.collateral': 'Garanties & Couverture d\'Actifs',
 
   // BankStressTest
-  'bank.stress.title': 'Contrôle des Scénarios et Hypothèses',
-  'bank.stress.description': 'Modifiez n\'importe quel paramètre — tous les graphiques et KPI se mettent à jour en direct.',
+  'bank.stress.title': 'Scénarios de Stress',
+  'bank.stress.description': 'Ajustez n\'importe quelle hypothèse pour stresser le modèle. Les graphiques et métriques se mettent à jour en direct.',
   'dash.section.operating': 'Performance opérationnelle',
   'dash.section.capital': 'Structure du capital',
   'dash.section.workingCapital': 'Facilité de Fonds de Roulement',
@@ -377,7 +377,8 @@ export const fr: TranslationDictionary = {
   'capex.propAPer': 'Bien A (unitaire)',
   'capex.propAx2': 'Bien A ×2',
   'capex.propB': 'Bien B',
-  'capex.total': 'Total',
+  'capex.total': 'Total (€)',
+  'capex.pctTotal': '% du Total',
   'capex.totalCapex': 'CAPEX TOTAL',
   'capex.totalProjectCost': 'Coût total du projet',
   'capex.propAEach': 'Bien A (chacun)',
@@ -749,9 +750,9 @@ export const fr: TranslationDictionary = {
   'pitch.close.footer': 'Villa Lev Group · Agios Georgios, Antiparos · Confidentiel',
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
-  'dash.termsheet.title': 'Term sheet — vue d\'ensemble',
+  'dash.termsheet.title': 'Conditions du Financement',
   'dash.termsheet.loan': 'Prêt',
-  'dash.termsheet.loanSub': 'LTV à l\'achèvement',
+  'dash.termsheet.loanSub': 'LTV · base valeur expertisée',
   'dash.termsheet.term': 'Durée · franchise',
   'dash.termsheet.termSub': 'Amortissable après franchise',
   'dash.termsheet.rate': 'Taux',

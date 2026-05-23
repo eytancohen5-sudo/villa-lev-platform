@@ -441,110 +441,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Term sheet at a glance — what the credit committee skims first.
-          Restructure 2026-05-22: condensed horizontal STRIP (no per-cell
-          kpi-value sized boxes — those competed visually with the Headline
-          KPI grid below). The deal terms a banker scans for first sit in
-          one inline row that stacks on <md. Source-of-truth for Loan, Term ·
-          Grace, Rate, Annual DS, DSCR covenant — these are NOT repeated in
-          the Headline KPI grid. */}
-      {(() => {
-        const path = assumptions.financingPath;
-        const ratePct =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.bankInterestRate
-            : path === "rrf"
-              ? assumptions.rrf.commercialInterestRate
-              : assumptions.commercialLoan.interestRate;
-        const term =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.totalTermYears
-            : path === "rrf"
-              ? assumptions.rrf.repaymentTermYears
-              : assumptions.commercialLoan.repaymentTermYears;
-        const grace =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.gracePeriodYears
-            : path === "rrf"
-              ? assumptions.rrf.gracePeriodYears
-              : assumptions.commercialLoan.gracePeriodYears;
-        const covenant = assumptions.dscrCovenantThreshold;
-        const minDscr = activeScenarioOutput.minDSCRLoanLife;
-        const dscrPass = minDscr >= covenant;
-        // Term Sheet strip cells: deal terms only. Equity Required moved to
-        // the Headline KPI grid below — it's an underwriting figure, not a
-        // term-sheet field. Keeps the strip to 5 banker-scan cells.
-        const cells: Array<{ label: string; value: string; sub?: string; tone?: "positive" | "warning" }> = [
-          {
-            label: t('dash.termsheet.loan'),
-            value: formatCurrency(km.loanAmount, true, locale),
-            sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}`,
-          },
-          {
-            label: t('dash.termsheet.term'),
-            value: `${term}y · ${grace}y`,
-            sub: t('dash.termsheet.termSub'),
-          },
-          {
-            label: t('dash.termsheet.rate'),
-            value: `${(ratePct * 100).toFixed(2)}%`,
-            sub: pathLabel,
-          },
-          {
-            label: t('dash.termsheet.annualDS'),
-            value: formatCurrency(km.annualDS, true, locale),
-            sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}`,
-          },
-          {
-            label: t('dash.termsheet.dscrCovenant'),
-            value: `${covenant.toFixed(2)}×`,
-            sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`,
-            tone: dscrPass ? "positive" : "warning",
-          },
-        ];
-        return (
-          <div id="section-termsheet" className="scroll-mt-24 mb-6">
-            <SectionHeader
-              title={t('dash.termsheet.title')}
-              sub={`${pathLabel} · ${scenarioLabel}`}
-            />
-            {/* Horizontal condensed strip: flex on md+, stacks vertically
-                on mobile. NO kpi-value sizing — the value sits inline with
-                the label so the strip stays bar-shaped, not card-grid-shaped. */}
-            <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-4 md:px-5 py-3 md:py-3.5">
-              <div className="flex flex-col md:flex-row md:items-center md:flex-wrap md:gap-x-6 md:gap-y-2 gap-y-2.5 md:divide-x md:divide-surface-tertiary/60">
-                {cells.map((c, i) => (
-                  <div
-                    key={c.label}
-                    className={`flex flex-col md:flex-row md:items-baseline md:gap-2 ${i > 0 ? "md:pl-6" : ""} text-sm`}
-                  >
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-                      {c.label}
-                    </span>
-                    <span
-                      className={`font-mono font-semibold ${
-                        c.tone === "positive"
-                          ? "text-positive"
-                          : c.tone === "warning"
-                            ? "text-warning"
-                            : "text-text-primary"
-                      }`}
-                    >
-                      {c.value}
-                    </span>
-                    {c.sub && (
-                      <span className="text-[11px] text-text-tertiary leading-snug md:before:content-['·'] md:before:mr-1.5 md:before:text-text-tertiary/60">
-                        {c.sub}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* LiveTrackRecord — banker proof, lifted ABOVE the Headline KPI grid so
           the first thing under the Term Sheet is the real-villa track record,
           not modeled figures. Used to sit inside the Conservatism Check
@@ -607,6 +503,100 @@ export default function DashboardPage() {
             value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
             sublabel={t('kpi.equityIRRSub')}
             tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
+          />
+        </div>
+      </div>
+
+      {/* Section — Returns to Sponsor */}
+      <div id="section-returns" className="scroll-mt-24 mt-6">
+        <SectionHeader title={t('dash.section.returns')} sub={t('dash.returnsSub')} />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <KPICard
+            label={t('kpi.equityYield')}
+            value={km.yieldStabilised !== 0 ? formatPercent(km.yieldStabilised) : "—"}
+            sublabel={t('kpi.equityYieldSub')}
+            tone={km.yieldStabilised >= 0.15 ? "positive" : km.yieldStabilised > 0 ? undefined : "warning"}
+            accent={km.yieldStabilised >= 0.15}
+          />
+          <KPICard
+            label={t('kpi.operatingYield')}
+            value={km.cumulativeYieldFinal !== 0 ? formatYieldMultiple(km.cumulativeYieldFinal) : "—"}
+            sublabel={t('kpi.operatingYieldSub')}
+            tone={km.cumulativeYieldFinal >= 1 ? "positive" : km.cumulativeYieldFinal > 0 ? undefined : "warning"}
+            threshold={t('kpi.operatingYieldNote')}
+          />
+          <KPICard
+            label={t('kpi.totalMOIC')}
+            value={km.totalMOIC !== 0 ? formatYieldMultiple(km.totalMOIC) : "—"}
+            sublabel={t('kpi.totalMOICSub')}
+            tone={km.terminalUnderwater ? "warning" : km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
+            accent={km.totalMOIC >= 3 && !km.terminalUnderwater}
+            chip={km.terminalUnderwater ? { label: "underwater", ok: false } : undefined}
+            threshold={km.terminalUnderwater ? t('kpi.totalMOICUnderwaterNote') : undefined}
+          />
+          <KPICard
+            label={t('kpi.equityPayback')}
+            value={km.equityPaybackYears !== null && km.equityPaybackYears !== undefined
+              ? `${km.equityPaybackYears} ${t('dash.years')}`
+              : t('dash.never')}
+            sublabel={t('kpi.equityPaybackSub')}
+            tone={km.equityPaybackYears && km.equityPaybackYears <= 8 ? "positive" : km.equityPaybackYears && km.equityPaybackYears <= 12 ? undefined : "warning"}
+            threshold={t('kpi.equityPaybackNote')}
+          />
+          <KPICard
+            label={t('kpi.equityIRR')}
+            value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
+            sublabel={t('kpi.equityIRRSub')}
+            tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
+          />
+          <KPICard
+            label={t('kpi.projectIRR')}
+            value={km.projectIRR > 0 ? formatPercent(km.projectIRR) : "—"}
+            sublabel={t('kpi.projectIRRSub')}
+            tone={km.projectIRR >= 0.10 ? "positive" : km.projectIRR > 0 ? undefined : "warning"}
+          />
+        </div>
+
+        {/* Exit path comparison — hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²) */}
+        <div className="mt-6 mb-2 px-1 flex items-baseline justify-between gap-3 flex-wrap">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+            {t('dash.section.exitPath')}
+          </h3>
+          <p className="text-[11px] text-text-tertiary">
+            Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²)
+            {km.propertyExitDominates
+              ? " · Property exit yields higher returns"
+              : " · Hotel exit yields higher returns"}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KPICard
+            label="Hotel sale value"
+            value={km.terminalAssetValue > 0 ? formatCurrency(km.terminalAssetValue, true, locale) : "—"}
+            sublabel="EBITDA × exit multiple"
+            accent={!km.propertyExitDominates}
+            tone={!km.propertyExitDominates ? "positive" : undefined}
+            chip={!km.propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
+          />
+          <KPICard
+            label="Hotel sale IRR"
+            value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
+            sublabel="Equity IRR, hotel exit"
+            tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
+          />
+          <KPICard
+            label="Property sale value"
+            value={km.terminalAssetValuePropertySale > 0 ? formatCurrency(km.terminalAssetValuePropertySale, true, locale) : "—"}
+            sublabel={`Built surface × €${km.exitValuationPerM2?.toLocaleString() ?? "—"}/m²`}
+            accent={km.propertyExitDominates}
+            tone={km.propertyExitDominates ? "positive" : undefined}
+            chip={km.propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
+          />
+          <KPICard
+            label="Property sale IRR"
+            value={km.equityIRRPropertySale > 0 ? formatPercent(km.equityIRRPropertySale) : "—"}
+            sublabel="Equity IRR, property exit"
+            tone={km.equityIRRPropertySale >= 0.15 ? "positive" : km.equityIRRPropertySale > 0 ? undefined : "warning"}
           />
         </div>
       </div>
@@ -721,113 +711,6 @@ export default function DashboardPage() {
           value={formatCurrency(km.stabilisedNCF, true, locale)}
           sublabel={t('kpi.netCashFlowSub')}
         />
-      </div>
-
-      {/* Section 3 — Returns to Sponsor */}
-      <div id="section-returns" className="scroll-mt-24">
-      <SectionHeader title={t('dash.section.returns')} sub={t('dash.returnsSub')} />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KPICard
-          label={t('kpi.equityYield')}
-          value={km.yieldStabilised !== 0 ? formatPercent(km.yieldStabilised) : "—"}
-          sublabel={t('kpi.equityYieldSub')}
-          tone={km.yieldStabilised >= 0.15 ? "positive" : km.yieldStabilised > 0 ? undefined : "warning"}
-          accent={km.yieldStabilised >= 0.15}
-        />
-        {/* Operating Yield = Σ NCF distributions / equity. Operating only — exit
-            proceeds are NOT included. Renamed from "Cumulative Yield" so it
-            reads honestly alongside Total MOIC below. */}
-        <KPICard
-          label={t('kpi.operatingYield')}
-          value={km.cumulativeYieldFinal !== 0 ? formatYieldMultiple(km.cumulativeYieldFinal) : "—"}
-          sublabel={t('kpi.operatingYieldSub')}
-          tone={km.cumulativeYieldFinal >= 1 ? "positive" : km.cumulativeYieldFinal > 0 ? undefined : "warning"}
-          threshold={t('kpi.operatingYieldNote')}
-        />
-        {/* Total MOIC = (Σ NCF + terminal equity proceeds) / equity. The
-            "what you actually walk away with" number — surfaced as a peer to
-            Operating Yield to make the relationship explicit. */}
-        <KPICard
-          label={t('kpi.totalMOIC')}
-          value={km.totalMOIC !== 0 ? formatYieldMultiple(km.totalMOIC) : "—"}
-          sublabel={t('kpi.totalMOICSub')}
-          tone={km.terminalUnderwater ? "warning" : km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
-          accent={km.totalMOIC >= 3 && !km.terminalUnderwater}
-          chip={km.terminalUnderwater ? { label: "underwater", ok: false } : undefined}
-          threshold={km.terminalUnderwater ? t('kpi.totalMOICUnderwaterNote') : undefined}
-        />
-        <KPICard
-          label={t('kpi.equityPayback')}
-          value={
-            km.equityPaybackYears !== null && km.equityPaybackYears !== undefined
-              ? `${km.equityPaybackYears} ${t('dash.years')}`
-              : t('dash.never')
-          }
-          sublabel={t('kpi.equityPaybackSub')}
-          tone={
-            km.equityPaybackYears && km.equityPaybackYears <= 8
-              ? "positive"
-              : km.equityPaybackYears && km.equityPaybackYears <= 12
-                ? undefined
-                : "warning"
-          }
-          threshold={t('kpi.equityPaybackNote')}
-        />
-        <KPICard
-          label={t('kpi.equityIRR')}
-          value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
-          sublabel={t('kpi.equityIRRSub')}
-          tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
-        />
-        <KPICard
-          label={t('kpi.projectIRR')}
-          value={km.projectIRR > 0 ? formatPercent(km.projectIRR) : "—"}
-          sublabel={t('kpi.projectIRRSub')}
-          tone={km.projectIRR >= 0.10 ? "positive" : km.projectIRR > 0 ? undefined : "warning"}
-        />
-      </div>
-
-      {/* Exit path comparison — hotel sale (EBITDA × multiple) vs property
-          sale (builtSurface × €/m²). A rational sponsor elects whichever
-          terminal asset value is higher; the DOMINANT EXIT badge marks it.
-          Both paths share the same operating-year cash flows; only the
-          terminal lump sum differs. €/m² is editable in the top bar. */}
-      <div className="mt-6 mb-2 px-1 flex items-baseline justify-between gap-3 flex-wrap">
-        <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-          {t('dash.section.exitPath')}
-        </h3>
-        <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
-          Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²). Sponsor elects the higher exit at sale. Adjust €/m² in the top bar to stress the property-sale path.
-        </p>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPICard
-          label="Exit value — hotel sale"
-          value={km.terminalAssetValue > 0 ? formatCurrency(km.terminalAssetValue, true, locale) : "—"}
-          sublabel={`EBITDA × ${(activeScenarioOutput.exitEbitdaMultiple ?? 10).toFixed(1)}× at ${activeScenarioOutput.exitYear ?? 2036}`}
-          tone={!km.propertyExitDominates && km.terminalAssetValue > 0 ? "positive" : undefined}
-          chip={!km.propertyExitDominates && km.terminalAssetValue > 0 ? { label: "DOMINANT", ok: true } : undefined}
-        />
-        <KPICard
-          label="Equity IRR — hotel sale"
-          value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
-          sublabel={`MOIC ${km.totalMOIC > 0 ? km.totalMOIC.toFixed(2) + "×" : "—"}`}
-          tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
-        />
-        <KPICard
-          label="Exit value — property sale"
-          value={km.terminalAssetValuePropertySale > 0 ? formatCurrency(km.terminalAssetValuePropertySale, true, locale) : "—"}
-          sublabel={`Built surface × ${formatCurrency(km.exitValuationPerM2, false, locale)}/m²`}
-          tone={km.propertyExitDominates ? "positive" : undefined}
-          chip={km.propertyExitDominates ? { label: "DOMINANT", ok: true } : undefined}
-        />
-        <KPICard
-          label="Equity IRR — property sale"
-          value={km.equityIRRPropertySale > 0 ? formatPercent(km.equityIRRPropertySale) : "—"}
-          sublabel={`MOIC ${km.totalMOICPropertySale > 0 ? km.totalMOICPropertySale.toFixed(2) + "×" : "—"}`}
-          tone={km.equityIRRPropertySale >= 0.15 ? "positive" : km.equityIRRPropertySale > 0 ? undefined : "warning"}
-        />
-      </div>
       </div>
 
       {/* Section — Conservatism Check.
@@ -1368,6 +1251,98 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* Deal Terms — last section so investor sees returns & operations first */}
+      {(() => {
+        const path = assumptions.financingPath;
+        const ratePct =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.bankInterestRate
+            : path === "rrf"
+              ? assumptions.rrf.commercialInterestRate
+              : assumptions.commercialLoan.interestRate;
+        const term =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.totalTermYears
+            : path === "rrf"
+              ? assumptions.rrf.repaymentTermYears
+              : assumptions.commercialLoan.repaymentTermYears;
+        const grace =
+          path === "tepix-loan"
+            ? assumptions.tepixLoan.gracePeriodYears
+            : path === "rrf"
+              ? assumptions.rrf.gracePeriodYears
+              : assumptions.commercialLoan.gracePeriodYears;
+        const covenant = assumptions.dscrCovenantThreshold;
+        const minDscr = activeScenarioOutput.minDSCRLoanLife;
+        const dscrPass = minDscr >= covenant;
+        const cells: Array<{ label: string; value: string; sub?: string; tone?: "positive" | "warning" }> = [
+          {
+            label: t('dash.termsheet.loan'),
+            value: formatCurrency(km.loanAmount, true, locale),
+            sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}`,
+          },
+          {
+            label: t('dash.termsheet.term'),
+            value: `${term}y · ${grace}y`,
+            sub: t('dash.termsheet.termSub'),
+          },
+          {
+            label: t('dash.termsheet.rate'),
+            value: `${(ratePct * 100).toFixed(2)}%`,
+            sub: pathLabel,
+          },
+          {
+            label: t('dash.termsheet.annualDS'),
+            value: formatCurrency(km.annualDS, true, locale),
+            sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}`,
+          },
+          {
+            label: t('dash.termsheet.dscrCovenant'),
+            value: `${covenant.toFixed(2)}×`,
+            sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`,
+            tone: dscrPass ? "positive" : "warning",
+          },
+        ];
+        return (
+          <div id="section-termsheet" className="scroll-mt-24 mt-8">
+            <SectionHeader
+              title={t('dash.termsheet.title')}
+              sub={`${pathLabel} · ${scenarioLabel}`}
+            />
+            <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-4 md:px-5 py-3 md:py-3.5">
+              <div className="flex flex-col md:flex-row md:items-center md:flex-wrap md:gap-x-6 md:gap-y-2 gap-y-2.5 md:divide-x md:divide-surface-tertiary/60">
+                {cells.map((c, i) => (
+                  <div
+                    key={c.label}
+                    className={`flex flex-col md:flex-row md:items-baseline md:gap-2 ${i > 0 ? "md:pl-6" : ""} text-sm`}
+                  >
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                      {c.label}
+                    </span>
+                    <span
+                      className={`font-mono font-semibold ${
+                        c.tone === "positive"
+                          ? "text-positive"
+                          : c.tone === "warning"
+                            ? "text-warning"
+                            : "text-text-primary"
+                      }`}
+                    >
+                      {c.value}
+                    </span>
+                    {c.sub && (
+                      <span className="text-[11px] text-text-tertiary leading-snug md:before:content-['·'] md:before:mr-1.5 md:before:text-text-tertiary/60">
+                        {c.sub}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={DASHBOARD_TOUR} />
     </div>

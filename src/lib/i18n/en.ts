@@ -118,13 +118,13 @@ export const en: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Credit Application · Antiparos, Greece',
-  'bank.section.repaymentCapacity': 'Debt Service Coverage (DSCR)',
+  'bank.section.repaymentCapacity': 'Debt Service Coverage Ratio (DSCR)',
   'bank.section.projectedRevenue': 'Projected Revenue & EBITDA',
   'bank.section.collateral': 'Collateral & Asset Coverage',
 
   // BankStressTest
-  'bank.stress.title': 'Scenario & Assumption Controls',
-  'bank.stress.description': 'Adjust any input — all charts and KPIs update live. Stress-test the model as needed.',
+  'bank.stress.title': 'Stress Scenarios',
+  'bank.stress.description': 'Adjust any assumption to stress the model. Charts and metrics update live.',
   'dash.section.operating': 'Operating performance',
   'dash.section.capital': 'Capital structure',
   'dash.section.workingCapital': 'Working Capital Facility',
@@ -376,7 +376,8 @@ export const en: TranslationDictionary = {
   'capex.propAPer': 'Prop A (per)',
   'capex.propAx2': 'Prop A ×2',
   'capex.propB': 'Prop B',
-  'capex.total': 'Total',
+  'capex.total': 'Total (€)',
+  'capex.pctTotal': '% of Total',
   'capex.totalCapex': 'TOTAL CAPEX',
   'capex.totalProjectCost': 'Total Project Cost',
   'capex.propAEach': 'Property A (each)',
@@ -748,9 +749,9 @@ export const en: TranslationDictionary = {
   'pitch.close.footer': 'Villa Lev Group · Agios Georgios, Antiparos · Confidential',
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
-  'dash.termsheet.title': 'Term sheet at a glance',
+  'dash.termsheet.title': 'Deal Terms at a Glance',
   'dash.termsheet.loan': 'Loan',
-  'dash.termsheet.loanSub': 'LTV at completion',
+  'dash.termsheet.loanSub': 'LTV · appraised value basis',
   'dash.termsheet.term': 'Term · grace',
   'dash.termsheet.termSub': 'Amortising after grace',
   'dash.termsheet.rate': 'Rate',

@@ -118,13 +118,13 @@ export const el: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Αίτηση Χρηματοδότησης · Αντίπαρος, Ελλάδα',
-  'bank.section.repaymentCapacity': 'Κάλυψη Εξυπηρέτησης Χρέους (DSCR)',
+  'bank.section.repaymentCapacity': 'Δείκτης Κάλυψης Εξυπηρέτησης Χρέους (DSCR)',
   'bank.section.projectedRevenue': 'Προβλεπόμενα Έσοδα & EBITDA',
   'bank.section.collateral': 'Εξασφαλίσεις & Κάλυψη Ενεργητικού',
 
   // BankStressTest
-  'bank.stress.title': 'Έλεγχος Σεναρίων & Παραδοχών',
-  'bank.stress.description': 'Τροποποιήστε οποιαδήποτε παράμετρο — όλα τα γραφήματα και KPI ενημερώνονται άμεσα.',
+  'bank.stress.title': 'Σενάρια Stress Test',
+  'bank.stress.description': 'Τροποποιήστε οποιαδήποτε παράμετρο για να δοκιμάσετε το μοντέλο. Γραφήματα και μετρικές ενημερώνονται άμεσα.',
   'dash.section.operating': 'Λειτουργική απόδοση',
   'dash.section.capital': 'Δομή κεφαλαίου',
   'dash.section.workingCapital': 'Πιστωτικό Όριο Κεφαλαίου Κίνησης',
@@ -377,7 +377,8 @@ export const el: TranslationDictionary = {
   'capex.propAPer': 'Ακίνητο Α (ανά)',
   'capex.propAx2': 'Ακίνητο Α ×2',
   'capex.propB': 'Ακίνητο Β',
-  'capex.total': 'Σύνολο',
+  'capex.total': 'Σύνολο (€)',
+  'capex.pctTotal': '% του Συνόλου',
   'capex.totalCapex': 'ΣΥΝΟΛΟ CAPEX',
   'capex.totalProjectCost': 'Συνολικό κόστος έργου',
   'capex.propAEach': 'Ακίνητο Α (έκαστο)',
@@ -749,9 +750,9 @@ export const el: TranslationDictionary = {
   'pitch.close.footer': 'Villa Lev Group · Άγιος Γεώργιος, Αντίπαρος · Εμπιστευτικό',
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
-  'dash.termsheet.title': 'Συνοπτικό term sheet',
+  'dash.termsheet.title': 'Βασικοί Όροι Χρηματοδότησης',
   'dash.termsheet.loan': 'Δάνειο',
-  'dash.termsheet.loanSub': 'LTV στην ολοκλήρωση',
+  'dash.termsheet.loanSub': 'LTV · βάση εκτιμηθείσας αξίας',
   'dash.termsheet.term': 'Διάρκεια · χάρη',
   'dash.termsheet.termSub': 'Τοκοχρεωλυτικό μετά τη χάρη',
   'dash.termsheet.rate': 'Επιτόκιο',

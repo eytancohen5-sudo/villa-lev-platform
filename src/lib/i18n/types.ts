@@ -361,6 +361,7 @@ export interface TranslationDictionary {
   'capex.propAx2': string;
   'capex.propB': string;
   'capex.total': string;
+  'capex.pctTotal': string;
   'capex.totalCapex': string;
   'capex.totalProjectCost': string;
   'capex.propAEach': string;

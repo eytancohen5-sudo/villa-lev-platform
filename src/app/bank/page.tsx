@@ -5,11 +5,9 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { ConservatismTriangle } from "@/components/ConservatismTriangle";
-import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { BankStressTest } from "@/components/BankStressTest";
 import BankControlBar from "@/components/BankControlBar";
-import { BANK_TOUR } from "@/lib/tours/configs";
 import {
   BarChart,
   Bar,
@@ -50,7 +48,6 @@ export default function BankPage() {
     financingPathOverride,
     setFinancingPathOverride,
   } = useModelStore();
-  const [tourOpen, setTourOpen, neverSeen] = usePageTour(BANK_TOUR.storageKey);
 
   if (!model) return (
     <div className="flex items-center justify-center h-96 text-text-tertiary">
@@ -136,6 +133,7 @@ export default function BankPage() {
     <>
       <BankControlBar />
       <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none">
+
         {/* 1. Hero */}
         <div className="text-center mb-10 relative print:mb-4 print:break-after-avoid">
           <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3 print:mb-1">
@@ -147,28 +145,9 @@ export default function BankPage() {
           <p className="text-text-secondary max-w-xl mx-auto">
             {pathLabel} &middot; {t('app.confidential')}
           </p>
-
-          {/* 2. Download buttons row */}
-          <div className="mt-6 flex items-center justify-center gap-3 print:hidden flex-wrap">
-            <button
-              onClick={handleDownloadXlsx}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
-              title="Download a fully-linked Excel model with editable formulas"
-            >
-              ⬇ Download model (.xlsx)
-            </button>
-            <button
-              onClick={handleDownloadPdf}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-brand-700 border border-brand-200 text-sm font-medium hover:bg-brand-50 transition-all shadow-sm"
-              title="Download a 4-page bank credit report PDF"
-            >
-              📄 Download bank report (.pdf)
-            </button>
-            <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
-          </div>
         </div>
 
-        {/* 3. Term Sheet — The Ask */}
+        {/* 2. Term Sheet — The Ask */}
         {(() => {
           const rate =
             activePath === "tepix-loan"
@@ -198,14 +177,15 @@ export default function BankPage() {
             { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
             { label: t('dash.termsheet.dscrCovenant'), value: `${covenant.toFixed(2)}×`, sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
             { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
+            { label: t('dash.termsheet.security'), value: '1st-rank mortgage', sub: 'Land + completed structure' },
           ];
           return (
             <div className="mb-10">
               <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
-                {t('dash.termsheet.title')}
+                Term Sheet — The Ask
               </h3>
               <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-5 py-4">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary/60">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-x-6 gap-y-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary/60">
                   {cells.map((c, i) => (
                     <div key={c.label} className={`${i > 0 ? 'pt-3 md:pt-0 md:pl-6' : ''} flex flex-col gap-0.5`}>
                       <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{c.label}</span>
@@ -219,7 +199,40 @@ export default function BankPage() {
           );
         })()}
 
-        {/* 4. Hero KPI strip */}
+        {/* 3. Operating Track Record — proof of operator */}
+        <div className="mb-10 print:hidden">
+          <LiveTrackRecord />
+        </div>
+
+        {/* 4. Collateral — Security Package */}
+        <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-10">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
+            {t('bank.section.collateral')}
+          </h3>
+          <p className="text-xs text-text-tertiary mb-6">Land + completed structure · 1st-rank mortgage · three independent valuation tiers</p>
+          <div className="grid grid-cols-3 gap-6 text-center">
+            <div>
+              <div className="kpi-value text-text-primary">{formatMultiple(model.collateral.stress.coverage)}</div>
+              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.stress')}</div>
+              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.stress.value, true, locale)}</div>
+              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.stress.ltv)}</div>
+            </div>
+            <div className="border-x border-surface-tertiary">
+              <div className="kpi-value text-brand-600">{formatMultiple(model.collateral.market.coverage)}</div>
+              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.market')}</div>
+              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.market.value, true, locale)}</div>
+              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.market.ltv)}</div>
+            </div>
+            <div>
+              <div className="kpi-value text-positive">{formatMultiple(model.collateral.optimistic.coverage)}</div>
+              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.optimistic')}</div>
+              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.optimistic.value, true, locale)}</div>
+              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.optimistic.ltv)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 5. Hero KPI strip */}
         <div id="bank-kpi-strip" className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 py-6 border-y border-surface-tertiary">
           <HeroKPI
             value={formatCurrency(km.totalCapex, true, locale)}
@@ -232,11 +245,12 @@ export default function BankPage() {
           <HeroKPI
             value={formatCurrency(km.loanAmount, true, locale)}
             label={t('kpi.loanAmount')}
-            sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} coverage`}
+            sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} of CAPEX`}
           />
           <HeroKPI
-            value={`~${formatPercent(km.ltv, 0)}`}
+            value={formatPercent(km.ltv, 0)}
             label={t('kpi.ltvAtCompletion')}
+            sublabel="appraised value basis"
           />
           <HeroKPI
             value={formatMultiple(km.assetCoverage)}
@@ -250,10 +264,28 @@ export default function BankPage() {
           />
         </div>
 
-        {/* 5. CAPEX Breakdown — where the money goes */}
+        {/* 6. Download buttons — after the KPI context is established */}
+        <div className="mb-10 flex items-center justify-center gap-3 print:hidden flex-wrap">
+          <button
+            onClick={handleDownloadXlsx}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
+            title="Download a fully-linked Excel model with editable formulas"
+          >
+            ⬇ Download model (.xlsx)
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-brand-700 border border-brand-200 text-sm font-medium hover:bg-brand-50 transition-all shadow-sm"
+            title="Download a 4-page bank credit report PDF"
+          >
+            📄 Download bank report (.pdf)
+          </button>
+        </div>
+
+        {/* 7. CAPEX Breakdown — where the money goes */}
         <div className="mb-10">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
-            {t('capex.title')}
+            {t('capex.title')} — Use of Proceeds
           </h3>
           <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
             <table className="w-full text-sm">
@@ -261,6 +293,7 @@ export default function BankPage() {
                 <tr className="bg-surface-secondary/40">
                   <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.costCategory')}</th>
                   <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.total')}</th>
+                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.pctTotal')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -268,18 +301,27 @@ export default function BankPage() {
                   <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/10'}`}>
                     <td className="py-2.5 px-5 text-text-secondary">{cat.name}</td>
                     <td className="text-right py-2.5 px-5 font-mono text-sm text-text-primary">{formatCurrency(cat.grandTotal, false, locale)}</td>
+                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-tertiary">
+                      {model.capex.portfolioTotal > 0
+                        ? `${((cat.grandTotal / model.capex.portfolioTotal) * 100).toFixed(1)}%`
+                        : '—'}
+                    </td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
                   <td className="py-3.5 px-5 text-text-primary">{t('capex.totalCapex')}</td>
                   <td className="text-right py-3.5 px-5 font-mono text-brand-600">{formatCurrency(model.capex.portfolioTotal, false, locale)}</td>
+                  <td className="text-right py-3.5 px-5 font-mono text-text-tertiary">100%</td>
                 </tr>
               </tbody>
             </table>
+            <div className="px-5 py-2.5 border-t border-surface-tertiary/50 bg-surface-secondary/10 text-[11px] text-text-tertiary">
+              Loan: {formatCurrency(km.loanAmount, true, locale)} · Equity: {formatCurrency(km.equityRequired, true, locale)}{grantAmount > 0 ? ` · Grant: ${formatCurrency(grantAmount, true, locale)}` : ''} · Total: {formatCurrency(km.totalCapex, true, locale)}
+            </div>
           </div>
         </div>
 
-        {/* 6. Capital Structure + Stabilised Metrics */}
+        {/* 8. Capital Structure + Stabilised Metrics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           <div className="bg-white rounded-xl border border-surface-tertiary p-6">
             <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
@@ -343,7 +385,7 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 7. DSCR Chart */}
+        {/* 9. Debt Service Coverage Ratio (DSCR) Chart */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('bank.section.repaymentCapacity')}
@@ -359,7 +401,7 @@ export default function BankPage() {
                 contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× min", fontSize: 10 }} />
+              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }} />
               <ReferenceLine
                 x={2029}
                 stroke="#8B6914"
@@ -373,7 +415,7 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 8. Revenue & EBITDA Chart */}
+        {/* 10. Revenue & EBITDA Chart */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('bank.section.projectedRevenue')}
@@ -396,60 +438,41 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 9. Stress Test */}
+        {/* 11. Stress Scenarios */}
         <div id="bank-stress-test" className="mb-6 print:hidden">
           <BankStressTest />
         </div>
 
-        {/* 10. Financing Path Comparison — interactive columns */}
+        {/* 12. Financing Path Comparison */}
         <div id="bank-financing-comparison" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('dash.financingComparison')}
           </h3>
+          <p className="text-[11px] text-text-tertiary mb-5">Use the path pills in the bar above to switch the active path. The highlighted column shows the currently selected structure.</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-surface-tertiary">
                   <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('common.metric')}</th>
                   <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass('commercial')}`}>
-                    <button
-                      onClick={() => setFinancingPathOverride('commercial')}
-                      title="Switch to Commercial path"
-                    >
-                      <span className={activePath === 'commercial' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-text-tertiary'}>
-                        {t('path.commercialShort')}
-                      </span>
-                    </button>
+                    <span className={activePath === 'commercial' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-text-tertiary'}>
+                      {t('path.commercialShort')}
+                    </span>
                   </th>
                   <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass('rrf')}`}>
-                    <button
-                      onClick={() => setFinancingPathOverride('rrf')}
-                      title="Switch to RRF path"
-                    >
-                      <span className={activePath === 'rrf' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-text-tertiary'}>
-                        {t('path.rrfShort')}
-                      </span>
-                    </button>
+                    <span className={activePath === 'rrf' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-text-tertiary'}>
+                      {t('path.rrfShort')}
+                    </span>
                   </th>
                   <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass('grant')}`}>
-                    <button
-                      onClick={() => setFinancingPathOverride('grant')}
-                      title="Switch to Grant path"
-                    >
-                      <span className={activePath === 'grant' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-positive'}>
-                        {t('path.grantShort')}
-                      </span>
-                    </button>
+                    <span className={activePath === 'grant' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : 'text-positive'}>
+                      {t('path.grantShort')}
+                    </span>
                   </th>
                   <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass('tepix-loan')}`}>
-                    <button
-                      onClick={() => setFinancingPathOverride('tepix-loan')}
-                      title="Switch to TEPIX Loan path"
-                    >
-                      <span className={activePath === 'tepix-loan' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : ''} style={activePath !== 'tepix-loan' ? { color: '#7B5EA7' } : {}}>
-                        {t('path.tepixLoanShort')}
-                      </span>
-                    </button>
+                    <span className={activePath === 'tepix-loan' ? 'bg-brand-500 text-white rounded px-2 py-0.5' : ''} style={activePath !== 'tepix-loan' ? { color: '#7B5EA7' } : {}}>
+                      {t('path.tepixLoanShort')}
+                    </span>
                   </th>
                 </tr>
               </thead>
@@ -474,7 +497,7 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 11. All-Paths DSCR Trajectory */}
+        {/* 13. All-Paths DSCR Trajectory — includes RRF */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('dash.dscrTrajectory')}
@@ -492,7 +515,7 @@ export default function BankPage() {
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25×", fontSize: 10 }} />
+              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }} />
               <ReferenceLine
                 x={2029}
                 stroke="#8B6914"
@@ -506,7 +529,7 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 12. P&L Timeline — detailed evidence after headline metrics */}
+        {/* 14. P&L Timeline — detailed evidence */}
         <div id="bank-pnl" className="mb-10">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
             {t('pnl.title')}
@@ -514,41 +537,12 @@ export default function BankPage() {
           <BankPnLSection />
         </div>
 
-        {/* 13. Live Track Record */}
-        <div className="mb-10 print:hidden">
-          <LiveTrackRecord />
-        </div>
-
-        {/* 14. Conservatism Triangle */}
+        {/* 15. Market Position / Conservatism */}
         <div className="mb-10 print:hidden">
           <ConservatismTriangle
             bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
             bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
           />
-        </div>
-
-        {/* 15. Collateral */}
-        <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
-            {t('bank.section.collateral')}
-          </h3>
-          <div className="grid grid-cols-3 gap-6 text-center">
-            <div>
-              <div className="kpi-value text-text-primary">{formatMultiple(model.collateral.stress.coverage)}</div>
-              <div className="text-xs text-text-tertiary mt-1">{t('sc.stress')}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.stress.ltv)}</div>
-            </div>
-            <div className="border-x border-surface-tertiary">
-              <div className="kpi-value text-brand-600">{formatMultiple(model.collateral.market.coverage)}</div>
-              <div className="text-xs text-text-tertiary mt-1">{t('sc.market')}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.market.ltv)}</div>
-            </div>
-            <div>
-              <div className="kpi-value text-positive">{formatMultiple(model.collateral.optimistic.coverage)}</div>
-              <div className="text-xs text-text-tertiary mt-1">{t('sc.optimistic')}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.optimistic.ltv)}</div>
-            </div>
-          </div>
         </div>
 
         {/* 16. Footer */}
@@ -558,7 +552,6 @@ export default function BankPage() {
           </p>
         </div>
 
-        <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BANK_TOUR} />
       </div>
     </>
   );

@@ -118,13 +118,13 @@ export const he: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'בקשת אשראי · אנטיפארוס, יוון',
-  'bank.section.repaymentCapacity': 'כיסוי שירות חוב (DSCR)',
+  'bank.section.repaymentCapacity': 'יחס כיסוי שירות חוב (DSCR)',
   'bank.section.projectedRevenue': 'הכנסות ו-EBITDA צפויים',
   'bank.section.collateral': 'בטחונות וכיסוי נכסים',
 
   // BankStressTest
-  'bank.stress.title': 'בקרת תרחישים והנחות',
-  'bank.stress.description': 'שנה כל פרמטר — כל הגרפים ומדדי KPI מתעדכנים בזמן אמת.',
+  'bank.stress.title': 'תרחישי לחץ',
+  'bank.stress.description': 'שנה כל הנחה לבדיקת המודל. גרפים ומדדים מתעדכנים בזמן אמת.',
   'dash.section.operating': 'ביצועים תפעוליים',
   'dash.section.capital': 'מבנה ההון',
   'dash.section.workingCapital': 'מסגרת הון חוזר',
@@ -377,7 +377,8 @@ export const he: TranslationDictionary = {
   'capex.propAPer': 'נכס A (ליחידה)',
   'capex.propAx2': 'נכס A ×2',
   'capex.propB': 'נכס B',
-  'capex.total': 'סה"כ',
+  'capex.total': 'סה"כ (€)',
+  'capex.pctTotal': '% מהסך הכל',
   'capex.totalCapex': 'סה"כ CAPEX',
   'capex.totalProjectCost': 'עלות פרויקט כוללת',
   'capex.propAEach': 'נכס A (כל אחד)',
@@ -749,9 +750,9 @@ export const he: TranslationDictionary = {
   'pitch.close.footer': 'Villa Lev Group · אגיוס גיאורגיוס, אנטיפארוס · חסוי',
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
-  'dash.termsheet.title': 'תקציר תנאי הלוואה',
+  'dash.termsheet.title': 'תנאי המימון',
   'dash.termsheet.loan': 'הלוואה',
-  'dash.termsheet.loanSub': 'LTV בעת השלמה',
+  'dash.termsheet.loanSub': 'LTV · בסיס שווי מוערך',
   'dash.termsheet.term': 'תקופה · גרייס',
   'dash.termsheet.termSub': 'החזר קרן לאחר תקופת הגרייס',
   'dash.termsheet.rate': 'ריבית',

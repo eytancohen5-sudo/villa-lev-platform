@@ -6,7 +6,7 @@ import { Locale, LOCALE_CONFIG } from "@/lib/i18n/types";
 
 const locales: Locale[] = ["en", "fr", "el", "he"];
 
-export function LanguageToggle() {
+export function LanguageToggle({ placement = 'up' }: { placement?: 'up' | 'down' }) {
   const { locale, setLocale } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -37,7 +37,7 @@ export function LanguageToggle() {
         <span className="font-mono uppercase text-text-tertiary">{locale}</span>
       </button>
       {open && (
-        <div className="absolute bottom-full mb-1 start-0 end-0 bg-white rounded-lg shadow-lg border border-surface-tertiary py-1 z-50">
+        <div className={`absolute ${placement === 'down' ? 'top-full mt-1' : 'bottom-full mb-1'} start-0 end-0 bg-white rounded-lg shadow-lg border border-surface-tertiary py-1 z-50`}>
           {locales.map((l) => (
             <button
               key={l}
