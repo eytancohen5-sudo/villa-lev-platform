@@ -81,7 +81,7 @@ export function BankViewToggle() {
   // Anti-flicker placeholder during auth loading.
   if (loading) return <div className="h-7" aria-hidden="true" />;
   // Only admins see / use this widget. Banker impersonation hides it because
-  // the impersonation banner + auto-redirect to /investor already covers it.
+  // the impersonation banner + auto-redirect to /bank already covers it.
   if (!isAdmin) return null;
 
   const isBank = viewModeOverride === "bank";

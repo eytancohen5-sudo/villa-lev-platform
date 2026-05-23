@@ -184,7 +184,7 @@ export default function AdminLayout({
   const { isImpersonating, effectiveRole } = useEffectiveAuth();
   useEffect(() => {
     if (isImpersonating && effectiveRole === "banker") {
-      router.replace("/admin/dashboard");
+      router.replace("/bank");
     }
   }, [isImpersonating, effectiveRole, router]);
   const { init, model, computeTimeMs, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
