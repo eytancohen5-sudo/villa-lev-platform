@@ -83,7 +83,7 @@ const LR: Record<
     available: string;
     sourceNote: string;
     // ── New keys for the conservatism-cushion restructure ──
-    headlineConservatism: string; // template — uses {years} {gap} {marketGap}
+    headlineConservatism: string; // template — uses {years} {year} {adrGap} {occGap} {revparGap} {gap} {marketGap}
     cushion: string;
     model: string;
     liveLabel: string;
@@ -141,7 +141,7 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "At stabilisation in {years} years, our villa KPIs (ADR, occupancy, RevPAR) average {gap}% below today's live Villa Lev performance — and our room rates sit {marketGap}% below 2025 Antiparos hotel market rates — in a hospitality market that grows every year. Large, deliberate cushions in every assumption.",
+      "In {years} years at stabilisation, villa KPIs vs today's live Villa Lev — ADR {adrGap} · occupancy {occGap} · RevPAR {revparGap} — averaging {gap} below live performance. Room rates sit {marketGap} below the {year} Antiparos hotel market. In a hospitality market that grows every year: large, deliberate cushions.",
     cushion: "Cushion",
     model: "Model",
     liveLabel: "Live",
@@ -199,7 +199,7 @@ const LR: Record<
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
-      "À la stabilisation dans {years} ans, nos KPIs villa (ADR, occupation, RevPAR) sont en moyenne {gap}% sous les performances actuelles de Villa Lev — et nos tarifs chambre {marketGap}% sous le marché hôtelier 2025 d'Antiparos — dans un marché en croissance constante. Des marges de prudence importantes, délibérément intégrées dans chaque hypothèse.",
+      "Dans {years} ans à la stabilisation, KPIs villa vs Villa Lev aujourd'hui — ADR {adrGap} · occupation {occGap} · RevPAR {revparGap} — moyenne {gap} sous les performances réelles. Tarifs chambre {marketGap} sous le marché hôtelier {year} d'Antiparos. Dans un marché en croissance chaque année : marges de prudence importantes.",
     cushion: "Coussin",
     model: "Modèle",
     liveLabel: "Réel",
@@ -258,7 +258,7 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Στη σταθεροποίηση σε {years} χρόνια, οι KPIs βίλας (ADR, πληρότητα, RevPAR) είναι κατά μέσο όρο {gap}% κάτω από τα σημερινά επίπεδα της Villa Lev — και οι τιμές δωματίων {marketGap}% κάτω από την αγορά ξενοδοχείων Αντιπάρου 2025 — σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο. Μεγάλα, σκόπιμα «μαξιλάρια» σε κάθε παραδοχή.",
+      "Σε {years} χρόνια στη σταθεροποίηση, KPIs βίλας vs Villa Lev σήμερα — ADR {adrGap} · πληρότητα {occGap} · RevPAR {revparGap} — μέσος όρος {gap} κάτω από τα πραγματικά επίπεδα. Τιμές δωματίου {marketGap} κάτω από την αγορά Αντιπάρου {year}. Σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο: μεγάλα, σκόπιμα «μαξιλάρια».",
     cushion: "Μαξιλάρι",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
@@ -317,7 +317,7 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "בייצוב בעוד {years} שנים, ה-KPIs של הוילה (ADR, תפוסה, RevPAR) נמוכים בממוצע ב-{gap}% מהביצועים הנוכחיים של Villa Lev — ותעריפי החדרים נמוכים ב-{marketGap}% משוק המלונות 2025 באנטיפרוס — בשוק אירוח שצמח כל שנה. כריות שמרנות גדולות ומכוונות בכל הנחה.",
+      "בעוד {years} שנים בייצוב, KPIs הוילה מול Villa Lev היום — ADR {adrGap} · תפוסה {occGap} · RevPAR {revparGap} — ממוצע {gap} מתחת לביצועים בפועל. תעריפי חדר {marketGap} מתחת לשוק המלונות {year} באנטיפרוס. בשוק שצמח כל שנה: כריות שמרנות גדולות ומכוונות.",
     cushion: "כרית",
     model: "מודל",
     liveLabel: "בפועל",
@@ -674,13 +674,16 @@ export function LiveTrackRecord({
   // against zero live values so the headline never blows up if the live feed
   // returns 0 (e.g. mid-season-start before the first booking).
   const safeDiv = (num: number, denom: number) => (denom === 0 ? 0 : num / denom);
-  const adrGap = safeDiv(adr - bpADR, adr);
-  const occupancyGap = safeDiv(occupancy - bpOccupancy, occupancy);
-  const revparGap = safeDiv(revpar - bpRevPAR, revpar);
-  const averageGap = (adrGap + occupancyGap + revparGap) / 3;
+  const adrGap      = safeDiv(adr       - bpADR,        adr);
+  const occupancyGap = safeDiv(occupancy - bpOccupancy,  occupancy);
+  const revparGap   = safeDiv(revpar    - bpRevPAR,     revpar);
+  const averageGap  = (adrGap + occupancyGap + revparGap) / 3;
   // Round to nearest 0.5% for the headline. Step = 0.005 in fractional units.
   const averageGapRounded = Math.round(averageGap * 200) / 200;
-  const averageGapPct = Math.round(averageGapRounded * 1000) / 10; // one decimal
+  const averageGapPct  = Math.round(averageGapRounded        * 1000) / 10;
+  const adrGapPct      = Math.round(adrGap       * 1000) / 10;
+  const occupancyGapPct = Math.round(occupancyGap * 1000) / 10;
+  const revparGapPct   = Math.round(revparGap     * 1000) / 10;
 
   // Average delta across visible market rows (negative = BP below market = conservative).
   const marketAvgDelta =
@@ -788,15 +791,29 @@ export function LiveTrackRecord({
         <div className="rounded-xl bg-brand-50/80 border-l-[3px] border-brand-400 px-4 py-3 mb-5">
           <p className="text-sm md:text-base font-medium text-text-primary leading-relaxed max-w-3xl">
             {(() => {
-              const tmpl = lr.headlineConservatism;
-              const gapDisplay =
-                averageGapPct > 0 ? `${averageGapPct}` : `${Math.abs(averageGapPct)}`;
-              const marketGapDisplay = `${Math.abs(marketAvgDeltaPct)}`;
-              return tmpl
-                .replace("{year}", String(STABILISED_YEAR))
-                .replace("{years}", String(yearsToStabilisation))
-                .replace("{gap}", gapDisplay)
-                .replace("{marketGap}", marketGapDisplay);
+              // Build a lookup of every substitution token → display string.
+              const vals: Record<string, string> = {
+                years:      String(yearsToStabilisation),
+                year:       String(STABILISED_YEAR),
+                adrGap:     `${adrGapPct > 0 ? "+" : ""}${adrGapPct}%`,
+                occGap:     `${occupancyGapPct > 0 ? "+" : ""}${occupancyGapPct}%`,
+                revparGap:  `${revparGapPct > 0 ? "+" : ""}${revparGapPct}%`,
+                gap:        `${averageGapPct > 0 ? "+" : ""}${averageGapPct}%`,
+                marketGap:  `${Math.abs(marketAvgDeltaPct)}%`,
+              };
+              // Split template on any {token}, render numbers as bold brand spans.
+              const parts = lr.headlineConservatism.split(/(\{[^}]+\})/);
+              return parts.map((part, i) => {
+                const m = part.match(/^\{(.+)\}$/);
+                if (m && vals[m[1]] !== undefined) {
+                  return (
+                    <strong key={i} className="text-brand-700 font-semibold">
+                      {vals[m[1]]}
+                    </strong>
+                  );
+                }
+                return part;
+              });
             })()}
           </p>
         </div>
