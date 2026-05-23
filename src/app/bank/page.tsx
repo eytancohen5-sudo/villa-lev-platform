@@ -26,11 +26,21 @@ import {
   Cell,
 } from "recharts";
 
-function HeroKPI({ value, label, sublabel }: { value: string; label: string; sublabel?: string }) {
+function MetricCell({
+  value,
+  label,
+  sublabel,
+  valueClass,
+}: {
+  value: string;
+  label: string;
+  sublabel?: string;
+  valueClass?: string;
+}) {
   return (
-    <div className="text-center">
-      <div className="kpi-hero text-text-primary">{value}</div>
-      <div className="text-xs font-medium uppercase tracking-wider text-brand-500 mt-2">{label}</div>
+    <div className="text-center px-2">
+      <div className={`kpi-value ${valueClass ?? 'text-text-primary'}`}>{value}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mt-2">{label}</div>
       {sublabel && <div className="text-xs text-text-tertiary mt-0.5">{sublabel}</div>}
     </div>
   );
@@ -43,10 +53,7 @@ export default function BankPage() {
     assumptions,
     projects,
     activeScenario,
-    capTable,
-    waterfall,
     financingPathOverride,
-    setFinancingPathOverride,
     templates,
   } = useModelStore();
 
@@ -64,32 +71,7 @@ export default function BankPage() {
   const activePnl = model.scenarios[activeScenario as keyof typeof model.scenarios]?.pnl
     ?? model.scenarios.realistic.pnl;
 
-  const handleDownloadXlsx = async () => {
-    const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
-    const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-    const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleDownloadPdf = async () => {
-    const { exportBankReport } = await import('@/lib/pdf/exportBankReport');
-    const blob = await exportBankReport(assumptions, model);
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `villa-lev-bank-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  // Downloads are now handled in BankControlBar (sticky bar) — removed from page.
 
   const km = model.keyMetrics;
   const pnl = activePnl.filter((p) => p.year >= 2028);
@@ -117,6 +99,47 @@ export default function BankPage() {
   const hotelExitIRR = activeScenarioOutput.equityIRR;
   const propertyExitIRR = activeScenarioOutput.equityIRRPropertySale;
   const propertyExitDominates = activeScenarioOutput.propertyExitDominates;
+
+  // ── Ramp-year revenue haircut ──────────────────────────────────────────────
+  // Dynamic: Y1 (2028) and Y2 (2029) from the active scenario PnL vs. its
+  // stabilised year. Updates automatically when scenario pill changes.
+  const stabRev = activeStab?.totalRevenue ?? 0;
+  const pnlY1   = activePnl.find((p) => p.year === 2028);
+  const pnlY2   = activePnl.find((p) => p.year === 2029);
+  const year1HaircutPct = stabRev > 0 && pnlY1
+    ? Math.round((1 - pnlY1.totalRevenue / stabRev) * 100) : 0;
+  const year2HaircutPct = stabRev > 0 && pnlY2
+    ? Math.round((1 - pnlY2.totalRevenue / stabRev) * 100) : 0;
+  const year1HaircutAmt = pnlY1 ? stabRev - pnlY1.totalRevenue : 0;
+  const year2HaircutAmt = pnlY2 ? stabRev - pnlY2.totalRevenue : 0;
+
+  const rampHaircutNote = stabRev > 0 ? (
+    <div className="mt-4 rounded-xl border border-brand-400/30 bg-brand-50/60 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="flex-1 min-w-[200px]">
+        <p className="text-xs font-semibold text-text-primary leading-snug mb-1">
+          Opening years modelled at a deliberate revenue discount
+        </p>
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Inbound requests already exceed available inventory for this period —
+          these projections represent a near-worst-case opening scenario.
+        </p>
+      </div>
+      <div className="flex gap-3 flex-shrink-0">
+        {[
+          { year: 2028, label: 'Year 1 · 2028', pct: year1HaircutPct, amt: year1HaircutAmt },
+          { year: 2029, label: 'Year 2 · 2029', pct: year2HaircutPct, amt: year2HaircutAmt },
+        ].map(({ year, label, pct, amt }) => (
+          <div key={year} className="rounded-lg bg-white border border-surface-tertiary px-4 py-2.5 text-center min-w-[100px]">
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{label}</div>
+            <div className="text-xl font-bold text-warning mt-0.5">-{pct}%</div>
+            <div className="text-[10px] font-mono text-text-tertiary mt-0.5">
+              {formatCurrency(amt, true, locale)} below stab.
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
 
   // Resolve full portfolio so "About the project" shows exact unit counts and m².
   // Uses the store's templates (includes custom) so all 4 plots — including the
@@ -356,82 +379,85 @@ export default function BankPage() {
           <LiveTrackRecord />
         </div>
 
-        {/* 4. Collateral — Security Package */}
-        <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-10">
-          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
-            {t('bank.section.collateral')}
-          </h3>
-          <p className="text-xs text-text-tertiary mb-6">Land + completed structure · 1st-rank mortgage · three independent valuation tiers</p>
-          <div className="grid grid-cols-3 gap-6 text-center">
-            <div>
-              <div className="kpi-value text-text-primary">{formatMultiple(model.collateral.stress.coverage)}</div>
-              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.stress')}</div>
-              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.stress.value, true, locale)}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.stress.ltv)}</div>
-            </div>
-            <div className="border-x border-surface-tertiary">
-              <div className="kpi-value text-brand-600">{formatMultiple(model.collateral.market.coverage)}</div>
-              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.market')}</div>
-              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.market.value, true, locale)}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.market.ltv)}</div>
-            </div>
-            <div>
-              <div className="kpi-value text-positive">{formatMultiple(model.collateral.optimistic.coverage)}</div>
-              <div className="text-xs font-medium text-text-secondary mt-1">{t('sc.optimistic')}</div>
-              <div className="text-xs text-text-tertiary">{formatCurrency(model.collateral.optimistic.value, true, locale)}</div>
-              <div className="text-xs text-text-tertiary">LTV {formatPercent(model.collateral.optimistic.ltv)}</div>
+        {/* 4 + 5. Collateral & Loan Metrics — unified card pair */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+
+          {/* 4. Collateral — Security Package */}
+          <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6">
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mb-0.5">
+              {t('bank.section.collateral')}
+            </h3>
+            <p className="text-xs text-text-tertiary mb-6">Land + completed structure · 1st-rank mortgage · three valuation tiers</p>
+            <div className="grid grid-cols-3 divide-x divide-surface-tertiary">
+              <MetricCell
+                value={formatMultiple(model.collateral.stress.coverage)}
+                label={t('sc.stress')}
+                sublabel={`${formatCurrency(model.collateral.stress.value, true, locale)} · LTV ${formatPercent(model.collateral.stress.ltv)}`}
+              />
+              <MetricCell
+                value={formatMultiple(model.collateral.market.coverage)}
+                label={t('sc.market')}
+                sublabel={`${formatCurrency(model.collateral.market.value, true, locale)} · LTV ${formatPercent(model.collateral.market.ltv)}`}
+                valueClass="text-brand-600"
+              />
+              <MetricCell
+                value={formatMultiple(model.collateral.optimistic.coverage)}
+                label={t('sc.optimistic')}
+                sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
+                valueClass="text-positive"
+              />
             </div>
           </div>
-        </div>
 
-        {/* 5. Hero KPI strip */}
-        <div id="bank-kpi-strip" className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 py-6 border-y border-surface-tertiary">
-          <HeroKPI
-            value={formatCurrency(km.totalCapex, true, locale)}
-            label={t('kpi.totalInvestment')}
-            sublabel={(() => {
-              const n = projects.reduce((s, p) => s + p.count, 0);
-              return `${n} ${t(n === 1 ? 'kpi.plotsSingular' : 'kpi.plots')}`;
-            })()}
-          />
-          <HeroKPI
-            value={formatCurrency(km.loanAmount, true, locale)}
-            label={t('kpi.loanAmount')}
-            sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} of CAPEX`}
-          />
-          <HeroKPI
-            value={formatPercent(km.ltv, 0)}
-            label={t('kpi.ltvAtCompletion')}
-            sublabel="appraised value basis"
-          />
-          <HeroKPI
-            value={formatMultiple(km.assetCoverage)}
-            label={t('kpi.assetCoverage')}
-            sublabel={`${formatCurrency(km.portfolioValue, true, locale)}`}
-          />
-          <HeroKPI
-            value={formatMultiple(dscr2030)}
-            label={t('term.dscr')}
-            sublabel="Post-ramp · 2030"
-          />
-        </div>
+          {/* 5. Loan Metrics */}
+          <div id="bank-kpi-strip" className="bg-white rounded-xl border border-surface-tertiary p-6">
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mb-0.5">
+              Loan Metrics
+            </h3>
+            <p className="text-xs text-text-tertiary mb-6">
+              {pathLabel} · {
+                activeScenario === 'upside' ? t('scenario.upside') :
+                activeScenario === 'downside' ? t('scenario.downside') :
+                activeScenario === 'breakeven' ? t('scenario.breakeven') :
+                t('scenario.realistic')
+              }
+            </p>
+            <div className="grid grid-cols-3 divide-x divide-surface-tertiary mb-4">
+              <MetricCell
+                value={formatCurrency(km.totalCapex, true, locale)}
+                label={t('kpi.totalInvestment')}
+                sublabel={(() => {
+                  const n = projects.reduce((s, p) => s + p.count, 0);
+                  return `${n} ${t(n === 1 ? 'kpi.plotsSingular' : 'kpi.plots')}`;
+                })()}
+              />
+              <MetricCell
+                value={formatCurrency(km.loanAmount, true, locale)}
+                label={t('kpi.loanAmount')}
+                sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} of CAPEX`}
+                valueClass="text-brand-600"
+              />
+              <MetricCell
+                value={formatPercent(km.ltv, 0)}
+                label={t('kpi.ltvAtCompletion')}
+                sublabel="appraised value"
+              />
+            </div>
+            <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
+              <MetricCell
+                value={formatMultiple(km.assetCoverage)}
+                label={t('kpi.assetCoverage')}
+                sublabel={formatCurrency(km.portfolioValue, true, locale)}
+              />
+              <MetricCell
+                value={formatMultiple(dscr2030)}
+                label={t('term.dscr')}
+                sublabel="Post-ramp · 2030"
+                valueClass={dscr2030 >= 1.25 ? 'text-positive' : 'text-warning'}
+              />
+            </div>
+          </div>
 
-        {/* 6. Download buttons — after the KPI context is established */}
-        <div className="mb-10 flex items-center justify-center gap-3 print:hidden flex-wrap">
-          <button
-            onClick={handleDownloadXlsx}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
-            title="Download a fully-linked Excel model with editable formulas"
-          >
-            ⬇ Download model (.xlsx)
-          </button>
-          <button
-            onClick={handleDownloadPdf}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-brand-700 border border-brand-200 text-sm font-medium hover:bg-brand-50 transition-all shadow-sm"
-            title="Download a 4-page bank credit report PDF"
-          >
-            📄 Download bank report (.pdf)
-          </button>
         </div>
 
         {/* 7. CAPEX Breakdown — where the money goes */}
@@ -614,6 +640,7 @@ export default function BankPage() {
               <Line type="monotone" dataKey="Downside" name={t('scenario.downside')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" />
             </LineChart>
           </ResponsiveContainer>
+          {rampHaircutNote}
         </div>
 
         {/* 10. Revenue & EBITDA Chart */}
@@ -837,6 +864,7 @@ export default function BankPage() {
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
             {t('pnl.title')}
           </h3>
+          {rampHaircutNote}
           <BankPnLSection />
         </div>
 
