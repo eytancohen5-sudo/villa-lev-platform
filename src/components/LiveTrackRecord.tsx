@@ -141,7 +141,7 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "In {years} years at stabilisation, villa KPIs vs today's live Villa Lev — ADR {adrGap} · occupancy {occGap} · RevPAR {revparGap} — averaging {gap} below live performance. Room rates sit {marketGap} below the {year} Antiparos hotel market. In a hospitality market that grows every year: large, deliberate cushions.",
+      "Our stabilised projections sit significantly below both live Villa Lev performance and the prevailing Antiparos hotel room market — on every metric, and by design.",
     cushion: "Cushion",
     model: "Model",
     liveLabel: "Live",
@@ -199,7 +199,7 @@ const LR: Record<
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
-      "Dans {years} ans à la stabilisation, KPIs villa vs Villa Lev aujourd'hui — ADR {adrGap} · occupation {occGap} · RevPAR {revparGap} — moyenne {gap} sous les performances réelles. Tarifs chambre {marketGap} sous le marché hôtelier {year} d'Antiparos. Dans un marché en croissance chaque année : marges de prudence importantes.",
+      "Nos projections stabilisées sont significativement en dessous des performances réelles de Villa Lev et du marché hôtelier d'Antiparos — sur chaque indicateur, et délibérément.",
     cushion: "Coussin",
     model: "Modèle",
     liveLabel: "Réel",
@@ -258,7 +258,7 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Σε {years} χρόνια στη σταθεροποίηση, KPIs βίλας vs Villa Lev σήμερα — ADR {adrGap} · πληρότητα {occGap} · RevPAR {revparGap} — μέσος όρος {gap} κάτω από τα πραγματικά επίπεδα. Τιμές δωματίου {marketGap} κάτω από την αγορά Αντιπάρου {year}. Σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο: μεγάλα, σκόπιμα «μαξιλάρια».",
+      "Οι σταθεροποιημένες προβολές μας βρίσκονται σημαντικά κάτω τόσο από τις πραγματικές επιδόσεις της Villa Lev όσο και από την αγορά ξενοδοχείων Αντιπάρου — σε κάθε δείκτη, και σκόπιμα.",
     cushion: "Μαξιλάρι",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
@@ -317,7 +317,7 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "בעוד {years} שנים בייצוב, KPIs הוילה מול Villa Lev היום — ADR {adrGap} · תפוסה {occGap} · RevPAR {revparGap} — ממוצע {gap} מתחת לביצועים בפועל. תעריפי חדר {marketGap} מתחת לשוק המלונות {year} באנטיפרוס. בשוק שצמח כל שנה: כריות שמרנות גדולות ומכוונות.",
+      "התחזיות המיוצבות שלנו נמוכות משמעותית הן מביצועי Villa Lev בפועל והן משוק המלונות באנטיפרוס — בכל מדד, ובמכוון.",
     cushion: "כרית",
     model: "מודל",
     liveLabel: "בפועל",
@@ -790,31 +790,7 @@ export function LiveTrackRecord({
       {!loading && (
         <div className="rounded-xl bg-brand-50/80 border-l-[3px] border-brand-400 px-4 py-3 mb-5">
           <p className="text-sm md:text-base font-medium text-text-primary leading-relaxed max-w-3xl">
-            {(() => {
-              // Build a lookup of every substitution token → display string.
-              const vals: Record<string, string> = {
-                years:      String(yearsToStabilisation),
-                year:       String(STABILISED_YEAR),
-                adrGap:     `${adrGapPct > 0 ? "+" : ""}${adrGapPct}%`,
-                occGap:     `${occupancyGapPct > 0 ? "+" : ""}${occupancyGapPct}%`,
-                revparGap:  `${revparGapPct > 0 ? "+" : ""}${revparGapPct}%`,
-                gap:        `${averageGapPct > 0 ? "+" : ""}${averageGapPct}%`,
-                marketGap:  `${Math.abs(marketAvgDeltaPct)}%`,
-              };
-              // Split template on any {token}, render numbers as bold brand spans.
-              const parts = lr.headlineConservatism.split(/(\{[^}]+\})/);
-              return parts.map((part, i) => {
-                const m = part.match(/^\{(.+)\}$/);
-                if (m && vals[m[1]] !== undefined) {
-                  return (
-                    <strong key={i} className="text-brand-700 font-semibold">
-                      {vals[m[1]]}
-                    </strong>
-                  );
-                }
-                return part;
-              });
-            })()}
+            {lr.headlineConservatism}
           </p>
         </div>
       )}
