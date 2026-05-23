@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-import { BASE_CASE } from "@/lib/engine/defaults";
 
 type InputDef = {
   label: string;
@@ -49,11 +48,21 @@ export function BankStressTest() {
   const [open, setOpen] = useState(true);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  // Check if any assumption differs from BASE_CASE defaults
+  // Snapshot the loaded scenario's values at mount — this is the "base case"
+  // the banker is stress-testing against. "Base:" labels, "Modified" badges,
+  // and the reset button all reference this, not the hardcoded defaults.
+  const [baseline] = useState<Record<string, number>>(() => {
+    const b: Record<string, number> = {};
+    INPUTS.forEach((inp) => {
+      const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
+      b[inp.path] = typeof v === "number" ? v : 0;
+    });
+    return b;
+  });
+
   const hasOverrides = INPUTS.some((inp) => {
     const current = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
-    const base = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
-    return current !== base;
+    return current !== baseline[inp.path];
   });
 
   const getValue = useCallback((inp: InputDef): number => {
@@ -86,8 +95,8 @@ export function BankStressTest() {
   };
 
   const baseValue = (inp: InputDef): string => {
-    const v = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
-    return typeof v === "number" ? formatDisplay(v as number, inp.type) : "—";
+    const v = baseline[inp.path];
+    return typeof v === "number" ? formatDisplay(v, inp.type) : "—";
   };
 
   return (
@@ -121,8 +130,7 @@ export function BankStressTest() {
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {INPUTS.map((inp) => {
               const current = getValue(inp);
-              const base = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
-              const changed = current !== base;
+              const changed = current !== baseline[inp.path];
               return (
                 <div key={inp.path} className={`rounded-xl border p-3 ${changed ? "border-warning/50 bg-warning/5" : "border-surface-tertiary bg-white"}`}>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
@@ -165,8 +173,7 @@ export function BankStressTest() {
                 onClick={() => {
                   setLocalValues({});
                   INPUTS.forEach((inp) => {
-                    const v = readNestedValue(BASE_CASE as unknown as Record<string, unknown>, inp.path);
-                    if (typeof v === "number") setAssumption(inp.path, v, inp.historyLabel);
+                    setAssumption(inp.path, baseline[inp.path], inp.historyLabel);
                   });
                 }}
                 className="px-4 py-2 rounded-xl border border-negative/40 text-negative text-sm font-medium hover:bg-negative/5 transition-colors"

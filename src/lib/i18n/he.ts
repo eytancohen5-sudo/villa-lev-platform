@@ -8,12 +8,15 @@ export const he: TranslationDictionary = {
   'app.loanApp': 'בקשת מימון',
 
   'nav.dashboard': 'לוח בקרה',
+  'nav.returns': 'Returns', // TODO: translate
   'nav.pnl': 'דוח רווח והפסד',
   'nav.breakeven': 'נקודת איזון',
   'nav.capex': 'CAPEX',
   'nav.scenarios': 'תרחישים',
   'nav.assumptions': 'הנחות',
   'nav.sensitivity': 'רגישות',
+  'nav.debtCoverage': 'Debt Coverage', // TODO: translate
+  'nav.financingPaths': 'Financing Paths', // TODO: translate
   'nav.opcoSplit': 'OpCo / PropCo',
   'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'מעבר למנהל',
@@ -115,6 +118,7 @@ export const he: TranslationDictionary = {
   'bank.bar.realistic': 'ריאליסטי',
   'bank.bar.upside': 'אופטימי',
   'bank.bar.downside': 'פסימי',
+  'bank.bar.breakeven': 'נקודת איזון',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'בקשת אשראי · אנטיפארוס, יוון',
@@ -147,6 +151,8 @@ export const he: TranslationDictionary = {
   'dash.dscrByScenario': 'DSCR לפי תרחיש ומסלול מימון',
   'dash.pnlSummary': 'סיכום רווח והפסד',
   'dash.financingComparison': 'השוואת מסלולי מימון',
+  'dash.section.threeScenario': 'Scenario Returns', // TODO: translate
+  'dash.threeScenarioSub': 'Upside / Base / Downside across hotel-sale exit', // TODO: translate
 
   'pnl.title': 'דוח רווח והפסד',
   'pnl.subtitle': '2026-2036 · תחזית ל-11 שנים',

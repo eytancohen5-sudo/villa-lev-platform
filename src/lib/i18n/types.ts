@@ -19,12 +19,15 @@ export interface TranslationDictionary {
 
   // ── Nav ──
   'nav.dashboard': string;
+  'nav.returns': string;
   'nav.pnl': string;
   'nav.breakeven': string;
   'nav.capex': string;
   'nav.scenarios': string;
   'nav.assumptions': string;
   'nav.sensitivity': string;
+  'nav.debtCoverage': string;
+  'nav.financingPaths': string;
   'nav.opcoSplit': string;
   'nav.capTable': string;
   'nav.switchAdmin': string;
@@ -122,6 +125,8 @@ export interface TranslationDictionary {
   'dash.dscrByScenario': string;
   'dash.pnlSummary': string;
   'dash.financingComparison': string;
+  'dash.section.threeScenario': string;
+  'dash.threeScenarioSub': string;
 
   // ── P&L ──
   'pnl.title': string;
@@ -825,6 +830,7 @@ export interface TranslationDictionary {
   'bank.bar.realistic': string;
   'bank.bar.upside': string;
   'bank.bar.downside': string;
+  'bank.bar.breakeven': string;
 
   // ── bank/page.tsx hero & section headings (2026-05-23) ──
   'bank.hero.eyebrow': string;

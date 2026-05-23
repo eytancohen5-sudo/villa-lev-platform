@@ -8,12 +8,15 @@ export const el: TranslationDictionary = {
   'app.loanApp': 'Αίτηση Χρηματοδότησης',
 
   'nav.dashboard': 'Πίνακας Ελέγχου',
+  'nav.returns': 'Returns', // TODO: translate
   'nav.pnl': 'Αποτελέσματα χρήσης',
   'nav.breakeven': 'Νεκρό σημείο',
   'nav.capex': 'CAPEX',
   'nav.scenarios': 'Σενάρια',
   'nav.assumptions': 'Παραδοχές',
   'nav.sensitivity': 'Ανάλυση ευαισθησίας',
+  'nav.debtCoverage': 'Debt Coverage', // TODO: translate
+  'nav.financingPaths': 'Financing Paths', // TODO: translate
   'nav.opcoSplit': 'OpCo / PropCo',
   'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Εναλλαγή σε Διαχειριστή',
@@ -115,6 +118,7 @@ export const el: TranslationDictionary = {
   'bank.bar.realistic': 'Ρεαλιστικό',
   'bank.bar.upside': 'Αισιόδοξο',
   'bank.bar.downside': 'Απαισιόδοξο',
+  'bank.bar.breakeven': 'Νεκρό Σημείο',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Αίτηση Χρηματοδότησης · Αντίπαρος, Ελλάδα',
@@ -147,6 +151,8 @@ export const el: TranslationDictionary = {
   'dash.dscrByScenario': 'ΔΚΕΧ ανά σενάριο & δομή χρηματοδότησης',
   'dash.pnlSummary': 'Σύνοψη αποτελεσμάτων',
   'dash.financingComparison': 'Σύγκριση δομών χρηματοδότησης',
+  'dash.section.threeScenario': 'Scenario Returns', // TODO: translate
+  'dash.threeScenarioSub': 'Upside / Base / Downside across hotel-sale exit', // TODO: translate
 
   'pnl.title': 'Αποτελέσματα χρήσης',
   'pnl.subtitle': '2026-2036 · Προβολή 11 ετών',

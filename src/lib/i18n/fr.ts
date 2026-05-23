@@ -8,12 +8,15 @@ export const fr: TranslationDictionary = {
   'app.loanApp': 'Demande de financement',
 
   'nav.dashboard': 'Tableau de Bord',
+  'nav.returns': 'Returns', // TODO: translate
   'nav.pnl': 'Compte de résultat',
   'nav.breakeven': 'Seuil de rentabilité',
   'nav.capex': 'CAPEX',
   'nav.scenarios': 'Scénarios',
   'nav.assumptions': 'Hypothèses',
   'nav.sensitivity': 'Sensibilité',
+  'nav.debtCoverage': 'Debt Coverage', // TODO: translate
+  'nav.financingPaths': 'Financing Paths', // TODO: translate
   'nav.opcoSplit': 'OpCo / PropCo',
   'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Passer en mode Admin',
@@ -115,6 +118,7 @@ export const fr: TranslationDictionary = {
   'bank.bar.realistic': 'Réaliste',
   'bank.bar.upside': 'Optimiste',
   'bank.bar.downside': 'Pessimiste',
+  'bank.bar.breakeven': 'Seuil de rentabilité',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Demande de Crédit · Antiparos, Grèce',
@@ -147,6 +151,8 @@ export const fr: TranslationDictionary = {
   'dash.dscrByScenario': 'RCSD par scénario & structure de financement',
   'dash.pnlSummary': 'Synthèse du compte de résultat',
   'dash.financingComparison': 'Comparaison des structures de financement',
+  'dash.section.threeScenario': 'Scenario Returns', // TODO: translate
+  'dash.threeScenarioSub': 'Upside / Base / Downside across hotel-sale exit', // TODO: translate
 
   'pnl.title': 'Compte de résultat',
   'pnl.subtitle': '2026-2036 · Projection sur 11 ans',

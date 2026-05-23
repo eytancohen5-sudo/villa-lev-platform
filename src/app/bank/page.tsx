@@ -6,6 +6,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { BankStressTest } from "@/components/BankStressTest";
+import { resolvePortfolio, BUILT_IN_TEMPLATES } from "@/lib/engine/defaults";
 import BankControlBar from "@/components/BankControlBar";
 import {
   BarChart,
@@ -57,6 +58,11 @@ export default function BankPage() {
   // The active path for display is the ephemeral override if set, else the stored assumption.
   const activePath = financingPathOverride ?? assumptions.financingPath;
 
+  // Resolve the active scenario's P&L — all charts and the P&L table respond to the
+  // scenario pill selection in the control bar. Falls back to realistic if key missing.
+  const activePnl = model.scenarios[activeScenario as keyof typeof model.scenarios]?.pnl
+    ?? model.scenarios.realistic.pnl;
+
   const handleDownloadXlsx = async () => {
     const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
     const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
@@ -85,7 +91,19 @@ export default function BankPage() {
   };
 
   const km = model.keyMetrics;
-  const pnl = model.scenarios.realistic.pnl.filter((p) => p.year >= 2028);
+  const pnl = activePnl.filter((p) => p.year >= 2028);
+
+  // Resolve full portfolio so "About the project" shows exact unit counts and m².
+  // Uses BUILT_IN_TEMPLATES as the source; custom templates stored only in the
+  // store would require a store read — keep it simple since the built-in templates
+  // are the ones actively used in the default model config.
+  const portfolio = resolvePortfolio(BUILT_IN_TEMPLATES, projects);
+  const totalPlots = portfolio.reduce((s, p) => s + p.count, 0);
+  const totalVillas = portfolio.reduce((s, p) => s + p.count * p.villaUnits, 0);
+  const totalStdSuites = portfolio.reduce((s, p) => s + p.count * p.standardSuites, 0);
+  const totalDblSuites = portfolio.reduce((s, p) => s + p.count * p.doubleSuites, 0);
+  const totalSuites = totalStdSuites + totalDblSuites;
+  const totalGIA = portfolio.reduce((s, p) => s + p.count * (p.constructionArea ?? 0), 0);
 
   const pathLabel =
     activePath === "grant"
@@ -149,10 +167,69 @@ export default function BankPage() {
         {/* 2. Executive Summary */}
         <div className="rounded-2xl border border-surface-tertiary bg-white shadow-sm p-6 mb-8 print:mb-4 print:border-0 print:shadow-none print:p-0">
           <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3">About the project</h2>
-          <p className="text-sm text-text-secondary leading-relaxed max-w-3xl">
-            <span className="font-semibold text-text-primary">Villa Lev Group</span> is a boutique hospitality operator based on Antiparos, Greece, developing a portfolio of premium villa-style properties under a unified brand. The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live and generating revenue today, providing a real operating track record for all projections in this package. The Group expansion model replicates the proven formula across additional curated properties in the Cyclades, targeting the mid-to-premium villa rental segment with ancillary services (events, experiences, brand licensing).
+          <p className="text-sm text-text-secondary leading-relaxed mb-4">
+            <span className="font-semibold text-text-primary">Villa Lev Group</span> is developing{" "}
+            <span className="font-semibold text-text-primary">{totalPlots} plots</span> in Agios Georgios, Antiparos —{" "}
+            {totalVillas > 0 && (
+              <><span className="font-semibold text-text-primary">{totalVillas} luxury villa{totalVillas > 1 ? "s" : ""}</span>{totalSuites > 0 ? " and " : ""}</>
+            )}
+            {totalSuites > 0 && (
+              <><span className="font-semibold text-text-primary">{totalSuites} boutique hotel suite{totalSuites > 1 ? "s" : ""}</span></>
+            )}
+            {" "}under a single branded hospitality concept.
+            The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live today and provides the operating track record for all projections in this package.
           </p>
-          <div className="mt-4 flex items-center gap-3">
+
+          {/* Per-plot portfolio breakdown */}
+          <div className="overflow-x-auto mb-5 rounded-lg border border-surface-tertiary">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-surface-secondary/50">
+                  <th className="text-left py-2 px-3 font-semibold uppercase tracking-wider text-text-tertiary">Plot</th>
+                  <th className="text-center py-2 px-3 font-semibold uppercase tracking-wider text-text-tertiary">Count</th>
+                  <th className="text-left py-2 px-3 font-semibold uppercase tracking-wider text-text-tertiary">Type</th>
+                  <th className="text-right py-2 px-3 font-semibold uppercase tracking-wider text-text-tertiary">Units / plot</th>
+                  <th className="text-right py-2 px-3 font-semibold uppercase tracking-wider text-text-tertiary">GIA / plot</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolio.map((p) => (
+                  <tr key={p.id} className="border-t border-surface-secondary/60">
+                    <td className="py-2 px-3 font-medium text-text-primary">{p.name}</td>
+                    <td className="py-2 px-3 text-center text-text-secondary">×{p.count}</td>
+                    <td className="py-2 px-3 text-text-secondary">
+                      {p.villaUnits > 0 ? "Luxury villa" : "Hotel rooms"}
+                    </td>
+                    <td className="py-2 px-3 text-right text-text-secondary">
+                      {p.villaUnits > 0
+                        ? `${p.villaUnits} villa`
+                        : `${p.standardSuites} standard · ${p.doubleSuites} double`}
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-text-secondary">
+                      ~{Math.round(p.constructionArea ?? 0).toLocaleString()} m²
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/20">
+                  <td className="py-2 px-3 font-semibold text-text-primary">Total</td>
+                  <td className="py-2 px-3 text-center font-semibold text-text-primary">{totalPlots}</td>
+                  <td className="py-2 px-3" />
+                  <td className="py-2 px-3 text-right text-text-secondary">
+                    {totalVillas > 0 && `${totalVillas} villa${totalVillas > 1 ? "s" : ""}`}
+                    {totalVillas > 0 && totalSuites > 0 && " · "}
+                    {totalSuites > 0 && `${totalStdSuites} std + ${totalDblSuites} dbl suites`}
+                  </td>
+                  <td className="py-2 px-3 text-right font-mono font-semibold text-text-primary">
+                    ~{Math.round(totalGIA).toLocaleString()} m²
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div className="flex items-center gap-3">
             <a
               href="/presentation"
               target="_blank"
@@ -190,14 +267,14 @@ export default function BankPage() {
                 ? assumptions.rrf.gracePeriodYears
                 : assumptions.commercialLoan.gracePeriodYears;
           const covenant = assumptions.dscrCovenantThreshold ?? 1.25;
-          const minDscr = model.scenarios.realistic.minDSCRLoanLife;
-          const dscrPass = minDscr >= covenant;
+          const stabDscr = km.stabilisedDSCR;
+          const dscrPass = stabDscr >= covenant;
           const cells = [
             { label: t('dash.termsheet.loan'), value: formatCurrency(km.loanAmount, true, locale), sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}` },
             { label: t('dash.termsheet.term'), value: `${term}y · ${grace}y`, sub: t('dash.termsheet.termSub') },
             { label: t('dash.termsheet.rate'), value: `${(rate * 100).toFixed(2)}%`, sub: pathLabel },
             { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
-            { label: t('dash.termsheet.dscrCovenant'), value: `${covenant.toFixed(2)}×`, sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
+            { label: t('dash.termsheet.dscrCovenant'), value: formatMultiple(stabDscr), sub: `Covenant ≥ ${covenant.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
             { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
             { label: t('dash.termsheet.security'), value: '1st-rank mortgage', sub: 'Land + completed structure' },
           ];

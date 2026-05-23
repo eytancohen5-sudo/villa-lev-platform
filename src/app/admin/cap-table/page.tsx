@@ -101,6 +101,9 @@ export default function CapTablePage() {
     const scenario = model.scenarios[activeScenario];
     return computeCapTable(scenario, resolvedCapTable, waterfall, {
       grantApproved,
+      // Pari-passu denominator: the model's equity requirement for the active
+      // path. Independent of how many investors have been entered in the UI.
+      equityRequired: model.keyMetrics.equityRequired,
       // Layer B uses the engine's DEFAULT_BASELINE_BANK_LOAN (pre-grant
       // commercial financing), not the active scenario's loan.
     });
@@ -219,7 +222,7 @@ export default function CapTablePage() {
 
       {/* Equity coverage */}
       {(() => {
-        const totalCommitted = result.totalEquityRaised;
+        const totalCommitted = result.totalEquityCommitted;
         const gap = equityRequired - totalCommitted;
         const covered = Math.abs(gap) < 1;
         const pct = equityRequired > 0 ? Math.min(1, totalCommitted / equityRequired) : 1;
@@ -309,7 +312,7 @@ export default function CapTablePage() {
           </div>
           <div title={
             grantApproved
-              ? `Derived: founder_net €${Math.round(b.founderNetGrantCash / 1000)}K (gross fee minus €200K consultant) ÷ (post-grant equity €${(b.postGrantEquityValue / 1_000_000).toFixed(2)}M + founder_net) — adjusts with grant size, consultant share, and project valuation.`
+              ? `Derived: 50% equity portion €${Math.round(b.founderNetGrantCash / 1000)}K ÷ total equity pool €${Math.round(totalEquity / 1000)}K = ${(b.grantBonusPct * 100).toFixed(1)}%. The equity half of the 10% grant success fee, valued at pari-passu.`
               : "Layer B vests only when the Greek Development Law grant is approved."
           }>
             <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
@@ -320,7 +323,7 @@ export default function CapTablePage() {
             </div>
             <div className="text-xs text-text-tertiary mt-1">
               {grantApproved
-                ? `€${Math.round(b.founderNetGrantCash / 1000)}K net / €${Math.round((b.postGrantEquityValue + b.founderNetGrantCash) / 1000)}K`
+                ? `€${Math.round(b.founderNetGrantCash / 1000)}K net / €${Math.round(totalEquity / 1000)}K equity pool`
                 : "Inactive (no grant path)"}
             </div>
           </div>
@@ -408,7 +411,7 @@ export default function CapTablePage() {
         {/* Headline aggregate investor metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5 pt-5 border-t border-surface-tertiary">
           <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Total equity raised</div>
+            <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">Equity pool (model)</div>
             <div className="font-mono text-base font-semibold mt-1">{formatCurrency(totalEquity, true, locale)}</div>
           </div>
           <div>
@@ -429,12 +432,11 @@ export default function CapTablePage() {
           </div>
         </div>
 
-        {/* Layer B derivation — surfaced so the bank can audit the +4% bonus
-            instead of taking it as a magic number. */}
+        {/* Layer B derivation — auditable formula, surfaced for bank/investor review. */}
         {grantApproved && (
           <div className="mt-5 pt-4 border-t border-surface-tertiary">
             <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-2">
-              Layer B derivation
+              Layer B derivation — grant success fee
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
               <div>
@@ -446,12 +448,14 @@ export default function CapTablePage() {
                 <div className="font-mono font-medium mt-0.5">{formatCurrency(4_013_880 * 0.10, true, locale)}</div>
               </div>
               <div>
-                <div className="text-text-tertiary">− €200K consultant</div>
-                <div className="font-mono font-medium mt-0.5">{formatCurrency(b.founderNetGrantCash, true, locale)} net</div>
+                <div className="text-text-tertiary">50% cash (deferred)</div>
+                <div className="font-mono font-medium mt-0.5">{formatCurrency(b.consultantCashPayment, true, locale)}</div>
               </div>
               <div>
-                <div className="text-text-tertiary">Post-grant equity</div>
-                <div className="font-mono font-medium mt-0.5">{formatCurrency(b.postGrantEquityValue, true, locale)}</div>
+                <div className="text-text-tertiary">50% equity ÷ equity pool</div>
+                <div className="font-mono font-medium mt-0.5">
+                  {formatCurrency(b.founderNetGrantCash, true, locale)} ÷ {formatCurrency(totalEquity, true, locale)}
+                </div>
               </div>
               <div>
                 <div className="text-text-tertiary">= Grant bonus</div>
@@ -472,12 +476,13 @@ export default function CapTablePage() {
             </div>
           </div>
           <div>
-            <div className="text-text-tertiary">Deferred advisory fee (Bucket 1B, 3-yr)</div>
+            <div className="text-text-tertiary">Cash success fee (Bucket 1B, 3-yr)</div>
             <div className="font-mono font-medium mt-0.5">
               {result.totalDeferredAdvisoryFee > 0
                 ? formatCurrency(result.totalDeferredAdvisoryFee, true, locale)
                 : "—"}
             </div>
+            <div className="text-[10px] text-text-tertiary mt-0.5">50% of 10% fee — equity half captured in Layer B</div>
           </div>
           <div className="text-text-tertiary leading-snug">
             Both subtracted from NCF post-tax post-DS before splitting between founder and investors.
@@ -621,11 +626,11 @@ export default function CapTablePage() {
               })()}
               <tr className="border-t-2 border-surface-tertiary font-medium">
                 <td className="py-2.5 px-4">Total (cash)</td>
-                <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(totalEquity, true, locale)}</td>
+                <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(result.totalEquityCommitted, true, locale)}</td>
                 <td className="py-2.5 px-4 text-right font-mono">100.0%</td>
                 <td className="py-2.5 px-4 text-right font-mono">100.0%</td>
                 <td className="py-2.5 px-4 text-right font-mono">{formatCurrency(result.totalDistributed, true, locale)}</td>
-                <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(totalEquity > 0 ? result.totalDistributed / totalEquity : 0)}</td>
+                <td className="py-2.5 px-4 text-right font-mono">{formatMultiple(result.totalEquityCommitted > 0 ? result.totalDistributed / result.totalEquityCommitted : 0)}</td>
                 <td></td>
                 <td></td>
                 <td></td>

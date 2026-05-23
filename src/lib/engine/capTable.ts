@@ -146,7 +146,14 @@ export interface CapTableResult {
   investorIRR: number;
   investorMOIC: number;
   totalNonFounderCash: number;
+  // The model's equity requirement — the canonical pool denominator for all
+  // pari-passu and grant-bonus calculations. Independent of how much the
+  // named stakeholders have actually committed in the UI.
   totalEquityRaised: number;
+  // Σ cashIn across all named stakeholders (may differ from totalEquityRaised
+  // when investors are over/under committed). Used only for the equity-coverage
+  // bar and aggregate MOIC display.
+  totalEquityCommitted: number;
   founderCashInvested: number;
   grantApproved: boolean;
   // ── v2: derivation + fee totals (surfaced in UI + Excel) ─────────
@@ -162,18 +169,29 @@ export function computeCapTable(
   scenario: ScenarioOutput,
   stakeholders: CapTableStakeholder[],
   _params: WaterfallParams,
-  options?: { grantApproved?: boolean } & ResolveOptions,
+  options?: { grantApproved?: boolean; equityRequired?: number } & ResolveOptions,
 ): CapTableResult {
   const founder = stakeholders.find((s) => s.isPromoter);
   const founderCash = founder?.cashIn ?? 0;
-  const totalEquity = stakeholders.reduce((s, sh) => s + sh.cashIn, 0);
-  const totalNonFounderCash = Math.max(0, totalEquity - founderCash);
+  // totalEquityCommitted = what named stakeholders have actually entered in the UI.
+  // Used only for relative investor fractions and the equity-coverage bar.
+  const totalEquityCommitted = stakeholders.reduce((s, sh) => s + sh.cashIn, 0);
+  // equityRequired = the model's equity requirement for the active financing path.
+  // This is the canonical pool denominator: pariPassu = founderCash / equityRequired,
+  // grantBonus = founderNetCash / equityRequired. Passed in from the caller who has
+  // access to model.keyMetrics.equityRequired. Falls back to committed sum if not provided.
+  const equityRequired = (options?.equityRequired ?? 0) > 0
+    ? options!.equityRequired!
+    : totalEquityCommitted;
+  // Investor pool for relative distribution fractions — based on committed
+  // amounts so the fractions always sum to 100% among named investors.
+  const totalNonFounderCash = Math.max(0, totalEquityCommitted - founderCash);
   const grantApproved = options?.grantApproved ?? false;
 
   const resolved = resolveFounderWaterfall(
     scenario,
     founderCash,
-    totalEquity,
+    equityRequired,   // ← pool denominator: model's equity requirement, not committed sum
     grantApproved,
     {
       grantAmount: options?.grantAmount,
@@ -297,7 +315,8 @@ export function computeCapTable(
     investorIRR: safe(resolved.investorIRR),
     investorMOIC: safe(resolved.investorMOIC),
     totalNonFounderCash,
-    totalEquityRaised: totalEquity,
+    totalEquityRaised: equityRequired,
+    totalEquityCommitted,
     founderCashInvested: founderCash,
     grantApproved,
     totalFounderManCoFee: safe(resolved.totalFounderManCoFee),

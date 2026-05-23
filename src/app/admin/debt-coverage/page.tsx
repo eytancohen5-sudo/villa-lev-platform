@@ -1,0 +1,554 @@
+"use client";
+
+import { useModelStore } from "@/lib/store/modelStore";
+import {
+  formatCurrency,
+  formatPercent,
+  formatMultiple,
+} from "@/lib/hooks/useModel";
+import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { PageSkeleton } from "@/components/Skeleton";
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+  Legend,
+} from "recharts";
+
+// ── Shared UI components ─────────────────────────────────────
+
+function SectionHeader({ title, sub }: { title: string; sub?: string }) {
+  return (
+    <div className="flex items-baseline justify-between mb-3 mt-8 first:mt-0 px-1">
+      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
+        {title}
+      </h2>
+      {sub && <span className="text-[11px] text-text-tertiary">{sub}</span>}
+    </div>
+  );
+}
+
+function StatusChip({ label, ok }: { label: string; ok: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${
+        ok ? "bg-positive/15 text-positive" : "bg-warning/15 text-warning"
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-positive" : "bg-warning"}`} />
+      {label}
+    </span>
+  );
+}
+
+function KPICard({
+  label,
+  value,
+  sublabel,
+  threshold,
+  chip,
+  accent = false,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sublabel?: string;
+  threshold?: string;
+  chip?: { label: string; ok: boolean };
+  accent?: boolean;
+  tone?: "positive" | "warning" | "neutral";
+}) {
+  const valueColor =
+    tone === "positive" ? "text-positive" : tone === "warning" ? "text-warning" : "text-text-primary";
+  return (
+    <div
+      className={`relative rounded-xl border p-5 ${
+        accent ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
+          {label}
+        </div>
+        {chip && <StatusChip label={chip.label} ok={chip.ok} />}
+      </div>
+      <div className={`kpi-value ${valueColor}`}>{value}</div>
+      {sublabel && <div className="text-xs text-text-tertiary mt-1">{sublabel}</div>}
+      {threshold && (
+        <div className="text-[11px] text-text-tertiary/80 mt-1.5 pt-1.5 border-t border-surface-tertiary/50">
+          {threshold}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "positive" | "warning" | "neutral";
+}) {
+  const valueColor =
+    tone === "positive"
+      ? "text-positive"
+      : tone === "warning"
+        ? "text-warning"
+        : "text-text-primary";
+  return (
+    <div>
+      <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-0.5">
+        {label}
+      </div>
+      <div className={`font-display text-xl ${valueColor}`}>{value}</div>
+    </div>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────
+
+export default function DebtCoveragePage() {
+  const { t, locale } = useTranslation();
+  const { model, assumptions, activeScenario } = useModelStore();
+
+  if (!model) return <PageSkeleton variant="grid" />;
+
+  const activeScenarioOutput = model.scenarios[activeScenario];
+  const activePnL = activeScenarioOutput.pnl;
+  const stab = activeScenarioOutput.stabilisedYear;
+
+  const minDSCRLoanLife = activeScenarioOutput.minDSCRLoanLife;
+  const dscrPostRamp =
+    activePnL.find((p) => p.year === 2030)?.dscr ?? activeScenarioOutput.minDSCRLoanLife;
+  const dscrCovenantHeadroom = activeScenarioOutput.dscrCovenantHeadroom;
+  const icrStabilised = activeScenarioOutput.icrStabilised;
+  const llcr = activeScenarioOutput.llcr;
+  const plcr = activeScenarioOutput.plcr;
+  const gracePeriodInterestTotal = activeScenarioOutput.gracePeriodInterestTotal;
+  const netLeverage = activeScenarioOutput.netLeverage;
+  const peakDebtOutstanding = activeScenarioOutput.peakDebtOutstanding;
+  const roic = activeScenarioOutput.roic;
+
+  const stabilisedRevenue = stab?.totalRevenue ?? 0;
+  const stabilisedEBITDA = stab?.ebitda ?? 0;
+  const stabilisedNCF = stab?.netCashFlowPostVAT ?? 0;
+
+  const wcActive = assumptions.workingCapital.active;
+  const wcEffectiveFacility = activeScenarioOutput.wcEffectiveFacility;
+  const wcSelfLiqViolation = activePnL.some((p) => p.wcSelfLiquidatingViolation);
+  const wcY2 = activePnL.find((p) => p.year === 2029);
+  const wcY2Peak = wcY2?.wcPeakBalance ?? 0;
+  const wcStabilisedAvg = stab?.wcAvgBalance ?? 0;
+  const wcStabilisedInterest = stab?.wcInterestExpense ?? 0;
+  const worstTrough = activePnL
+    .filter((p) => p.year >= 2028)
+    .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
+  const wcSparkData = activeScenarioOutput.wcQuarters
+    .filter((q) => q.year >= 2027)
+    .map((q) => ({
+      label: `${q.year}Q${q.quarter}`,
+      balance: Math.round(q.closingBalance),
+    }));
+
+  const icrTone =
+    icrStabilised >= 3 ? "positive" : icrStabilised >= 2 ? undefined : "warning";
+  const llcrTone =
+    llcr >= 1.5 ? "positive" : llcr >= 1.25 ? undefined : "warning";
+
+  const pathLabel =
+    assumptions.financingPath === "grant"
+      ? t("path.grant")
+      : assumptions.financingPath === "rrf"
+        ? t("path.rrf")
+        : assumptions.financingPath === "tepix-loan"
+          ? t("path.tepixLoan")
+          : t("path.commercial");
+
+  const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
+
+  // DSCR trajectory chart data
+  const dscrTrajectoryData = model.dscrByYear
+    .filter((d) => d.year >= 2028)
+    .map((d) => ({
+      year: d.year,
+      Realistic: Number(d.realistic.toFixed(2)),
+      Downside: Number(d.downside.toFixed(2)),
+      Grant: Number(d.grant.toFixed(2)),
+      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+    }));
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-2xl text-text-primary">Debt Coverage</h1>
+          <p className="text-sm font-medium text-text-secondary mt-1">
+            <span className="text-text-primary">{pathLabel}</span>
+            <span className="text-text-tertiary"> &middot; </span>
+            {scenarioLabel}
+          </p>
+        </div>
+      </div>
+
+      {/* Section 1 — DSCR Trajectory Chart */}
+      <div id="section-dscr-hero" className="bg-white rounded-2xl border border-surface-tertiary p-5 shadow-sm scroll-mt-24">
+        <div className="mb-3">
+          <div className="flex items-baseline justify-between">
+            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
+              {t("dash.heroDscr")}
+            </h3>
+            <span className="text-[11px] text-text-tertiary">
+              {t("dash.minDscr")}: {formatMultiple(minDSCRLoanLife)} · {t("kpi.gracePeriodInterest")}: {formatCurrency(gracePeriodInterestTotal, true, locale)}
+            </span>
+          </div>
+          <p className="text-[11px] text-text-tertiary mt-0.5">
+            {t("dash.heroDscrSub")}
+          </p>
+        </div>
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={dscrTrajectoryData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <YAxis
+              tick={{ fontSize: 11 }}
+              tickFormatter={(v: number) => `${v.toFixed(1)}×`}
+              domain={[0, "dataMax + 0.5"]}
+            />
+            <Tooltip
+              formatter={(value) => `${Number(value).toFixed(2)}×`}
+              contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+            />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <ReferenceLine
+              y={1.25}
+              stroke="#9E3B3B"
+              strokeDasharray="5 5"
+              label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }}
+            />
+            <ReferenceLine
+              y={1.50}
+              stroke="#6B7A3D"
+              strokeDasharray="3 3"
+              label={{ value: "1.50× comfort", fontSize: 10, fill: "#6B7A3D" }}
+            />
+            <Line
+              type="monotone"
+              dataKey="Realistic"
+              name={t("scenario.realistic")}
+              stroke="#8B6914"
+              strokeWidth={2.5}
+            />
+            <Line
+              type="monotone"
+              dataKey="Downside"
+              name={t("scenario.downside")}
+              stroke="#9E3B3B"
+              strokeWidth={1.8}
+              strokeDasharray="4 2"
+            />
+            <Line
+              type="monotone"
+              dataKey="Grant"
+              name={t("path.grantShort")}
+              stroke="#4A7C3F"
+              strokeWidth={1.5}
+              strokeDasharray="6 3"
+            />
+            <Line
+              type="monotone"
+              dataKey="TEPIX Loan"
+              name={t("path.tepixLoanShort")}
+              stroke="#7B5EA7"
+              strokeWidth={1.5}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Section 2 — Coverage Ratios */}
+      <SectionHeader title={t("dash.section.coverage")} sub={t("dash.coverageSub")} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KPICard
+          label={t("kpi.icr")}
+          value={icrStabilised > 0 ? formatMultiple(icrStabilised) : "—"}
+          sublabel={t("kpi.icrSub")}
+          tone={icrTone}
+        />
+        <KPICard
+          label={t("kpi.llcr")}
+          value={llcr > 0 ? formatMultiple(llcr) : "—"}
+          sublabel={t("kpi.llcrSub")}
+          tone={llcrTone}
+        />
+        <KPICard
+          label={t("kpi.plcr")}
+          value={plcr > 0 ? formatMultiple(plcr) : "—"}
+          sublabel={t("kpi.plcrSub")}
+          tone={plcr >= 1.7 ? "positive" : plcr >= 1.4 ? undefined : "warning"}
+        />
+        <KPICard
+          label={t("kpi.covHeadroom")}
+          value={(() => {
+            if (dscrPostRamp <= 0) return "—";
+            const covenant = 1.25;
+            const deltaPct = (dscrPostRamp - covenant) / covenant;
+            const sign = deltaPct >= 0 ? "+" : "−";
+            return `${sign}${(Math.abs(deltaPct) * 100).toFixed(1)}%`;
+          })()}
+          sublabel={t("kpi.covHeadroomSub")}
+          tone={
+            dscrPostRamp - 1.25 >= 0.2
+              ? "positive"
+              : dscrPostRamp >= 1.25
+                ? undefined
+                : "warning"
+          }
+        />
+      </div>
+
+      {/* Section 3 — Capital Structure & Debt */}
+      <SectionHeader title={t("dash.section.capital")} sub={pathLabel} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KPICard
+          label={t("kpi.gracePeriodInterest")}
+          value={formatCurrency(gracePeriodInterestTotal, true, locale)}
+          sublabel={t("kpi.gracePeriodInterestSub")}
+        />
+        <KPICard
+          label={t("kpi.netLeverage")}
+          value={netLeverage > 0 ? formatMultiple(netLeverage) : "—"}
+          sublabel={t("kpi.netLeverageSub")}
+          tone={netLeverage <= 5 ? "positive" : netLeverage <= 7 ? undefined : "warning"}
+        />
+        <KPICard
+          label={t("kpi.peakDebt")}
+          value={formatCurrency(peakDebtOutstanding, true, locale)}
+          sublabel={t("kpi.peakDebtSub")}
+        />
+        <KPICard
+          label={t("kpi.roic")}
+          value={roic > 0 ? formatPercent(roic) : "—"}
+          sublabel={t("kpi.roicSub")}
+          tone={roic >= 0.07 ? "positive" : roic > 0 ? undefined : "warning"}
+        />
+      </div>
+
+      {/* Section 4 — Operating Performance */}
+      <SectionHeader title={t("dash.section.operating")} sub={t("dash.stabilisedYear")} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <KPICard
+          label={t("kpi.stabilisedRevenue")}
+          value={formatCurrency(stabilisedRevenue, true, locale)}
+          sublabel={t("kpi.stabilisedRevenueSub")}
+          accent
+        />
+        <KPICard
+          label={t("term.ebitda")}
+          value={formatCurrency(stabilisedEBITDA, true, locale)}
+          sublabel={`${t("kpi.margin")} ${formatPercent(stab?.ebitdaMargin ?? 0)}`}
+          threshold={t("kpi.ebitdaMarginNote")}
+          accent
+        />
+        <KPICard
+          label={t("kpi.netCashFlow")}
+          value={formatCurrency(stabilisedNCF, true, locale)}
+          sublabel={t("kpi.netCashFlowSub")}
+        />
+      </div>
+
+      {/* Section 5 — Working Capital (conditional) */}
+      {wcActive && (
+        <>
+          <SectionHeader
+            title={t("dash.section.workingCapital")}
+            sub={t("dash.wcPanelSub")}
+          />
+          <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+              <div className="lg:col-span-5 grid grid-cols-2 gap-x-6 gap-y-4">
+                <MiniStat
+                  label={t("dash.wcPeak")}
+                  value={formatCurrency(wcY2Peak, true, locale)}
+                />
+                <MiniStat
+                  label={t("dash.wcAvg")}
+                  value={formatCurrency(wcStabilisedAvg, true, locale)}
+                />
+                <MiniStat
+                  label={t("dash.wcTrough")}
+                  value={formatCurrency(worstTrough, true, locale)}
+                  tone={wcSelfLiqViolation ? "warning" : "positive"}
+                />
+                <MiniStat
+                  label={t("dash.wcInterestAnnual")}
+                  value={formatCurrency(wcStabilisedInterest, true, locale)}
+                />
+                <div className="col-span-2 flex items-center gap-3 pt-2 border-t border-surface-tertiary/50">
+                  <StatusChip
+                    label={wcSelfLiqViolation ? t("kpi.wcSelfLiqFail") : t("kpi.wcSelfLiqOk")}
+                    ok={!wcSelfLiqViolation}
+                  />
+                  <span className="text-[11px] text-text-tertiary">
+                    {t("kpi.wcSelfLiqSub")} · {t("kpi.wcFacility")}{" "}
+                    {formatCurrency(wcEffectiveFacility, true, locale)}
+                  </span>
+                </div>
+              </div>
+              <div className="lg:col-span-7">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
+                  {t("dash.wcSparkLabel")}
+                </div>
+                <ResponsiveContainer width="100%" height={140}>
+                  <AreaChart data={wcSparkData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="wcGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#8B6914" stopOpacity={0.45} />
+                        <stop offset="100%" stopColor="#8B6914" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 9 }}
+                      interval={3}
+                      tickFormatter={(v: string) => v.split("Q")[0]}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10 }}
+                      tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
+                      width={50}
+                    />
+                    <Tooltip
+                      formatter={(value) => formatCurrency(Number(value), true, locale)}
+                      labelFormatter={(label) => `${t("dash.wcQuarterly")} ${label}`}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="balance"
+                      stroke="#8B6914"
+                      strokeWidth={1.8}
+                      fill="url(#wcGrad)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Section 6 — Collateral */}
+      <SectionHeader title={t("dash.section.collateral")} sub={t("dash.collateralTiers")} />
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-tertiary">
+                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                  {t("common.metric")}
+                </th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-warning font-medium">
+                  {t("sc.stress")}
+                </th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">
+                  {t("sc.market")}
+                </th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-positive font-medium">
+                  {t("sc.optimistic")}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-b border-surface-secondary/50">
+                <td className="py-2 pr-4 text-text-secondary">{t("kpi.portfolioValue")}</td>
+                <td className="text-right py-2 px-3 data-cell">
+                  {formatCurrency(model.collateral.stress.value, true, locale)}
+                </td>
+                <td className="text-right py-2 px-3 data-cell">
+                  {formatCurrency(model.collateral.market.value, true, locale)}
+                </td>
+                <td className="text-right py-2 px-3 data-cell">
+                  {formatCurrency(model.collateral.optimistic.value, true, locale)}
+                </td>
+              </tr>
+              <tr className="border-b border-surface-secondary/50">
+                <td className="py-2 pr-4 text-text-secondary">{t("term.ltv")}</td>
+                <td
+                  className={`text-right py-2 px-3 data-cell ${
+                    model.collateral.stress.ltv > 0.75 ? "text-warning" : "text-text-primary"
+                  }`}
+                >
+                  {formatPercent(model.collateral.stress.ltv)}
+                </td>
+                <td
+                  className={`text-right py-2 px-3 data-cell ${
+                    model.collateral.market.ltv > 0.75 ? "text-warning" : "text-positive"
+                  }`}
+                >
+                  {formatPercent(model.collateral.market.ltv)}
+                </td>
+                <td className="text-right py-2 px-3 data-cell text-positive">
+                  {formatPercent(model.collateral.optimistic.ltv)}
+                </td>
+              </tr>
+              <tr className="font-medium">
+                <td className="py-2 pr-4">{t("kpi.assetCoverage")}</td>
+                <td
+                  className={`text-right py-2 px-3 data-cell ${
+                    model.collateral.stress.coverage < 1.3 ? "text-warning" : "text-text-primary"
+                  }`}
+                >
+                  {formatMultiple(model.collateral.stress.coverage)}
+                </td>
+                <td
+                  className={`text-right py-2 px-3 data-cell ${
+                    model.collateral.market.coverage >= 1.5 ? "text-positive" : "text-text-primary"
+                  }`}
+                >
+                  {formatMultiple(model.collateral.market.coverage)}
+                </td>
+                <td className="text-right py-2 px-3 data-cell text-positive">
+                  {formatMultiple(model.collateral.optimistic.coverage)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-surface-tertiary/50">
+          <KPICard
+            label={t("term.ltv")}
+            value={formatPercent(model.keyMetrics.ltv)}
+            sublabel={t("kpi.ltvAtCompletion")}
+            threshold={t("dash.kpi.ltvThreshold")}
+            tone={model.keyMetrics.ltv <= 0.75 ? "positive" : "warning"}
+          />
+          <KPICard
+            label={t("kpi.assetCoverage")}
+            value={formatMultiple(model.keyMetrics.assetCoverage)}
+            sublabel={t("kpi.assetCoverageSub")}
+            threshold={t("dash.kpi.acThreshold")}
+            tone={
+              model.keyMetrics.assetCoverage >= 1.5
+                ? "positive"
+                : model.keyMetrics.assetCoverage >= 1.3
+                  ? undefined
+                  : "warning"
+            }
+          />
+        </div>
+      </div>
+    </div>
+  );
+}

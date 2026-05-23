@@ -8,12 +8,15 @@ export const en: TranslationDictionary = {
   'app.loanApp': 'Financing application',
 
   'nav.dashboard': 'Dashboard',
+  'nav.returns': 'Returns',
   'nav.pnl': 'P&L Timeline',
   'nav.breakeven': 'Break-Even',
   'nav.capex': 'CAPEX',
   'nav.scenarios': 'Scenarios',
   'nav.assumptions': 'Assumptions',
   'nav.sensitivity': 'Sensitivity',
+  'nav.debtCoverage': 'Debt Coverage',
+  'nav.financingPaths': 'Financing Paths',
   'nav.opcoSplit': 'OpCo / PropCo',
   'nav.capTable': 'Cap Table',
   'nav.switchAdmin': 'Switch to Admin',
@@ -115,6 +118,7 @@ export const en: TranslationDictionary = {
   'bank.bar.realistic': 'Realistic',
   'bank.bar.upside': 'Upside',
   'bank.bar.downside': 'Downside',
+  'bank.bar.breakeven': 'Break-Even',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Credit Application · Antiparos, Greece',
@@ -147,6 +151,8 @@ export const en: TranslationDictionary = {
   'dash.dscrByScenario': 'DSCR by Scenario & Financing Path',
   'dash.pnlSummary': 'P&L Summary',
   'dash.financingComparison': 'Financing Path Comparison',
+  'dash.section.threeScenario': 'Scenario Returns',
+  'dash.threeScenarioSub': 'Upside / Base / Downside across hotel-sale exit',
 
   'pnl.title': 'P&L Timeline',
   'pnl.subtitle': '2026-2036 · 11-year projection',

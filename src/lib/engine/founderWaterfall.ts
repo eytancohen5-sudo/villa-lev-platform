@@ -200,33 +200,42 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     : 0;
 
   // ── Layer B derivation (transparent from inputs) ───────────────────
+  // Grant success fee structure:
+  //   grossFee   = grant × 10%
+  //   cashPortion  = 50% of grossFee  → paid to Eytan in cash (deferred, Bucket 1B)
+  //   equityPortion = 50% of grossFee → converted to equity at pari-passu valuation
+  //   grantBonus = equityPortion / totalEquityRaised   (pari-passu: €/equity pool)
+  //
+  // The denominator is the total equity raised from investors, NOT the project
+  // appraised value — the 50% equity portion is priced at the same rate as
+  // every other euro invested in equity.
   const grantAmount = input.grantAmount ?? DEFAULT_GRANT_AMOUNT;
   const founderFeePct = input.founderFeePct ?? DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
-  const consultantSharePct = input.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT;
   const projectAssetValue = input.projectAssetValue ?? DEFAULT_PROJECT_ASSET_VALUE;
   const bankLoanAmount = input.bankLoanAmount ?? DEFAULT_BASELINE_BANK_LOAN;
 
   let grantBonus = 0;
-  let consultantCash = 0;
-  let founderNetCash = 0;
-  let postGrantEquity = 0;
+  let consultantCash = 0;   // renamed conceptually: this is Eytan's 50% cash fee
+  let founderNetCash = 0;   // Eytan's 50% equity portion (drives grantBonus)
+  let postGrantEquity = 0;  // retained for display only — no longer in formula
   if (input.grantApproved) {
-    const grossFee = grantAmount * founderFeePct;
-    consultantCash = grantAmount * consultantSharePct;
-    founderNetCash = grossFee - consultantCash;
-    postGrantEquity = Math.max(0, projectAssetValue - bankLoanAmount);
-    const denom = postGrantEquity + founderNetCash;
-    grantBonus = denom > 0 ? founderNetCash / denom : 0;
+    const grossFee = grantAmount * founderFeePct;          // 10% × grant
+    consultantCash = grossFee * 0.5;                        // 50% cash to Eytan
+    founderNetCash = grossFee * 0.5;                        // 50% equity portion
+    postGrantEquity = Math.max(0, projectAssetValue - bankLoanAmount); // display only
+    // Equity valued pari-passu: fraction = equityPortion / totalEquityRaised
+    grantBonus = input.totalEquityRaised > 0
+      ? founderNetCash / input.totalEquityRaised
+      : 0;
   }
 
-  // ── Bucket 1B deferred advisory fee (restructured) ────────────────
-  // Total = grant × 10%. Paid from operating cash after loan disbursement,
-  // NOT from grant proceeds. Payment schedule is held in the distribution
-  // stream (buildDistributionStream); here we surface the aggregate totals
-  // for display. paymentStartYear is resolved in resolveFounderWaterfall and
-  // injected via the extended input; default used here for standalone calls.
+  // ── Bucket 1B deferred advisory fee ──────────────────────────────
+  // Only the CASH portion (50% of 10% = 5% of grant) flows through PropCo
+  // as a deferred cash payment. The equity portion (50%) is captured in
+  // grantBonus above and creates no PropCo cash outflow.
+  // Paid from operating cash after loan disbursement over 3 years.
   const deferredAdvisoryFee = input.grantApproved
-    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT
+    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT * 0.5  // cash half only
     : 0;
   const advisoryAnnual = deferredAdvisoryFee > 0 ? deferredAdvisoryFee / 3 : 0;
   const advisoryStartYear = (input as FounderStakeInput & { loanDisbursementYear?: number }).loanDisbursementYear
@@ -481,11 +490,13 @@ export function resolveFounderWaterfall(
   options: ResolveOptions = {},
 ): ResolvedFounderWaterfall {
   const maxIterations = options.maxIterations ?? 8;
-  // Bucket 1B deferred advisory fee: grant × 10%, paid from operating cash
-  // over 3 years post-disbursement. Only flows when the grant lands.
-  const consultantSharePct = options.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT;
+  // Bucket 1B deferred advisory fee: only the 50% cash portion of the grant
+  // success fee flows through PropCo (grant × 10% × 50% = 5% of grant).
+  // The equity 50% is priced into grantBonus and has no PropCo cash outflow.
   const grantAmount = options.grantAmount ?? DEFAULT_GRANT_AMOUNT;
-  const deferredAdvisoryFee = grantApproved ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT : 0;
+  const deferredAdvisoryFee = grantApproved
+    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT * 0.5
+    : 0;
   const disbursementYear = options.loanDisbursementYear ?? (DEFAULT_GRANT_APPROVAL_YEAR + 1);
   const stream = buildDistributionStream(scenario, {
     baseMgmtFeeRate: options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate,
@@ -503,7 +514,7 @@ export function resolveFounderWaterfall(
     grantApproved,
     grantAmount,
     founderFeePct: options.founderFeePct,
-    consultantSharePct,
+    consultantSharePct: options.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT,
     projectAssetValue: options.projectAssetValue,
     bankLoanAmount: options.bankLoanAmount,
     loanDisbursementYear: disbursementYear,

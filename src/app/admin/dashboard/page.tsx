@@ -7,11 +7,8 @@ import {
   formatMultiple,
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
-import { ConservatismTriangle } from "@/components/ConservatismTriangle";
-import { DASHBOARD_TOUR } from "@/lib/tours/configs";
 import {
   SERVICES_PROFIT_MARGIN,
   BP_ANCILLARY_PROFIT_PER_VILLA,
@@ -20,19 +17,6 @@ import {
   BP_ANCILLARY_PORTFOLIO_TOTAL,
 } from "@/lib/data/currentVillaActuals";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
-import {
-  AreaChart,
-  Area,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  ReferenceLine,
-} from "recharts";
 import { computeCapTable } from "@/lib/engine/capTable";
 
 // ── Shared bits ─────────────────────────────────────────────
@@ -144,7 +128,6 @@ function MiniStat({
 export default function DashboardPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario, projects, capTable, waterfall } = useModelStore();
-  const [tourOpen, setTourOpen, neverSeen] = usePageTour(DASHBOARD_TOUR.storageKey);
   const { currentSeason, lastCompletedSeason } = useSeasonSnapshot();
 
   if (!model) return <PageSkeleton variant="grid" />;
@@ -152,61 +135,18 @@ export default function DashboardPage() {
   const activeScenarioOutput = model.scenarios[activeScenario];
   const activePnL = activeScenarioOutput.pnl;
   const stab = activeScenarioOutput.stabilisedYear;
-  const wcY2 = activePnL.find((p) => p.year === 2029);
-  const finalYear = activePnL[activePnL.length - 1] ?? null;
-
-  const worstTrough = activePnL
-    .filter((p) => p.year >= 2028)
-    .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
 
   const km = {
     ...model.keyMetrics,
-    stabilisedRevenue: stab?.totalRevenue ?? 0,
-    stabilisedEBITDA: stab?.ebitda ?? 0,
-    stabilisedEBITDAMargin: stab?.ebitdaMargin ?? 0,
-    stabilisedDSCR: stab?.dscr ?? 0,
-    stabilisedNCF: stab?.netCashFlowPostVAT ?? 0,
-    wcActive: assumptions.workingCapital.active,
-    wcEffectiveFacility: activeScenarioOutput.wcEffectiveFacility,
-    wcY2Peak: wcY2?.wcPeakBalance ?? 0,
-    wcStabilisedAvg: stab?.wcAvgBalance ?? 0,
-    wcStabilisedInterest: stab?.wcInterestExpense ?? 0,
-    wcWorstTrough: worstTrough,
-    wcSelfLiqViolation: activePnL.some((p) => p.wcSelfLiquidatingViolation),
-    // New: bank metrics from active scenario
-    minDSCRLoanLife: activeScenarioOutput.minDSCRLoanLife,
-    // DSCR at year openingYear+2 (= 2030): post-ramp, pre-stabilisation.
-    // Used as the headline DSCR figure on the dashboard because the absolute
-    // loan-life minimum (often ~1.0× in the very first amortising year) is
-    // covenant-relevant but visually misleading as a headline. The 2030 figure
-    // shows what bankers actually underwrite against once the ramp is past.
-    // Falls back to minDSCRLoanLife if 2030 isn't in the pnl array (defensive).
-    dscrPostRamp: activePnL.find((p) => p.year === 2030)?.dscr ?? activeScenarioOutput.minDSCRLoanLife,
-    dscrCovenantHeadroom: activeScenarioOutput.dscrCovenantHeadroom,
-    icrStabilised: activeScenarioOutput.icrStabilised,
-    llcr: activeScenarioOutput.llcr,
-    plcr: activeScenarioOutput.plcr,
-    gracePeriodInterestTotal: activeScenarioOutput.gracePeriodInterestTotal,
-    netLeverage: activeScenarioOutput.netLeverage,
-    peakDebtOutstanding: activeScenarioOutput.peakDebtOutstanding,
-    yieldStabilised: activeScenarioOutput.yieldStabilised,
-    cumulativeYieldFinal: activeScenarioOutput.cumulativeYieldFinal,
     totalMOIC: activeScenarioOutput.totalMOIC,
     terminalUnderwater: activeScenarioOutput.terminalUnderwater,
-    equityPaybackYears: activeScenarioOutput.equityPaybackYears,
     equityIRR: activeScenarioOutput.equityIRR,
-    projectIRR: activeScenarioOutput.projectIRR,
-    roic: activeScenarioOutput.roic,
-    // Parallel exit-valuation path: sell the underlying property instead of
-    // the operating hotel. terminalAssetValuePropertySale = builtSurface × €/m².
     terminalAssetValue: activeScenarioOutput.terminalAssetValue,
     terminalAssetValuePropertySale: activeScenarioOutput.terminalAssetValuePropertySale,
+    terminalEquityValue: activeScenarioOutput.terminalEquityValue,
     terminalEquityValuePropertySale: activeScenarioOutput.terminalEquityValuePropertySale,
     equityIRRPropertySale: activeScenarioOutput.equityIRRPropertySale,
-    projectIRRPropertySale: activeScenarioOutput.projectIRRPropertySale,
-    totalMOICPropertySale: activeScenarioOutput.totalMOICPropertySale,
     propertyExitDominates: activeScenarioOutput.propertyExitDominates,
-    exitValuationPerM2: activeScenarioOutput.exitValuationPerM2,
   };
 
   // Founder waterfall — derived once, shared with Cap Table page. The
@@ -248,39 +188,6 @@ export default function DashboardPage() {
   // pathLabelShort variant was only used for that tile and has been dropped.
 
   const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
-
-  // ── Chart data ────────────────────────────────────────────
-  const dscrTrajectoryData = model.dscrByYear
-    .filter((d) => d.year >= 2028)
-    .map((d) => ({
-      year: d.year,
-      Realistic: Number(d.realistic.toFixed(2)),
-      Downside: Number(d.downside.toFixed(2)),
-      Grant: Number(d.grant.toFixed(2)),
-      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
-    }));
-
-  // WC quarterly balance (from 2027 onward)
-  const wcSparkData = activeScenarioOutput.wcQuarters
-    .filter((q) => q.year >= 2027)
-    .map((q) => ({
-      label: `${q.year}Q${q.quarter}`,
-      balance: Math.round(q.closingBalance),
-    }));
-
-  // Threshold helpers — headline DSCR tone reflects the post-ramp (2030)
-  // figure, not the absolute loan-life minimum.
-  const dscrTone =
-    km.dscrPostRamp >= 1.5 ? "positive" : km.dscrPostRamp >= 1.25 ? undefined : "warning";
-  const ltvTone = km.ltv <= 0.75 ? "positive" : "warning";
-  const acTone =
-    km.assetCoverage >= 1.5 ? "positive" : km.assetCoverage >= 1.3 ? undefined : "warning";
-  const icrTone =
-    km.icrStabilised >= 3 ? "positive" : km.icrStabilised >= 2 ? undefined : "warning";
-  const llcrTone =
-    km.llcr >= 1.5 ? "positive" : km.llcr >= 1.25 ? undefined : "warning";
-  const headroomTone =
-    km.dscrCovenantHeadroom >= 0.2 ? "positive" : km.dscrCovenantHeadroom >= 0 ? undefined : "warning";
 
   const formatYieldMultiple = (v: number) => `${v.toFixed(2)}×`;
 
@@ -368,32 +275,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Drift alert: BP per-villa assumption >10% off live actuals.
-          See Conservatism Check section below for the fine-grained verdict. */}
-      {showDriftAlert && (
-        <div
-          role="alert"
-          className="mb-4 rounded-lg border border-warning/40 bg-warning/10 text-warning px-4 py-3 text-sm flex flex-wrap items-baseline gap-x-3 gap-y-1 print:hidden"
-        >
-          <strong className="uppercase tracking-wider text-[11px]">{t('dash.driftAlert')}</strong>
-          <span className="text-text-primary">
-            BP per-villa assumption is {">"} {Math.round(DRIFT_ALERT_THRESHOLD * 100)}% off live actuals:
-          </span>
-          {adrDriftFires && (
-            <span className="font-mono text-xs">
-              ADR {adrDrift >= 0 ? "+" : ""}{(adrDrift * 100).toFixed(1)}%
-              <span className="text-text-tertiary"> (BP {formatCurrency(bpADR, false, locale)} vs live {formatCurrency(liveADR, false, locale)})</span>
-            </span>
-          )}
-          {nightsDriftFires && (
-            <span className="font-mono text-xs">
-              Nights {nightsDrift >= 0 ? "+" : ""}{(nightsDrift * 100).toFixed(1)}%
-              <span className="text-text-tertiary"> (BP {bpNights} vs live {liveBookedNights})</span>
-            </span>
-          )}
-          <span className="text-text-tertiary ml-auto text-[11px]">{t('dash.driftAlertTuneIn')}</span>
-        </div>
-      )}
       {/* Header — active-path metadata lives here (path · scenario · stab year),
           NOT as a KPICard in the metric grid. Plan 2026-05-22: demote ACTIVE PATH
           from the KPI grid; the subtitle below is now the single source of truth
@@ -407,6 +288,11 @@ export default function DashboardPage() {
             {scenarioLabel}
             <span className="text-text-tertiary"> &middot; </span>
             {t('dash.stabilisedYear')}
+            {showDriftAlert && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning-50 border border-warning-200 px-2 py-0.5 text-[11px] font-medium text-warning-700 ml-2">
+                &#9888; ADR/nights drift &gt;10%
+              </span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -437,30 +323,6 @@ export default function DashboardPage() {
           >
             ⬇ Download model (.xlsx)
           </button>
-          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
-        </div>
-      </div>
-
-      {/* Executive summary + presentation link */}
-      <div className="rounded-2xl border border-surface-tertiary bg-white shadow-sm p-6 mb-6">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-3">About the project</h2>
-        <p className="text-sm text-text-secondary leading-relaxed max-w-3xl">
-          <span className="font-semibold text-text-primary">Villa Lev Group</span> is a boutique hospitality operator based on Antiparos, Greece, developing a portfolio of premium villa-style properties under a unified brand. The anchor asset — <span className="font-medium text-text-primary">Villa Lev Antiparos</span> — is live and generating revenue today, providing a real operating track record for all projections in this platform. The Group expansion model replicates the proven formula across additional curated properties in the Cyclades, targeting the mid-to-premium villa rental segment with ancillary services (events, experiences, brand licensing).
-        </p>
-        <div className="mt-4 flex items-center gap-3">
-          <a
-            href="/presentation"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-100 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <path d="M2 2h6.5L12 5.5V12H2V2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-              <path d="M8 2v4h4" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round"/>
-            </svg>
-            Full Presentation
-          </a>
-          <span className="text-xs text-text-tertiary">VillaLevGroup_Presentation_v6 — confidential</span>
         </div>
       </div>
 
@@ -472,19 +334,8 @@ export default function DashboardPage() {
         <LiveTrackRecord />
       </div>
 
-      {/* Market Position — Conservatism Triangle. Replaces the old static
-          KPI grid (ADR 0003, 2026-05-22): two-tier hero strip with BP vs
-          Villa Lev live vs 2025 Greek-market average, plus a drawer of all
-          41 comparables behind the "See the N comparables" link. Greek-only
-          headline; international comparables stay in the drawer only as
-          supporting evidence (never weighted into the strip). Villa row
-          intentionally absent — Villa Lev's own actuals in LiveTrackRecord
-          above are the truer villa-tier comparable. */}
-      <ConservatismTriangle
-        id="section-market-position"
-        bpStandardADR={rev.suiteStandardADR}
-        bpPremiumADR={rev.suiteDoubleADR}
-      />
+{/* Market position evidence is fully covered by the Villa and Hotel rooms
+          sections inside LiveTrackRecord above — no separate strip needed. */}
 
 
       {/* Section 0 — Headline KPIs (was "Deal Snapshot").
@@ -516,55 +367,11 @@ export default function DashboardPage() {
             sublabel={`${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}`}
           />
           <KPICard
-            label={t('kpi.dscrPostRamp')}
-            value={km.dscrPostRamp > 0 ? formatMultiple(km.dscrPostRamp) : "—"}
-            sublabel={t('kpi.dscrPostRampSub')}
-            tone={dscrTone}
-          />
-          <KPICard
-            label={t('kpi.equityIRR')}
-            value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
-            sublabel={t('kpi.equityIRRSub')}
-            tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
-          />
-        </div>
-      </div>
-
-      {/* Section — Returns to Sponsor */}
-      <div id="section-returns" className="scroll-mt-24 mt-6">
-        <SectionHeader title={t('dash.section.returns')} sub={t('dash.returnsSub')} />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KPICard
-            label={t('kpi.equityYield')}
-            value={km.yieldStabilised !== 0 ? formatPercent(km.yieldStabilised) : "—"}
-            sublabel={t('kpi.equityYieldSub')}
-            tone={km.yieldStabilised >= 0.15 ? "positive" : km.yieldStabilised > 0 ? undefined : "warning"}
-            accent={km.yieldStabilised >= 0.15}
-          />
-          <KPICard
-            label={t('kpi.operatingYield')}
-            value={km.cumulativeYieldFinal !== 0 ? formatYieldMultiple(km.cumulativeYieldFinal) : "—"}
-            sublabel={t('kpi.operatingYieldSub')}
-            tone={km.cumulativeYieldFinal >= 1 ? "positive" : km.cumulativeYieldFinal > 0 ? undefined : "warning"}
-            threshold={t('kpi.operatingYieldNote')}
-          />
-          <KPICard
             label={t('kpi.totalMOIC')}
             value={km.totalMOIC !== 0 ? formatYieldMultiple(km.totalMOIC) : "—"}
             sublabel={t('kpi.totalMOICSub')}
             tone={km.terminalUnderwater ? "warning" : km.totalMOIC >= 2 ? "positive" : km.totalMOIC > 1 ? undefined : "warning"}
-            accent={km.totalMOIC >= 3 && !km.terminalUnderwater}
             chip={km.terminalUnderwater ? { label: "underwater", ok: false } : undefined}
-            threshold={km.terminalUnderwater ? t('kpi.totalMOICUnderwaterNote') : undefined}
-          />
-          <KPICard
-            label={t('kpi.equityPayback')}
-            value={km.equityPaybackYears !== null && km.equityPaybackYears !== undefined
-              ? `${km.equityPaybackYears} ${t('dash.years')}`
-              : t('dash.never')}
-            sublabel={t('kpi.equityPaybackSub')}
-            tone={km.equityPaybackYears && km.equityPaybackYears <= 8 ? "positive" : km.equityPaybackYears && km.equityPaybackYears <= 12 ? undefined : "warning"}
-            threshold={t('kpi.equityPaybackNote')}
           />
           <KPICard
             label={t('kpi.equityIRR')}
@@ -572,169 +379,97 @@ export default function DashboardPage() {
             sublabel={t('kpi.equityIRRSub')}
             tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
           />
-          <KPICard
-            label={t('kpi.projectIRR')}
-            value={km.projectIRR > 0 ? formatPercent(km.projectIRR) : "—"}
-            sublabel={t('kpi.projectIRRSub')}
-            tone={km.projectIRR >= 0.10 ? "positive" : km.projectIRR > 0 ? undefined : "warning"}
-          />
-        </div>
-
-        {/* Exit path comparison — hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²) */}
-        <div className="mt-6 mb-2 px-1 flex items-baseline justify-between gap-3 flex-wrap">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-            {t('dash.section.exitPath')}
-          </h3>
-          <p className="text-[11px] text-text-tertiary">
-            Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²)
-            {km.propertyExitDominates
-              ? " · Property exit yields higher returns"
-              : " · Hotel exit yields higher returns"}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KPICard
-            label="Hotel sale value"
-            value={km.terminalAssetValue > 0 ? formatCurrency(km.terminalAssetValue, true, locale) : "—"}
-            sublabel="EBITDA × exit multiple"
-            accent={!km.propertyExitDominates}
-            tone={!km.propertyExitDominates ? "positive" : undefined}
-            chip={!km.propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
-          />
-          <KPICard
-            label="Hotel sale IRR"
-            value={km.equityIRR > 0 ? formatPercent(km.equityIRR) : "—"}
-            sublabel="Equity IRR, hotel exit"
-            tone={km.equityIRR >= 0.15 ? "positive" : km.equityIRR > 0 ? undefined : "warning"}
-          />
-          <KPICard
-            label="Property sale value"
-            value={km.terminalAssetValuePropertySale > 0 ? formatCurrency(km.terminalAssetValuePropertySale, true, locale) : "—"}
-            sublabel={`Built surface × €${km.exitValuationPerM2?.toLocaleString() ?? "—"}/m²`}
-            accent={km.propertyExitDominates}
-            tone={km.propertyExitDominates ? "positive" : undefined}
-            chip={km.propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
-          />
-          <KPICard
-            label="Property sale IRR"
-            value={km.equityIRRPropertySale > 0 ? formatPercent(km.equityIRRPropertySale) : "—"}
-            sublabel="Equity IRR, property exit"
-            tone={km.equityIRRPropertySale >= 0.15 ? "positive" : km.equityIRRPropertySale > 0 ? undefined : "warning"}
-          />
         </div>
       </div>
 
-      {/* HERO — DSCR trajectory */}
-      <div id="section-dscr-hero" className="bg-white rounded-2xl border border-surface-tertiary p-5 mt-6 shadow-sm scroll-mt-24">
-        <div className="mb-3">
-          <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
-              {t('dash.heroDscr')}
-            </h3>
-            <span className="text-[11px] text-text-tertiary">
-              {t('dash.minDscr')}: {formatMultiple(km.minDSCRLoanLife)} · {t('kpi.gracePeriodInterest')}: {formatCurrency(km.gracePeriodInterestTotal, true, locale)}
-            </span>
+      {/* Three-Scenario Return Table */}
+      <div id="section-three-scenario" className="mb-8 mt-6">
+        <SectionHeader
+          title={t('dash.section.threeScenario')}
+          sub={t('dash.threeScenarioSub')}
+        />
+        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-tertiary bg-surface-secondary/40">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wide">Scenario</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wide">Equity IRR</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wide">Cash Yield</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wide">Total MOIC</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-tertiary/50">
+              {[
+                { label: "Upside", s: model.scenarios.upside, isBase: false },
+                { label: "Base", s: model.scenarios.realistic, isBase: true },
+                { label: "Downside", s: model.scenarios.downside, isBase: false },
+              ].map(({ label, s, isBase }) => (
+                <tr key={label} className={isBase ? "bg-brand-50/50 font-medium" : ""}>
+                  <td className="px-4 py-3 text-text-primary">{label}</td>
+                  <td className={`px-4 py-3 text-right tabular-nums ${s.equityIRR >= 0.20 ? "text-positive" : s.equityIRR < 0.12 ? "text-warning" : "text-text-primary"}`}>
+                    {formatPercent(s.equityIRR)}
+                  </td>
+                  <td className={`px-4 py-3 text-right tabular-nums ${s.yieldStabilised >= 0.12 ? "text-positive" : s.yieldStabilised < 0.08 ? "text-warning" : "text-text-primary"}`}>
+                    {formatPercent(s.yieldStabilised)}
+                  </td>
+                  <td className={`px-4 py-3 text-right tabular-nums ${s.totalMOIC >= 2 ? "text-positive" : s.totalMOIC < 1.5 ? "text-warning" : "text-text-primary"}`}>
+                    {s.totalMOIC.toFixed(2)}×
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 py-2 border-t border-surface-tertiary bg-surface-secondary/20 text-right">
+            <a href="/admin/returns" className="text-[11px] font-medium text-brand-700 hover:underline">
+              Full returns analysis →
+            </a>
           </div>
-          <p className="text-[11px] text-text-tertiary mt-0.5">
-            {t('dash.heroDscrSub')}
-          </p>
         </div>
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={dscrTrajectoryData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0, 'dataMax + 0.5']} />
-            <Tooltip formatter={(value) => `${Number(value).toFixed(2)}×`} contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
-            <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }} />
-            <ReferenceLine y={1.50} stroke="#6B7A3D" strokeDasharray="3 3" label={{ value: "1.50× comfort", fontSize: 10, fill: "#6B7A3D" }} />
-            <Line type="monotone" dataKey="Realistic" name={t('scenario.realistic')} stroke="#8B6914" strokeWidth={2.5} />
-            <Line type="monotone" dataKey="Downside" name={t('scenario.downside')} stroke="#9E3B3B" strokeWidth={1.8} strokeDasharray="4 2" />
-            <Line type="monotone" dataKey="Grant" name={t('path.grantShort')} stroke="#4A7C3F" strokeWidth={1.5} strokeDasharray="6 3" />
-            <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={1.5} />
-          </LineChart>
-        </ResponsiveContainer>
       </div>
 
-      {/* Section 1 — Coverage Ratios.
-          Restructure 2026-05-22: DSCR · 2030 moved to the Headline KPI grid
-          above (the single source of truth for the headline DSCR figure).
-          This section keeps the 4 secondary coverage metrics — ICR, LLCR,
-          PLCR, covenant headroom — which are what a credit committee asks
-          about AFTER the headline DSCR. */}
-      <div id="section-coverage" className="scroll-mt-24">
-      <SectionHeader title={t('dash.section.coverage')} sub={t('dash.coverageSub')} />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPICard
-          label={t('kpi.icr')}
-          value={km.icrStabilised > 0 ? formatMultiple(km.icrStabilised) : "—"}
-          sublabel={t('kpi.icrSub')}
-          tone={icrTone}
-        />
-        <KPICard
-          label={t('kpi.llcr')}
-          value={km.llcr > 0 ? formatMultiple(km.llcr) : "—"}
-          sublabel={t('kpi.llcrSub')}
-          tone={llcrTone}
-        />
-        <KPICard
-          label={t('kpi.plcr')}
-          value={km.plcr > 0 ? formatMultiple(km.plcr) : "—"}
-          sublabel={t('kpi.plcrSub')}
-          tone={km.plcr >= 1.7 ? "positive" : km.plcr >= 1.4 ? undefined : "warning"}
-        />
-        <KPICard
-          label={t('kpi.covHeadroom')}
-          value={(() => {
-            // Headroom as percent of the covenant threshold:
-            //   (dscrPostRamp − 1.25) / 1.25
-            // e.g. dscrPostRamp = 1.42 → +13.6%. Reverted 2026-05-22 from
-            // the absolute multiple-delta format ("+0.17×") at Eytan's
-            // request — bankers read "we're 14% above covenant" more
-            // naturally than "+0.17×". The covenant target itself stays in
-            // multiples in the sublabel ("vs. 1.25× covenant") because
-            // that's how the covenant is written in the loan document.
-            if (km.dscrPostRamp <= 0) return "—";
-            const covenant = 1.25;
-            const deltaPct = (km.dscrPostRamp - covenant) / covenant;
-            const sign = deltaPct >= 0 ? "+" : "−";
-            return `${sign}${(Math.abs(deltaPct) * 100).toFixed(1)}%`;
-          })()}
-          sublabel={t('kpi.covHeadroomSub')}
-          tone={
-            km.dscrPostRamp - 1.25 >= 0.2
-              ? "positive"
-              : km.dscrPostRamp >= 1.25
-                ? undefined
-                : "warning"
-          }
-        />
-      </div>
+      {/* Exit Analysis compact card */}
+      <div id="section-exit-analysis" className="mb-8">
+        <SectionHeader title="Exit Analysis" sub="Preferred exit path · drill down for full returns" />
+        <a
+          href="/admin/returns"
+          className="block bg-white rounded-xl border border-surface-tertiary hover:border-brand-300 hover:shadow-sm transition-all p-5 group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div>
+                <div className="text-xs text-text-tertiary mb-0.5">Preferred Exit</div>
+                <div className="text-sm font-medium text-text-primary">
+                  {km.propertyExitDominates ? "Property Sale" : "Hotel Sale"}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-text-tertiary mb-0.5">Exit Value</div>
+                <div className="text-sm font-medium text-text-primary tabular-nums">
+                  {formatCurrency(km.propertyExitDominates ? km.terminalAssetValuePropertySale : km.terminalAssetValue, true, locale)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-text-tertiary mb-0.5">Net to Equity</div>
+                <div className="text-sm font-medium text-text-primary tabular-nums">
+                  {formatCurrency(km.propertyExitDominates ? km.terminalEquityValuePropertySale : km.terminalEquityValue, true, locale)}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-text-tertiary mb-0.5">Exit IRR</div>
+                <div className={`text-sm font-semibold tabular-nums ${(km.propertyExitDominates ? km.equityIRRPropertySale : km.equityIRR) >= 0.20 ? "text-positive" : "text-text-primary"}`}>
+                  {formatPercent(km.propertyExitDominates ? km.equityIRRPropertySale : km.equityIRR)}
+                </div>
+              </div>
+            </div>
+            <span className="text-text-tertiary group-hover:text-brand-700 transition-colors text-sm">→</span>
+          </div>
+          <div className="mt-3 text-[11px] text-text-tertiary group-hover:text-brand-600">
+            Full returns analysis — both exit paths, scenario grid, IRR waterfall
+          </div>
+        </a>
       </div>
 
-      {/* Section 2 — Operating Performance. DSCR was here too but is already
-          shown in Deal Snapshot (Section 0); duplicating it added noise. */}
-      <SectionHeader title={t('dash.section.operating')} sub={t('dash.stabilisedYear')} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <KPICard
-          label={t('kpi.stabilisedRevenue')}
-          value={formatCurrency(km.stabilisedRevenue, true, locale)}
-          sublabel={t('kpi.stabilisedRevenueSub')}
-          accent
-        />
-        <KPICard
-          label={t('term.ebitda')}
-          value={formatCurrency(km.stabilisedEBITDA, true, locale)}
-          sublabel={`${t('kpi.margin')} ${formatPercent(km.stabilisedEBITDAMargin)}`}
-          threshold={t('kpi.ebitdaMarginNote')}
-          accent
-        />
-        <KPICard
-          label={t('kpi.netCashFlow')}
-          value={formatCurrency(km.stabilisedNCF, true, locale)}
-          sublabel={t('kpi.netCashFlowSub')}
-        />
-      </div>
+
 
       {/* Section — Conservatism Check.
           Restructure 2026-05-22: LiveTrackRecord was lifted out of this
@@ -907,16 +642,14 @@ export default function DashboardPage() {
             <span>
               BP ancillary allocated per the pitch: €{(BP_ANCILLARY_PROFIT_PER_VILLA / 1000).toFixed(0)}K/villa × {totalVillaUnits} villas + {formatCurrency(BP_ANCILLARY_SUITE_TOTAL, true, locale)} across {BP_ANCILLARY_SUITE_ROOMS} suite rooms = {formatCurrency(BP_ANCILLARY_PORTFOLIO_TOTAL, true, locale)} total. Live profit = {Math.round(SERVICES_PROFIT_MARGIN * 100)}% × {formatCurrency(liveServices2025, true, locale)} revenue.
             </span>
+            <a href="/admin/sensitivity" className="text-[11px] font-medium text-brand-700 hover:underline">
+              Sensitivity detail →
+            </a>
           </div>
         </div>
       </div>
 
-      {/* Section 3b — Founder waterfall.
-          Restructure 2026-05-22: the full 6-tile inline grid duplicated the
-          dedicated /admin/cap-table page. Replaced with a compact summary
-          row + drill-down link so the dashboard surfaces just the headline
-          founder/investor split, not the full 3-layer breakdown. Anchor id
-          `section-founder` preserved for the page tour. */}
+      {/* Founder waterfall compact card */}
       <div id="section-founder" className="scroll-mt-24">
       <SectionHeader title={t('dash.founder.section')} sub={t('dash.founder.sectionSub')} />
       <a
@@ -960,414 +693,8 @@ export default function DashboardPage() {
       </a>
       </div>
 
-      {/* Section 4 — Capital Structure & Debt */}
-      <div id="section-capital" className="scroll-mt-24">
-      <SectionHeader title={t('dash.section.capital')} sub={pathLabel} />
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPICard
-          label={t('kpi.gracePeriodInterest')}
-          value={formatCurrency(km.gracePeriodInterestTotal, true, locale)}
-          sublabel={t('kpi.gracePeriodInterestSub')}
-        />
-        <KPICard
-          label={t('kpi.netLeverage')}
-          value={km.netLeverage > 0 ? formatMultiple(km.netLeverage) : "—"}
-          sublabel={t('kpi.netLeverageSub')}
-          tone={km.netLeverage <= 5 ? "positive" : km.netLeverage <= 7 ? undefined : "warning"}
-        />
-        <KPICard
-          label={t('kpi.peakDebt')}
-          value={formatCurrency(km.peakDebtOutstanding, true, locale)}
-          sublabel={t('kpi.peakDebtSub')}
-        />
-        <KPICard
-          label={t('kpi.roic')}
-          value={km.roic > 0 ? formatPercent(km.roic) : "—"}
-          sublabel={t('kpi.roicSub')}
-          tone={km.roic >= 0.07 ? "positive" : km.roic > 0 ? undefined : "warning"}
-        />
-      </div>
-      </div>
+      {/* Sections 4-9 moved to /admin/debt-coverage and /admin/financing */}
 
-      {/* Section 5 — Working Capital */}
-      {km.wcActive && (
-        <>
-          <SectionHeader
-            title={t('dash.section.workingCapital')}
-            sub={t('dash.wcPanelSub')}
-          />
-          <div className="bg-white rounded-xl border border-surface-tertiary p-5">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-              <div className="lg:col-span-5 grid grid-cols-2 gap-x-6 gap-y-4">
-                <MiniStat
-                  label={t('dash.wcPeak')}
-                  value={formatCurrency(km.wcY2Peak, true, locale)}
-                />
-                <MiniStat
-                  label={t('dash.wcAvg')}
-                  value={formatCurrency(km.wcStabilisedAvg, true, locale)}
-                />
-                <MiniStat
-                  label={t('dash.wcTrough')}
-                  value={formatCurrency(km.wcWorstTrough, true, locale)}
-                  tone={km.wcSelfLiqViolation ? "warning" : "positive"}
-                />
-                <MiniStat
-                  label={t('dash.wcInterestAnnual')}
-                  value={formatCurrency(km.wcStabilisedInterest, true, locale)}
-                />
-                <div className="col-span-2 flex items-center gap-3 pt-2 border-t border-surface-tertiary/50">
-                  <StatusChip
-                    label={
-                      km.wcSelfLiqViolation
-                        ? t('kpi.wcSelfLiqFail')
-                        : t('kpi.wcSelfLiqOk')
-                    }
-                    ok={!km.wcSelfLiqViolation}
-                  />
-                  <span className="text-[11px] text-text-tertiary">
-                    {t('kpi.wcSelfLiqSub')} · {t('kpi.wcFacility')}{" "}
-                    {formatCurrency(km.wcEffectiveFacility, true, locale)}
-                  </span>
-                </div>
-              </div>
-              <div className="lg:col-span-7">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
-                  {t('dash.wcSparkLabel')}
-                </div>
-                <ResponsiveContainer width="100%" height={140}>
-                  <AreaChart data={wcSparkData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="wcGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8B6914" stopOpacity={0.45} />
-                        <stop offset="100%" stopColor="#8B6914" stopOpacity={0.05} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" vertical={false} />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: 9 }}
-                      interval={3}
-                      tickFormatter={(v: string) => v.split('Q')[0]}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 10 }}
-                      tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
-                      width={50}
-                    />
-                    <Tooltip
-                      formatter={(value) => formatCurrency(Number(value), true, locale)}
-                      labelFormatter={(label) => `${t('dash.wcQuarterly')} ${label}`}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="balance"
-                      stroke="#8B6914"
-                      strokeWidth={1.8}
-                      fill="url(#wcGrad)"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Section 6 — Collateral (3 valuation tiers) */}
-      <SectionHeader title={t('dash.section.collateral')} sub={t('dash.collateralTiers')} />
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-tertiary">
-                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('common.metric')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-warning font-medium">{t('sc.stress')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sc.market')}</th>
-                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-positive font-medium">{t('sc.optimistic')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('kpi.portfolioValue')}</td>
-                <td className="text-right py-2 px-3 data-cell">{formatCurrency(model.collateral.stress.value, true, locale)}</td>
-                <td className="text-right py-2 px-3 data-cell">{formatCurrency(model.collateral.market.value, true, locale)}</td>
-                <td className="text-right py-2 px-3 data-cell">{formatCurrency(model.collateral.optimistic.value, true, locale)}</td>
-              </tr>
-              <tr className="border-b border-surface-secondary/50">
-                <td className="py-2 pr-4 text-text-secondary">{t('term.ltv')}</td>
-                <td className={`text-right py-2 px-3 data-cell ${model.collateral.stress.ltv > 0.75 ? "text-warning" : "text-text-primary"}`}>{formatPercent(model.collateral.stress.ltv)}</td>
-                <td className={`text-right py-2 px-3 data-cell ${model.collateral.market.ltv > 0.75 ? "text-warning" : "text-positive"}`}>{formatPercent(model.collateral.market.ltv)}</td>
-                <td className="text-right py-2 px-3 data-cell text-positive">{formatPercent(model.collateral.optimistic.ltv)}</td>
-              </tr>
-              <tr className="font-medium">
-                <td className="py-2 pr-4">{t('kpi.assetCoverage')}</td>
-                <td className={`text-right py-2 px-3 data-cell ${model.collateral.stress.coverage < 1.3 ? "text-warning" : "text-text-primary"}`}>{formatMultiple(model.collateral.stress.coverage)}</td>
-                <td className={`text-right py-2 px-3 data-cell ${model.collateral.market.coverage >= 1.5 ? "text-positive" : "text-text-primary"}`}>{formatMultiple(model.collateral.market.coverage)}</td>
-                <td className="text-right py-2 px-3 data-cell text-positive">{formatMultiple(model.collateral.optimistic.coverage)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 pt-4 border-t border-surface-tertiary/50">
-          <KPICard
-            label={t('term.ltv')}
-            value={formatPercent(km.ltv)}
-            sublabel={t('kpi.ltvAtCompletion')}
-            threshold={t('dash.kpi.ltvThreshold')}
-            tone={ltvTone}
-          />
-          <KPICard
-            label={t('kpi.assetCoverage')}
-            value={formatMultiple(km.assetCoverage)}
-            sublabel={t('kpi.assetCoverageSub')}
-            threshold={t('dash.kpi.acThreshold')}
-            tone={acTone}
-          />
-        </div>
-      </div>
-
-      {/* Section 7 — P&L Summary drill-down.
-          Restructure 2026-05-22: the inline year-by-year P&L table (~180
-          lines, 13 rows × every year) duplicated the dedicated /admin/pnl
-          page. Replaced with a compact "drill down" card showing the active-
-          scenario stabilised headline figures (already shown in Operating
-          Performance above) + a link to the full timeline. Anchor id
-          `section-pnl-summary` preserved for the page tour. */}
-      <a
-        id="section-pnl-summary"
-        href="/admin/pnl"
-        className="block bg-white rounded-xl border border-surface-tertiary hover:border-brand-300 hover:shadow-sm transition-all p-5 mt-8 scroll-mt-24 group"
-      >
-        <div className="flex items-baseline justify-between gap-4 flex-wrap">
-          <div>
-            <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
-              {t('dash.pnlSummary')} — {scenarioLabel}
-            </h3>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2 text-sm">
-              <span className="text-text-secondary">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
-                  {t('pnl.totalRevenue')}
-                </span>
-                <span className="font-mono font-semibold text-text-primary">
-                  {finalYear && finalYear.totalRevenue > 0 ? formatCurrency(finalYear.totalRevenue, true, locale) : "—"}
-                </span>
-              </span>
-              <span className="text-text-secondary">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
-                  {t('term.ebitda')}
-                </span>
-                <span className="font-mono font-semibold text-positive">
-                  {finalYear && finalYear.ebitda !== 0 ? formatCurrency(finalYear.ebitda, true, locale) : "—"}
-                </span>
-              </span>
-              <span className="text-text-secondary">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary me-1">
-                  {t('pnl.ncfPostVAT')}
-                </span>
-                <span className={`font-mono font-semibold ${finalYear && finalYear.netCashFlowPostVAT >= 0 ? "text-positive" : "text-negative"}`}>
-                  {finalYear ? formatCurrency(finalYear.netCashFlowPostVAT, true, locale) : "—"}
-                </span>
-              </span>
-            </div>
-          </div>
-          <span className="text-xs text-brand-700 group-hover:text-brand-800 font-medium">
-            {t('dash.drillDown')}
-          </span>
-        </div>
-        <div className="text-[11px] text-text-tertiary mt-3 pt-3 border-t border-surface-tertiary/50">
-          {t('dash.pnlDrillDown')}
-        </div>
-      </a>
-
-      {/* Section 8 — Sensitivity & Stress */}
-      <SectionHeader title={t('dash.section.sensitivity')} />
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <KPICard
-          label={t('kpi.bufferBreakEven')}
-          value={formatPercent(km.bufferToBreakEven)}
-          sublabel={t('kpi.bufferBreakEvenSub')}
-        />
-        {(() => {
-          const downsideStab = model.scenarios.downside.stabilisedYear?.dscr ?? 0;
-          const downsideMin = model.scenarios.downside.minDSCRLoanLife;
-          const minDisplay = downsideMin > 0 ? formatMultiple(downsideMin) : "—";
-          return (
-            <KPICard
-              label={t('kpi.stabilisedDSCRDownside')}
-              value={downsideStab > 0 ? formatMultiple(downsideStab) : "—"}
-              sublabel={`${t('kpi.stabilisedDSCRDownsideSub')} · ${t('kpi.minOverLoanLife')}: ${minDisplay}`}
-              tone={
-                downsideStab >= 1.25
-                  ? "positive"
-                  : downsideStab > 0
-                    ? "warning"
-                    : "neutral"
-              }
-            />
-          );
-        })()}
-        <KPICard
-          label={`${t('kpi.equityIRR')} — ${t('scenario.downside')}`}
-          value={
-            model.scenarios.downside.equityIRR > 0
-              ? formatPercent(model.scenarios.downside.equityIRR)
-              : "—"
-          }
-          sublabel={t('kpi.equityIRRSub')}
-          tone={
-            model.scenarios.downside.equityIRR >= 0.10
-              ? "positive"
-              : model.scenarios.downside.equityIRR > 0
-                ? undefined
-                : "warning"
-          }
-        />
-      </div>
-
-      {/* Section 9 — Financing Comparison */}
-      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-8">
-        <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
-          {t('dash.financingComparison')}
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-surface-tertiary">
-                <th className="text-left py-2 pr-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('common.metric')}
-                </th>
-                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('path.commercialShort')}
-                </th>
-                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('path.rrfShort')}
-                </th>
-                <th className="text-right py-2 px-3 text-text-tertiary font-medium text-xs uppercase tracking-wider">
-                  {t('path.grantShort')}
-                </th>
-                <th className="text-right py-2 px-3 font-medium text-xs uppercase tracking-wider" style={{ color: '#7B5EA7' }}>
-                  {t('path.tepixLoanShort')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.financingComparison.map((row, i) => {
-                const formatVal = (val: string | number) =>
-                  typeof val === "number"
-                    ? row.key === 'stabilisedDSCR'
-                      ? formatMultiple(val)
-                      : formatCurrency(val, true, locale)
-                    : val;
-                return (
-                  <tr key={i} className={i % 2 === 0 ? "bg-surface-secondary/30" : ""}>
-                    <td className="py-2 pr-4 text-text-secondary">{row.metric}</td>
-                    <td className="text-right py-2 px-3 data-cell">{formatVal(row.commercial)}</td>
-                    <td className="text-right py-2 px-3 data-cell">{formatVal(row.rrf)}</td>
-                    <td className="text-right py-2 px-3 data-cell text-positive font-medium">{formatVal(row.grant)}</td>
-                    <td className="text-right py-2 px-3 data-cell" style={{ color: '#7B5EA7' }}>{formatVal(row.tepixLoan)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Deal Terms — last section so investor sees returns & operations first */}
-      {(() => {
-        const path = assumptions.financingPath;
-        const ratePct =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.bankInterestRate
-            : path === "rrf"
-              ? assumptions.rrf.commercialInterestRate
-              : assumptions.commercialLoan.interestRate;
-        const term =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.totalTermYears
-            : path === "rrf"
-              ? assumptions.rrf.repaymentTermYears
-              : assumptions.commercialLoan.repaymentTermYears;
-        const grace =
-          path === "tepix-loan"
-            ? assumptions.tepixLoan.gracePeriodYears
-            : path === "rrf"
-              ? assumptions.rrf.gracePeriodYears
-              : assumptions.commercialLoan.gracePeriodYears;
-        const covenant = assumptions.dscrCovenantThreshold;
-        const minDscr = activeScenarioOutput.minDSCRLoanLife;
-        const dscrPass = minDscr >= covenant;
-        const cells: Array<{ label: string; value: string; sub?: string; tone?: "positive" | "warning" }> = [
-          {
-            label: t('dash.termsheet.loan'),
-            value: formatCurrency(km.loanAmount, true, locale),
-            sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}`,
-          },
-          {
-            label: t('dash.termsheet.term'),
-            value: `${term}y · ${grace}y`,
-            sub: t('dash.termsheet.termSub'),
-          },
-          {
-            label: t('dash.termsheet.rate'),
-            value: `${(ratePct * 100).toFixed(2)}%`,
-            sub: pathLabel,
-          },
-          {
-            label: t('dash.termsheet.annualDS'),
-            value: formatCurrency(km.annualDS, true, locale),
-            sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}`,
-          },
-          {
-            label: t('dash.termsheet.dscrCovenant'),
-            value: `${covenant.toFixed(2)}×`,
-            sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`,
-            tone: dscrPass ? "positive" : "warning",
-          },
-        ];
-        return (
-          <div id="section-termsheet" className="scroll-mt-24 mt-8">
-            <SectionHeader
-              title={t('dash.termsheet.title')}
-              sub={`${pathLabel} · ${scenarioLabel}`}
-            />
-            <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-4 md:px-5 py-3 md:py-3.5">
-              <div className="flex flex-col md:flex-row md:items-center md:flex-wrap md:gap-x-6 md:gap-y-2 gap-y-2.5 md:divide-x md:divide-surface-tertiary/60">
-                {cells.map((c, i) => (
-                  <div
-                    key={c.label}
-                    className={`flex flex-col md:flex-row md:items-baseline md:gap-2 ${i > 0 ? "md:pl-6" : ""} text-sm`}
-                  >
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-                      {c.label}
-                    </span>
-                    <span
-                      className={`font-mono font-semibold ${
-                        c.tone === "positive"
-                          ? "text-positive"
-                          : c.tone === "warning"
-                            ? "text-warning"
-                            : "text-text-primary"
-                      }`}
-                    >
-                      {c.value}
-                    </span>
-                    {c.sub && (
-                      <span className="text-[11px] text-text-tertiary leading-snug md:before:content-['·'] md:before:mr-1.5 md:before:text-text-tertiary/60">
-                        {c.sub}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={DASHBOARD_TOUR} />
     </div>
   );
 }

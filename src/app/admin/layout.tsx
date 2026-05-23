@@ -146,26 +146,29 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Analyse",
     items: [
-      { href: "/admin/dashboard", labelKey: "nav.dashboard" },
-      { href: "/admin/pnl", labelKey: "nav.pnl" },
-      { href: "/admin/breakeven", labelKey: "nav.breakeven" },
-      { href: "/admin/sensitivity", labelKey: "nav.sensitivity" },
+      { href: "/admin/dashboard",     labelKey: "nav.dashboard" },
+      { href: "/admin/returns",       labelKey: "nav.returns" },
+      { href: "/admin/pnl",           labelKey: "nav.pnl" },
+      { href: "/admin/breakeven",     labelKey: "nav.breakeven" },
+      { href: "/admin/sensitivity",   labelKey: "nav.sensitivity" },
+      { href: "/admin/debt-coverage", labelKey: "nav.debtCoverage" },
+      { href: "/admin/financing",     labelKey: "nav.financingPaths" },
     ],
   },
   {
     label: "Structure",
     items: [
       { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
-      { href: "/admin/cap-table", labelKey: "nav.capTable" },
+      { href: "/admin/cap-table",  labelKey: "nav.capTable" },
     ],
   },
   {
     label: "Inputs",
     items: [
       { href: "/admin/assumptions", labelKey: "nav.assumptions" },
-      { href: "/admin/capex", labelKey: "nav.capex" },
-      { href: "/admin/scenarios", labelKey: "nav.scenarios" },
-      { href: "/admin/lexicon", labelKey: "nav.lexicon" },
+      { href: "/admin/capex",       labelKey: "nav.capex" },
+      { href: "/admin/scenarios",   labelKey: "nav.scenarios" },
+      { href: "/admin/lexicon",     labelKey: "nav.lexicon" },
     ],
   },
 ];
@@ -275,6 +278,14 @@ export default function AdminLayout({
         <div className="p-4 border-t border-surface-tertiary space-y-1.5">
           <LanguageToggle />
           <ViewAsControl />
+          <a
+            href="/presentation"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-[11px] text-text-tertiary hover:text-brand-700 transition-colors py-0.5"
+          >
+            View Presentation ↗
+          </a>
           <div className="flex items-center gap-1.5 pt-0.5">
             <BankViewToggle />
             <CopyBankLinkButton />

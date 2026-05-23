@@ -15,6 +15,7 @@ const SCENARIOS = [
   { key: 'realistic', labelKey: 'bank.bar.realistic' },
   { key: 'upside',    labelKey: 'bank.bar.upside' },
   { key: 'downside',  labelKey: 'bank.bar.downside' },
+  { key: 'breakeven', labelKey: 'bank.bar.breakeven' },
 ] as const;
 
 export default function BankControlBar() {

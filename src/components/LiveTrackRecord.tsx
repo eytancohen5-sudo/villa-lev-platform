@@ -83,7 +83,7 @@ const LR: Record<
     available: string;
     sourceNote: string;
     // ── New keys for the conservatism-cushion restructure ──
-    headlineConservatism: string; // template — uses {year} {years} {gap}
+    headlineConservatism: string; // template — uses {years} {gap} {marketGap}
     cushion: string;
     model: string;
     liveLabel: string;
@@ -141,7 +141,7 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "Our stabilised projections (year {year}, in {years} years) sit on average {gap}% below what the existing Antiparos villa delivers today. That gap is the conservatism cushion bankers underwrite against.",
+      "In {years} years at stabilisation, our rates sit {gap}% below today's villa performance and {marketGap}% below market room rates — in a growing market. A large conservative cushion.",
     cushion: "Cushion",
     model: "Model",
     liveLabel: "Live",
@@ -199,7 +199,7 @@ const LR: Record<
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
-      "Nos projections stabilisées (année {year}, dans {years} ans) se situent en moyenne {gap}% sous ce que la villa d'Antiparos réalise déjà aujourd'hui. C'est le coussin de prudence sur lequel les banquiers s'appuient.",
+      "Dans {years} ans à la stabilisation, nos taux sont {gap}% sous la performance réelle de la villa et {marketGap}% sous les tarifs du marché — dans un marché en croissance. Une large marge de prudence.",
     cushion: "Coussin",
     model: "Modèle",
     liveLabel: "Réel",
@@ -258,7 +258,7 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Οι σταθεροποιημένες προβλέψεις μας (έτος {year}, σε {years} χρόνια) βρίσκονται κατά μέσο όρο {gap}% κάτω από αυτό που η υπάρχουσα βίλα στην Αντίπαρο ήδη αποδίδει σήμερα. Αυτό το περιθώριο είναι το «μαξιλάρι» συντηρητισμού που εμπιστεύονται οι τραπεζίτες.",
+      "Σε {years} χρόνια, τα σταθεροποιημένα επίπεδα είναι {gap}% κάτω από την τρέχουσα βίλα και {marketGap}% κάτω από τις τιμές της αγοράς — σε μια αναπτυσσόμενη αγορά. Ένα μεγάλο συντηρητικό «μαξιλάρι».",
     cushion: "Μαξιλάρι",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
@@ -317,7 +317,7 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "התחזיות המיוצבות שלנו (שנת {year}, בעוד {years} שנים) ממוקמות בממוצע {gap}% מתחת למה שהווילה הקיימת באנטיפרוס כבר מספקת היום. הפער הזה הוא כרית השמרנות שהבנקאים מסתמכים עליה.",
+      "בעוד {years} שנים, שיעורי הייצוב שלנו נמוכים ב-{gap}% מביצועי הוילה כיום וב-{marketGap}% מתעריפי חדרי השוק — בשוק צומח. כרית שמרנות גדולה.",
     cushion: "כרית",
     model: "מודל",
     liveLabel: "בפועל",
@@ -789,10 +789,12 @@ export function LiveTrackRecord({
               const tmpl = lr.headlineConservatism;
               const gapDisplay =
                 averageGapPct > 0 ? `${averageGapPct}` : `${Math.abs(averageGapPct)}`;
+              const marketGapDisplay = `${Math.abs(marketAvgDeltaPct)}`;
               return tmpl
                 .replace("{year}", String(STABILISED_YEAR))
                 .replace("{years}", String(yearsToStabilisation))
-                .replace("{gap}", gapDisplay);
+                .replace("{gap}", gapDisplay)
+                .replace("{marketGap}", marketGapDisplay);
             })()}
           </p>
         </div>

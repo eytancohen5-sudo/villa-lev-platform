@@ -20,20 +20,21 @@ type RowDef = {
 
 export function BankPnLSection() {
   const { t, locale } = useTranslation();
-  const { model } = useModelStore();
+  const { model, activeScenario } = useModelStore();
   if (!model) return null;
 
-  const realistic = model.scenarios.realistic.pnl;
+  // Use the active scenario for revenue / cost / EBITDA rows so the P&L
+  // responds to the scenario pill selection in the control bar.
+  const activePnl = model.scenarios[activeScenario as keyof typeof model.scenarios]?.pnl
+    ?? model.scenarios.realistic.pnl;
   const upside   = model.scenarios.upside.pnl;
   const downside = model.scenarios.downside.pnl;
-  const years = realistic.map((p) => p.year);
+  const years = activePnl.map((p) => p.year);
 
-  const sampleYear = realistic.find((p) => p.propertyBreakdown.length > 0);
+  // Portfolio shape and OpCo detection use realistic (structure is scenario-invariant)
+  const sampleYear = model.scenarios.realistic.pnl.find((p) => p.propertyBreakdown.length > 0);
   const portfolioShape = sampleYear?.propertyBreakdown ?? [];
-
-  // Detect whether the OpCo split is active: if any year has a non-zero
-  // management fee the full fee waterfall is shown in the table.
-  const opCoActive = realistic.some((p) => p.opCoTotalFee !== 0);
+  const opCoActive = model.scenarios.realistic.pnl.some((p) => p.opCoTotalFee !== 0);
 
   const rows: RowDef[] = [];
 
@@ -196,11 +197,15 @@ export function BankPnLSection() {
     <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
       <div className="px-6 pt-5 pb-3 border-b border-surface-tertiary">
         <h3 className="text-sm font-semibold text-text-primary">
-          {t('pnl.title')} — Base Case · Year-by-Year
+          {t('pnl.title')} — {{
+            realistic: t('bank.bar.realistic'),
+            upside:    t('bank.bar.upside'),
+            downside:  t('bank.bar.downside'),
+            breakeven: t('bank.bar.breakeven'),
+          }[activeScenario] ?? t('bank.bar.realistic')} · Year-by-Year
         </h3>
         <p className="text-xs text-text-tertiary mt-0.5">
-          CFADS and DSCR shown for all three scenarios. Revenue, OpEx, and
-          EBITDA lines reflect the Base Case only.
+          Revenue, OpEx, and EBITDA reflect the selected scenario. DSCR sensitivity rows always show Upside and Downside for comparison.
         </p>
       </div>
 
@@ -271,7 +276,7 @@ export function BankPnLSection() {
                     {row.label}
                   </td>
 
-                  {realistic.map((p) => {
+                  {activePnl.map((p) => {
                     const val     = row.getValue(p);
                     const display = fmt(val, row);
                     const numVal  = typeof val === "number" ? val : 0;
