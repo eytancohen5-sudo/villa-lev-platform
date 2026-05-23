@@ -118,7 +118,7 @@ export const el: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Αίτηση Χρηματοδότησης · Αντίπαρος, Ελλάδα',
-  'bank.section.repaymentCapacity': 'Ικανότητα Αποπληρωμής',
+  'bank.section.repaymentCapacity': 'Κάλυψη Εξυπηρέτησης Χρέους (DSCR)',
   'bank.section.projectedRevenue': 'Προβλεπόμενα Έσοδα & EBITDA',
   'bank.section.collateral': 'Εξασφαλίσεις & Κάλυψη Ενεργητικού',
 

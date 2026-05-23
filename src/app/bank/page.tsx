@@ -168,10 +168,56 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 3. Full P&L Table — moved up */}
-        <div id="bank-pnl" className="mb-10">
-          <BankPnLSection />
-        </div>
+        {/* 3. Term Sheet — The Ask */}
+        {(() => {
+          const rate =
+            activePath === "tepix-loan"
+              ? assumptions.tepixLoan.bankInterestRate
+              : activePath === "rrf"
+                ? assumptions.rrf.commercialInterestRate
+                : assumptions.commercialLoan.interestRate;
+          const term =
+            activePath === "tepix-loan"
+              ? assumptions.tepixLoan.totalTermYears
+              : activePath === "rrf"
+                ? assumptions.rrf.repaymentTermYears
+                : assumptions.commercialLoan.repaymentTermYears;
+          const grace =
+            activePath === "tepix-loan"
+              ? assumptions.tepixLoan.gracePeriodYears
+              : activePath === "rrf"
+                ? assumptions.rrf.gracePeriodYears
+                : assumptions.commercialLoan.gracePeriodYears;
+          const covenant = assumptions.dscrCovenantThreshold ?? 1.25;
+          const minDscr = model.scenarios.realistic.minDSCRLoanLife;
+          const dscrPass = minDscr >= covenant;
+          const cells = [
+            { label: t('dash.termsheet.loan'), value: formatCurrency(km.loanAmount, true, locale), sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}` },
+            { label: t('dash.termsheet.term'), value: `${term}y · ${grace}y`, sub: t('dash.termsheet.termSub') },
+            { label: t('dash.termsheet.rate'), value: `${(rate * 100).toFixed(2)}%`, sub: pathLabel },
+            { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
+            { label: t('dash.termsheet.dscrCovenant'), value: `${covenant.toFixed(2)}×`, sub: `${t('dash.termsheet.min')} ${minDscr.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
+            { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
+          ];
+          return (
+            <div className="mb-10">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
+                {t('dash.termsheet.title')}
+              </h3>
+              <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm px-5 py-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary/60">
+                  {cells.map((c, i) => (
+                    <div key={c.label} className={`${i > 0 ? 'pt-3 md:pt-0 md:pl-6' : ''} flex flex-col gap-0.5`}>
+                      <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{c.label}</span>
+                      <span className={`font-mono font-semibold text-base ${c.tone === 'positive' ? 'text-positive' : c.tone === 'warning' ? 'text-warning' : 'text-text-primary'}`}>{c.value}</span>
+                      {c.sub && <span className="text-[11px] text-text-tertiary">{c.sub}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 4. Hero KPI strip */}
         <div id="bank-kpi-strip" className="grid grid-cols-2 md:grid-cols-5 gap-6 mb-10 py-6 border-y border-surface-tertiary">
@@ -204,7 +250,36 @@ export default function BankPage() {
           />
         </div>
 
-        {/* 5. Capital Structure + Stabilised Metrics */}
+        {/* 5. CAPEX Breakdown — where the money goes */}
+        <div className="mb-10">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
+            {t('capex.title')}
+          </h3>
+          <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-surface-secondary/40">
+                  <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.costCategory')}</th>
+                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.total')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {model.capex.categories.map((cat, i) => (
+                  <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/10'}`}>
+                    <td className="py-2.5 px-5 text-text-secondary">{cat.name}</td>
+                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-primary">{formatCurrency(cat.grandTotal, false, locale)}</td>
+                  </tr>
+                ))}
+                <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
+                  <td className="py-3.5 px-5 text-text-primary">{t('capex.totalCapex')}</td>
+                  <td className="text-right py-3.5 px-5 font-mono text-brand-600">{formatCurrency(model.capex.portfolioTotal, false, locale)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* 6. Capital Structure + Stabilised Metrics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           <div className="bg-white rounded-xl border border-surface-tertiary p-6">
             <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
@@ -268,7 +343,7 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 6. DSCR Chart — renamed heading */}
+        {/* 7. DSCR Chart */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('bank.section.repaymentCapacity')}
@@ -298,25 +373,7 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 7. Stress Test — open by default, moved up */}
-        <div id="bank-stress-test" className="mb-6 print:hidden">
-          <BankStressTest />
-        </div>
-
-        {/* 8. Live Track Record */}
-        <div className="mb-10 print:hidden">
-          <LiveTrackRecord />
-        </div>
-
-        {/* 9. Conservatism Triangle */}
-        <div className="mb-10 print:hidden">
-          <ConservatismTriangle
-            bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
-            bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
-          />
-        </div>
-
-        {/* 10. Revenue & EBITDA Chart — renamed heading */}
+        {/* 8. Revenue & EBITDA Chart */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('bank.section.projectedRevenue')}
@@ -339,7 +396,12 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 11. Financing Path Comparison — interactive columns */}
+        {/* 9. Stress Test */}
+        <div id="bank-stress-test" className="mb-6 print:hidden">
+          <BankStressTest />
+        </div>
+
+        {/* 10. Financing Path Comparison — interactive columns */}
         <div id="bank-financing-comparison" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
             {t('dash.financingComparison')}
@@ -412,7 +474,7 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 12. All-Paths DSCR Trajectory */}
+        {/* 11. All-Paths DSCR Trajectory */}
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-1">
             {t('dash.dscrTrajectory')}
@@ -444,7 +506,28 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* 13. Collateral — renamed heading */}
+        {/* 12. P&L Timeline — detailed evidence after headline metrics */}
+        <div id="bank-pnl" className="mb-10">
+          <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">
+            {t('pnl.title')}
+          </h3>
+          <BankPnLSection />
+        </div>
+
+        {/* 13. Live Track Record */}
+        <div className="mb-10 print:hidden">
+          <LiveTrackRecord />
+        </div>
+
+        {/* 14. Conservatism Triangle */}
+        <div className="mb-10 print:hidden">
+          <ConservatismTriangle
+            bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
+            bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
+          />
+        </div>
+
+        {/* 15. Collateral */}
         <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-6">
             {t('bank.section.collateral')}
@@ -468,7 +551,7 @@ export default function BankPage() {
           </div>
         </div>
 
-        {/* 14. Footer */}
+        {/* 16. Footer */}
         <div className="text-center py-8 border-t border-surface-tertiary">
           <p className="text-xs text-text-tertiary">
             {t('app.title')} &middot; Agios Georgios, Antiparos, Greece &middot; {t('app.confidential')}

@@ -118,7 +118,7 @@ export const he: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'בקשת אשראי · אנטיפארוס, יוון',
-  'bank.section.repaymentCapacity': 'יכולת פירעון',
+  'bank.section.repaymentCapacity': 'כיסוי שירות חוב (DSCR)',
   'bank.section.projectedRevenue': 'הכנסות ו-EBITDA צפויים',
   'bank.section.collateral': 'בטחונות וכיסוי נכסים',
 

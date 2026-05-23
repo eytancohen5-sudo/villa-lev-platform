@@ -118,7 +118,7 @@ export const fr: TranslationDictionary = {
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Demande de Crédit · Antiparos, Grèce',
-  'bank.section.repaymentCapacity': 'Capacité de Remboursement',
+  'bank.section.repaymentCapacity': 'Couverture du Service de la Dette (DSCR)',
   'bank.section.projectedRevenue': 'Revenus & EBITDA Projetés',
   'bank.section.collateral': 'Garanties & Couverture d\'Actifs',
 
