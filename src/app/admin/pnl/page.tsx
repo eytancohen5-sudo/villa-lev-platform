@@ -10,7 +10,7 @@ import { PNL_TOUR } from "@/lib/tours/configs";
 import {
   DEFAULT_FOUNDER_MANCO_FEE_RATE,
   DEFAULT_GRANT_AMOUNT,
-  DEFAULT_CONSULTANT_SHARE_PCT,
+  DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
   DEFAULT_GRANT_APPROVAL_YEAR,
 } from "@/lib/engine/founderWaterfall";
 
@@ -31,7 +31,13 @@ export default function PnLPage() {
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
   const grantApproved = assumptions.financingPath === "grant";
-  const consultantPayment = grantApproved ? DEFAULT_GRANT_AMOUNT * DEFAULT_CONSULTANT_SHARE_PCT : 0;
+  // Bucket 1B deferred advisory fee: grant × 10%, spread over 3 years
+  // starting from the year after grant approval (loanDisbursementYear).
+  // Paid from operating cash — NOT from grant proceeds (EU GBER compliance).
+  const totalAdvisoryFee = grantApproved ? DEFAULT_GRANT_AMOUNT * DEFAULT_GRANT_PROCUREMENT_FEE_PCT : 0;
+  const advisoryAnnual = totalAdvisoryFee > 0 ? totalAdvisoryFee / 3 : 0;
+  const advisoryStartYear = DEFAULT_GRANT_APPROVAL_YEAR + 1;
+  const advisoryPaymentYears = new Set([advisoryStartYear, advisoryStartYear + 1, advisoryStartYear + 2]);
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(PNL_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="table" />;
@@ -127,8 +133,8 @@ export default function PnLPage() {
       indent: true,
     },
     {
-      label: 'Consultant payment (Layer B, grant approval)',
-      getValue: (p) => (p.year === DEFAULT_GRANT_APPROVAL_YEAR ? -consultantPayment : 0),
+      label: 'Deferred advisory fee (Bucket 1B, 3-yr from disbursement)',
+      getValue: (p) => (advisoryPaymentYears.has(p.year) ? -advisoryAnnual : 0),
       format: "currency",
       color: "negative",
       indent: true,
@@ -137,8 +143,8 @@ export default function PnLPage() {
       label: 'Distributable to equity',
       getValue: (p) => {
         const manCo = p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE;
-        const cons = p.year === DEFAULT_GRANT_APPROVAL_YEAR ? consultantPayment : 0;
-        return Math.max(0, p.netCashFlowPostVAT - manCo - cons);
+        const advisory = advisoryPaymentYears.has(p.year) ? advisoryAnnual : 0;
+        return Math.max(0, p.netCashFlowPostVAT - manCo - advisory);
       },
       format: "currency",
       bold: true,

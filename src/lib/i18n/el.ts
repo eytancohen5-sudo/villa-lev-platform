@@ -782,7 +782,7 @@ export const el: TranslationDictionary = {
   'dash.founder.earned': 'κερδισμένο',
   'dash.founder.manCoFee': 'Founder ManCo fee (5% × έσοδα)',
   'dash.founder.cumulative': 'σωρευτικά',
-  'dash.founder.consultantPayment': 'Πληρωμή συμβούλου με την έγκριση επιχορήγησης',
+  'dash.founder.deferredAdvisoryFee': 'Αναβαλλόμενη αμοιβή συμβούλου (Bucket 1B, 3 έτη από εκταμίευση)',
   'dash.founder.feesNote': 'Αφαιρούνται από το NCF πριν τις διανομές ιδίων κεφαλαίων.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──

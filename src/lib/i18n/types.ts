@@ -795,7 +795,7 @@ export interface TranslationDictionary {
   'dash.founder.earned': string;
   'dash.founder.manCoFee': string;
   'dash.founder.cumulative': string;
-  'dash.founder.consultantPayment': string;
+  'dash.founder.deferredAdvisoryFee': string;
   'dash.founder.feesNote': string;
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──

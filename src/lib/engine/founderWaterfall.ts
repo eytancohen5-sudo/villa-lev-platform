@@ -123,8 +123,14 @@ export interface FounderStakeBreakdown {
   moicFloorReduction: boolean;
   // ── Layer B derivation telemetry (surfaced in UI/Excel) ──────────
   consultantCashPayment: number;     // grant × consultantSharePct
-  founderNetGrantCash: number;       // gross_fee − consultant
+  founderNetGrantCash: number;       // gross_fee − consultant (drives equity bonus — UNCHANGED)
   postGrantEquityValue: number;      // project_value − bank_loan
+  // ── Bucket 1B deferred advisory fee (restructured from grant-year) ──
+  // Total advisory fee = grant × DEFAULT_GRANT_PROCUREMENT_FEE_PCT (10%).
+  // Paid from operating cash flow after loan disbursement; NOT from grant proceeds.
+  bucket1B_deferredAdvisoryFee: number;  // total amount (0 if no grant)
+  bucket1B_annualPayment: number;        // total / 3 (0 if no grant)
+  bucket1B_paymentStartYear: number;     // first payment year (loanDisbursementYear)
 }
 
 // ── Tier resolution ────────────────────────────────────────────────────
@@ -196,6 +202,19 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     grantBonus = denom > 0 ? founderNetCash / denom : 0;
   }
 
+  // ── Bucket 1B deferred advisory fee (restructured) ────────────────
+  // Total = grant × 10%. Paid from operating cash after loan disbursement,
+  // NOT from grant proceeds. Payment schedule is held in the distribution
+  // stream (buildDistributionStream); here we surface the aggregate totals
+  // for display. paymentStartYear is resolved in resolveFounderWaterfall and
+  // injected via the extended input; default used here for standalone calls.
+  const deferredAdvisoryFee = input.grantApproved
+    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT
+    : 0;
+  const advisoryAnnual = deferredAdvisoryFee > 0 ? deferredAdvisoryFee / 3 : 0;
+  const advisoryStartYear = (input as FounderStakeInput & { loanDisbursementYear?: number }).loanDisbursementYear
+    ?? DEFAULT_GRANT_APPROVAL_YEAR + 1;
+
   // ── Layer C tier selection (unchanged) ─────────────────────────────
   let { tier, ratchet, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
 
@@ -240,6 +259,9 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     consultantCashPayment: consultantCash,
     founderNetGrantCash: founderNetCash,
     postGrantEquityValue: postGrantEquity,
+    bucket1B_deferredAdvisoryFee: deferredAdvisoryFee,
+    bucket1B_annualPayment: advisoryAnnual,
+    bucket1B_paymentStartYear: advisoryStartYear,
   };
 }
 
@@ -295,9 +317,9 @@ export interface YearDistribution {
   founderShare: number;       // founder equity share this year
   investorShare: number;      // total investor share this year
   // ── Per-year fee deductions (informational) ───────────────────────
-  founderManCoFee: number;     // Bucket 2A: 5% × revenue (base management fee)
-  consultantPayment: number;   // €200K one-time at grant approval year
-  ncfPreFees: number;          // NCF post-VAT before founder fees subtracted
+  founderManCoFee: number;          // Bucket 2A: 5% × revenue (base management fee)
+  deferredAdvisoryFeePayment: number; // Bucket 1B: deferred advisory fee instalment (spread over 3 years post-disbursement)
+  ncfPreFees: number;               // NCF post-VAT before founder fees subtracted
 }
 
 export interface ResolvedFounderWaterfall {
@@ -314,7 +336,7 @@ export interface ResolvedFounderWaterfall {
   totalProjectDistributable: number;
   // Aggregate fee totals (over the projection window, useful for UI).
   totalFounderManCoFee: number;
-  totalConsultantPayment: number;
+  totalDeferredAdvisoryFee: number;
 }
 
 export interface DistributionStreamOptions {
@@ -323,16 +345,23 @@ export interface DistributionStreamOptions {
   baseMgmtFeeRate?: number;
   /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
   founderManCoFeeRate?: number;
-  // Year the €200K consultant payment hits — typically grant approval year.
-  consultantPaymentYear?: number;
-  // Total consultant payment amount; 0 if no grant.
-  consultantPayment?: number;
+  // Bucket 1B: deferred advisory fee (grant × 10%) paid from operating cash
+  // over 3 years starting from loanDisbursementYear. NOT from grant proceeds.
+  // Default: (grantApprovalYear ?? DEFAULT_GRANT_APPROVAL_YEAR) + 1.
+  loanDisbursementYear?: number;
+  // Total Bucket 1B advisory fee to spread; 0 if no grant.
+  deferredAdvisoryFee?: number;
 }
 
 /**
  * Build the per-year distribution stream from a scenario, subtracting:
- *   • Founder ManCo fee = 5% × gross revenue (annual)
- *   • One-time €200K consultant payment at grant approval year (if grant)
+ *   • Founder ManCo fee = 5% × gross revenue (annual)          [Bucket 2A]
+ *   • Deferred advisory fee = grant × 10% spread equally over
+ *     3 years starting from loanDisbursementYear                [Bucket 1B]
+ *
+ * The Bucket 1B fee is paid from operating cash flow after loan disbursement,
+ * NOT deducted from grant proceeds in the grant approval year. This avoids
+ * EU GBER rule violations (grant funds must flow to eligible project costs).
  *
  * Result is post-fee cash distributable to equity, used by the waterfall.
  */
@@ -341,8 +370,15 @@ export function buildDistributionStream(
   options: DistributionStreamOptions = {},
 ): YearDistribution[] {
   const feeRate = options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate ?? DEFAULT_BASE_MGMT_FEE_RATE;
-  const consultantYear = options.consultantPaymentYear ?? DEFAULT_GRANT_APPROVAL_YEAR;
-  const consultantPayment = options.consultantPayment ?? 0;
+  const disbursementYear = options.loanDisbursementYear ?? (DEFAULT_GRANT_APPROVAL_YEAR + 1);
+  const totalAdvisoryFee = options.deferredAdvisoryFee ?? 0;
+  const annualAdvisoryFee = totalAdvisoryFee > 0 ? totalAdvisoryFee / 3 : 0;
+  // Payment years: [disbursementYear, disbursementYear+1, disbursementYear+2]
+  const advisoryPaymentYears = new Set([
+    disbursementYear,
+    disbursementYear + 1,
+    disbursementYear + 2,
+  ]);
 
   const exitYear = scenario.exitYear;
   const pnlAll = scenario.pnl;
@@ -353,8 +389,8 @@ export function buildDistributionStream(
     const isExit = i === pnl.length - 1;
     const ncfPreFees = Math.max(0, p.netCashFlowPostVAT);
     const manCoFee = Math.max(0, p.totalRevenue) * feeRate;
-    const consultantThisYear = p.year === consultantYear ? consultantPayment : 0;
-    let cash = ncfPreFees - manCoFee - consultantThisYear;
+    const advisoryThisYear = advisoryPaymentYears.has(p.year) ? annualAdvisoryFee : 0;
+    let cash = ncfPreFees - manCoFee - advisoryThisYear;
     if (isExit) cash += scenario.terminalEquityValue;
     // Floor at zero so we never give the founder negative equity (manCoFee
     // already absorbed by the founder via their ManCo entity).
@@ -365,7 +401,7 @@ export function buildDistributionStream(
       founderShare: 0,    // populated after waterfall resolves
       investorShare: 0,
       founderManCoFee: manCoFee,
-      consultantPayment: consultantThisYear,
+      deferredAdvisoryFeePayment: advisoryThisYear,
       ncfPreFees,
     };
   });
@@ -379,11 +415,13 @@ export interface ResolveOptions {
   consultantSharePct?: number;
   projectAssetValue?: number;
   bankLoanAmount?: number;
-  // Cash-flow stream options (base mgmt fee + consultant payment year).
+  // Cash-flow stream options (base mgmt fee + deferred advisory fee timing).
   baseMgmtFeeRate?: number;
   /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
   founderManCoFeeRate?: number;
-  consultantPaymentYear?: number;
+  // First year Bucket 1B deferred advisory fee is paid from operating cash.
+  // Default: DEFAULT_GRANT_APPROVAL_YEAR + 1 (i.e., year after grant approval).
+  loanDisbursementYear?: number;
   maxIterations?: number;
 }
 
@@ -391,8 +429,10 @@ export interface ResolveOptions {
  * Iterative fixed-point: starting from ratchet = 0, compute investor IRR/
  * MOIC, then re-derive ratchet, repeat until stable. The Layer B grant
  * bonus is derived from the inputs (not hardcoded); the founder's ManCo fee
- * (5% × revenue) and €200K consultant payment at grant approval are
- * subtracted from the distribution stream before the split.
+ * (5% × revenue, Bucket 2A) and Bucket 1B deferred advisory fee (grant × 10%,
+ * spread over 3 years from loanDisbursementYear, paid from operating cash —
+ * NOT from grant proceeds) are subtracted from the distribution stream before
+ * the equity split.
  */
 export function resolveFounderWaterfall(
   scenario: ScenarioOutput,
@@ -402,19 +442,20 @@ export function resolveFounderWaterfall(
   options: ResolveOptions = {},
 ): ResolvedFounderWaterfall {
   const maxIterations = options.maxIterations ?? 8;
-  // The consultant payment only flows when the grant lands. Compute up front
-  // so the stream subtraction and the breakdown agree.
+  // Bucket 1B deferred advisory fee: grant × 10%, paid from operating cash
+  // over 3 years post-disbursement. Only flows when the grant lands.
   const consultantSharePct = options.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT;
   const grantAmount = options.grantAmount ?? DEFAULT_GRANT_AMOUNT;
-  const consultantPayment = grantApproved ? grantAmount * consultantSharePct : 0;
+  const deferredAdvisoryFee = grantApproved ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT : 0;
+  const disbursementYear = options.loanDisbursementYear ?? (DEFAULT_GRANT_APPROVAL_YEAR + 1);
   const stream = buildDistributionStream(scenario, {
     baseMgmtFeeRate: options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate,
-    consultantPaymentYear: options.consultantPaymentYear,
-    consultantPayment,
+    loanDisbursementYear: disbursementYear,
+    deferredAdvisoryFee,
   });
   const totalProject = stream.reduce((s, y) => s + y.totalDistribution, 0);
   const totalFounderManCoFee = stream.reduce((s, y) => s + y.founderManCoFee, 0);
-  const totalConsultantPayment = stream.reduce((s, y) => s + y.consultantPayment, 0);
+  const totalDeferredAdvisoryFee = stream.reduce((s, y) => s + y.deferredAdvisoryFeePayment, 0);
   const totalNonFounderCash = Math.max(0, totalEquityRaised - founderCashInvested);
 
   const stakeInputBase = {
@@ -426,6 +467,7 @@ export function resolveFounderWaterfall(
     consultantSharePct,
     projectAssetValue: options.projectAssetValue,
     bankLoanAmount: options.bankLoanAmount,
+    loanDisbursementYear: disbursementYear,
   };
 
   // Initial breakdown with ratchet = 0 (i.e. investor IRR = -∞ guess).
@@ -492,7 +534,7 @@ export function resolveFounderWaterfall(
     totalNonFounderCash,
     totalProjectDistributable: totalProject,
     totalFounderManCoFee,
-    totalConsultantPayment,
+    totalDeferredAdvisoryFee,
   };
 }
 

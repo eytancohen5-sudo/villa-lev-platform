@@ -142,7 +142,7 @@ export interface CapTableResult {
   grantApproved: boolean;
   // ── v2: derivation + fee totals (surfaced in UI + Excel) ─────────
   totalFounderManCoFee: number;
-  totalConsultantPayment: number;
+  totalDeferredAdvisoryFee: number;
 }
 
 function safe(n: number): number {
@@ -174,7 +174,7 @@ export function computeCapTable(
       projectAssetValue: options?.projectAssetValue,
       bankLoanAmount: options?.bankLoanAmount,
       founderManCoFeeRate: options?.founderManCoFeeRate,
-      consultantPaymentYear: options?.consultantPaymentYear,
+      loanDisbursementYear: options?.loanDisbursementYear,
     },
   );
   const b = resolved.breakdown;
@@ -299,7 +299,7 @@ export function computeCapTable(
     founderCashInvested: founderCash,
     grantApproved,
     totalFounderManCoFee: safe(resolved.totalFounderManCoFee),
-    totalConsultantPayment: safe(resolved.totalConsultantPayment),
+    totalDeferredAdvisoryFee: safe(resolved.totalDeferredAdvisoryFee),
   };
 }
 

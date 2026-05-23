@@ -1,4 +1,6 @@
-// Directed tests for the Bucket 1C ratchet — 3-tier structure.
+// Directed tests for the Bucket 1C ratchet — 3-tier structure, and
+// Bucket 1B deferred advisory fee (restructured from grant-year consultant
+// deduction to 3-year operating-cash payment post-loan disbursement).
 //
 // These tests pin the economics of the restructured RATCHET_TIERS:
 //   miss      — IRR < 8%  → 0% ratchet  (merges old failure + below_pref)
@@ -6,7 +8,14 @@
 //   excellent — ≥ 22% IRR → +29% (no-grant differential removed)
 
 import { describe, expect, it } from 'vitest';
-import { computeFounderStake } from '@/lib/engine/founderWaterfall';
+import {
+  computeFounderStake,
+  buildDistributionStream,
+  DEFAULT_GRANT_AMOUNT,
+  DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
+  DEFAULT_GRANT_APPROVAL_YEAR,
+} from '@/lib/engine/founderWaterfall';
+import type { ScenarioOutput } from '@/lib/engine/types';
 
 // Minimal inputs for computeFounderStake that don't affect tier selection.
 const BASE_INPUT = {
@@ -133,5 +142,138 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(miss.ratchetTierLabel).toBe('Miss');
     expect(pref.ratchetTierLabel).toBe('Pref met');
     expect(exc.ratchetTierLabel).toBe('Excellent');
+  });
+});
+
+// ── Bucket 1B: deferred advisory fee (restructured 2026-05-23) ─────────────
+//
+// The grant procurement fee (grant × 10%) is now paid from operating cash
+// over 3 years starting from loanDisbursementYear (default: grantYear + 1),
+// NOT deducted from grant proceeds in the grant approval year.
+// This removes EU GBER eligibility risk.
+
+/**
+ * Build a minimal ScenarioOutput stub with years 2026-2033.
+ * Only fields consumed by buildDistributionStream are populated;
+ * remaining required fields are omitted via cast.
+ */
+function makeScenario(): ScenarioOutput {
+  const years = [2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033];
+  const pnl = years.map((year) => ({
+    year,
+    totalRevenue: 500_000,
+    netCashFlowPostVAT: 180_000,
+    propertyBreakdown: [],
+  }));
+  return {
+    exitYear: 2033,
+    terminalEquityValue: 1_000_000,
+    pnl,
+  } as unknown as ScenarioOutput;
+}
+
+describe('Bucket 1B — deferred advisory fee (grant × 10%, 3-yr operating cash)', () => {
+  const expectedTotal = DEFAULT_GRANT_AMOUNT * DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
+  const expectedAnnual = expectedTotal / 3;
+  const startYear = DEFAULT_GRANT_APPROVAL_YEAR + 1; // 2028
+  const paymentYears = [startYear, startYear + 1, startYear + 2]; // [2028, 2029, 2030]
+
+  it('computeFounderStake: bucket1B_deferredAdvisoryFee equals grant × 10% when grant approved', () => {
+    const result = computeFounderStake({
+      ...BASE_INPUT,
+      grantApproved: true,
+      investorIRR: 0.12,
+      investorMOIC: 3.0,
+    });
+    expect(result.bucket1B_deferredAdvisoryFee).toBeCloseTo(expectedTotal, 0);
+  });
+
+  it('computeFounderStake: bucket1B_deferredAdvisoryFee is 0 when grant not approved', () => {
+    const result = computeFounderStake({
+      ...BASE_INPUT,
+      grantApproved: false,
+      investorIRR: 0.12,
+      investorMOIC: 3.0,
+    });
+    expect(result.bucket1B_deferredAdvisoryFee).toBe(0);
+    expect(result.bucket1B_annualPayment).toBe(0);
+  });
+
+  it('computeFounderStake: bucket1B_annualPayment equals total / 3 when grant approved', () => {
+    const result = computeFounderStake({
+      ...BASE_INPUT,
+      grantApproved: true,
+      investorIRR: 0.12,
+      investorMOIC: 3.0,
+    });
+    expect(result.bucket1B_annualPayment).toBeCloseTo(expectedAnnual, 0);
+  });
+
+  it('computeFounderStake: bucket1B_paymentStartYear defaults to grantApprovalYear + 1', () => {
+    const result = computeFounderStake({
+      ...BASE_INPUT,
+      grantApproved: true,
+      investorIRR: 0.12,
+      investorMOIC: 3.0,
+    });
+    expect(result.bucket1B_paymentStartYear).toBe(startYear);
+  });
+
+  it('buildDistributionStream: NO deduction in grant approval year (2027) with grant active', () => {
+    const scenario = makeScenario();
+    const stream = buildDistributionStream(scenario, {
+      deferredAdvisoryFee: expectedTotal,
+      loanDisbursementYear: startYear,
+    });
+    const grantYearRow = stream.find((y) => y.year === DEFAULT_GRANT_APPROVAL_YEAR);
+    expect(grantYearRow).toBeDefined();
+    expect(grantYearRow!.deferredAdvisoryFeePayment).toBe(0);
+  });
+
+  it('buildDistributionStream: annual deduction in each of the 3 payment years', () => {
+    const scenario = makeScenario();
+    const stream = buildDistributionStream(scenario, {
+      deferredAdvisoryFee: expectedTotal,
+      loanDisbursementYear: startYear,
+    });
+    for (const yr of paymentYears) {
+      const row = stream.find((y) => y.year === yr);
+      expect(row).toBeDefined();
+      expect(row!.deferredAdvisoryFeePayment).toBeCloseTo(expectedAnnual, 0);
+    }
+  });
+
+  it('buildDistributionStream: no deduction outside the 3 payment years', () => {
+    const scenario = makeScenario();
+    const stream = buildDistributionStream(scenario, {
+      deferredAdvisoryFee: expectedTotal,
+      loanDisbursementYear: startYear,
+    });
+    const nonPaymentRows = stream.filter((y) => !paymentYears.includes(y.year));
+    for (const row of nonPaymentRows) {
+      expect(row.deferredAdvisoryFeePayment).toBe(0);
+    }
+  });
+
+  it('buildDistributionStream: sum of deferredAdvisoryFeePayment equals total fee', () => {
+    const scenario = makeScenario();
+    const stream = buildDistributionStream(scenario, {
+      deferredAdvisoryFee: expectedTotal,
+      loanDisbursementYear: startYear,
+    });
+    const totalPaid = stream.reduce((s, y) => s + y.deferredAdvisoryFeePayment, 0);
+    // 3 years × (expectedTotal / 3) = expectedTotal
+    expect(totalPaid).toBeCloseTo(expectedTotal, 0);
+  });
+
+  it('buildDistributionStream: zero fee produces zero deferredAdvisoryFeePayment in all years', () => {
+    const scenario = makeScenario();
+    const stream = buildDistributionStream(scenario, {
+      deferredAdvisoryFee: 0,
+      loanDisbursementYear: startYear,
+    });
+    for (const row of stream) {
+      expect(row.deferredAdvisoryFeePayment).toBe(0);
+    }
   });
 });

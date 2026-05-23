@@ -781,7 +781,7 @@ export const en: TranslationDictionary = {
   'dash.founder.earned': 'earned',
   'dash.founder.manCoFee': 'Founder ManCo fee (5% × revenue)',
   'dash.founder.cumulative': 'cumulative',
-  'dash.founder.consultantPayment': 'Consultant payment at grant approval',
+  'dash.founder.deferredAdvisoryFee': 'Deferred advisory fee (Bucket 1B, 3-yr from disbursement)',
   'dash.founder.feesNote': 'Both subtracted from NCF before equity distributions.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──

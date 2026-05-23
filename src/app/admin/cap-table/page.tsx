@@ -230,7 +230,7 @@ export default function CapTablePage() {
           </div>
           <div title={
             grantApproved
-              ? `Derived: founder_net €${Math.round(b.founderNetGrantCash / 1000)}K ÷ (post-grant equity €${(b.postGrantEquityValue / 1_000_000).toFixed(2)}M + founder_net) — adjusts with grant size, consultant share, and project valuation.`
+              ? `Derived: founder_net €${Math.round(b.founderNetGrantCash / 1000)}K (gross fee minus €200K consultant) ÷ (post-grant equity €${(b.postGrantEquityValue / 1_000_000).toFixed(2)}M + founder_net) — adjusts with grant size, consultant share, and project valuation.`
               : "Layer B vests only when the Greek Development Law grant is approved."
           }>
             <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
@@ -386,10 +386,10 @@ export default function CapTablePage() {
             </div>
           </div>
           <div>
-            <div className="text-text-tertiary">Consultant payment (Layer B)</div>
+            <div className="text-text-tertiary">Deferred advisory fee (Bucket 1B, 3-yr)</div>
             <div className="font-mono font-medium mt-0.5">
-              {result.totalConsultantPayment > 0
-                ? formatCurrency(result.totalConsultantPayment, true, locale)
+              {result.totalDeferredAdvisoryFee > 0
+                ? formatCurrency(result.totalDeferredAdvisoryFee, true, locale)
                 : "—"}
             </div>
           </div>

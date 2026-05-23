@@ -2012,10 +2012,10 @@ export async function exportBusinessPlan(
       loan: inputStartRow + 4,
     };
     // Derived cells (grey — formulas linked to inputs above)
-    const grossFee = capResult.founderBreakdown.founderNetGrantCash + capResult.totalConsultantPayment;
+    const grossFee = capResult.founderBreakdown.founderNetGrantCash + capResult.founderBreakdown.consultantCashPayment;
     const derivedRows: Array<{ label: string; formula: string; value: number; fmt: string }> = [
       { label: 'Gross fee = grant × founder_fee_pct', formula: `=B${r.grant}*B${r.feePct}`, value: grossFee, fmt: FMT.euro },
-      { label: 'Consultant cash = grant × consultant_share_pct', formula: `=B${r.grant}*B${r.consPct}`, value: capResult.totalConsultantPayment, fmt: FMT.euro },
+      { label: 'Consultant cash = grant × consultant_share_pct', formula: `=B${r.grant}*B${r.consPct}`, value: capResult.founderBreakdown.consultantCashPayment, fmt: FMT.euro },
       { label: 'Founder net cash = gross_fee − consultant_cash', formula: `=B${r.grant}*B${r.feePct}-B${r.grant}*B${r.consPct}`, value: capResult.founderBreakdown.founderNetGrantCash, fmt: FMT.euro },
       { label: 'Post-grant equity = project_value − bank_loan', formula: `=B${r.asset}-B${r.loan}`, value: capResult.founderBreakdown.postGrantEquityValue, fmt: FMT.euro },
     ];
@@ -2061,8 +2061,8 @@ export async function exportBusinessPlan(
   WF.getCell(`B${wfr}`).numFmt = FMT.euro;
   WF.getCell(`B${wfr}`).fill = STYLE.formulaFill;
   wfr += 1;
-  WF.getCell(`A${wfr}`).value = 'Consultant payment at grant approval (€200K one-time)';
-  WF.getCell(`B${wfr}`).value = capResult.totalConsultantPayment;
+  WF.getCell(`A${wfr}`).value = 'Deferred advisory fee — Bucket 1B (grant × 10%, paid from operating cash over 3 yrs post-disbursement)';
+  WF.getCell(`B${wfr}`).value = capResult.totalDeferredAdvisoryFee;
   WF.getCell(`B${wfr}`).numFmt = FMT.euro;
   WF.getCell(`B${wfr}`).fill = STYLE.formulaFill;
   wfr += 2;

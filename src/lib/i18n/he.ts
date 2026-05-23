@@ -782,7 +782,7 @@ export const he: TranslationDictionary = {
   'dash.founder.earned': 'מורווח',
   'dash.founder.manCoFee': 'ManCo fee של היזם (5% × הכנסות)',
   'dash.founder.cumulative': 'מצטבר',
-  'dash.founder.consultantPayment': 'תשלום ליועץ באישור המענק',
+  'dash.founder.deferredAdvisoryFee': 'שכר ייעוץ נדחה (Bucket 1B, 3 שנים מהסבת ההלוואה)',
   'dash.founder.feesNote': 'שניהם מנוכים מ-NCF לפני חלוקות להון.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──

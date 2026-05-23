@@ -782,7 +782,7 @@ export const fr: TranslationDictionary = {
   'dash.founder.earned': 'gagné',
   'dash.founder.manCoFee': 'ManCo fee fondateur (5% × revenu)',
   'dash.founder.cumulative': 'cumulé',
-  'dash.founder.consultantPayment': 'Paiement consultant à l\'approbation de la subvention',
+  'dash.founder.deferredAdvisoryFee': 'Honoraires consultatifs différés (Bucket 1B, 3 ans à partir du déblocage)',
   'dash.founder.feesNote': 'Tous deux déduits du NCF avant distributions aux fonds propres.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──
