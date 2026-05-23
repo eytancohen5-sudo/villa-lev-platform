@@ -120,7 +120,7 @@ const LR: Record<
 > = {
   en: {
     header: "Conservatism evidence · Antiparos",
-    yourTrackRecord: "Two independent benchmarks — live villa performance and the market study — confirm our model is deliberately conservative.",
+    yourTrackRecord: "",
     ytdRevenue: "YTD revenue",
     occupancy: "Occupancy",
     adr: "ADR (net)",
@@ -141,7 +141,7 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "In {years} years at stabilisation, our rates sit {gap}% below today's villa performance and {marketGap}% below market room rates — in a growing market. A large conservative cushion.",
+      "At stabilisation in {years} years, our per-night rates sit {gap}% below today's live Villa Lev and {marketGap}% below 2025 Antiparos hotel market rates — in a hospitality market that has grown every single year. These are large, deliberate cushions built into every assumption.",
     cushion: "Cushion",
     model: "Model",
     liveLabel: "Live",
@@ -178,7 +178,7 @@ const LR: Record<
   },
   fr: {
     header: "Preuve de prudence · Antiparos",
-    yourTrackRecord: "Deux référentiels indépendants — performance réelle de la villa et étude de marché — confirment que notre modèle est délibérément conservateur.",
+    yourTrackRecord: "",
     ytdRevenue: "CA YTD",
     occupancy: "Occupation",
     adr: "ADR (net)",
@@ -199,7 +199,7 @@ const LR: Record<
     available: "disponibles",
     sourceNote: "Source : admin.villalevantiparos.com",
     headlineConservatism:
-      "Dans {years} ans à la stabilisation, nos taux sont {gap}% sous la performance réelle de la villa et {marketGap}% sous les tarifs du marché — dans un marché en croissance. Une large marge de prudence.",
+      "À la stabilisation dans {years} ans, nos tarifs nuit sont {gap}% sous les performances actuelles de Villa Lev et {marketGap}% sous les tarifs 2025 du marché hôtelier d'Antiparos — dans un marché en croissance constante. Ce sont des marges de prudence importantes, délibérément intégrées dans chaque hypothèse.",
     cushion: "Coussin",
     model: "Modèle",
     liveLabel: "Réel",
@@ -237,7 +237,7 @@ const LR: Record<
   },
   el: {
     header: "Τεκμήρια συντηρητισμού · Αντίπαρος",
-    yourTrackRecord: "Δύο ανεξάρτητα σημεία αναφοράς — πραγματική απόδοση βίλας και μελέτη αγοράς — επιβεβαιώνουν ότι το μοντέλο μας είναι σκόπιμα συντηρητικό.",
+    yourTrackRecord: "",
     ytdRevenue: "Έσοδα YTD",
     occupancy: "Πληρότητα",
     adr: "ADR (καθαρό)",
@@ -258,7 +258,7 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Σε {years} χρόνια, τα σταθεροποιημένα επίπεδα είναι {gap}% κάτω από την τρέχουσα βίλα και {marketGap}% κάτω από τις τιμές της αγοράς — σε μια αναπτυσσόμενη αγορά. Ένα μεγάλο συντηρητικό «μαξιλάρι».",
+      "Στη σταθεροποίηση σε {years} χρόνια, οι τιμές ανά διανυκτέρευση βρίσκονται {gap}% κάτω από τα σημερινά επίπεδα της Villa Lev και {marketGap}% κάτω από τις τιμές 2025 της αγοράς ξενοδοχείων Αντιπάρου — σε αγορά φιλοξενίας που αναπτύσσεται κάθε χρόνο. Πρόκειται για μεγάλα, σκόπιμα «μαξιλάρια» ενσωματωμένα σε κάθε παραδοχή.",
     cushion: "Μαξιλάρι",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
@@ -296,7 +296,7 @@ const LR: Record<
   },
   he: {
     header: "עדות שמרנות · אנטיפרוס",
-    yourTrackRecord: "שני אמות מידה עצמאיות — ביצועי הוילה בפועל ומחקר שוק — מאשרים שהמודל שלנו שמרני במכוון.",
+    yourTrackRecord: "",
     ytdRevenue: "הכנסות YTD",
     occupancy: "תפוסה",
     adr: "ADR (נטו)",
@@ -317,7 +317,7 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "בעוד {years} שנים, שיעורי הייצוב שלנו נמוכים ב-{gap}% מביצועי הוילה כיום וב-{marketGap}% מתעריפי חדרי השוק — בשוק צומח. כרית שמרנות גדולה.",
+      "בייצוב בעוד {years} שנים, תעריפי הלילה שלנו נמוכים ב-{gap}% מהביצועים הנוכחיים של Villa Lev וב-{marketGap}% מתעריפי שוק המלונות 2025 באנטיפרוס — בשוק אירוח שצמח כל שנה. אלו כריות שמרנות גדולות ומכוונות, הבנויות לתוך כל הנחה.",
     cushion: "כרית",
     model: "מודל",
     liveLabel: "בפועל",
@@ -767,9 +767,11 @@ export function LiveTrackRecord({
               {lr.header}
             </h2>
           </div>
-          <p className="text-sm md:text-base font-medium text-text-primary max-w-2xl leading-snug">
-            {lr.yourTrackRecord}
-          </p>
+          {lr.yourTrackRecord && (
+            <p className="text-sm md:text-base font-medium text-text-primary max-w-2xl leading-snug">
+              {lr.yourTrackRecord}
+            </p>
+          )}
         </div>
         {pulledDate && (
           <div className="shrink-0 text-[10px] text-text-tertiary leading-tight text-right whitespace-nowrap">
