@@ -93,6 +93,30 @@ export default function BankPage() {
   const km = model.keyMetrics;
   const pnl = activePnl.filter((p) => p.year >= 2028);
 
+  // Active scenario output — drives all scenario-responsive metrics across the page.
+  // `km` (keyMetrics) intentionally stays on realistic: term-sheet loan sizing,
+  // LTV, and annual DS are always underwritten on the base case.
+  const activeScenarioOutput = model.scenarios[activeScenario as keyof typeof model.scenarios]
+    ?? model.scenarios.realistic;
+
+  // Stabilised year for the active scenario — drives the Stabilised Ops panel.
+  const activeStab = activeScenarioOutput.stabilisedYear;
+
+  // Post-ramp 2030 DSCR from the active scenario — more meaningful to a lender.
+  const dscr2030 =
+    activePnl?.find((p) => p.year === 2030)?.dscr ??
+    activeScenarioOutput.minDSCRLoanLife;
+
+  // Coverage ratios — scenario-responsive.
+  const icrStabilised = activeScenarioOutput.icrStabilised;
+  const llcr = activeScenarioOutput.llcr;
+  const plcr = activeScenarioOutput.plcr;
+
+  // Exit IRR — scenario-responsive.
+  const hotelExitIRR = activeScenarioOutput.equityIRR;
+  const propertyExitIRR = activeScenarioOutput.equityIRRPropertySale;
+  const propertyExitDominates = activeScenarioOutput.propertyExitDominates;
+
   // Resolve full portfolio so "About the project" shows exact unit counts and m².
   // Uses BUILT_IN_TEMPLATES as the source; custom templates stored only in the
   // store would require a store read — keep it simple since the built-in templates
@@ -294,6 +318,26 @@ export default function BankPage() {
                   ))}
                 </div>
               </div>
+              {/* WC facility note — clarifies this is separate from the term loan */}
+              <div className="px-5 pt-3 pb-4 border-t border-surface-tertiary/50 flex items-start gap-2 text-[11px] text-text-tertiary">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
+                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
+                  <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                <span>
+                  <span className="font-medium text-text-secondary">Working capital facility</span>
+                  {" "}—{" "}
+                  {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} revolving credit line
+                  {assumptions.workingCapital.spreadOverTermRate > 0
+                    ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} bps spread over term rate`
+                    : ""}
+                  {assumptions.workingCapital.selfLiquidating
+                    ? " · self-liquidating (repaid end of each peak season)"
+                    : ""}
+                  {" "}·{" "}
+                  <span className="font-medium text-text-secondary">not included in the term loan amount above</span>
+                </span>
+              </div>
             </div>
           );
         })()}
@@ -357,9 +401,9 @@ export default function BankPage() {
             sublabel={`${formatCurrency(km.portfolioValue, true, locale)}`}
           />
           <HeroKPI
-            value={formatMultiple(km.stabilisedDSCR)}
+            value={formatMultiple(dscr2030)}
             label={t('term.dscr')}
-            sublabel={t('bank.heroKpiDscrSub')}
+            sublabel="Post-ramp · 2030"
           />
         </div>
 
@@ -454,6 +498,23 @@ export default function BankPage() {
                 ))}
               </div>
             </div>
+            {/* Fix 3 — net leverage and peak debt rows */}
+            <div className="mt-4 pt-4 border-t border-surface-tertiary/50 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-text-secondary">Net leverage</span>
+                <span className="font-mono font-medium text-text-primary">
+                  {activeScenarioOutput.netLeverage > 0 ? `${activeScenarioOutput.netLeverage.toFixed(1)}× EBITDA` : "—"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-text-secondary">Peak debt outstanding</span>
+                <span className="font-mono font-medium text-text-primary">
+                  {activeScenarioOutput.peakDebtOutstanding > 0
+                    ? formatCurrency(activeScenarioOutput.peakDebtOutstanding, true, locale)
+                    : "—"}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-surface-tertiary p-6">
@@ -463,12 +524,12 @@ export default function BankPage() {
             <p className="text-xs text-text-tertiary mb-5">{t('bank.stabilisedOpsSub')}</p>
             <div className="space-y-4">
               {[
-                { label: t('inv.annualRevenue'), value: formatCurrency(km.stabilisedRevenue, true, locale) },
-                { label: t('term.ebitda'), value: formatCurrency(km.stabilisedEBITDA, true, locale) },
-                { label: t('term.ebitdaMargin'), value: formatPercent(km.stabilisedEBITDAMargin) },
+                { label: t('inv.annualRevenue'), value: formatCurrency(activeStab?.totalRevenue ?? 0, true, locale) },
+                { label: t('term.ebitda'), value: formatCurrency(activeStab?.ebitda ?? 0, true, locale) },
+                { label: t('term.ebitdaMargin'), value: formatPercent(activeStab?.ebitdaMargin ?? 0) },
                 { label: t('kpi.annualDS'), value: formatCurrency(km.annualDS, true, locale) },
-                { label: t('term.dscr'), value: formatMultiple(km.stabilisedDSCR), highlight: true },
-                { label: t('pnl.ncfPostVAT'), value: formatCurrency(km.stabilisedNCF, true, locale) },
+                { label: t('term.dscr'), value: formatMultiple(activeStab?.dscr ?? 0), highlight: true },
+                { label: t('pnl.ncfPostVAT'), value: formatCurrency(activeStab?.netCashFlow ?? 0, true, locale) },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -482,6 +543,38 @@ export default function BankPage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Fix 2 — ICR / LLCR / PLCR coverage ratio cards */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            {
+              label: "ICR — Stabilised",
+              value: icrStabilised > 0 ? formatMultiple(icrStabilised) : "—",
+              sub: "EBITDA / interest expense",
+              tone: icrStabilised >= 3.0 ? "text-positive" : icrStabilised >= 2.0 ? "text-text-primary" : "text-warning",
+            },
+            {
+              label: "LLCR — Loan Life",
+              value: llcr > 0 ? formatMultiple(llcr) : "—",
+              sub: "NPV(CFADS) / loan balance",
+              tone: llcr >= 1.3 ? "text-positive" : llcr >= 1.0 ? "text-text-primary" : "text-warning",
+            },
+            {
+              label: "PLCR — Project Life",
+              value: plcr > 0 ? formatMultiple(plcr) : "—",
+              sub: "NPV(CFADS, full horizon) / loan",
+              tone: plcr >= 1.5 ? "text-positive" : plcr >= 1.0 ? "text-text-primary" : "text-warning",
+            },
+          ].map((card) => (
+            <div key={card.label} className="bg-white rounded-xl border border-surface-tertiary p-5">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-2">
+                {card.label}
+              </div>
+              <div className={`kpi-value ${card.tone}`}>{card.value}</div>
+              <div className="text-xs text-text-tertiary mt-1">{card.sub}</div>
+            </div>
+          ))}
         </div>
 
         {/* 9. Debt Service Coverage Ratio (DSCR) Chart */}
@@ -537,9 +630,73 @@ export default function BankPage() {
           </ResponsiveContainer>
         </div>
 
+        {/* Fix 4 — Scenario DSCR summary table (before full stress test) */}
+        {(() => {
+          const covenant = assumptions.dscrCovenantThreshold ?? 1.25;
+          const rows = [
+            {
+              scenario: "Upside",
+              stabDscr: model.scenarios.upside.stabilisedYear?.dscr ?? 0,
+              minDscr: model.scenarios.upside.minDSCRLoanLife,
+            },
+            {
+              scenario: "Realistic",
+              stabDscr: model.scenarios.realistic.stabilisedYear?.dscr ?? 0,
+              minDscr: model.scenarios.realistic.minDSCRLoanLife,
+            },
+            {
+              scenario: "Downside",
+              stabDscr: model.scenarios.downside.stabilisedYear?.dscr ?? 0,
+              minDscr: model.scenarios.downside.minDSCRLoanLife,
+            },
+          ];
+          return (
+            <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-4">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-4">
+                Scenario DSCR Summary
+              </h3>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-surface-tertiary">
+                    <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">Scenario</th>
+                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Stabilised DSCR</th>
+                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Min DSCR (loan life)</th>
+                    <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">Covenant {covenant.toFixed(2)}×</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const pass = row.minDscr >= covenant;
+                    return (
+                      <tr key={row.scenario} className="border-b border-surface-secondary/50">
+                        <td className="py-2.5 pr-4 text-text-secondary font-medium">{row.scenario}</td>
+                        <td className="text-right py-2.5 px-3 font-mono text-text-primary">{row.stabDscr > 0 ? formatMultiple(row.stabDscr) : "—"}</td>
+                        <td className={`text-right py-2.5 px-3 font-mono font-semibold ${pass ? "text-positive" : "text-warning"}`}>
+                          {row.minDscr > 0 ? formatMultiple(row.minDscr) : "—"}
+                        </td>
+                        <td className="text-right py-2.5 px-3">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${pass ? "bg-positive/15 text-positive" : "bg-warning/15 text-warning"}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${pass ? "bg-positive" : "bg-warning"}`} />
+                            {pass ? "Pass" : "Fail"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
+
         {/* 11. Stress Scenarios */}
         <div id="bank-stress-test" className="mb-6 print:hidden">
           <BankStressTest />
+          <div className="mt-3 text-right print:hidden">
+            <a href="/admin/sensitivity" className="text-xs text-brand-700 hover:underline font-medium">
+              Full sensitivity analysis →
+            </a>
+          </div>
         </div>
 
         {/* 12. Financing Path Comparison */}
@@ -593,6 +750,44 @@ export default function BankPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* Fix 5 — Hotel exit IRR vs Property exit IRR */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className={`rounded-xl border p-5 ${!propertyExitDominates ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"}`}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                Hotel Exit — Equity IRR
+              </div>
+              {!propertyExitDominates && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-positive/15 text-positive">
+                  <span className="w-1.5 h-1.5 rounded-full bg-positive" />
+                  Preferred exit
+                </span>
+              )}
+            </div>
+            <div className={`kpi-value ${hotelExitIRR >= 0.15 ? "text-positive" : hotelExitIRR > 0 ? "text-text-primary" : "text-warning"}`}>
+              {hotelExitIRR > 0 ? formatPercent(hotelExitIRR) : "—"}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">EBITDA × exit multiple</div>
+          </div>
+          <div className={`rounded-xl border p-5 ${propertyExitDominates ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"}`}>
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
+                Property Exit — Equity IRR
+              </div>
+              {propertyExitDominates && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-positive/15 text-positive">
+                  <span className="w-1.5 h-1.5 rounded-full bg-positive" />
+                  Preferred exit
+                </span>
+              )}
+            </div>
+            <div className={`kpi-value ${propertyExitIRR >= 0.15 ? "text-positive" : propertyExitIRR > 0 ? "text-text-primary" : "text-warning"}`}>
+              {propertyExitIRR > 0 ? formatPercent(propertyExitIRR) : "—"}
+            </div>
+            <div className="text-xs text-text-tertiary mt-1">Built surface × €/m²</div>
           </div>
         </div>
 
