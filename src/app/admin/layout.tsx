@@ -132,8 +132,8 @@ function RateLoanPopover({
   );
 }
 
-// Sidebar groups — replaces the prior flat 10-item list. Banker-facing
-// "Underwrite" first; founder/CFO "Structure" second; "Inputs" last.
+// Sidebar groups — replaces the prior flat 10-item list. "Analyse" first;
+// founder/CFO "Structure" second; "Inputs" last.
 interface NavItem {
   href: string;
   labelKey: keyof TranslationDictionary;
@@ -144,7 +144,7 @@ interface NavGroup {
 }
 const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Underwrite",
+    label: "Analyse",
     items: [
       { href: "/admin/dashboard", labelKey: "nav.dashboard" },
       { href: "/admin/pnl", labelKey: "nav.pnl" },

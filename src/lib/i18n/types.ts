@@ -28,7 +28,6 @@ export interface TranslationDictionary {
   'nav.opcoSplit': string;
   'nav.capTable': string;
   'nav.switchAdmin': string;
-  'nav.switchInvestor': string;
 
   // ── Top bar ──
   'bar.path': string;
@@ -471,6 +470,9 @@ export interface TranslationDictionary {
   'comp.suppCommercialLoan': string;
 
   // ── Dashboard extras ──
+  'dash.section.exitPath': string;
+  'dash.driftAlert': string;
+  'dash.driftAlertTuneIn': string;
   'dash.capitalStructureChart': string;
   'dash.annualDSChart': string;
   'dash.stabilisedDSCRChart': string;
