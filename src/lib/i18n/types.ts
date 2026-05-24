@@ -1,9 +1,8 @@
-export type Locale = 'en' | 'fr' | 'el' | 'he';
+export type Locale = 'en' | 'el' | 'he';
 export type Direction = 'ltr' | 'rtl';
 
 export const LOCALE_CONFIG: Record<Locale, { name: string; nativeName: string; dir: Direction; intl: string }> = {
   en: { name: 'English', nativeName: 'English', dir: 'ltr', intl: 'en-IE' },
-  fr: { name: 'French', nativeName: 'Français', dir: 'ltr', intl: 'fr-FR' },
   el: { name: 'Greek', nativeName: 'Ελληνικά', dir: 'ltr', intl: 'el-GR' },
   he: { name: 'Hebrew', nativeName: 'עברית', dir: 'rtl', intl: 'he-IL' },
 };
@@ -31,6 +30,10 @@ export interface TranslationDictionary {
   'nav.opcoSplit': string;
   'nav.capTable': string;
   'nav.switchAdmin': string;
+  'nav.groupAnalyse': string;
+  'nav.groupStructure': string;
+  'nav.groupInputs': string;
+  'nav.presentation': string;
 
   // ── Top bar ──
   'bar.path': string;
@@ -40,6 +43,10 @@ export interface TranslationDictionary {
   'bar.ncf': string;
   'bar.equity': string;
   'bar.engine': string;
+  'bar.exitMultipleLabel': string;
+  'bar.exitMultiple.tipNormal': string;
+  'bar.exitMultiple.tipLow': string;
+  'bar.exitMultiple.tipHigh': string;
 
   // ── Financing paths ──
   'path.commercial': string;
@@ -117,6 +124,8 @@ export interface TranslationDictionary {
   'kpi.wcSelfLiqOk': string;
   'kpi.wcSelfLiqFail': string;
   'kpi.wcSelfLiqSub': string;
+  'kpi.grantAmount': string;
+  'kpi.grantAmountSub': string;
 
   // ── Dashboard ──
   'dash.title': string;
@@ -455,6 +464,7 @@ export interface TranslationDictionary {
   'field.architectDesign': string;
   'field.civilEngineer': string;
   'field.contingencyRate': string;
+  'field.opexContingencyRate': string;
   'field.acqLegalPerPlot': string;
   'field.numPropA': string;
   'field.tepixCoverage': string;
@@ -764,7 +774,6 @@ export interface TranslationDictionary {
   'pitch.close.timeline4Date': string;
   'pitch.close.timeline4Body': string;
   'pitch.close.askLabel': string;
-  'pitch.close.askBody': string;
   'pitch.close.footer': string;
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
@@ -798,6 +807,7 @@ export interface TranslationDictionary {
   'dash.founder.capBinding75': string;
   'dash.founder.capEarned33': string;
   'dash.founder.capFree': string;
+  'dash.founder.capExit55Grant': string;
   'dash.founder.earned': string;
   'dash.founder.manCoFee': string;
   'dash.founder.cumulative': string;
@@ -822,6 +832,25 @@ export interface TranslationDictionary {
   'bank.heroKpiDscrSub': string;
   'bank.pnlFooterNote': string;
 
+  // ── Bar chrome ──
+  'bar.preparing': string;
+  // ── Export button ──
+  'bar.exportExcel': string;
+  'bar.exportExcelShort': string;
+  'bar.exportBankDocx': string;
+  'bar.toAdmin': string;
+  'admin.bar.adjust': string;
+  'admin.bar.loanParams': string;
+  'admin.bar.exitYear': string;
+  'admin.bar.exitX': string;
+  'admin.bar.perM2': string;
+  'admin.bar.stubAtMaturity': string;
+  'admin.bar.viewPresentation': string;
+  'admin.bar.bankerView': string;
+  'admin.bar.bankerViewArrow': string;
+  'admin.banner.stalePart1': string;
+  'admin.banner.stalePart2': string;
+
   // ── BankControlBar (2026-05-23) ──
   'bank.bar.commercial': string;
   'bank.bar.rrf': string;
@@ -841,4 +870,388 @@ export interface TranslationDictionary {
   // ── BankStressTest (2026-05-23) ──
   'bank.stress.title': string;
   'bank.stress.description': string;
+
+  // ── Bank page full i18n (2026-05-23) ──
+  'bank.about.title': string;
+  'bank.about.intro': string;
+  'bank.about.plotsIn': string;
+  'bank.about.luxuryVilla': string;
+  'bank.about.luxuryVillas': string;
+  'bank.about.and': string;
+  'bank.about.boutiqueHotelSuite': string;
+  'bank.about.boutiqueHotelSuites': string;
+  'bank.about.singleConcept': string;
+  'bank.about.anchorText': string;
+  'bank.about.colPlot': string;
+  'bank.about.colCount': string;
+  'bank.about.colType': string;
+  'bank.about.colUnitsPerPlot': string;
+  'bank.about.colGiaPerPlot': string;
+  'bank.about.typeLuxuryVilla': string;
+  'bank.about.typeHotelRooms': string;
+  'bank.about.totalRow': string;
+  'bank.about.villa': string;
+  'bank.about.villas': string;
+  'bank.about.stdDblSuites': string;
+  'bank.about.fullPresentation': string;
+  'bank.about.presentationFile': string;
+  'bank.section.termsheet': string;
+  'bank.termsheet.securityValue': string;
+  'bank.termsheet.securitySub': string;
+  'bank.wc.title': string;
+  'bank.wc.revolving': string;
+  'bank.wc.bpsSpread': string;
+  'bank.wc.selfLiquidating': string;
+  'bank.wc.notIncluded': string;
+  'bank.collateral.sub': string;
+  'bank.section.loanMetrics': string;
+  'bank.kpi.ofCapex': string;
+  'bank.kpi.appraisedValue': string;
+  'bank.kpi.postRamp2030': string;
+  'bank.capex.useOfProceeds': string;
+  'bank.capex.footerLoan': string;
+  'bank.capex.footerEquity': string;
+  'bank.capex.footerGrant': string;
+  'bank.capex.footerTotal': string;
+  'bank.capitalStructure.netLeverage': string;
+  'bank.capitalStructure.xEbitda': string;
+  'bank.capitalStructure.peakDebt': string;
+  'bank.coverage.icrStabilised': string;
+  'bank.coverage.llcr': string;
+  'bank.coverage.plcr': string;
+  'bank.coverage.icrSub': string;
+  'bank.coverage.llcrSub': string;
+  'bank.coverage.plcrSub': string;
+  'bank.chart.covenantLabel': string;
+  'bank.chart.firstFullDS': string;
+  'bank.chart.belowStab': string;
+  'bank.chart.year1Label': string;
+  'bank.chart.year2Label': string;
+  'bank.section.dscrSummary': string;
+  'bank.dscrTable.scenario': string;
+  'bank.dscrTable.stabilised': string;
+  'bank.dscrTable.avgLoanLife': string;
+  'bank.dscrTable.covenant': string;
+  'bank.dscrSummary.footnote': string;
+  'bank.dscrSummary.footnoteRamp': string;
+  'bank.dscrSummary.footnoteSee': string;
+  'bank.financing.sub': string;
+  'bank.exit.hotelIRR': string;
+  'bank.exit.propertyIRR': string;
+  'bank.exit.preferred': string;
+  'bank.exit.hotelSub': string;
+  'bank.exit.propertySub': string;
+  'bank.ramp.discountTitle': string;
+  'bank.ramp.discountBody': string;
+
+  // ── BankPnLSection full i18n (2026-05-23) ──
+  'pnl.revenue': string;
+  'pnl.gopPreMgmt': string;
+  'pnl.opcoFeeBreakdown': string;
+  'pnl.opcoBaseFee': string;
+  'pnl.opcoBrandFee': string;
+  'pnl.opcoIncentiveFee': string;
+  'pnl.opcoTotalFees': string;
+  'pnl.netOfMgmtFees': string;
+  'pnl.cfadsBridge': string;
+  'pnl.corporateTax': string;
+  'pnl.cfadsDscrNumerator': string;
+  'pnl.debtServiceSection': string;
+  'pnl.loanBalanceClosing': string;
+  'pnl.coverageSection': string;
+  'pnl.dscrBaseCase': string;
+  'pnl.dscrUpside': string;
+  'pnl.dscrDownside': string;
+  'pnl.dscrLoadedLabel': string;
+  'pnl.icrInterestCoverage': string;
+  'pnl.equityReturnSection': string;
+  'pnl.ncfToEquity': string;
+  'pnl.yearByYear': string;
+  'pnl.expandHint': string;
+  'pnl.expandAll': string;
+  'pnl.collapseAll': string;
+  'pnl.lineHeader': string;
+  'pnl.phaseDev': string;
+  'pnl.phaseRampGrace': string;
+  'pnl.phaseRampDS': string;
+  'pnl.phaseStab': string;
+  'pnl.cfadsNote': string;
+
+  // ── Common additions (2026-05-23) ──
+  'common.collapse': string;
+  'common.expand': string;
+  'common.total': string;
+
+  // ── BankStressTest inputs full i18n (2026-05-23) ──
+  'stress.villaAdr': string;
+  'stress.suiteStdAdr': string;
+  'stress.suiteDblAdr': string;
+  'stress.villaBaseNights': string;
+  'stress.suiteBaseNights': string;
+  'stress.interestRate': string;
+  'stress.loanCoverageRate': string;
+  'stress.exitMultiple': string;
+  'stress.modified': string;
+  'stress.baseLabel': string;
+  'stress.resetAll': string;
+  'stress.changesNote': string;
+  'stress.baseDefaults': string;
+
+  // ── Returns page ──
+  'returns.title': string;
+  'returns.exitSub': string;
+  'returns.hotelSaleValue': string;
+  'returns.ebitdaExitMultiple': string;
+  'returns.hotelSaleIRR': string;
+  'returns.equityIRRHotel': string;
+  'returns.propertySaleValue': string;
+  'returns.propertySaleIRR': string;
+  'returns.equityIRRProperty': string;
+  'returns.hotelNetEquity': string;
+  'returns.assetMinusLoan': string;
+  'returns.hotelProjectIRR': string;
+  'returns.unleveredHotel': string;
+  'returns.propertyNetEquity': string;
+  'returns.propertyMinusLoan': string;
+  'returns.propertyProjectIRR': string;
+  'returns.unleveredProperty': string;
+  'returns.preferredExit': string;
+  'returns.underwater': string;
+  'returns.sensitivityNote': string;
+  'returns.sensitivityLink': string;
+
+  // ── Financing page ──
+  'financing.securityNote': string;
+  'financing.stabilisedDSCR': string;
+  'financing.activePathNote': string;
+
+  // ── Debt Coverage page ──
+  'dc.title': string;
+  'dc.covenantLabel': string;
+  'dc.comfortLabel': string;
+
+  // ── Cap Table page ──
+  'ct.title': string;
+  'ct.subtitle': string;
+  'ct.exitAt': string;
+  'ct.redactedOn': string;
+  'ct.generateReport': string;
+  'ct.reset': string;
+  'ct.equityCoverage': string;
+  'ct.founderComp': string;
+  'ct.stakeholders': string;
+  'ct.devEquity': string;
+  'ct.layerA': string;
+  'ct.layerB': string;
+  'ct.layerC': string;
+  'ct.founderOps': string;
+  'ct.investorsKeep': string;
+  'ct.colStakeholder': string;
+  'ct.colCashIn': string;
+  'ct.colPoolPct': string;
+  'ct.colEconomicStake': string;
+  'ct.colTotalReceived': string;
+  'ct.colMOIC': string;
+  'ct.colIRR': string;
+  'ct.colPayback': string;
+  'ct.colNotes': string;
+  'ct.addInvestor': string;
+  'ct.collapse': string;
+  'ct.totalReceived': string;
+  'ct.netProfit': string;
+  'ct.founderTag': string;
+  'ct.autoTag': string;
+  'ct.footnoteWaterfall': string;
+  'ct.footnoteFees': string;
+  'ct.footnoteTip': string;
+  'ct.exportDocx': string;
+
+  // ── Page intros ──
+  'dash.pageIntro': string;
+  'pnl.pageIntro': string;
+  'sc.pageIntro': string;
+  'capex.pageIntro': string;
+  'sens.pageIntro': string;
+  'opco.pageIntro': string;
+  'team.pageIntro': string;
+  'returns.pageIntro': string;
+  'dc.pageIntro': string;
+  'financing.pageIntro': string;
+  'ct.pageIntro': string;
+  'lex.pageIntro': string;
+  'as.pageIntro': string;
+  'bank.pageIntro': string;
+
+  // ── Auth Gate / Login ──
+  'auth.gate.loading': string;
+  'auth.pending.title': string;
+  'auth.pending.body': string;
+  'auth.pending.signOut': string;
+  'auth.notFound.title': string;
+  'auth.notFound.body': string;
+  'auth.login.googleBtn': string;
+  'auth.login.orDivider': string;
+  'auth.login.emailPlaceholder': string;
+  'auth.login.passwordPlaceholder': string;
+  'auth.login.signInBtn': string;
+  'auth.login.signUpBtn': string;
+  'auth.login.toggleToSignUp': string;
+  'auth.login.toggleToSignIn': string;
+  'auth.login.displayNamePlaceholder': string;
+  'auth.login.confirmPasswordPlaceholder': string;
+  'auth.login.passwordMismatch': string;
+  'auth.error.invalidCredentials': string;
+  'auth.error.emailInUse': string;
+  'auth.error.tooManyRequests': string;
+  'auth.error.cancelled': string;
+  'auth.error.unknown': string;
+
+  // ── Team page ──
+  'team.title': string;
+  'team.subtitle': string;
+  'team.sendInvite': string;
+  'team.emailLabel': string;
+  'team.emailNote': string;
+  'team.roleLabel': string;
+  'team.roleNote': string;
+  'team.noteLabel': string;
+  'team.noteOptional': string;
+  'team.sendBtn': string;
+  'team.sending': string;
+  'team.inviteCreated': string;
+  'team.peopleWithAccess': string;
+  'team.loadingUsers': string;
+  'team.noUsers': string;
+  'team.colEmail': string;
+  'team.colRole': string;
+  'team.colJoined': string;
+  'team.colLastSignIn': string;
+  'team.consoleNote': string;
+  'team.signInPrompt': string;
+  'team.restricted': string;
+  'team.notInvited': string;
+  'team.loading': string;
+  // ── Team page — approval ──
+  'team.pendingApprovals': string;
+  'team.noPendingUsers': string;
+  'team.approveBtn': string;
+  'team.revokeBtn': string;
+  'team.denyBtn': string;
+  'team.statusPending': string;
+  'team.statusApproved': string;
+  'team.colStatus': string;
+
+  // ── Conservative Assumptions Memo ──
+  'memo.buttonLabel': string;
+  'memo.back': string;
+  'memo.pageTitle': string;
+  'memo.subtitle': string;
+  'memo.execSummary': string;
+  'memo.whatThisMeans': string;
+  'memo.compTableTitle': string;
+  'memo.compTableSubtitle': string;
+  'memo.compTableNote': string;
+  'memo.confidential': string;
+  'memo.s1': string;
+  'memo.s2': string;
+  'memo.s3': string;
+  'memo.s4': string;
+  'memo.s5': string;
+  'memo.s6': string;
+  'memo.s7': string;
+  'memo.s8': string;
+  'memo.s9': string;
+  'memo.s10': string;
+  'memo.execBody': string;
+  'memo.s1b1': string; 'memo.s1b1r': string;
+  'memo.s1b2': string; 'memo.s1b2r': string;
+  'memo.s1b3': string; 'memo.s1b3r': string;
+  'memo.s2b1': string; 'memo.s2b1r': string;
+  'memo.s2b2': string; 'memo.s2b2r': string;
+  'memo.s2b3': string; 'memo.s2b3r': string;
+  'memo.s3b1': string; 'memo.s3b1r': string;
+  'memo.s3b2': string; 'memo.s3b2r': string;
+  'memo.s3b3': string; 'memo.s3b3r': string;
+  'memo.s4b1': string; 'memo.s4b1r': string;
+  'memo.s4b2': string; 'memo.s4b2r': string;
+  'memo.s5b1': string; 'memo.s5b1r': string;
+  'memo.s6b1': string; 'memo.s6b1r': string;
+  'memo.s6b2': string; 'memo.s6b2r': string;
+  'memo.s7b1': string; 'memo.s7b1r': string;
+  'memo.s7b2': string; 'memo.s7b2r': string;
+  'memo.s7b3': string; 'memo.s7b3r': string;
+  'memo.s8b1': string; 'memo.s8b1r': string;
+  'memo.s8b2': string; 'memo.s8b2r': string;
+  'memo.s9b1': string; 'memo.s9b1r': string;
+  'memo.s9b2': string; 'memo.s9b2r': string;
+  'memo.s9b3': string; 'memo.s9b3r': string;
+  'memo.s9b4': string; 'memo.s9b4r': string;
+  'memo.tCol1': string; 'memo.tCol2': string; 'memo.tCol3': string; 'memo.tCol4': string; 'memo.tCol5': string;
+  'memo.tRow1': string; 'memo.tRow2': string; 'memo.tRow3': string; 'memo.tRow4': string;
+  'memo.tRow5': string; 'memo.tRow6': string; 'memo.tRow7': string; 'memo.tRow8': string;
+  'memo.conc1': string;
+  'memo.conc2': string;
+  'memo.conc3': string;
+  // ── Custom OPEX / CAPEX lines on property templates ──
+  'tpl.addOpexLine': string;
+  'tpl.removeOpexLine': string;
+  'tpl.addCapexLine': string;
+  'tpl.removeCapexLine': string;
+  'tpl.opexLineName': string;
+  'tpl.capexLineName': string;
+
+  // ── /admin/presentation ──
+  'presentation.exportDocx': string;
+  'presentation.print': string;
+  'presentation.confidential': string;
+  'presentation.loading': string;
+  // Section headings
+  'presentation.s0.title': string;
+  'presentation.s0.subtitle': string;
+  'presentation.s1.title': string;
+  'presentation.s1.eyebrow': string;
+  'presentation.s2.title': string;
+  'presentation.s2.eyebrow': string;
+  'presentation.s3.title': string;
+  'presentation.s3.eyebrow': string;
+  'presentation.s4.title': string;
+  'presentation.s4.eyebrow': string;
+  'presentation.s5.title': string;
+  'presentation.s5.eyebrow': string;
+  'presentation.s6.title': string;
+  'presentation.s6.eyebrow': string;
+  'presentation.s7.title': string;
+  'presentation.s7.eyebrow': string;
+  'presentation.s8.title': string;
+  'presentation.s8.eyebrow': string;
+  'presentation.s9.title': string;
+  'presentation.s9.eyebrow': string;
+  'presentation.s10.title': string;
+  'presentation.s10.eyebrow': string;
+  'presentation.s11.title': string;
+  'presentation.s11.eyebrow': string;
+  // Cover KPI tile labels
+  'presentation.kpi.totalCapex': string;
+  'presentation.kpi.loanRequested': string;
+  'presentation.kpi.ltc': string;
+  'presentation.kpi.equityIRR': string;
+  'presentation.kpi.totalMoic': string;
+  'presentation.kpi.stabilisedDscr': string;
+  'presentation.kpi.assetCoverage': string;
+  // Exec summary prose keys
+  'presentation.s1.theProject': string;
+  'presentation.s1.whatWeBuilt': string;
+  'presentation.s1.whyNow': string;
+  'presentation.s1.financingRequested': string;
+  // Stress-test discipline keys
+  'presentation.s2.p1': string;
+  'presentation.s2.p2': string;
+  'presentation.s2.p3': string;
+  'presentation.s2.p4': string;
+  'presentation.s2.callout': string;
+  // Conclusion
+  'presentation.s11.closingProse': string;
+  'presentation.s11.callout': string;
+  // OPEX overlay badge
+  'presentation.opexContingencyBadge': string;
 }
