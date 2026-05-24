@@ -26,7 +26,10 @@ const firebaseConfig = {
 // these in sync. Both apps share Firebase project `villa-lev-admin`, so a
 // Google sign-in here resolves to the same UID/email the ops rules grant
 // admin to. Lower-cased on compare to match the ops app's `.toLowerCase()`.
-export const ADMIN_EMAILS = ['eytancohen5@gmail.com'] as const;
+const adminEmailsRaw = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? '';
+export const ADMIN_EMAILS: readonly string[] = adminEmailsRaw
+  ? adminEmailsRaw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean)
+  : ((() => { if (typeof window === 'undefined') console.warn('[firebase] NEXT_PUBLIC_ADMIN_EMAIL not set — admin access disabled'); return []; })());
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
