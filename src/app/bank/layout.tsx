@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { useModelStore } from "@/lib/store/modelStore";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
+import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
-  const { init, setViewModeOverride, setFinancingPathOverride } = useModelStore();
+  const { init, setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest } = useModelStore();
+  useReferenceScenarioAutoLoad();
   // Freshness banner: mirrors the same guard in /admin/layout.tsx. When the
   // Firestore subscription returns nothing (or shape-mismatches), the hook
   // falls back to the static snapshot in currentVillaActuals.ts. Surface that
@@ -30,11 +33,13 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
   // admin surface from it.
   useEffect(() => {
     setViewModeOverride('bank');
+    initStressTestOverrides();
     return () => {
       setViewModeOverride(null);
       setFinancingPathOverride(null);
+      deactivateStressTest();
     };
-  }, [setViewModeOverride, setFinancingPathOverride]);
+  }, [setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest]);
 
   return (
     <div className="min-h-screen bg-surface-primary">
@@ -65,6 +70,7 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
         </div>
       )}
       {children}
+      {/* <AssumptionsMemoButton /> */}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { TranslationDictionary } from "@/lib/i18n/types";
@@ -52,60 +52,42 @@ function formatDisplay(val: number, type: InputDef["type"]): string {
 
 export function BankStressTest() {
   const { t } = useTranslation();
-  const { assumptions, setAssumption, activeScenario, activeConfigId } = useModelStore();
+  const {
+    assumptions,
+    stressTestOverrides,
+    setStressTestOverride,
+    clearAllStressTestOverrides,
+    activeScenario,
+  } = useModelStore();
   const [open, setOpen] = useState(true);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
-  // Track previous activeConfigId so the baseline-capture effect can distinguish
-  // a real config LOAD (null → id, or id → id) from an assumption edit that merely
-  // clears it (non-null → null). The latter must not reset the baseline.
-  const prevConfigId = useRef<string | null>(activeConfigId);
 
-  // Inputs change when activeScenario changes (upside uses revenueUpside.* paths).
-  // t is stable across renders within the same locale; re-build when locale changes.
+  // Inputs depend on the active scenario (upside uses revenueUpside.* paths).
   const INPUTS = useMemo(() => buildInputs(activeScenario, t), [activeScenario, t]);
 
-  // Snapshot the scenario's values as the "base case" the banker stress-tests against.
-  // Resets when the active scenario or loaded config changes so "Base:" labels always
-  // reflect what was actually loaded, not a stale mount-time capture.
-  const [baseline, setBaseline] = useState<Record<string, number>>(() => {
-    const b: Record<string, number> = {};
-    INPUTS.forEach((inp) => {
-      const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
-      b[inp.path] = typeof v === "number" ? v : 0;
-    });
-    return b;
-  });
-
+  // Clear in-flight typed text when the scenario pill changes.
   useEffect(() => {
-    // setAssumption() always sets activeConfigId → null to mark assumptions as dirty.
-    // That transition (non-null → null) must NOT reset the baseline — the stress-test
-    // edit IS the deviation we want to show. Only re-capture on:
-    //   • scenario-pill change (activeScenario changed), or
-    //   • upside / non-upside flip (INPUTS reference changed), or
-    //   • a real config LOAD (activeConfigId changed to a non-null value).
-    const wasJustDirtied = prevConfigId.current !== null && activeConfigId === null;
-    prevConfigId.current = activeConfigId;
-    if (wasJustDirtied) return;
-
-    const b: Record<string, number> = {};
-    INPUTS.forEach((inp) => {
-      const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
-      b[inp.path] = typeof v === "number" ? v : 0;
-    });
-    setBaseline(b);
     setLocalValues({});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [INPUTS, activeConfigId, activeScenario]);
+  }, [activeScenario]);
+
+  // "Base:" is always the clean assumption value — never the overridden value.
+  const getBaseNum = (inp: InputDef): number => {
+    const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
+    return typeof v === "number" ? v : 0;
+  };
+
+  // Current effective value: override if set, otherwise assumption.
+  const getValue = useCallback((inp: InputDef): number => {
+    const ov = stressTestOverrides?.[inp.path];
+    if (ov !== undefined) return ov;
+    const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
+    return typeof v === "number" ? v : 0;
+  }, [assumptions, stressTestOverrides]);
 
   const hasOverrides = INPUTS.some((inp) => {
-    const current = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
-    return current !== baseline[inp.path];
+    const ov = stressTestOverrides?.[inp.path];
+    return ov !== undefined && ov !== getBaseNum(inp);
   });
-
-  const getValue = useCallback((inp: InputDef): number => {
-    const val = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
-    return typeof val === "number" ? val : 0;
-  }, [assumptions]);
 
   const handleBlur = useCallback((inp: InputDef, raw: string) => {
     const parsed = parseFloat(raw.replace(/[^0-9.-]/g, ""));
@@ -115,13 +97,13 @@ export function BankStressTest() {
       Math.max(actual, inp.min ?? -Infinity),
       inp.max ?? Infinity,
     );
-    setAssumption(inp.path, clamped, inp.historyLabel);
+    setStressTestOverride(inp.path, clamped);
     setLocalValues((prev) => {
       const next = { ...prev };
       delete next[inp.path];
       return next;
     });
-  }, [setAssumption]);
+  }, [setStressTestOverride]);
 
   const displayValue = (inp: InputDef): string => {
     if (inp.path in localValues) return localValues[inp.path];
@@ -131,10 +113,7 @@ export function BankStressTest() {
     return String(Math.round(v));
   };
 
-  const baseValue = (inp: InputDef): string => {
-    const v = baseline[inp.path];
-    return typeof v === "number" ? formatDisplay(v, inp.type) : "—";
-  };
+  const baseValue = (inp: InputDef): string => formatDisplay(getBaseNum(inp), inp.type);
 
   return (
     <div className="rounded-2xl border border-brand-200 bg-brand-50/30 overflow-hidden">
@@ -167,7 +146,7 @@ export function BankStressTest() {
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {INPUTS.map((inp) => {
               const current = getValue(inp);
-              const changed = current !== baseline[inp.path];
+              const changed = stressTestOverrides?.[inp.path] !== undefined && current !== getBaseNum(inp);
               return (
                 <div key={inp.path} className={`rounded-xl border p-3 ${changed ? "border-warning/50 bg-warning/5" : "border-surface-tertiary bg-white"}`}>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
@@ -209,9 +188,7 @@ export function BankStressTest() {
               <button
                 onClick={() => {
                   setLocalValues({});
-                  INPUTS.forEach((inp) => {
-                    setAssumption(inp.path, baseline[inp.path], inp.historyLabel);
-                  });
+                  clearAllStressTestOverrides();
                 }}
                 className="px-4 py-2 rounded-xl border border-negative/40 text-negative text-sm font-medium hover:bg-negative/5 transition-colors"
               >

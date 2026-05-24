@@ -727,6 +727,17 @@ interface ModelStore {
   financingPathOverride: FinancingPathOverride;
   setFinancingPathOverride: (path: FinancingPathOverride) => void;
 
+  // Ephemeral stress-test overrides for the /bank view. Applied on top of
+  // assumptions inside recompute() but never written to localStorage or the
+  // assumptions slice. null = inactive (admin view); {} = active but unedited;
+  // { path: value } = banker has tweaked that field. Cleared on layout unmount
+  // so navigating back to /admin always shows the clean model.
+  stressTestOverrides: Record<string, number> | null;
+  initStressTestOverrides: () => void;
+  setStressTestOverride: (path: string, value: number) => void;
+  clearAllStressTestOverrides: () => void;
+  deactivateStressTest: () => void;
+
   // Templates & Projects
   templates: PropertyTemplate[];
   projects: ProjectAllocation[];
@@ -798,6 +809,14 @@ interface ModelStore {
   addCustomSpace: (tplId: string) => void;
   updateCustomSpace: (tplId: string, csId: string, key: 'name' | 'area', value: string | number) => void;
   removeCustomSpace: (tplId: string, csId: string) => void;
+  // Extra annual OPEX lines (fold into P&L opex)
+  addOpexLine: (tplId: string) => void;
+  removeOpexLine: (tplId: string, lineId: string) => void;
+  updateOpexLine: (tplId: string, lineId: string, key: 'name' | 'value', value: string | number) => void;
+  // Extra one-off CAPEX lines (fold into capex totals and export)
+  addCapexLine: (tplId: string) => void;
+  removeCapexLine: (tplId: string, lineId: string) => void;
+  updateCapexLine: (tplId: string, lineId: string, key: 'name' | 'cost', value: string | number) => void;
   // Per-villa interior rooms (bedrooms, bathrooms, etc. inside one villa)
   addVillaRoom: (tplId: string) => void;
   updateVillaRoom: (tplId: string, roomId: string, key: 'name' | 'count' | 'area', value: string | number) => void;
@@ -823,6 +842,12 @@ interface ModelStore {
   deleteConfig: (id: string) => Promise<void>;
   renameConfig: (id: string, newName: string) => Promise<void>;
   importConfigs: (incoming: SavedConfiguration[]) => { added: number; updated: number };
+
+  // Reference-scenario auto-load flag. Set to true once the shared hook has
+  // attempted an auto-load (successful or not). Survives client-side route
+  // changes within the session. NOT reset by resetToDefaults — after a reset
+  // the user wants BASE_CASE, not an auto-reload of the reference scenario.
+  referenceAutoLoadAttempted: boolean;
 
   // ── Auth identity bridge (sharing extension) ──
   // useAuth/useEffectiveAuth lives in React-land; the store is plain TS.
@@ -889,6 +914,25 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     set({ financingPathOverride: path });
     get().recompute();
   },
+
+  stressTestOverrides: null,
+  initStressTestOverrides: () => {
+    set({ stressTestOverrides: {} });
+    // No recompute: empty overrides have no effect on the model.
+  },
+  setStressTestOverride: (path: string, value: number) => {
+    const current = get().stressTestOverrides ?? {};
+    set({ stressTestOverrides: { ...current, [path]: value } });
+    get().recompute();
+  },
+  clearAllStressTestOverrides: () => {
+    set({ stressTestOverrides: {} });
+    get().recompute();
+  },
+  deactivateStressTest: () => {
+    set({ stressTestOverrides: null });
+    get().recompute();
+  },
   templates: [...BUILT_IN_TEMPLATES],
   projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
   savedConfigs: [],
@@ -908,6 +952,8 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   capTable: DEFAULT_CAP_TABLE.map((sh) => ({ ...sh })),
   waterfall: { ...DEFAULT_WATERFALL },
+
+  referenceAutoLoadAttempted: false,
 
   // Auth identity bridge — populated by an effect in ConfigPanel from
   // useEffectiveAuth. Default null on the server (SSR) and pre-mount.
@@ -1190,6 +1236,16 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // is never affected.
     if (state.financingPathOverride !== null) {
       assumptions = { ...assumptions, financingPath: state.financingPathOverride as FinancingPath };
+    }
+    // Apply ephemeral stress-test overrides (bank view only — never persisted).
+    if (state.stressTestOverrides !== null) {
+      for (const [path, value] of Object.entries(state.stressTestOverrides)) {
+        assumptions = setNestedValue(
+          assumptions as unknown as Record<string, unknown>,
+          path,
+          value
+        ) as unknown as ModelAssumptions;
+      }
     }
     // Apply viewMode override (banker routes, admin toggle, banker
     // impersonation). When null we fall through to assumptions.viewMode
@@ -1537,6 +1593,92 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       const rooms = tpl.roomAreas ?? { ...DEFAULT_ROOM_AREAS };
       const customSpaces = (rooms.customSpaces ?? []).filter((c) => c.id !== csId);
       return { ...tpl, roomAreas: { ...rooms, customSpaces } };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  // ── Extra OPEX Lines ──
+
+  addOpexLine: (tplId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraOpexLines = [
+        ...(tpl.extraOpexLines ?? []),
+        { id: generateId('opex-line'), name: '', value: 0 },
+      ];
+      return { ...tpl, extraOpexLines };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removeOpexLine: (tplId: string, lineId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraOpexLines = (tpl.extraOpexLines ?? []).filter((l) => l.id !== lineId);
+      return { ...tpl, extraOpexLines };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updateOpexLine: (tplId: string, lineId: string, key: 'name' | 'value', value: string | number) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraOpexLines = (tpl.extraOpexLines ?? []).map((l) =>
+        l.id === lineId ? { ...l, [key]: value } : l
+      );
+      return { ...tpl, extraOpexLines };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  // ── Extra CAPEX Lines ──
+
+  addCapexLine: (tplId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraCapexLines = [
+        ...(tpl.extraCapexLines ?? []),
+        { id: generateId('capex-line'), name: '', cost: 0 },
+      ];
+      return { ...tpl, extraCapexLines };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removeCapexLine: (tplId: string, lineId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraCapexLines = (tpl.extraCapexLines ?? []).filter((l) => l.id !== lineId);
+      return { ...tpl, extraCapexLines };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updateCapexLine: (tplId: string, lineId: string, key: 'name' | 'cost', value: string | number) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const extraCapexLines = (tpl.extraCapexLines ?? []).map((l) =>
+        l.id === lineId ? { ...l, [key]: value } : l
+      );
+      return { ...tpl, extraCapexLines };
     });
     set({ templates, activeConfigId: null });
     saveTemplatesToStorage(templates);
