@@ -30,6 +30,9 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signOut as fbSignOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
   onAuthStateChanged,
   type User,
   type Unsubscribe,
@@ -38,7 +41,9 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { getAuthInstance, getDb, isAdminEmail, USERS_COLLECTION } from "@/lib/firebase";
 import {
   claimInvite,
+  selfRegister,
   isRole,
+  isStatus,
   normalizeEmail,
   type Role,
   type UserProfile,
@@ -57,10 +62,16 @@ export type AuthResult = {
   // ask Eytan for access." Distinct from `loading` (still resolving) and
   // from `user === null` (signed out).
   profileMissing: boolean;
+  // True iff the user is signed in, profile is loaded, and status is
+  // explicitly 'pending'. Undefined/missing status is treated as 'approved'.
+  // Only an explicit 'pending' value triggers the approval gate.
+  statusPending: boolean;
   // signIn / signOut throw on failure (popup blocked, network) so callers
   // can surface the error in their existing alert flow.
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
+  doSignInEmail: (email: string, password: string) => Promise<void>;
+  doSignUpEmail: (email: string, password: string, displayName?: string) => Promise<void>;
 };
 
 type Listener = () => void;
@@ -190,6 +201,10 @@ function startProfile(user: User) {
         invitedBy: (data.invitedBy as string | null) ?? null,
         lastSignInAt:
           typeof data.lastSignInAt === "number" ? data.lastSignInAt : null,
+        // BLOCKER-1 fix: read status from Firestore so statusPending works.
+        // isStatus() rejects any value other than 'pending' | 'approved'.
+        // undefined means no status field — treated as 'approved' everywhere.
+        status: isStatus(data.status) ? data.status : undefined,
       };
       emit({
         ...current,
@@ -308,6 +323,30 @@ function getServerSnapshot(): State {
   return SERVER_STATE;
 }
 
+// SHOULD-FIX-1: Map raw Firebase error codes to a small safe set so we
+// never leak user-enumeration signals (auth/user-not-found) or internal
+// details to the DOM. The safe code is thrown as an Error message and the
+// login page maps it to an i18n key before rendering.
+function toSafeAuthError(err: unknown): string {
+  const code = (err as { code?: string })?.code ?? '';
+  if (
+    code === 'auth/user-not-found' ||
+    code === 'auth/wrong-password' ||
+    code === 'auth/invalid-credential'
+  ) {
+    return 'auth/invalid-credentials';
+  }
+  if (code === 'auth/email-already-in-use') return 'auth/email-in-use';
+  if (code === 'auth/too-many-requests') return 'auth/too-many-requests';
+  if (
+    code === 'auth/popup-closed-by-user' ||
+    code === 'auth/cancelled-popup-request'
+  ) {
+    return 'auth/cancelled';
+  }
+  return 'auth/unknown';
+}
+
 async function doSignIn(): Promise<void> {
   const auth = getAuthInstance();
   if (!auth) throw new Error("Auth not available (SSR or Firebase not initialised)");
@@ -320,11 +359,11 @@ async function doSignIn(): Promise<void> {
   try {
     cred = await signInWithPopup(auth, provider);
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error("[useAuth.doSignIn] signInWithPopup failed:", err);
-    const code = (err as { code?: string })?.code ?? "unknown";
-    const msg = (err as Error)?.message ?? "no message";
-    throw new Error(`Google sign-in failed (${code}): ${msg}`);
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.error("[useAuth.doSignIn] signInWithPopup failed:", err);
+    }
+    throw new Error(toSafeAuthError(err));
   }
 
   // First attempt: claim an invite if one is pending. This converts an
@@ -334,24 +373,23 @@ async function doSignIn(): Promise<void> {
     try {
       const result = await claimInvite(cred.user, db);
       if (result.kind === "not-invited") {
-        // No users doc AND no invite. Allow if legacy admin, else sign back
-        // out with a clear error.
+        // No users doc AND no invite. Allow if legacy admin; otherwise
+        // self-register as pending — user stays signed in and AuthGate
+        // shows the pending screen. Do NOT sign them out.
         if (!isAdminEmail(cred.user.email)) {
-          await fbSignOut(auth);
-          throw new Error(
-            `${cred.user.email ?? "This account"} is not invited. Ask Eytan to send you an invite from /admin/team.`,
-          );
+          await selfRegister(cred.user, db);
+          // Profile snapshot will fire and set status:'pending', which
+          // causes statusPending=true and AuthGate to show the pending screen.
+          return;
         }
         // Legacy admin: useAuth will synthesise an admin profile via the
         // legacyAdminProfile() branch in startProfile().
       }
     } catch (err) {
-      // Re-throw "not invited" cleanly; for any other unexpected error
-      // during claimInvite we keep the user signed in if they're a legacy
-      // admin (Eytan), otherwise sign them out so they don't sit in a
-      // broken half-onboarded state.
+      // For any unexpected error during claimInvite/selfRegister we keep the
+      // user signed in if they're a legacy admin (Eytan), otherwise sign them
+      // out so they don't sit in a broken half-onboarded state.
       const msg = (err as Error)?.message ?? "";
-      if (msg.includes("is not invited")) throw err;
       if (!isAdminEmail(cred.user.email)) {
         await fbSignOut(auth);
         throw new Error(
@@ -366,6 +404,77 @@ async function doSignOut(): Promise<void> {
   const auth = getAuthInstance();
   if (!auth) return;
   await fbSignOut(auth);
+}
+
+async function doSignInEmail(email: string, password: string): Promise<void> {
+  const auth = getAuthInstance();
+  if (!auth) throw new Error("Auth not available (SSR or Firebase not initialised)");
+  const db = getDb();
+  let cred;
+  try {
+    cred = await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    throw new Error(toSafeAuthError(err));
+  }
+  if (db) {
+    try {
+      const result = await claimInvite(cred.user, db);
+      if (result.kind === "not-invited") {
+        if (!isAdminEmail(cred.user.email)) {
+          // Self-register as pending — user stays signed in.
+          await selfRegister(cred.user, db);
+        }
+      }
+    } catch (err) {
+      const msg = (err as Error)?.message ?? "";
+      if (!isAdminEmail(cred.user.email)) {
+        await fbSignOut(auth);
+        throw new Error(
+          `Sign-in succeeded but onboarding failed: ${msg || "unknown error"}. Try again or ask Eytan.`,
+        );
+      }
+    }
+  }
+}
+
+async function doSignUpEmail(
+  email: string,
+  password: string,
+  displayName?: string,
+): Promise<void> {
+  const auth = getAuthInstance();
+  if (!auth) throw new Error("Auth not available (SSR or Firebase not initialised)");
+  const db = getDb();
+  // Note: if this email is already registered under a different provider
+  // (e.g. Google), Firebase creates a separate UID. Cross-provider linking
+  // is out of scope; both accounts will appear separately in the approval
+  // queue. The admin can deny the duplicate from /admin/team.
+  let cred;
+  try {
+    cred = await createUserWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    throw new Error(toSafeAuthError(err));
+  }
+  if (displayName) {
+    try {
+      await updateProfile(cred.user, { displayName });
+    } catch {
+      // Non-fatal — displayName is cosmetic; proceed with registration.
+    }
+  }
+  if (db) {
+    try {
+      await selfRegister(cred.user, db);
+    } catch (err) {
+      const msg = (err as Error)?.message ?? "";
+      // Non-fatal for the auth itself — the user is signed in; the
+      // Firestore write will be retried when the onSnapshot fires.
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn("[useAuth.doSignUpEmail] selfRegister failed:", msg);
+      }
+    }
+  }
 }
 
 export function useAuth(): AuthResult {
@@ -390,6 +499,14 @@ export function useAuth(): AuthResult {
     state.profileReady &&
     state.profile === null;
 
+  // statusPending: signed in, profile loaded, and status is EXPLICITLY
+  // 'pending'. undefined/missing status is treated as 'approved'.
+  const statusPending =
+    state.user !== null &&
+    state.profileReady &&
+    state.profile != null &&
+    state.profile.status === 'pending';
+
   return {
     user: state.user,
     role,
@@ -399,7 +516,10 @@ export function useAuth(): AuthResult {
     canView,
     loading,
     profileMissing,
+    statusPending,
     signIn: doSignIn,
     signOut: doSignOut,
+    doSignInEmail,
+    doSignUpEmail,
   };
 }
