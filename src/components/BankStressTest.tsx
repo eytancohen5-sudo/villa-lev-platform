@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { TranslationDictionary } from "@/lib/i18n/types";
@@ -55,6 +55,10 @@ export function BankStressTest() {
   const { assumptions, setAssumption, activeScenario, activeConfigId } = useModelStore();
   const [open, setOpen] = useState(true);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
+  // Track previous activeConfigId so the baseline-capture effect can distinguish
+  // a real config LOAD (null → id, or id → id) from an assumption edit that merely
+  // clears it (non-null → null). The latter must not reset the baseline.
+  const prevConfigId = useRef<string | null>(activeConfigId);
 
   // Inputs change when activeScenario changes (upside uses revenueUpside.* paths).
   // t is stable across renders within the same locale; re-build when locale changes.
@@ -73,6 +77,16 @@ export function BankStressTest() {
   });
 
   useEffect(() => {
+    // setAssumption() always sets activeConfigId → null to mark assumptions as dirty.
+    // That transition (non-null → null) must NOT reset the baseline — the stress-test
+    // edit IS the deviation we want to show. Only re-capture on:
+    //   • scenario-pill change (activeScenario changed), or
+    //   • upside / non-upside flip (INPUTS reference changed), or
+    //   • a real config LOAD (activeConfigId changed to a non-null value).
+    const wasJustDirtied = prevConfigId.current !== null && activeConfigId === null;
+    prevConfigId.current = activeConfigId;
+    if (wasJustDirtied) return;
+
     const b: Record<string, number> = {};
     INPUTS.forEach((inp) => {
       const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
@@ -80,11 +94,6 @@ export function BankStressTest() {
     });
     setBaseline(b);
     setLocalValues({});
-  // INPUTS reference changes only when the scenario flips between upside and the rest
-  // (because buildInputs branches on 'upside'). activeScenario is added explicitly so
-  // switching among realistic/downside/breakeven — where INPUTS is stable — still
-  // re-captures the baseline. activeConfigId captures config-load events where INPUTS
-  // stays the same but assumptions are replaced.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [INPUTS, activeConfigId, activeScenario]);
 
