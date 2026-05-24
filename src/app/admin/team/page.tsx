@@ -1,19 +1,13 @@
-// Team management — MVP for tonight's RBAC ship.
+// Team management — RBAC invite flow + approval gate.
 //
-// Scope (per plan-challenger NICE-TO-HAVE #9 + task constraint #8):
+// Scope:
 //   - Invite form: writes invites/{lowercased-email} with chosen role.
-//   - Read-only list of existing users/{*} so Eytan can see who's onboarded.
-//
-// Deferred to a follow-up pass:
-//   - Per-row role edit. Eytan uses the Firebase Console for tonight.
-//   - Per-row remove. Same.
-//   - Pending-invites list. Easy to add later — the data is already there.
+//   - Pending approvals: self-registered users awaiting Eytan's approval.
+//   - Approved users list: people who currently have access, with revoke.
 //
 // Gating:
-//   - The whole page is admin-only. `canView` would over-share (editors and
-//     viewers don't need to see the roster).
-//   - Loading state holds the gate until BOTH auth and profile have fired
-//     (see useAuth.ts loading-gate contract — BLOCKER #6).
+//   - The whole page is admin-only.
+//   - Loading state holds the gate until BOTH auth and profile have fired.
 
 "use client";
 
@@ -35,12 +29,21 @@ import {
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import {
   normalizeEmail,
+  approveUser,
+  revokeUser,
+  denyUser,
   type Role,
   type UserProfile,
+  type UserStatus,
   ROLES,
 } from "@/lib/data/userProfile";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { TEAM_TOUR } from "@/lib/tours/configs";
+import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { SectionHeader } from "@/components/AdminUI";
+
+// Extended profile row that includes the approval-gate status field.
+type UserRow = UserProfile & { status?: UserStatus };
 
 function RoleBadge({ role }: { role: Role }) {
   const cls =
@@ -77,9 +80,10 @@ export default function TeamPage() {
   // Impersonation-aware: View-As as editor/viewer/banker collapses the
   // admin-only UI to the "restricted" message. `user` still references
   // the real Firebase user so the invite-write below works.
+  const { t } = useTranslation();
   const { user, isAdmin, loading, profileMissing } = useEffectiveAuth();
 
-  const [users, setUsers] = useState<UserProfile[] | null>(null);
+  const [users, setUsers] = useState<UserRow[] | null>(null);
   const [usersError, setUsersError] = useState<string | null>(null);
 
   const [emailInput, setEmailInput] = useState("");
@@ -91,12 +95,9 @@ export default function TeamPage() {
   // Live users list. We only subscribe when the caller is admin — rules
   // would reject a non-admin read anyway, but skipping the subscription
   // saves a noisy permission-denied in the console for editors/viewers
-  // who navigate here directly. Non-admin renders read `null` via the
-  // initial useState value; we do NOT setState() synchronously inside the
-  // effect (React 19 strict-mode flags that as a cascading render anti-
-  // pattern — see eslint react-hooks/set-state-in-effect).
+  // who navigate here directly.
   useEffect(() => {
-    if (!isAdmin) return; // users stays at its previous value (null on first load)
+    if (!isAdmin) return;
     const db = getDb();
     if (!db) return;
     const q = query(collection(db, USERS_COLLECTION), orderBy("createdAt", "asc"));
@@ -104,7 +105,7 @@ export default function TeamPage() {
     unsub = onSnapshot(
       q,
       (snap) => {
-        const rows: UserProfile[] = [];
+        const rows: UserRow[] = [];
         snap.forEach((d) => {
           const data = d.data();
           if (
@@ -126,6 +127,7 @@ export default function TeamPage() {
               typeof data.invitedBy === "string" ? data.invitedBy : null,
             lastSignInAt:
               typeof data.lastSignInAt === "number" ? data.lastSignInAt : null,
+            status: data.status === "pending" ? "pending" : data.status === "approved" ? "approved" : undefined,
           });
         });
         setUsers(rows);
@@ -140,9 +142,20 @@ export default function TeamPage() {
     };
   }, [isAdmin]);
 
-  const sortedUsers = useMemo(() => {
-    if (!users) return null;
-    return [...users].sort((a, b) => a.createdAt - b.createdAt);
+  // Split users into pending and approved buckets.
+  const pendingUsers = useMemo(() => {
+    if (!users) return [];
+    return [...users]
+      .filter((u) => u.status === "pending")
+      .sort((a, b) => a.createdAt - b.createdAt);
+  }, [users]);
+
+  const approvedUsers = useMemo(() => {
+    if (!users) return [];
+    // Approved = status explicitly 'approved' OR no status field (legacy).
+    return [...users]
+      .filter((u) => u.status !== "pending")
+      .sort((a, b) => a.createdAt - b.createdAt);
   }, [users]);
 
   const handleInvite = async (e: React.FormEvent) => {
@@ -152,7 +165,6 @@ export default function TeamPage() {
       setFormState({ kind: "error", message: "Email is required." });
       return;
     }
-    // Cheap shape check — Firestore rules don't validate email syntax.
     if (!email.includes("@") || email.length < 5) {
       setFormState({ kind: "error", message: "That doesn't look like a valid email." });
       return;
@@ -183,12 +195,42 @@ export default function TeamPage() {
     }
   };
 
+  const handleApprove = async (targetUid: string) => {
+    const db = getDb();
+    if (!db || !user) return;
+    try {
+      await approveUser(user.uid, targetUid, db);
+    } catch (err) {
+      setUsersError((err as Error)?.message ?? "Failed to approve user.");
+    }
+  };
+
+  const handleDeny = async (targetUid: string) => {
+    const db = getDb();
+    if (!db) return;
+    try {
+      await denyUser(targetUid, db);
+    } catch (err) {
+      setUsersError((err as Error)?.message ?? "Failed to deny user.");
+    }
+  };
+
+  const handleRevoke = async (targetUid: string) => {
+    const db = getDb();
+    if (!db || !user) return;
+    try {
+      await revokeUser(user.uid, targetUid, db);
+    } catch (err) {
+      setUsersError((err as Error)?.message ?? "Failed to revoke access.");
+    }
+  };
+
   // ── Gating UI ──────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="max-w-3xl">
-        <div className="text-sm text-text-tertiary">Loading…</div>
+        <div className="text-sm text-text-tertiary">{t('team.loading')}</div>
       </div>
     );
   }
@@ -196,9 +238,9 @@ export default function TeamPage() {
   if (!user) {
     return (
       <div className="max-w-3xl">
-        <h1 className="font-display text-2xl text-text-primary mb-2">Team</h1>
+        <h1 className="font-display text-2xl text-text-primary mb-2">{t('team.title')}</h1>
         <p className="text-sm text-text-secondary">
-          Sign in from <a className="underline" href="/admin/assumptions">/admin/assumptions</a> to manage the team.
+          {t('team.signInPrompt')}
         </p>
       </div>
     );
@@ -207,11 +249,9 @@ export default function TeamPage() {
   if (profileMissing || !isAdmin) {
     return (
       <div className="max-w-3xl">
-        <h1 className="font-display text-2xl text-text-primary mb-2">Team</h1>
+        <h1 className="font-display text-2xl text-text-primary mb-2">{t('team.title')}</h1>
         <p className="text-sm text-text-secondary">
-          {profileMissing
-            ? "You're signed in but not invited. Ask Eytan to send an invite."
-            : "Team management is restricted to admins."}
+          {profileMissing ? t('team.notInvited') : t('team.restricted')}
         </p>
       </div>
     );
@@ -223,23 +263,80 @@ export default function TeamPage() {
     <div className="max-w-3xl space-y-8">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">Team</h1>
+          <h1 className="font-display text-2xl text-text-primary">{t('team.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('team.pageIntro')}</p>
           <p className="text-sm text-text-tertiary mt-1">
-            Invite people and review who has access to the model.
+            {t('team.subtitle')}
           </p>
         </div>
         <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
       </div>
 
+      {/* Pending approvals */}
+      <section className="bg-white rounded-xl border border-surface-tertiary p-6">
+        <SectionHeader title={t('team.pendingApprovals')} />
+        {usersError && (
+          <p className="text-xs text-warning mb-2">{usersError}</p>
+        )}
+        {!users ? (
+          <p className="text-sm text-text-tertiary">{t('team.loadingUsers')}</p>
+        ) : pendingUsers.length === 0 ? (
+          <p className="text-sm text-text-tertiary">{t('team.noPendingUsers')}</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-tertiary">
+                <th className="py-2 pr-3 font-medium">{t('team.colEmail')}</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colJoined')}</th>
+                <th className="py-2 pr-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {pendingUsers.map((u) => (
+                <tr key={u.uid} className="border-b border-surface-tertiary/50">
+                  <td className="py-2 pr-3 text-text-primary">
+                    {u.email || <span className="text-text-tertiary">(no email)</span>}
+                    {u.displayName && (
+                      <span className="block text-[11px] text-text-tertiary">
+                        {u.displayName}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-3 text-text-secondary">
+                    {formatDate(u.createdAt)}
+                  </td>
+                  <td className="py-2 pr-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleApprove(u.uid)}
+                        className="px-2.5 py-1 rounded-md bg-positive text-white text-[11px] font-medium hover:opacity-90 transition-opacity"
+                      >
+                        {t('team.approveBtn')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeny(u.uid)}
+                        className="px-2.5 py-1 rounded-md bg-surface-secondary text-text-secondary text-[11px] font-medium hover:bg-warning/10 hover:text-warning transition-colors"
+                      >
+                        {t('team.denyBtn')}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       {/* Invite form */}
-      <section className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-4">
-          Send an invite
-        </h2>
+      <section className="bg-white rounded-xl border border-surface-tertiary p-6">
+        <SectionHeader title={t('team.sendInvite')} />
         <form onSubmit={handleInvite} className="space-y-4">
           <div>
             <label className="block text-xs text-text-secondary mb-1" htmlFor="invite-email">
-              Email
+              {t('team.emailLabel')}
             </label>
             <input
               id="invite-email"
@@ -251,12 +348,12 @@ export default function TeamPage() {
               className="w-full px-3 py-2 text-sm rounded-lg border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
             />
             <p className="mt-1 text-[11px] text-text-tertiary">
-              Stored lower-cased; case in the input is ignored when they sign in.
+              {t('team.emailNote')}
             </p>
           </div>
           <div>
             <label className="block text-xs text-text-secondary mb-1" htmlFor="invite-role">
-              Role
+              {t('team.roleLabel')}
             </label>
             <select
               id="invite-role"
@@ -271,12 +368,12 @@ export default function TeamPage() {
               ))}
             </select>
             <p className="mt-1 text-[11px] text-text-tertiary">
-              admin: full access incl. team management. editor: save/edit scenarios. viewer: read only.
+              {t('team.roleNote')}
             </p>
           </div>
           <div>
             <label className="block text-xs text-text-secondary mb-1" htmlFor="invite-note">
-              Note <span className="text-text-tertiary">(optional)</span>
+              {t('team.noteLabel')} <span className="text-text-tertiary">{t('team.noteOptional')}</span>
             </label>
             <input
               id="invite-note"
@@ -293,11 +390,11 @@ export default function TeamPage() {
               disabled={formState.kind === "submitting"}
               className="px-4 py-2 rounded-lg bg-brand-700 text-white text-sm font-medium hover:bg-brand-800 disabled:opacity-50"
             >
-              {formState.kind === "submitting" ? "Sending…" : "Send invite"}
+              {formState.kind === "submitting" ? t('team.sending') : t('team.sendBtn')}
             </button>
             {formState.kind === "success" && (
               <span className="text-xs text-positive">
-                Invite created for {formState.email}. Share the sign-in URL with them.
+                {t('team.inviteCreated').replace('{email}', formState.email)}
               </span>
             )}
             {formState.kind === "error" && (
@@ -307,32 +404,29 @@ export default function TeamPage() {
         </form>
       </section>
 
-      {/* Users list */}
-      <section className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary mb-4">
-          People with access
-        </h2>
-        {usersError && (
-          <p className="text-xs text-warning mb-2">{usersError}</p>
-        )}
-        {!sortedUsers ? (
-          <p className="text-sm text-text-tertiary">Loading users…</p>
-        ) : sortedUsers.length === 0 ? (
+      {/* Approved users list */}
+      <section className="bg-white rounded-xl border border-surface-tertiary p-6">
+        <SectionHeader title={t('team.peopleWithAccess')} />
+        {!users ? (
+          <p className="text-sm text-text-tertiary">{t('team.loadingUsers')}</p>
+        ) : approvedUsers.length === 0 ? (
           <p className="text-sm text-text-tertiary">
-            No users yet. Once an invite is claimed they&apos;ll appear here.
+            {t('team.noUsers')}
           </p>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-tertiary">
-                <th className="py-2 pr-3 font-medium">Email</th>
-                <th className="py-2 pr-3 font-medium">Role</th>
-                <th className="py-2 pr-3 font-medium">Joined</th>
-                <th className="py-2 pr-3 font-medium">Last sign-in</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colEmail')}</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colRole')}</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colStatus')}</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colJoined')}</th>
+                <th className="py-2 pr-3 font-medium">{t('team.colLastSignIn')}</th>
+                <th className="py-2 pr-3 font-medium" />
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.map((u) => (
+              {approvedUsers.map((u) => (
                 <tr key={u.uid} className="border-b border-surface-tertiary/50">
                   <td className="py-2 pr-3 text-text-primary">
                     {u.email || <span className="text-text-tertiary">(no email)</span>}
@@ -345,11 +439,28 @@ export default function TeamPage() {
                   <td className="py-2 pr-3">
                     <RoleBadge role={u.role} />
                   </td>
+                  <td className="py-2 pr-3">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-positive/10 text-positive">
+                      {t('team.statusApproved')}
+                    </span>
+                  </td>
                   <td className="py-2 pr-3 text-text-secondary">
                     {formatDate(u.createdAt)}
                   </td>
                   <td className="py-2 pr-3 text-text-secondary">
                     {formatDate(u.lastSignInAt)}
+                  </td>
+                  <td className="py-2 pr-3">
+                    {/* Don't show revoke for the current admin to prevent self-lock */}
+                    {u.uid !== user?.uid && (
+                      <button
+                        type="button"
+                        onClick={() => handleRevoke(u.uid)}
+                        className="px-2.5 py-1 rounded-md bg-surface-secondary text-text-secondary text-[11px] font-medium hover:bg-warning/10 hover:text-warning transition-colors"
+                      >
+                        {t('team.revokeBtn')}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -357,8 +468,7 @@ export default function TeamPage() {
           </table>
         )}
         <p className="mt-4 text-[11px] text-text-tertiary">
-          Per-row role changes and removal aren&apos;t shipped yet — use the Firebase Console at{" "}
-          <code className="font-mono">villa-lev-admin → Firestore → users</code> in the meantime.
+          {t('team.consoleNote')}
         </p>
       </section>
 

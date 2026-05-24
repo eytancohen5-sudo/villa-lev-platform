@@ -17,6 +17,9 @@
 import {
   doc,
   getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
   writeBatch,
   serverTimestamp,
   type Firestore,
@@ -31,6 +34,12 @@ export type Role = "admin" | "editor" | "viewer";
 
 export const ROLES: readonly Role[] = ["admin", "editor", "viewer"] as const;
 
+export type UserStatus = 'pending' | 'approved';
+
+export function isStatus(s: unknown): s is UserStatus {
+  return s === 'pending' || s === 'approved';
+}
+
 export type UserProfile = {
   uid: string;
   email: string; // always lower-cased — see normalizeEmail()
@@ -39,6 +48,13 @@ export type UserProfile = {
   createdAt: number; // ms epoch
   invitedBy: string | null; // uid of inviter, null for bootstrap admin
   lastSignInAt: number | null; // ms epoch
+  // Approval gate (optional — legacy users with no status field are treated
+  // as 'approved' everywhere; only explicit 'pending' blocks access).
+  status?: UserStatus;
+  approvedBy?: string | null;
+  approvedAt?: number | null;
+  revokedBy?: string | null;
+  revokedAt?: number | null;
 };
 
 export type Invite = {
@@ -168,6 +184,84 @@ export async function claimInvite(
   await batch.commit();
 
   return { kind: "created", profile: { ...newProfile, createdAt: now } };
+}
+
+// selfRegister — creates a pending users/{uid} doc for a user who signed in
+// without a matching invite. The doc shares the same field layout as the
+// claimInvite create path so both code paths produce identical schemas.
+//
+// Returns:
+//   { kind: 'created' }   — new pending doc written.
+//   { kind: 'existing', status } — users/{uid} already existed; caller can
+//                                  decide whether to surface the current status.
+export async function selfRegister(
+  authUser: User,
+  db: Firestore,
+): Promise<{ kind: 'created' } | { kind: 'existing'; status: UserStatus | undefined }> {
+  const uid = authUser.uid;
+  const email = normalizeEmail(authUser.email);
+  const userRef = doc(db, USERS_COLLECTION, uid);
+  const existingSnap = await getDoc(userRef);
+  if (existingSnap.exists()) {
+    const data = existingSnap.data();
+    const status = isStatus(data.status) ? data.status : undefined;
+    return { kind: 'existing', status };
+  }
+  const now = Date.now();
+  await setDoc(userRef, {
+    uid,
+    email,
+    displayName: authUser.displayName ?? null,
+    role: 'viewer' as Role,
+    createdAt: now,
+    invitedBy: null,
+    lastSignInAt: now,
+    status: 'pending' as UserStatus,
+  });
+  return { kind: 'created' };
+}
+
+// approveUser — sets status:'approved' on a pending user doc (admin action).
+// Uses updateDoc (partial update) — does NOT touch role, email, or any other field.
+export async function approveUser(
+  adminUid: string,
+  targetUid: string,
+  db: Firestore,
+): Promise<void> {
+  const userRef = doc(db, USERS_COLLECTION, targetUid);
+  await updateDoc(userRef, {
+    status: 'approved' as UserStatus,
+    approvedBy: adminUid,
+    approvedAt: Date.now(),
+  });
+}
+
+// revokeUser — sets status:'pending' on an approved user doc (admin action).
+// Uses updateDoc (partial update). The revoked user's live onSnapshot causes
+// AuthGate to show the pending screen within seconds. Firebase client SDK
+// cannot sign out another user's session — do NOT attempt fbSignOut here.
+export async function revokeUser(
+  adminUid: string,
+  targetUid: string,
+  db: Firestore,
+): Promise<void> {
+  const userRef = doc(db, USERS_COLLECTION, targetUid);
+  await updateDoc(userRef, {
+    status: 'pending' as UserStatus,
+    revokedBy: adminUid,
+    revokedAt: Date.now(),
+  });
+}
+
+// denyUser — deletes a pending (never-approved) user doc outright.
+// Used when Eytan clicks "Deny" on a self-registered user who has never
+// been approved. Different from revokeUser (which demotes approved→pending).
+export async function denyUser(
+  targetUid: string,
+  db: Firestore,
+): Promise<void> {
+  const userRef = doc(db, USERS_COLLECTION, targetUid);
+  await deleteDoc(userRef);
 }
 
 // serverTimestamp re-export so callers can use it for `lastSignInAt` self-
