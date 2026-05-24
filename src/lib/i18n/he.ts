@@ -249,6 +249,7 @@ export const he: TranslationDictionary = {
   'auth.error.emailInUse': 'קיים כבר חשבון עם כתובת האימייל הזו.',
   'auth.error.tooManyRequests': 'יותר מדי ניסיונות. אנא המתינו ונסו שוב.',
   'auth.error.cancelled': 'הכניסה בוטלה.',
+  'auth.error.popupBlocked': 'הכניסה עם Google נחסמה על ידי הדפדפן. אנא השתמשו באימייל וסיסמה.',
   'auth.error.unknown': 'הכניסה נכשלה. אנא נסו שוב.',
 
   // ── Team page ──

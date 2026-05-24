@@ -28,6 +28,7 @@ export default function AdminLoginPage() {
     if (msg.includes('auth/invalid-credentials')) return t('auth.error.invalidCredentials');
     if (msg.includes('auth/email-in-use')) return t('auth.error.emailInUse');
     if (msg.includes('auth/too-many-requests')) return t('auth.error.tooManyRequests');
+    if (msg.includes('auth/popup-blocked')) return t('auth.error.popupBlocked');
     if (msg.includes('auth/cancelled')) return t('auth.error.cancelled');
     return t('auth.error.unknown');
   }

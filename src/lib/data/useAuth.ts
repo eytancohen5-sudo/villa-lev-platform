@@ -344,6 +344,7 @@ function toSafeAuthError(err: unknown): string {
   ) {
     return 'auth/cancelled';
   }
+  if (code === 'auth/popup-blocked') return 'auth/popup-blocked';
   return 'auth/unknown';
 }
 

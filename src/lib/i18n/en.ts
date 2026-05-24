@@ -249,6 +249,7 @@ export const en: TranslationDictionary = {
   'auth.error.emailInUse': 'An account with this email already exists.',
   'auth.error.tooManyRequests': 'Too many attempts. Please wait and try again.',
   'auth.error.cancelled': 'Sign-in was cancelled.',
+  'auth.error.popupBlocked': 'Google sign-in was blocked by your browser. Please use email and password instead.',
   'auth.error.unknown': 'Sign-in failed. Please try again.',
 
   // ── Team page ──

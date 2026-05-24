@@ -249,6 +249,7 @@ export const el: TranslationDictionary = {
   'auth.error.emailInUse': 'Υπάρχει ήδη λογαριασμός με αυτό το email.',
   'auth.error.tooManyRequests': 'Πολλές προσπάθειες. Παρακαλώ περιμένετε και δοκιμάστε ξανά.',
   'auth.error.cancelled': 'Η σύνδεση ακυρώθηκε.',
+  'auth.error.popupBlocked': 'Η σύνδεση Google αποκλείστηκε από τον περιηγητή. Χρησιμοποιήστε email και κωδικό.',
   'auth.error.unknown': 'Αποτυχία σύνδεσης. Παρακαλώ δοκιμάστε ξανά.',
 
   // ── Team page ──

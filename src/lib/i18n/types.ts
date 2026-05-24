@@ -1104,6 +1104,7 @@ export interface TranslationDictionary {
   'auth.error.emailInUse': string;
   'auth.error.tooManyRequests': string;
   'auth.error.cancelled': string;
+  'auth.error.popupBlocked': string;
   'auth.error.unknown': string;
 
   // ── Team page ──
