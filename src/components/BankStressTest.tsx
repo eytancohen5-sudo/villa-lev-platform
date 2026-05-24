@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { useModelStore } from "@/lib/store/modelStore";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { TranslationDictionary } from "@/lib/i18n/types";
 
 type InputDef = {
   label: string;
@@ -14,16 +15,23 @@ type InputDef = {
   step?: number;
 };
 
-const INPUTS: InputDef[] = [
-  { label: "Villa ADR (€/night)", path: "revenueRealistic.villaADR", historyLabel: "Villa ADR", type: "euro", min: 100, max: 5000, step: 50 },
-  { label: "Suite Standard ADR (€/night)", path: "revenueRealistic.suiteStandardADR", historyLabel: "Suite Standard ADR", type: "euro", min: 50, max: 3000, step: 25 },
-  { label: "Suite Double ADR (€/night)", path: "revenueRealistic.suiteDoubleADR", historyLabel: "Suite Double ADR", type: "euro", min: 50, max: 3000, step: 25 },
-  { label: "Villa base nights/year", path: "revenueRealistic.villaBaseNights", historyLabel: "Villa base nights", type: "integer", min: 60, max: 365, step: 5 },
-  { label: "Suite base nights/year", path: "revenueRealistic.suiteBaseNights", historyLabel: "Suite base nights", type: "integer", min: 60, max: 365, step: 5 },
-  { label: "Interest rate (%)", path: "commercialLoan.interestRate", historyLabel: "Loan interest rate", type: "percent", min: 0.01, max: 0.15, step: 0.0025 },
-  { label: "Loan coverage rate (%)", path: "commercialLoan.loanCoverageRate", historyLabel: "Loan coverage rate", type: "percent", min: 0.30, max: 0.90, step: 0.01 },
-  { label: "Exit EBITDA multiple (×)", path: "exitEbitdaMultiple", historyLabel: "Exit EBITDA multiple", type: "multiple", min: 4, max: 20, step: 0.5 },
-];
+// Revenue paths change depending on the active scenario:
+// upside → revenueUpside.*, everything else → revenueRealistic.*
+// (downside/breakeven are derived by the engine from the realistic inputs,
+// so they share the same editable paths as the realistic scenario.)
+function buildInputs(scenario: ScenarioName, t: (key: keyof TranslationDictionary) => string): InputDef[] {
+  const rev = scenario === "upside" ? "revenueUpside" : "revenueRealistic";
+  return [
+    { label: t('stress.villaAdr'), path: `${rev}.villaADR`, historyLabel: "Villa ADR", type: "euro", min: 100, max: 5000, step: 50 },
+    { label: t('stress.suiteStdAdr'), path: `${rev}.suiteStandardADR`, historyLabel: "Suite Standard ADR", type: "euro", min: 50, max: 3000, step: 25 },
+    { label: t('stress.suiteDblAdr'), path: `${rev}.suiteDoubleADR`, historyLabel: "Suite Double ADR", type: "euro", min: 50, max: 3000, step: 25 },
+    { label: t('stress.villaBaseNights'), path: `${rev}.villaBaseNights`, historyLabel: "Villa base nights", type: "integer", min: 60, max: 365, step: 5 },
+    { label: t('stress.suiteBaseNights'), path: `${rev}.suiteBaseNights`, historyLabel: "Suite base nights", type: "integer", min: 60, max: 365, step: 5 },
+    { label: t('stress.interestRate'), path: "commercialLoan.interestRate", historyLabel: "Loan interest rate", type: "percent", min: 0.01, max: 0.15, step: 0.0025 },
+    { label: t('stress.loanCoverageRate'), path: "commercialLoan.loanCoverageRate", historyLabel: "Loan coverage rate", type: "percent", min: 0.30, max: 0.90, step: 0.01 },
+    { label: t('stress.exitMultiple'), path: "exitEbitdaMultiple", historyLabel: "Exit EBITDA multiple", type: "multiple", min: 4, max: 20, step: 0.5 },
+  ];
+}
 
 function readNestedValue(obj: Record<string, unknown>, path: string): unknown {
   const keys = path.split(".");
@@ -38,20 +46,24 @@ function readNestedValue(obj: Record<string, unknown>, path: string): unknown {
 function formatDisplay(val: number, type: InputDef["type"]): string {
   if (type === "percent") return `${(val * 100).toFixed(2)}%`;
   if (type === "euro") return `€${val.toLocaleString()}`;
-  if (type === "multiple") return `${val.toFixed(1)}×`;
+  if (type === "multiple") return `${val.toFixed(1)}× EBITDA`;
   return String(val);
 }
 
 export function BankStressTest() {
   const { t } = useTranslation();
-  const { assumptions, setAssumption } = useModelStore();
+  const { assumptions, setAssumption, activeScenario, activeConfigId } = useModelStore();
   const [open, setOpen] = useState(true);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  // Snapshot the loaded scenario's values at mount — this is the "base case"
-  // the banker is stress-testing against. "Base:" labels, "Modified" badges,
-  // and the reset button all reference this, not the hardcoded defaults.
-  const [baseline] = useState<Record<string, number>>(() => {
+  // Inputs change when activeScenario changes (upside uses revenueUpside.* paths).
+  // t is stable across renders within the same locale; re-build when locale changes.
+  const INPUTS = useMemo(() => buildInputs(activeScenario, t), [activeScenario, t]);
+
+  // Snapshot the scenario's values as the "base case" the banker stress-tests against.
+  // Resets when the active scenario or loaded config changes so "Base:" labels always
+  // reflect what was actually loaded, not a stale mount-time capture.
+  const [baseline, setBaseline] = useState<Record<string, number>>(() => {
     const b: Record<string, number> = {};
     INPUTS.forEach((inp) => {
       const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
@@ -59,6 +71,22 @@ export function BankStressTest() {
     });
     return b;
   });
+
+  useEffect(() => {
+    const b: Record<string, number> = {};
+    INPUTS.forEach((inp) => {
+      const v = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
+      b[inp.path] = typeof v === "number" ? v : 0;
+    });
+    setBaseline(b);
+    setLocalValues({});
+  // INPUTS reference changes only when the scenario flips between upside and the rest
+  // (because buildInputs branches on 'upside'). activeScenario is added explicitly so
+  // switching among realistic/downside/breakeven — where INPUTS is stable — still
+  // re-captures the baseline. activeConfigId captures config-load events where INPUTS
+  // stays the same but assumptions are replaced.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [INPUTS, activeConfigId, activeScenario]);
 
   const hasOverrides = INPUTS.some((inp) => {
     const current = readNestedValue(assumptions as unknown as Record<string, unknown>, inp.path);
@@ -113,7 +141,7 @@ export function BankStressTest() {
               {t('bank.stress.title')}
               {hasOverrides && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-warning/20 text-warning border border-warning/30">
-                  Modified
+                  {t('stress.modified')}
                 </span>
               )}
             </div>
@@ -157,7 +185,7 @@ export function BankStressTest() {
                     className="w-full rounded-lg border border-surface-tertiary px-3 py-1.5 text-sm font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
                   />
                   <div className="text-xs text-text-tertiary mt-1 flex justify-between">
-                    <span>Base: {baseValue(inp)}</span>
+                    <span>{t('stress.baseLabel')} {baseValue(inp)}</span>
                     <span className="font-medium text-text-primary">
                       {formatDisplay(current, inp.type)}
                     </span>
@@ -178,17 +206,17 @@ export function BankStressTest() {
                 }}
                 className="px-4 py-2 rounded-xl border border-negative/40 text-negative text-sm font-medium hover:bg-negative/5 transition-colors"
               >
-                Reset all to defaults
+                {t('stress.resetAll')}
               </button>
               <p className="text-xs text-text-tertiary">
-                Changes are applied to the live model above and included in the Excel export.
+                {t('stress.changesNote')}
               </p>
             </div>
           )}
 
           {!hasOverrides && (
             <p className="mt-4 text-xs text-text-tertiary">
-              All values are at their base-case defaults. Edit any field above and press Enter or Tab to apply.
+              {t('stress.baseDefaults')}
             </p>
           )}
         </div>
