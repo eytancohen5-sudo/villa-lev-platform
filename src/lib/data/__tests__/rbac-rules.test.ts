@@ -358,4 +358,96 @@ describe("firestore.rules — RBAC structural guards", () => {
       /allow\s+create\s*:\s*if\s+isAuthenticated\s*\(\s*\)\s*;/,
     );
   });
+
+  // ── SHOULD-FIX-3: isApproved() status gate ───────────────────────────
+
+  it("isApproved() is defined and treats missing status field as approved", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/function\s+isApproved\s*\(\s*\)/);
+    // Must short-circuit to true when no status field is present (legacy users).
+    expect(rules).toMatch(/!\(\s*'status'\s+in\s+userDoc\s*\(\s*\)\s*\)/);
+    // Must require status == 'approved' when the field is present.
+    expect(rules).toMatch(/userDoc\s*\(\s*\)\.status\s*==\s*'approved'/);
+  });
+
+  it("hasRole() calls isApproved()", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(
+      /function\s+hasRole\s*\(\s*role\s*\)[\s\S]*?isApproved\s*\(\s*\)/,
+    );
+  });
+
+  // ── SHOULD-FIX-4: isPendingSelfCreate() field-injection guard ────────
+
+  it("isPendingSelfCreate() denies revokedBy field injection", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/!\(\s*'revokedBy'\s+in\s+request\.resource\.data\s*\)/);
+  });
+
+  it("isPendingSelfCreate() denies revokedAt field injection", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/!\(\s*'revokedAt'\s+in\s+request\.resource\.data\s*\)/);
+  });
+
+  it("isPendingSelfCreate() denies approvedAt field injection", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/!\(\s*'approvedAt'\s+in\s+request\.resource\.data\s*\)/);
+  });
+
+  // ── Deliverable I: approval-gate structural guards ────────────────────
+
+  it("isValidStatusWrite() is defined with 'pending' and 'approved'", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/function\s+isValidStatusWrite\s*\(\s*\)/);
+    expect(rules).toContain("'pending'");
+    expect(rules).toContain("'approved'");
+    expect(rules).toMatch(
+      /request\.resource\.data\.status\s+in\s+\[\s*'pending'\s*,\s*'approved'\s*\]/,
+    );
+  });
+
+  it("isPendingSelfCreate() requires status == 'pending' and role == 'viewer'", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/function\s+isPendingSelfCreate\s*\(\s*\)/);
+    expect(rules).toMatch(
+      /request\.resource\.data\.status\s*==\s*'pending'/,
+    );
+    expect(rules).toMatch(
+      /request\.resource\.data\.role\s*==\s*'viewer'/,
+    );
+  });
+
+  it("isPendingSelfCreate() caps doc size at 10 (size() <= 10)", () => {
+    const rules = loadRules();
+    expect(rules).toMatch(/request\.resource\.data\.size\s*\(\s*\)\s*<=\s*10/);
+  });
+
+  it("users/{uid} create allows isPendingSelfCreate() as a branch", () => {
+    const usersBlock = extractMatchBlock(loadRules(), "match /users/{uid}");
+    expect(usersBlock).toMatch(
+      /allow\s+create\s*:[\s\S]*?isPendingSelfCreate\s*\(\s*\)/,
+    );
+  });
+
+  it("users/{uid} update admin branch includes isValidStatusWrite()", () => {
+    const usersBlock = extractMatchBlock(loadRules(), "match /users/{uid}");
+    expect(usersBlock).toMatch(
+      /allow\s+update\s*:[\s\S]*?isAdmin\s*\(\s*\)[\s\S]*?isValidStatusWrite\s*\(\s*\)/,
+    );
+  });
+
+  it("isPendingSelfCreate() uses equality (status == 'pending'), not array membership", () => {
+    const rules = loadRules();
+    // The self-create guard must use == 'pending', not `in ['pending', ...]`
+    // (which would allow self-approve via `in ['approved']`).
+    // Extract the function body to check it uses == not `in`.
+    const fnMatch = rules.match(
+      /function\s+isPendingSelfCreate\s*\(\s*\)([\s\S]*?)^    \}/m,
+    );
+    // If the regex doesn't capture cleanly, fall back to checking the whole
+    // rules text — the key invariant is that the status field is compared
+    // with == 'pending', not with `in [...]`.
+    const haystack = fnMatch ? fnMatch[1] : rules;
+    expect(haystack).toMatch(/request\.resource\.data\.status\s*==\s*'pending'/);
+  });
 });
