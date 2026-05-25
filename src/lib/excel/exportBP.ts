@@ -77,6 +77,226 @@ const FMT = {
 
 // ── Main exporter ────────────────────────────────────────────────────────
 
+// ── Excel translation tables ──────────────────────────────────────────────
+
+type XlStrings = {
+  // Sheet names
+  sh_cover: string;
+  sh_assumptions: string;
+  sh_pnl: string;
+  sh_capex: string;
+  sh_revenue: string;
+  sh_opexPnl: string;
+  sh_debtService: string;
+  sh_coverage: string;
+  sh_scenarios: string;
+  sh_capTable: string;
+  sh_waterfall: string;
+  sh_workingCapital: string;
+  sh_financingComparison: string;
+  sh_amortisation: string;
+  sh_bankCoverage: string;
+  // Common row/column labels
+  lbl_year: string;
+  lbl_metric: string;
+  lbl_scenario: string;
+  lbl_total: string;
+  lbl_generated: string;
+  lbl_totalRevenue: string;
+  lbl_totalOpex: string;
+  lbl_ebitda: string;
+  lbl_ebitdaMargin: string;
+  lbl_debtService: string;
+  lbl_netCashFlow: string;
+  lbl_loanBalance: string;
+  lbl_dscr: string;
+  lbl_revenue: string;
+  lbl_events: string;
+  lbl_ancillary: string;
+  lbl_interest: string;
+  lbl_principal: string;
+  lbl_phase: string;
+  lbl_realistic: string;
+  lbl_upside: string;
+  lbl_downside: string;
+  lbl_value: string;
+  lbl_rate: string;
+  lbl_term: string;
+  lbl_coverage: string;
+  lbl_loanAmount: string;
+  lbl_equity: string;
+  lbl_ltv: string;
+  lbl_irr: string;
+  lbl_moic: string;
+  lbl_payback: string;
+  lbl_villaADR: string;
+  lbl_suiteADR: string;
+  lbl_nights: string;
+  lbl_occupancy: string;
+};
+
+const XL_EN: XlStrings = {
+  sh_cover: 'Cover',
+  sh_assumptions: 'Assumptions',
+  sh_pnl: 'P&L',
+  sh_capex: 'CAPEX',
+  sh_revenue: 'Revenue',
+  sh_opexPnl: 'OPEX & P&L',
+  sh_debtService: 'Debt Service',
+  sh_coverage: 'Coverage',
+  sh_scenarios: 'Scenarios',
+  sh_capTable: 'Cap Table',
+  sh_waterfall: 'Waterfall',
+  sh_workingCapital: 'Working Capital',
+  sh_financingComparison: 'Financing Comparison',
+  sh_amortisation: 'Amortisation Schedule',
+  sh_bankCoverage: 'Bank Coverage',
+  lbl_year: 'Year',
+  lbl_metric: 'Metric',
+  lbl_scenario: 'Scenario',
+  lbl_total: 'Total',
+  lbl_generated: 'Generated',
+  lbl_totalRevenue: 'Total Revenue',
+  lbl_totalOpex: 'Total OPEX',
+  lbl_ebitda: 'EBITDA',
+  lbl_ebitdaMargin: 'EBITDA Margin',
+  lbl_debtService: 'Debt Service',
+  lbl_netCashFlow: 'Net Cash Flow',
+  lbl_loanBalance: 'Loan Balance',
+  lbl_dscr: 'DSCR',
+  lbl_revenue: 'Revenue',
+  lbl_events: 'Events',
+  lbl_ancillary: 'Ancillary',
+  lbl_interest: 'Interest',
+  lbl_principal: 'Principal',
+  lbl_phase: 'Phase',
+  lbl_realistic: 'Conservative',
+  lbl_upside: 'Realistic+',
+  lbl_downside: 'Downside',
+  lbl_value: 'Value',
+  lbl_rate: 'Rate',
+  lbl_term: 'Term',
+  lbl_coverage: 'Coverage',
+  lbl_loanAmount: 'Loan Amount',
+  lbl_equity: 'Equity',
+  lbl_ltv: 'LTV',
+  lbl_irr: 'IRR',
+  lbl_moic: 'MOIC',
+  lbl_payback: 'Payback',
+  lbl_villaADR: 'Villa ADR',
+  lbl_suiteADR: 'Suite ADR',
+  lbl_nights: 'Nights',
+  lbl_occupancy: 'Occupancy',
+};
+
+const XL_EL: XlStrings = {
+  sh_cover: 'Εξώφυλλο',
+  sh_assumptions: 'Παραδοχές',
+  sh_pnl: 'Αποτελέσματα',
+  sh_capex: 'CAPEX',
+  sh_revenue: 'Έσοδα',
+  sh_opexPnl: 'Λειτ. Έξοδα & Αποτελέσματα',
+  sh_debtService: 'Εξυπηρέτηση Χρέους',
+  sh_coverage: 'Κάλυψη',
+  sh_scenarios: 'Σενάρια',
+  sh_capTable: 'Πίνακας Κεφαλαίου',
+  sh_waterfall: 'Καταρράκτης',
+  sh_workingCapital: 'Κεφάλαιο Κίνησης',
+  sh_financingComparison: 'Σύγκριση Χρηματοδότησης',
+  sh_amortisation: 'Πρόγραμμα Απόσβεσης',
+  sh_bankCoverage: 'Τραπεζική Κάλυψη',
+  lbl_year: 'Έτος',
+  lbl_metric: 'Δείκτης',
+  lbl_scenario: 'Σενάριο',
+  lbl_total: 'Σύνολο',
+  lbl_generated: 'Δημιουργήθηκε',
+  lbl_totalRevenue: 'Συνολικά Έσοδα',
+  lbl_totalOpex: 'Συνολικά Λειτουργικά Έξοδα',
+  lbl_ebitda: 'EBITDA',
+  lbl_ebitdaMargin: 'Περιθώριο EBITDA',
+  lbl_debtService: 'Εξυπηρέτηση Χρέους',
+  lbl_netCashFlow: 'Καθαρές Ταμειακές Ροές',
+  lbl_loanBalance: 'Υπόλοιπο Δανείου',
+  lbl_dscr: 'DSCR',
+  lbl_revenue: 'Έσοδα',
+  lbl_events: 'Εκδηλώσεις',
+  lbl_ancillary: 'Βοηθητικές Υπηρεσίες',
+  lbl_interest: 'Τόκοι',
+  lbl_principal: 'Κεφάλαιο',
+  lbl_phase: 'Φάση',
+  lbl_realistic: 'Συντηρητικό',
+  lbl_upside: 'Ρεαλιστικό+',
+  lbl_downside: 'Καθοδικό',
+  lbl_value: 'Αξία',
+  lbl_rate: 'Ποσοστό',
+  lbl_term: 'Διάρκεια',
+  lbl_coverage: 'Κάλυψη',
+  lbl_loanAmount: 'Ποσό Δανείου',
+  lbl_equity: 'Ίδια Κεφάλαια',
+  lbl_ltv: 'LTV',
+  lbl_irr: 'IRR',
+  lbl_moic: 'MOIC',
+  lbl_payback: 'Αποπληρωμή',
+  lbl_villaADR: 'ADR Βίλας',
+  lbl_suiteADR: 'ADR Σουίτας',
+  lbl_nights: 'Διανυκτερεύσεις',
+  lbl_occupancy: 'Πληρότητα',
+};
+
+const XL_HE: XlStrings = {
+  sh_cover: 'כריכה',
+  sh_assumptions: 'הנחות',
+  sh_pnl: 'רווח והפסד',
+  sh_capex: 'CAPEX',
+  sh_revenue: 'הכנסות',
+  sh_opexPnl: 'הוצ תפעול ורו"ה',
+  sh_debtService: 'שירות חוב',
+  sh_coverage: 'כיסוי',
+  sh_scenarios: 'תרחישים',
+  sh_capTable: 'טבלת הון',
+  sh_waterfall: 'מפל',
+  sh_workingCapital: 'הון חוזר',
+  sh_financingComparison: 'השוואת מימון',
+  sh_amortisation: 'לוח סילוקין',
+  sh_bankCoverage: 'כיסוי בנקאי',
+  lbl_year: 'שנה',
+  lbl_metric: 'מדד',
+  lbl_scenario: 'תרחיש',
+  lbl_total: 'סך הכל',
+  lbl_generated: 'נוצר',
+  lbl_totalRevenue: 'סך הכנסות',
+  lbl_totalOpex: 'סך הוצאות תפעול',
+  lbl_ebitda: 'EBITDA',
+  lbl_ebitdaMargin: 'שולי EBITDA',
+  lbl_debtService: 'שירות חוב',
+  lbl_netCashFlow: 'תזרים מזומנים נטו',
+  lbl_loanBalance: 'יתרת הלוואה',
+  lbl_dscr: 'DSCR',
+  lbl_revenue: 'הכנסות',
+  lbl_events: 'אירועים',
+  lbl_ancillary: 'שירותים נלווים',
+  lbl_interest: 'ריבית',
+  lbl_principal: 'קרן',
+  lbl_phase: 'שלב',
+  lbl_realistic: 'ריאליסטי',
+  lbl_upside: 'אופטימי',
+  lbl_downside: 'שלילי',
+  lbl_value: 'שווי',
+  lbl_rate: 'שיעור',
+  lbl_term: 'תקופה',
+  lbl_coverage: 'כיסוי',
+  lbl_loanAmount: 'סכום הלוואה',
+  lbl_equity: 'הון',
+  lbl_ltv: 'LTV',
+  lbl_irr: 'IRR',
+  lbl_moic: 'MOIC',
+  lbl_payback: 'החזר',
+  lbl_villaADR: 'ADR וילה',
+  lbl_suiteADR: 'ADR סוויטה',
+  lbl_nights: 'לילות',
+  lbl_occupancy: 'תפוסה',
+};
+
 export async function exportBusinessPlan(
   a: ModelAssumptions,
   m: ModelOutput,
@@ -87,6 +307,7 @@ export async function exportBusinessPlan(
   // Villa Lev cap table so callers without state still get the standard sheet.
   capTable: CapTableStakeholder[] = DEFAULT_CAP_TABLE,
   waterfall: WaterfallParams = DEFAULT_WATERFALL,
+  locale: import('@/lib/i18n/types').Locale = 'en',
 ): Promise<Blob> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Villa Lev Group';
@@ -94,6 +315,16 @@ export async function exportBusinessPlan(
   // Force Excel to recalculate all formulas on open so the bank sees fresh values
   // even if a viewer didn't compute results during write.
   (wb as unknown as { calcProperties: { fullCalcOnLoad: boolean } }).calcProperties = { fullCalcOnLoad: true };
+
+  // Locale-aware string table for sheet names, column headers, and row labels.
+  const XL: XlStrings = locale === 'el' ? XL_EL : locale === 'he' ? XL_HE : XL_EN;
+
+  // Helper: apply RTL view to a worksheet when locale is Hebrew.
+  const applyRTL = (ws: ExcelJS.Worksheet) => {
+    if (locale === 'he') {
+      ws.views = [{ rightToLeft: true }];
+    }
+  };
 
   // Years and scenario data — used by every sheet.
   const years = Array.from({ length: 11 }, (_, i) => 2026 + i); // 2026..2036
@@ -111,11 +342,12 @@ export async function exportBusinessPlan(
   };
 
   // ── 1. Cover ────────────────────────────────────────────────────────
-  const cover = wb.addWorksheet('Cover', { views: [{ showGridLines: false }] });
+  const cover = wb.addWorksheet(XL.sh_cover, { views: [{ showGridLines: false }] });
+  applyRTL(cover);
   cover.columns = [{ width: 4 }, { width: 90 }];
   cover.getCell('B2').value = 'Villa Lev Group — Business Plan';
   cover.getCell('B2').font = { name: 'Calibri', size: 22, bold: true, color: { argb: 'FF8B6914' } };
-  cover.getCell('B4').value = `Generated ${new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })}`;
+  cover.getCell('B4').value = `${XL.lbl_generated} ${new Date().toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' })}`;
   cover.getCell('B4').font = FONT.italic;
   cover.getCell('B5').value = `Active scenario: ${scenarioName.charAt(0).toUpperCase() + scenarioName.slice(1)} · Active financing path: ${pathLabel(path)}`;
   cover.getCell('B5').font = FONT.italic;
@@ -158,7 +390,8 @@ export async function exportBusinessPlan(
   const valStartRow = 10 + helpLines.length + 2;
 
   // ── 2. Assumptions ──────────────────────────────────────────────────
-  const A = wb.addWorksheet('Assumptions');
+  const A = wb.addWorksheet(XL.sh_assumptions);
+  applyRTL(A);
   A.columns = [{ width: 4 }, { width: 38 }, { width: 16 }, { width: 14 }, { width: 32 }];
 
   let r = 1;
@@ -204,7 +437,7 @@ export async function exportBusinessPlan(
   };
 
   // — Revenue —
-  writeSection('Revenue assumptions (Realistic)');
+  writeSection('Revenue assumptions (Conservative)');
   writeInput('Villa ADR (€/night)', a.revenueRealistic.villaADR, FMT.euro, undefined, 'villaADR');
   writeInput('Villa base nights/year', a.revenueRealistic.villaBaseNights, FMT.num, undefined, 'villaBaseNights');
   writeInput('Standard suite ADR (€/night)', a.revenueRealistic.suiteStandardADR, FMT.euro, undefined, 'stdADR');
@@ -256,6 +489,13 @@ export async function exportBusinessPlan(
     FMT.euro,
     'Admin reference — Eytan collateral pledge cap. Not a DCF input.',
   );
+  writeInput(
+    'Developer construction management fee / year (€)',
+    a.developerConstructionFeePerYear ?? 0,
+    FMT.euro,
+    'Capitalized CAPEX soft cost × 2 construction years (2026–2027). NOT an operating expense.',
+    'devConstructionFeePerYear',
+  );
   r += 2;
 
   // — Per-property block —
@@ -267,6 +507,7 @@ export async function exportBusinessPlan(
     'Legal fees (€)', 'Architect (€)', 'Civil eng. (€)', 'Contingency rate',
     'OPEX: Housekeeping', 'OPEX: Utilities', 'OPEX: Insurance', 'OPEX: Property tax',
     'OPEX: Marketing', 'OPEX: Mgmt fee', 'OPEX: Consumables', 'OPEX: Accounting',
+    'OPEX contingency rate', 'OPEX: Extra lines (annual total)',
   ];
   propHeaders.forEach((h, i) => {
     const c = A.getCell(`${col(2 + i)}${propHeaderRow}`);
@@ -289,13 +530,15 @@ export async function exportBusinessPlan(
       prop.legalFees, prop.architectFees, prop.civilEngineerFees, prop.contingencyRate,
       prop.opex.housekeeping, prop.opex.utilities, prop.opex.insurance, prop.opex.propertyTax,
       prop.opex.marketing, prop.opex.managementFee, prop.opex.consumables, prop.opex.accounting,
+      prop.opexContingencyRate ?? 0,
+      (prop.extraOpexLines ?? []).reduce((s: number, l: { value?: number }) => s + (l.value || 0), 0),
     ];
     values.forEach((v, i) => {
       const c = A.getCell(`${col(2 + i)}${r}`);
       c.value = v;
       c.fill = STYLE.inputFill;
       if (i === 0) c.font = FONT.bold;
-      else if (i === 12) c.numFmt = FMT.pct;
+      else if (i === 12 || i === 21) c.numFmt = FMT.pct;
       else if (i >= 6 && i <= 11) c.numFmt = FMT.euro;
       else if (i >= 13) c.numFmt = FMT.euro;
     });
@@ -312,6 +555,7 @@ export async function exportBusinessPlan(
     legalFees: 9, architect: 10, civilEng: 11, contingency: 12,
     opexHousekeeping: 13, opexUtilities: 14, opexInsurance: 15, opexPropertyTax: 16,
     opexMarketing: 17, opexMgmtFee: 18, opexConsumables: 19, opexAccounting: 20,
+    opexContingency: 21, extraOpex: 22,
   };
 
   // Defined names for the most-edited inputs — bank can write `=villaADR` etc.
@@ -335,6 +579,7 @@ export async function exportBusinessPlan(
   defineName('citRate', A_('citRate'));
   defineName('acqLegalPerPlot', A_('acqLegalPerPlot'));
   defineName('dscrCovenantThreshold', A_('dscrCovenantThreshold'));
+  defineName('devConstructionFeePerYear', A_('devConstructionFeePerYear'));
 
   // ── Issue 6: portfolio fee summary ──
   // Single-source-of-truth aggregates so a banker comparing this BP against the
@@ -388,7 +633,8 @@ export async function exportBusinessPlan(
   r += 2;
 
   // ── 3. CAPEX ────────────────────────────────────────────────────────
-  const C = wb.addWorksheet('CAPEX');
+  const C = wb.addWorksheet(XL.sh_capex);
+  applyRTL(C);
   C.columns = [{ width: 32 }, ...propRows.map(() => ({ width: 18 })), { width: 18 }];
   C.getCell('A1').value = 'CAPEX Breakdown';
   C.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -477,6 +723,59 @@ export async function exportBusinessPlan(
   acqTotalCell.numFmt = FMT.euro;
   cr += 1;
 
+  // Developer construction management fee — 2-year soft cost, portfolio-level.
+  // Not split per property; only the Total column is populated.
+  // Engine: model.ts computeCapex adds (developerConstructionFeePerYear ?? 0) × 2
+  // to portfolioTotal. The formula here uses the named range so a banker can
+  // edit the fee and see total CAPEX, equity, and IRR recompute live.
+  {
+    const devFeeAmount = (a.developerConstructionFeePerYear ?? 0) * 2;
+    C.getCell(`A${cr}`).value = 'Developer construction management fee (2 yrs)';
+    C.getCell(`A${cr}`).font = FONT.italic;
+    // Per-property columns: 0 (portfolio-level cost, not attributable per plot)
+    propRows.forEach((_, i) => {
+      const c = C.getCell(`${col(2 + i)}${cr}`);
+      c.value = 0;
+      c.numFmt = FMT.euro;
+      c.fill = STYLE.formulaFill;
+    });
+    // Total column: formula-driven from Assumptions named range
+    const devFeeTotCell = C.getCell(`${col(2 + propRows.length)}${cr}`);
+    devFeeTotCell.value = { formula: `=devConstructionFeePerYear*2`, result: devFeeAmount };
+    devFeeTotCell.fill = STYLE.formulaFill;
+    devFeeTotCell.font = FONT.bold;
+    devFeeTotCell.numFmt = FMT.euro;
+    cr += 1;
+  }
+
+  // Custom CAPEX lines: one Excel row per (property, line) pair, looked up by
+  // the stable key `${prop.id}::${line.id}` in m.capex.categories.
+  for (const propRow of propRows) {
+    for (const line of propRow.prop.extraCapexLines ?? []) {
+      const key = `${propRow.prop.id}::${line.id}`;
+      const cat = m.capex.categories.find((c) => c.name === key);
+      const displayName = line.name || key;
+      C.getCell(`A${cr}`).value = displayName;
+      C.getCell(`A${cr}`).font = FONT.italic;
+      let rowSum = 0;
+      propRows.forEach((pr, i) => {
+        const c = C.getCell(`${col(2 + i)}${cr}`);
+        const engineVal = cat?.perProperty.find((p) => p.id === pr.prop.id)?.total
+          ?? (pr.prop.id === propRow.prop.id ? (line.cost || 0) * pr.prop.count : 0);
+        c.value = engineVal;
+        rowSum += engineVal;
+        c.fill = STYLE.formulaFill;
+        c.numFmt = FMT.euro;
+      });
+      const totCell = C.getCell(`${col(2 + propRows.length)}${cr}`);
+      totCell.value = cat?.grandTotal ?? rowSum;
+      totCell.fill = STYLE.totalFill;
+      totCell.font = FONT.bold;
+      totCell.numFmt = FMT.euro;
+      cr += 1;
+    }
+  }
+
   // Total CAPEX row
   const capexTotalRow = cr;
   C.getCell(`A${cr}`).value = 'TOTAL CAPEX';
@@ -504,13 +803,14 @@ export async function exportBusinessPlan(
   C.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
   // ── 4. Revenue ──────────────────────────────────────────────────────
-  const R = wb.addWorksheet('Revenue');
+  const R = wb.addWorksheet(XL.sh_revenue);
+  applyRTL(R);
   R.columns = [{ width: 32 }, ...years.map(() => ({ width: 14 }))];
   R.getCell('A1').value = 'Revenue';
   R.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
   let rr = 3;
   // Header: years
-  R.getCell(`A${rr}`).value = 'Line';
+  R.getCell(`A${rr}`).value = XL.lbl_metric;
   R.getCell(`A${rr}`).font = FONT.header;
   R.getCell(`A${rr}`).fill = STYLE.headerFill;
   years.forEach((y, i) => {
@@ -523,7 +823,7 @@ export async function exportBusinessPlan(
   rr += 1;
 
   // Phase row
-  R.getCell(`A${rr}`).value = 'Phase';
+  R.getCell(`A${rr}`).value = XL.lbl_phase;
   R.getCell(`A${rr}`).font = FONT.italic;
   years.forEach((y, i) => {
     const phase =
@@ -732,14 +1032,15 @@ export async function exportBusinessPlan(
   R.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
   // ── 5. OPEX & P&L ───────────────────────────────────────────────────
-  const PnL = wb.addWorksheet('OPEX & P&L');
+  const PnL = wb.addWorksheet(XL.sh_opexPnl);
+  applyRTL(PnL);
   PnL.columns = [{ width: 32 }, ...years.map(() => ({ width: 14 }))];
   PnL.getCell('A1').value = 'OPEX & P&L';
   PnL.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
 
   let pr2 = 3;
   // Header
-  PnL.getCell(`A${pr2}`).value = 'Line';
+  PnL.getCell(`A${pr2}`).value = XL.lbl_metric;
   PnL.getCell(`A${pr2}`).font = FONT.header;
   PnL.getCell(`A${pr2}`).fill = STYLE.headerFill;
   years.forEach((y, i) => {
@@ -752,12 +1053,12 @@ export async function exportBusinessPlan(
   pr2 += 2;
 
   // Revenue line — pulled from Revenue sheet
-  PnL.getCell(`A${pr2}`).value = 'Revenue';
+  PnL.getCell(`A${pr2}`).value = XL.lbl_revenue;
   PnL.getCell(`A${pr2}`).font = FONT.bold;
   const revRowOnPnL = pr2;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    c.value = { formula: `=Revenue!${col(2 + i)}${totalRevRow}`, result: pyVal(y, 'totalRevenue') };
+    c.value = { formula: `=${XL.sh_revenue}!${col(2 + i)}${totalRevRow}`, result: pyVal(y, 'totalRevenue') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
@@ -766,6 +1067,18 @@ export async function exportBusinessPlan(
   // OPEX per property
   // Engine: per-property opex = base (8 categories) + maintenance
   //   maintenance = construction × rate where rate = 0.005 (yr<=2029), 0.01 (2030), 0.015 (>=2031)
+  //
+  // Bank-view OPEX adjustment (mirrors engine model.ts lines ~729-731):
+  //   Internal view: per-property managementFee stays inside baseOpex.
+  //   Bank view: per-property managementFee is REMOVED from baseOpex; a single
+  //   portfolio-level "Senior management floor" (opCoSeniorFloor × totalVillaCount)
+  //   is added as a separate OPEX row, paid SENIOR to debt service. The opCoFeeRow
+  //   below then shows only the JUNIOR overage (= 0 when OpCo is disabled).
+  //   This prevents the senior floor from being double-charged (once in totalOpex
+  //   via opCoFeeRow and again via the per-property mgmtFee formula).
+  const isBankViewExport = (a.viewMode ?? 'internal') === 'bank';
+  const totalVillaCountExport = a.portfolio.reduce((sum, p) => sum + p.count, 0);
+
   PnL.getCell(`A${pr2}`).value = 'OPEX (per property × plots)';
   PnL.getCell(`A${pr2}`).font = FONT.section;
   pr2 += 1;
@@ -773,7 +1086,13 @@ export async function exportBusinessPlan(
   const propOpexRows: number[] = [];
   propRows.forEach((pr) => {
     PnL.getCell(`A${pr2}`).value = `  ${pr.prop.name}`;
-    const baseOpex = `(${P(pr.row, PCOL.opexHousekeeping)}+${P(pr.row, PCOL.opexUtilities)}+${P(pr.row, PCOL.opexInsurance)}+${P(pr.row, PCOL.opexPropertyTax)}+${P(pr.row, PCOL.opexMarketing)}+${P(pr.row, PCOL.opexMgmtFee)}+${P(pr.row, PCOL.opexConsumables)}+${P(pr.row, PCOL.opexAccounting)})`;
+    // Bank view: exclude managementFee — it is replaced by the senior floor row below.
+    // Both views include extraOpex and apply the opexContingencyRate multiplier to
+    // the controllable base (all categories + extraOpex), mirroring computeOpexForProperty:
+    //   opexPerUnit = (base + extra) * (1 + contingency) + maintenance
+    const baseControllable = isBankViewExport
+      ? `(${P(pr.row, PCOL.opexHousekeeping)}+${P(pr.row, PCOL.opexUtilities)}+${P(pr.row, PCOL.opexInsurance)}+${P(pr.row, PCOL.opexPropertyTax)}+${P(pr.row, PCOL.opexMarketing)}+${P(pr.row, PCOL.opexConsumables)}+${P(pr.row, PCOL.opexAccounting)}+${P(pr.row, PCOL.extraOpex)})`
+      : `(${P(pr.row, PCOL.opexHousekeeping)}+${P(pr.row, PCOL.opexUtilities)}+${P(pr.row, PCOL.opexInsurance)}+${P(pr.row, PCOL.opexPropertyTax)}+${P(pr.row, PCOL.opexMarketing)}+${P(pr.row, PCOL.opexMgmtFee)}+${P(pr.row, PCOL.opexConsumables)}+${P(pr.row, PCOL.opexAccounting)}+${P(pr.row, PCOL.extraOpex)})`;
     const construction = `(${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)})`;
     years.forEach((y, i) => {
       const cell = PnL.getCell(`${col(2 + i)}${pr2}`);
@@ -783,7 +1102,7 @@ export async function exportBusinessPlan(
         cell.value = 0;
       } else {
         const maintRate = y <= 2029 ? 0.005 : y === 2030 ? 0.01 : 0.015;
-        const formula = `=(${baseOpex}+${construction}*${maintRate})*${P(pr.row, PCOL.plots)}`;
+        const formula = `=((${baseControllable})*(1+${P(pr.row, PCOL.opexContingency)})+${construction}*${maintRate})*${P(pr.row, PCOL.plots)}`;
         cell.value = { formula, result: engineOpex };
       }
       cell.numFmt = FMT.euro;
@@ -792,6 +1111,24 @@ export async function exportBusinessPlan(
     propOpexRows.push(pr2);
     pr2 += 1;
   });
+
+  // Bank view only: senior management floor (opCoSeniorFloor × totalVillaCount),
+  // paid SENIOR to debt service. Replaces the per-villa managementFee that was
+  // removed from the per-property baseOpex formula above.
+  if (isBankViewExport) {
+    PnL.getCell(`A${pr2}`).value = '  Senior management floor (SENIOR to DS)';
+    PnL.getCell(`A${pr2}`).font = FONT.italic;
+    years.forEach((y, i) => {
+      const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+      // Only applies in operational years (engine: year > HORIZON_START_YEAR + 1 = 2027)
+      const seniorFee = y > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
+      c.value = seniorFee;
+      c.numFmt = FMT.euro;
+      c.fill = STYLE.inputFill;
+    });
+    propOpexRows.push(pr2);
+    pr2 += 1;
+  }
 
   // WC interest — annual aggregate from engine. Formula-based reconstruction
   // would require the quarterly compute, which is out of scope for v1.
@@ -806,12 +1143,12 @@ export async function exportBusinessPlan(
   });
   pr2 += 1;
 
-  // Total OPEX = sum of property OPEX rows + WC interest
+  // Total OPEX = sum of property OPEX rows only (WC interest excluded — Finding A)
   const totalOpexRow = pr2;
-  PnL.getCell(`A${pr2}`).value = 'TOTAL OPEX';
+  PnL.getCell(`A${pr2}`).value = XL.lbl_totalOpex;
   PnL.getCell(`A${pr2}`).font = FONT.bold;
   years.forEach((y, i) => {
-    const cells = [...propOpexRows, wcRow].map((rrIdx) => `${col(2 + i)}${rrIdx}`).join(',');
+    const cells = [...propOpexRows].map((rrIdx) => `${col(2 + i)}${rrIdx}`).join(',');
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
     c.value = { formula: `=SUM(${cells})`, result: pyVal(y, 'totalOpex') };
     c.numFmt = FMT.euro;
@@ -819,15 +1156,41 @@ export async function exportBusinessPlan(
     c.font = FONT.bold;
     c.border = { top: { style: 'thin' } };
   });
-  pr2 += 2;
+  pr2 += 1;
 
-  // EBITDA
+  // OpCo management fee — hardcoded from engine (Bucket 2A gross-revenue fee +
+  // Bucket 2B incentive). Formula reconstruction is not feasible here (EBITDA-based
+  // incentive creates a circular reference in Excel), so we mirror the engine's value.
+  //
+  // Bank view: opCoTotalFee (= opCoActuallyPaid) = seniorFloor + juniorOverage.
+  //   The senior floor is already in the OPEX SUM above, so this row shows only
+  //   the JUNIOR overage (subordinated to DS). When OpCo is disabled, junior = 0
+  //   and this row is all zeros — no effect on EBITDA.
+  // Internal view: show full opCoTotalFee (senior concept does not apply).
+  const opCoFeeRow = pr2;
+  PnL.getCell(`A${pr2}`).value = isBankViewExport
+    ? 'OpCo junior fee — subordinated to DS (Bucket 2A+2B above senior floor)'
+    : 'OpCo management fee (Bucket 2A + 2B, from engine)';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    // Bank view: strip out the senior floor (already counted in OPEX above).
+    // opCoTotalFee = opCoActuallyPaid = seniorFloor + juniorPaid.
+    const seniorFee = isBankViewExport && y > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
+    c.value = pyVal(y, 'opCoTotalFee') - seniorFee;
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.inputFill;
+  });
+  pr2 += 1;
+
+  // EBITDA = Revenue − Total OPEX − OpCo management fee
+  // Engine equivalent: ebitdaPreOpCo (= Revenue − totalOpex) − opCoActuallyPaid
   const ebitdaRow = pr2;
-  PnL.getCell(`A${pr2}`).value = 'EBITDA';
+  PnL.getCell(`A${pr2}`).value = XL.lbl_ebitda;
   PnL.getCell(`A${pr2}`).font = FONT.bold;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    c.value = { formula: `=${col(2 + i)}${revRowOnPnL}-${col(2 + i)}${totalOpexRow}`, result: pyVal(y, 'ebitda') };
+    c.value = { formula: `=${col(2 + i)}${revRowOnPnL}-${col(2 + i)}${totalOpexRow}-${col(2 + i)}${opCoFeeRow}`, result: pyVal(y, 'ebitda') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.totalFill;
     c.font = FONT.bold;
@@ -864,7 +1227,7 @@ export async function exportBusinessPlan(
     const result = grossUp > 0 ? (eng?.ebitda ?? 0) / grossUp : 0;
     // Cross-sheet formula referencing the implied-gross-revenue row on Revenue.
     c.value = {
-      formula: `=IFERROR(${col(2 + i)}${ebitdaRow}/Revenue!${col(2 + i)}${impliedGrossRow},0)`,
+      formula: `=IFERROR(${col(2 + i)}${ebitdaRow}/${XL.sh_revenue}!${col(2 + i)}${impliedGrossRow},0)`,
       result,
     };
     c.numFmt = FMT.pct;
@@ -940,22 +1303,20 @@ export async function exportBusinessPlan(
   years.forEach((y, i) => {
     const e = py(y);
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    c.value = e ? -(e.citPayable + e.vatPayable) : 0;
+    c.value = e ? e.citPayable + e.vatPayable : 0;
     c.numFmt = FMT.euro;
     c.fill = STYLE.inputFill;
   });
   pr2 += 1;
 
-  // NCF (post-tax, post-DS) — engine equivalent: netCashFlowPostVAT.
-  // Uses MAIN-loan DS only (mainDsRow) because WC interest is already inside
-  // OPEX, hence already netted out of EBITDA. Subtracting total DS (which
-  // includes WC) would double-count.
+  // NCF = EBITDA − main DS − WC interest (Finding A: WC excluded from EBITDA, deducted here) + taxes
+  // Taxes (CIT + VAT) are stored negative in the engine; adding them reduces NCF correctly.
   const ncfRow = pr2;
   PnL.getCell(`A${pr2}`).value = 'Net cash flow (post-tax, post-DS)';
   PnL.getCell(`A${pr2}`).font = FONT.bold;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    c.value = { formula: `=${col(2 + i)}${ebitdaRow}-${col(2 + i)}${mainDsRow}+${col(2 + i)}${taxesRow}`, result: pyVal(y, 'netCashFlowPostVAT') };
+    c.value = { formula: `=${col(2 + i)}${ebitdaRow}-${col(2 + i)}${mainDsRow}-${col(2 + i)}${wcRow}+${col(2 + i)}${taxesRow}`, result: pyVal(y, 'netCashFlowPostVAT') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.totalFill;
     c.font = FONT.bold;
@@ -963,18 +1324,20 @@ export async function exportBusinessPlan(
   });
   pr2 += 1;
 
-  // CFADS — unlevered free cash flow (EBITDA − CIT, approximately).
-  // Engine cfads excludes VAT (a balance-sheet pass-through); the formula
-  // below uses the combined tax row (−CIT − VAT), so it is a small amount
-  // conservative vs the Coverage sheet's CFADS. Difference is noted.
+  // CFADS — unlevered free cash flow = EBITDA − CIT (VAT excluded per engine
+  // convention: VAT is a balance-sheet pass-through, not a project cash cost).
+  // Written as hardcoded engine values (no Excel formula) to keep the
+  // Coverage-sheet IRR CF-stream exactly aligned with computeIRR() output.
+  // Rebuilding this as a live formula would require a standalone CIT-only row
+  // (the combined taxesRow above = CIT+VAT); that restructuring is deferred.
   const cfadsRow = pr2;
-  PnL.getCell(`A${pr2}`).value = 'CFADS — Cash flow avail. for debt service (EBITDA − taxes)';
+  PnL.getCell(`A${pr2}`).value = 'CFADS — Cash flow avail. for debt service (EBITDA − CIT, engine value)';
   PnL.getCell(`A${pr2}`).font = FONT.italic;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    c.value = { formula: `=${col(2 + i)}${ebitdaRow}+${col(2 + i)}${taxesRow}`, result: pyVal(y, 'cfads') };
+    c.value = pyVal(y, 'cfads');
     c.numFmt = FMT.euro;
-    c.fill = STYLE.formulaFill;
+    c.fill = STYLE.inputFill; // blue: engine value, not a live formula
   });
   pr2 += 2;
 
@@ -1066,7 +1429,7 @@ export async function exportBusinessPlan(
 
   // DSCR realistic — formula-driven (EBITDA / main DS)
   const dscrRealisticRow = pr2;
-  PnL.getCell(`A${pr2}`).value = 'DSCR — Realistic (EBITDA / main-loan DS)';
+  PnL.getCell(`A${pr2}`).value = 'DSCR — Conservative (EBITDA / main-loan DS)';
   PnL.getCell(`A${pr2}`).font = FONT.bold;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
@@ -1081,7 +1444,7 @@ export async function exportBusinessPlan(
   pr2 += 1;
 
   // DSCR upside — engine values (upside scenario uses different ADR/occupancy)
-  PnL.getCell(`A${pr2}`).value = '  DSCR — Upside';
+  PnL.getCell(`A${pr2}`).value = '  DSCR — Realistic+';
   PnL.getCell(`A${pr2}`).font = FONT.italic;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
@@ -1151,7 +1514,8 @@ export async function exportBusinessPlan(
 
   // ── 6. Debt Service ─────────────────────────────────────────────────
   // All four financing paths shown side-by-side. Active path column is bold/gold.
-  const D = wb.addWorksheet('Debt Service');
+  const D = wb.addWorksheet(XL.sh_debtService);
+  applyRTL(D);
   D.columns = [{ width: 36 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 30 }];
   D.getCell('A1').value = 'Debt Service — All Financing Paths';
   D.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -1173,7 +1537,7 @@ export async function exportBusinessPlan(
 
   let dr = 4;
   // Header row
-  D.getCell(`A${dr}`).value = 'Metric';
+  D.getCell(`A${dr}`).value = XL.lbl_metric;
   D.getCell(`A${dr}`).font = FONT.header;
   D.getCell(`A${dr}`).fill = STYLE.headerFill;
   dsPaths.forEach((p, i) => {
@@ -1278,12 +1642,13 @@ export async function exportBusinessPlan(
   }
 
   // ── 7. Coverage ─────────────────────────────────────────────────────
-  const Cov = wb.addWorksheet('Coverage');
+  const Cov = wb.addWorksheet(XL.sh_coverage);
+  applyRTL(Cov);
   Cov.columns = [{ width: 36 }, ...years.map(() => ({ width: 14 }))];
   Cov.getCell('A1').value = 'Coverage Ratios & Returns';
   Cov.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
   let xr = 3;
-  Cov.getCell(`A${xr}`).value = 'Year';
+  Cov.getCell(`A${xr}`).value = XL.lbl_year;
   Cov.getCell(`A${xr}`).font = FONT.header;
   Cov.getCell(`A${xr}`).fill = STYLE.headerFill;
   years.forEach((y, i) => {
@@ -1295,10 +1660,10 @@ export async function exportBusinessPlan(
   });
   xr += 1;
 
-  Cov.getCell(`A${xr}`).value = 'EBITDA';
+  Cov.getCell(`A${xr}`).value = XL.lbl_ebitda;
   years.forEach((y, i) => {
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
-    c.value = { formula: `='OPEX & P&L'!${col(2 + i)}${ebitdaRow}`, result: pyVal(y, 'ebitda') };
+    c.value = { formula: `='${XL.sh_opexPnl}'!${col(2 + i)}${ebitdaRow}`, result: pyVal(y, 'ebitda') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
@@ -1308,7 +1673,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`A${xr}`).value = 'Main-loan debt service';
   years.forEach((y, i) => {
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
-    c.value = { formula: `='OPEX & P&L'!${col(2 + i)}${mainDsRow}`, result: pyVal(y, 'termLoanInterest') + pyVal(y, 'termLoanPrincipal') };
+    c.value = { formula: `='${XL.sh_opexPnl}'!${col(2 + i)}${mainDsRow}`, result: pyVal(y, 'termLoanInterest') + pyVal(y, 'termLoanPrincipal') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
@@ -1318,7 +1683,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`A${xr}`).value = 'Working-capital interest';
   years.forEach((y, i) => {
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
-    c.value = { formula: `='OPEX & P&L'!${col(2 + i)}${wcRow}`, result: pyVal(y, 'wcInterestExpense') };
+    c.value = { formula: `='${XL.sh_opexPnl}'!${col(2 + i)}${wcRow}`, result: pyVal(y, 'wcInterestExpense') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
@@ -1386,7 +1751,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`A${xr}`).value = '  Stabilised EBITDA (2031)';
   const stabEbitdaRow = xr;
   const stabEbitdaVal = pyVal(2031, 'ebitda');
-  Cov.getCell(`B${xr}`).value = { formula: `='OPEX & P&L'!${col(2 + (2031 - 2026))}${ebitdaRow}`, result: stabEbitdaVal };
+  Cov.getCell(`B${xr}`).value = { formula: `='${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, result: stabEbitdaVal };
   Cov.getCell(`B${xr}`).numFmt = FMT.euro;
   Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
   xr += 1;
@@ -1444,7 +1809,7 @@ export async function exportBusinessPlan(
   xr += 1;
   years.forEach((y, i) => {
     Cov.getCell(`A${xr}`).value = `  ${y} — EBITDA − Taxes`;
-    const cfadsRef = `'OPEX & P&L'!${col(2 + i)}${cfadsRow}`;
+    const cfadsRef = `'${XL.sh_opexPnl}'!${col(2 + i)}${cfadsRow}`;
     const isLast = i === years.length - 1;
     const formula = isLast ? `=${cfadsRef}+B${terminalRow}` : `=${cfadsRef}`;
     const cfadsVal = pyVal(y, 'cfads');
@@ -1467,7 +1832,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).numFmt = FMT.pct;
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
-  const unlevIrrCellRef = `Coverage!B${xr}`;
+  const unlevIrrCellRef = `${XL.sh_coverage}!B${xr}`;
   xr += 2;
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1497,7 +1862,7 @@ export async function exportBusinessPlan(
 
   years.forEach((y, i) => {
     Cov.getCell(`A${xr}`).value = `  ${y} — NCF post-tax post-DS`;
-    const ncfRef = `'OPEX & P&L'!${col(2 + i)}${ncfRow}`;
+    const ncfRef = `'${XL.sh_opexPnl}'!${col(2 + i)}${ncfRow}`;
     const isLast = i === years.length - 1;
     const formula = isLast ? `=${ncfRef}+B${terminalEquityRow}` : `=${ncfRef}`;
     const ncfVal = pyVal(y, 'netCashFlowPostVAT');
@@ -1520,7 +1885,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).numFmt = FMT.pct;
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
-  const levIrrCellRef = `Coverage!B${xr}`;
+  const levIrrCellRef = `${XL.sh_coverage}!B${xr}`;
   xr += 2;
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1538,7 +1903,7 @@ export async function exportBusinessPlan(
   const sumDistribRow = xr;
   const ncfSum = years.reduce((s, y) => s + Math.max(0, pyVal(y, 'netCashFlowPostVAT')), 0);
   // Formula sum of NCFs (positive only — losses are not distributed).
-  const ncfRefs = years.map((_, i) => `MAX(0,'OPEX & P&L'!${col(2 + i)}${ncfRow})`).join(',');
+  const ncfRefs = years.map((_, i) => `MAX(0,'${XL.sh_opexPnl}'!${col(2 + i)}${ncfRow})`).join(',');
   Cov.getCell(`B${xr}`).value = { formula: `=${ncfRefs.includes(',') ? `SUM(${ncfRefs})` : ncfRefs}`, result: ncfSum };
   Cov.getCell(`B${xr}`).numFmt = FMT.euro;
   Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
@@ -1561,7 +1926,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`A${xr}`).value = 'MOIC (multiple on invested capital)';
   Cov.getCell(`A${xr}`).font = FONT.bold;
   const moicResult = equityRequired > 0 ? (ncfSum + terminalEquityVal) / equityRequired : 0;
-  const moicCellRef = `Coverage!B${xr}`;
+  const moicCellRef = `${XL.sh_coverage}!B${xr}`;
   Cov.getCell(`B${xr}`).value = {
     formula: `=IFERROR((B${sumDistribRow}+B${termEqRefRow})/B${eqInvestedRow},0)`,
     result: moicResult,
@@ -1579,7 +1944,7 @@ export async function exportBusinessPlan(
     const ncf = pyVal(y, 'netCashFlowPostVAT');
     const yield_ = equityRequired > 0 ? ncf / equityRequired : 0;
     c.value = {
-      formula: `=IFERROR('OPEX & P&L'!${col(2 + i)}${ncfRow}/B${eqInvestedRow},0)`,
+      formula: `=IFERROR('${XL.sh_opexPnl}'!${col(2 + i)}${ncfRow}/B${eqInvestedRow},0)`,
       result: yield_,
     };
     c.numFmt = FMT.pct;
@@ -1610,7 +1975,8 @@ export async function exportBusinessPlan(
   // sheet. Reports EBITDA, NCF, DSCR, plus a summary block of stabilised
   // IRR / MOIC / payback per scenario. Values come from the engine's already-
   // computed scenarios (m.scenarios.*), so they validate by construction.
-  const S = wb.addWorksheet('Scenarios');
+  const S = wb.addWorksheet(XL.sh_scenarios);
+  applyRTL(S);
   S.columns = [{ width: 32 }, ...years.map(() => ({ width: 13 })), { width: 16 }];
   S.getCell('A1').value = 'Scenario sensitivity';
   S.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -1623,8 +1989,8 @@ export async function exportBusinessPlan(
   let sr = 4;
   const scenarioBlocks: Array<{ key: 'downside' | 'realistic' | 'upside'; label: string }> = [
     { key: 'downside', label: 'Downside' },
-    { key: 'realistic', label: 'Realistic' },
-    { key: 'upside', label: 'Upside' },
+    { key: 'realistic', label: 'Conservative' },
+    { key: 'upside', label: 'Realistic+' },
   ];
 
   // Per-scenario yearly section
@@ -1637,7 +2003,7 @@ export async function exportBusinessPlan(
     sr += 1;
 
     // Year header row
-    S.getCell(`A${sr}`).value = 'Metric';
+    S.getCell(`A${sr}`).value = XL.lbl_metric;
     S.getCell(`A${sr}`).font = FONT.header;
     S.getCell(`A${sr}`).fill = STYLE.headerFill;
     years.forEach((y, i) => {
@@ -1683,7 +2049,7 @@ export async function exportBusinessPlan(
   S.mergeCells(`A${sr}:E${sr}`);
   sr += 1;
 
-  const sumHeaders = ['Metric', 'Downside', 'Realistic', 'Upside'];
+  const sumHeaders = [XL.lbl_metric, XL.lbl_downside, XL.lbl_realistic, XL.lbl_upside];
   sumHeaders.forEach((h, i) => {
     const c = S.getCell(`${col(1 + i)}${sr}`);
     c.value = h;
@@ -1750,7 +2116,12 @@ export async function exportBusinessPlan(
   const grantApproved = a.financingPath === 'grant';
   const capResult = computeCapTable(capScenario, capTable, waterfall, { grantApproved });
   const fb = capResult.founderBreakdown;
-  const CT = wb.addWorksheet('Cap Table');
+  // reconcileRow is set inside the Cap Table block below; only read in the
+  // validation section when !isBankViewExport.
+  let reconcileRow = -1;
+  if (!isBankViewExport) {
+  const CT = wb.addWorksheet(XL.sh_capTable);
+  applyRTL(CT);
   CT.columns = [{ width: 28 }, ...years.map(() => ({ width: 12 })), { width: 13 }, { width: 8 }, { width: 8 }];
   CT.getCell('A1').value = 'Cap Table — distributions per stakeholder';
   CT.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -1758,7 +2129,7 @@ export async function exportBusinessPlan(
     `Scenario: ${scenarioName} · Exit ${capScenario.exitYear} @ ${capScenario.exitEbitdaMultiple}× · ` +
     `Founder ${(fb.founderTotalPct * 100).toFixed(1)}% (pp ${(fb.pariPassuPct * 100).toFixed(1)}% + grant ${(fb.grantBonusPct * 100).toFixed(0)}% + ratchet ${(fb.performanceRatchetPct * 100).toFixed(0)}%) · ` +
     `Investors ${(fb.investorTotalPct * 100).toFixed(1)}% · ` +
-    `Cap: ${fb.capBinding === 'total_75' ? '75% total binding' : fb.capBinding === 'earned_33' ? '33% earned binding' : 'free'}`;
+    `Cap: ${fb.capBinding === 'total_75' ? '75% total binding' : fb.capBinding === 'earned_33' ? '33% earned binding' : fb.capBinding === 'exit_55_grant' ? '55% grant exit cap (IRR < 30%)' : 'free'}`;
   CT.getCell('A2').font = FONT.italic;
   CT.mergeCells(`A2:${col(2 + years.length + 2)}2`);
 
@@ -1767,7 +2138,7 @@ export async function exportBusinessPlan(
   CT.getCell(`A${ctr}`).value = 'Stakeholder';
   CT.getCell(`A${ctr}`).font = FONT.header;
   CT.getCell(`A${ctr}`).fill = STYLE.headerFill;
-  ['Cash in', 'Total received', 'Net profit', 'MOIC', 'IRR', 'Payback'].forEach((h, i) => {
+  ['Cash in', 'Total received', 'Net profit', XL.lbl_moic, XL.lbl_irr, XL.lbl_payback].forEach((h, i) => {
     const c = CT.getCell(`${col(2 + i)}${ctr}`);
     c.value = h;
     c.font = FONT.header;
@@ -1798,7 +2169,7 @@ export async function exportBusinessPlan(
   });
 
   // Totals row
-  CT.getCell(`A${ctr}`).value = 'Total';
+  CT.getCell(`A${ctr}`).value = XL.lbl_total;
   CT.getCell(`A${ctr}`).font = FONT.bold;
   const totalCash = capResult.stakeholders.reduce((s, r) => s + r.stakeholder.cashIn, 0);
   const totalReceived = capResult.totalDistributed;
@@ -1820,7 +2191,7 @@ export async function exportBusinessPlan(
   CT.getCell(`A${ctr}`).fill = STYLE.sectionFill;
   CT.mergeCells(`A${ctr}:${col(7)}${ctr}`);
   ctr += 1;
-  const reconcileRow = ctr;
+  reconcileRow = ctr;
   CT.getCell(`A${ctr}`).value = 'Project distributable (Σ NCF + terminal equity)';
   CT.getCell(`B${ctr}`).value = capResult.totalProjectDistributable;
   CT.getCell(`B${ctr}`).numFmt = FMT.euro;
@@ -1841,7 +2212,6 @@ export async function exportBusinessPlan(
     color: { argb: Math.abs(capResult.reconciliationError) < 1 ? 'FF2E7D32' : 'FFC62828' },
   };
   ctr += 2;
-  void reconcileRow;
 
   // Year-by-year per-stakeholder table
   CT.getCell(`A${ctr}`).value = 'Year-by-year cash flows per stakeholder';
@@ -1881,7 +2251,8 @@ export async function exportBusinessPlan(
   // Shows how founder economics decompose into pari-passu / grant bonus /
   // performance ratchet, plus a stress test at €200K / €300K / €400K founder
   // cash so the bank can see when the 75% total cap binds.
-  const WF = wb.addWorksheet('Waterfall');
+  const WF = wb.addWorksheet(XL.sh_waterfall);
+  applyRTL(WF);
   WF.columns = [
     { width: 30 }, { width: 14 }, { width: 14 }, { width: 14 },
     { width: 14 }, { width: 14 }, { width: 14 },
@@ -1926,6 +2297,13 @@ export async function exportBusinessPlan(
       label: 'Founder total (A + B + C, capped at 75%)',
       pct: fb.founderTotalPct,
       note: fb.capBinding === 'total_75' ? '75% total cap binding — earned reduced' : 'Below total cap',
+    },
+    {
+      label: 'Exit share (grant route)',
+      pct: fb.founderExitPct,
+      note: fb.grantExitCapActive
+        ? '55% exit cap active (investor IRR < 30%)'
+        : 'Uncapped — IRR ≥ 30%',
     },
     {
       label: 'Investors keep',
@@ -2114,7 +2492,9 @@ export async function exportBusinessPlan(
         ? '75% binding'
         : sb.capBinding === 'earned_33'
           ? '33% reached'
-          : 'free',
+          : sb.capBinding === 'exit_55_grant'
+            ? '55% exit cap (grant)'
+            : 'free',
     ];
     cells.forEach((v, i) => {
       const c = WF.getCell(`${col(1 + i)}${wfr}`);
@@ -2123,7 +2503,7 @@ export async function exportBusinessPlan(
       else if (i < 6) c.numFmt = FMT.pct;
       c.alignment = { horizontal: i === 0 ? 'left' : 'right' };
       c.fill = STYLE.formulaFill;
-      if (sb.capBinding === 'total_75' && i === 6) {
+      if ((sb.capBinding === 'total_75' || sb.capBinding === 'exit_55_grant') && i === 6) {
         c.font = { bold: true, color: { argb: 'FFB45309' } };
       }
     });
@@ -2131,6 +2511,7 @@ export async function exportBusinessPlan(
   });
 
   WF.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
+  } // end: !isBankViewExport — Cap Table + Waterfall sheets omitted from banker pack
 
   // ── Validation block on the Cover sheet ────────────────────────────
   cover.getCell(`B${valStartRow}`).value = 'Engine ↔ Workbook validation';
@@ -2158,29 +2539,28 @@ export async function exportBusinessPlan(
   const dscr2031 = totalDs2031 > 0 ? (stab2031?.ebitda ?? 0) / totalDs2031 : 0;
   const validations = [
     { label: 'Total CAPEX', engine: m.capex.portfolioTotal, workbookRef: capexTotalCell, fmt: FMT.euro },
-    { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `Revenue!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },
-    { label: 'Stabilised EBITDA (2031)', engine: stab2031?.ebitda ?? 0, workbookRef: `'OPEX & P&L'!${col(2 + (2031 - 2026))}${ebitdaRow}`, fmt: FMT.euro },
-    { label: 'Stabilised DSCR (2031) — incl. WC', engine: dscr2031, workbookRef: `Coverage!${col(2 + (2031 - 2026))}${dscrRowOnCov}`, fmt: FMT.mul },
+    { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },
+    { label: 'Stabilised EBITDA (2031)', engine: stab2031?.ebitda ?? 0, workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, fmt: FMT.euro },
+    { label: 'Stabilised DSCR (2031) — incl. WC', engine: dscr2031, workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`, fmt: FMT.mul },
     { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
     { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
     { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
-    // Per-stakeholder validation rows — sourced from the engine's
-    // computeCapTable, mirrored into the Cap Table sheet. If anything in the
-    // waterfall changes, these rows go red ⚠ DRIFT.
-    ...capResult.stakeholders.slice(0, 2).map((sr, idx) => ({
-      label: `Cap Table — ${sr.stakeholder.name} MOIC`,
-      engine: sr.moic,
-      // Cap Table sheet: stakeholder rows start at row 5 (after title/sub +
-      // header at row 4). MOIC is column 5 (B+3 → "E" zero-indexed = col 5).
-      workbookRef: `'Cap Table'!${col(5)}${5 + idx}`,
-      fmt: FMT.mul,
-    })),
-    {
-      label: 'Cap Table reconciliation diff',
-      engine: capResult.reconciliationError,
-      workbookRef: `'Cap Table'!B${reconcileRow + 2}`,
-      fmt: FMT.euro,
-    },
+    // Cap Table rows omitted from banker pack — investor deal economics
+    // have no place in a credit submission.
+    ...(isBankViewExport ? [] : [
+      ...capResult.stakeholders.slice(0, 2).map((sr, idx) => ({
+        label: `Cap Table — ${sr.stakeholder.name} MOIC`,
+        engine: sr.moic,
+        workbookRef: `'${XL.sh_capTable}'!${col(5)}${5 + idx}`,
+        fmt: FMT.mul,
+      })),
+      {
+        label: 'Cap Table reconciliation diff',
+        engine: capResult.reconciliationError,
+        workbookRef: `'${XL.sh_capTable}'!B${reconcileRow + 2}`,
+        fmt: FMT.euro,
+      },
+    ]),
   ];
   validations.forEach((v, i) => {
     const r0 = valHeaderRow + 1 + i;
@@ -2236,7 +2616,7 @@ export async function exportBusinessPlan(
   const activeMinDscrYear = minDscrYearLookup(activeScenario);
 
   // ── Financing-path comparison ───────────────────────────────────────
-  const FC = wb.addWorksheet('Financing Comparison', { views: [{ showGridLines: false }] });
+  const FC = wb.addWorksheet(XL.sh_financingComparison, { views: locale === 'he' ? [{ showGridLines: false, rightToLeft: true }] : [{ showGridLines: false }] });
   FC.columns = [
     { width: 42 },
     { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 },
@@ -2274,7 +2654,7 @@ export async function exportBusinessPlan(
     { key: 'grant', label: 'Grant' },
   ];
   let fcr = 5;
-  FC.getCell(`A${fcr}`).value = 'Metric';
+  FC.getCell(`A${fcr}`).value = XL.lbl_metric;
   FC.getCell(`A${fcr}`).font = FONT.header;
   FC.getCell(`A${fcr}`).fill = STYLE.headerFill;
   fcPathCols.forEach((p, i) => {
@@ -2464,7 +2844,8 @@ export async function exportBusinessPlan(
   // start), zero thereafter; this matches the engine's single-draw model.
   // No cash-sweep mechanic exists in the current engine — column reported
   // as 'n/a'.
-  const AM = wb.addWorksheet('Amortisation Schedule');
+  const AM = wb.addWorksheet(XL.sh_amortisation);
+  applyRTL(AM);
   AM.columns = [
     { width: 8 },
     { width: 16 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 16 },
@@ -2554,7 +2935,8 @@ export async function exportBusinessPlan(
   AM.views = [{ state: 'frozen', xSplit: 1, ySplit: 4 }];
 
   // ── Working-capital block ───────────────────────────────────────────
-  const WC = wb.addWorksheet('Working Capital');
+  const WC = wb.addWorksheet(XL.sh_workingCapital);
+  applyRTL(WC);
   WC.columns = [{ width: 38 }, ...years.map(() => ({ width: 14 })), { width: 16 }];
   WC.getCell('A1').value = 'Working Capital — annual aggregates';
   WC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -2621,7 +3003,7 @@ export async function exportBusinessPlan(
   wcRr += 1;
 
   // Header row.
-  WC.getCell(`A${wcRr}`).value = 'Metric';
+  WC.getCell(`A${wcRr}`).value = XL.lbl_metric;
   WC.getCell(`A${wcRr}`).font = FONT.header;
   WC.getCell(`A${wcRr}`).fill = STYLE.headerFill;
   years.forEach((y, i) => {
@@ -2670,7 +3052,8 @@ export async function exportBusinessPlan(
   // LLCR / PLCR are scenario-aggregate (NPV-based) — single number each.
   // We report ICR per year + scenario aggregates for LLCR / PLCR + min ICR
   // across loan life.
-  const BC = wb.addWorksheet('Bank Coverage');
+  const BC = wb.addWorksheet(XL.sh_bankCoverage);
+  applyRTL(BC);
   BC.columns = [{ width: 38 }, ...years.map(() => ({ width: 13 })), { width: 16 }];
   BC.getCell('A1').value = 'Bank Coverage Ratios — LLCR / PLCR / ICR';
   BC.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
@@ -2697,7 +3080,7 @@ export async function exportBusinessPlan(
 
   let bcr = 5;
   // Per-year header.
-  BC.getCell(`A${bcr}`).value = 'Year';
+  BC.getCell(`A${bcr}`).value = XL.lbl_year;
   BC.getCell(`A${bcr}`).font = FONT.header;
   BC.getCell(`A${bcr}`).fill = STYLE.headerFill;
   years.forEach((y, i) => {
@@ -2843,8 +3226,11 @@ export async function exportBusinessPlan(
   setOrder(D, 10);
   setOrder(Cov, 11);
   setOrder(S, 12);
-  setOrder(CT, 13);
-  setOrder(WF, 14);
+  // Cap Table and Waterfall are excluded from the banker pack
+  const _CT = wb.getWorksheet(XL.sh_capTable);
+  const _WF = wb.getWorksheet(XL.sh_waterfall);
+  if (_CT) setOrder(_CT, 13);
+  if (_WF) setOrder(_WF, 14);
 
   // ── Output ──
   const buffer = await wb.xlsx.writeBuffer();

@@ -1,0 +1,12 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`L1 — engine metrics that feed the validation table > bank-view metrics snapshot (commercial path, realistic scenario) 1`] = `
+{
+  "equityMOIC": undefined,
+  "leveredEquityIRR": undefined,
+  "stabilisedDSCR2031_coverageBasis": 1.9904414042408178,
+  "stabilisedEBITDA2031": 811145,
+  "stabilisedRevenue2031": 1072425,
+  "totalCAPEX": 5061200,
+}
+`;
