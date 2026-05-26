@@ -22,12 +22,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
 
   useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get('lang') as Locale | null;
     const saved = localStorage.getItem('villa-lev-locale') as Locale | null;
-    if (saved && dictionaries[saved]) {
-      setLocaleState(saved);
-      document.documentElement.lang = saved;
-      document.documentElement.dir = LOCALE_CONFIG[saved].dir;
-    }
+    const initial = (param && dictionaries[param]) ? param : (saved && dictionaries[saved]) ? saved : 'en';
+    setLocaleState(initial);
+    localStorage.setItem('villa-lev-locale', initial);
+    document.documentElement.lang = initial;
+    document.documentElement.dir = LOCALE_CONFIG[initial].dir;
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', initial);
+    history.replaceState(null, '', url.toString());
   }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
@@ -35,6 +39,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('villa-lev-locale', newLocale);
     document.documentElement.lang = newLocale;
     document.documentElement.dir = LOCALE_CONFIG[newLocale].dir;
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', newLocale);
+    history.replaceState(null, '', url.toString());
   }, []);
 
   const t = useCallback(

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useModelStore, ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { TranslationDictionary } from "@/lib/i18n/types";
+import { formatCurrency } from "@/lib/hooks/useModel";
 
 type InputDef = {
   label: string;
@@ -50,9 +51,13 @@ function formatDisplay(val: number, type: InputDef["type"]): string {
   return String(val);
 }
 
+// Paths that belong to the "advanced" collapsible section.
+const ADVANCED_PATHS = new Set(["commercialLoan.loanCoverageRate", "exitEbitdaMultiple"]);
+
 export function BankStressTest() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const {
+    model,
     assumptions,
     stressTestOverrides,
     setStressTestOverride,
@@ -60,6 +65,7 @@ export function BankStressTest() {
     activeScenario,
   } = useModelStore();
   const [open, setOpen] = useState(true);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
   // Inputs depend on the active scenario (upside uses revenueUpside.* paths).
@@ -123,7 +129,10 @@ export function BankStressTest() {
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-brand-50/60 transition-colors"
       >
         <div className="flex items-center gap-3">
-          <span className="text-lg">⚙️</span>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" className="text-text-tertiary shrink-0">
+            <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.6 2.6l1.05 1.05M10.35 10.35l1.05 1.05M2.6 11.4l1.05-1.05M10.35 3.65l1.05-1.05" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+          </svg>
           <div>
             <div className="text-sm font-semibold text-text-primary flex items-center gap-2">
               {t('bank.stress.title')}
@@ -138,13 +147,16 @@ export function BankStressTest() {
             </div>
           </div>
         </div>
-        <span className={`text-text-tertiary transition-transform ${open ? "rotate-180" : ""}`}>▼</span>
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className={`text-text-tertiary transition-transform duration-150 ${open ? 'rotate-180' : ''}`}>
+          <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </button>
 
       {open && (
         <div className="px-6 pb-6 border-t border-brand-200/60">
+          {/* Standard inputs — always visible */}
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {INPUTS.map((inp) => {
+            {INPUTS.filter((inp) => !ADVANCED_PATHS.has(inp.path)).map((inp) => {
               const current = getValue(inp);
               const changed = stressTestOverrides?.[inp.path] !== undefined && current !== getBaseNum(inp);
               return (
@@ -181,6 +193,87 @@ export function BankStressTest() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Advanced disclosure toggle */}
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((prev) => !prev)}
+            className="flex items-center gap-1.5 text-sm font-medium text-text-secondary hover:text-text-primary mt-4 mb-2"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className={`transition-transform duration-150 ${advancedOpen ? 'rotate-180' : ''}`}>
+              <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {t('bank.stress.advancedToggle')}
+          </button>
+          {advancedOpen && (
+            <div className="grid grid-cols-1 gap-4">
+              {INPUTS.filter((inp) => ADVANCED_PATHS.has(inp.path)).map((inp) => {
+                const current = getValue(inp);
+                const changed = stressTestOverrides?.[inp.path] !== undefined && current !== getBaseNum(inp);
+                return (
+                  <div key={inp.path} className={`rounded-xl border p-3 ${changed ? "border-warning/50 bg-warning/5" : "border-surface-tertiary bg-white"}`}>
+                    <label className="block text-xs font-medium text-text-secondary mb-1">
+                      {inp.label}
+                      {changed && (
+                        <span className="ml-1.5 text-warning text-xs">✎</span>
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      min={inp.type === "percent" ? (inp.min ?? 0) * 100 : inp.min}
+                      max={inp.type === "percent" ? (inp.max ?? 1) * 100 : inp.max}
+                      step={inp.type === "percent" ? (inp.step ?? 0.0025) * 100 : inp.step}
+                      value={displayValue(inp)}
+                      onChange={(e) =>
+                        setLocalValues((prev) => ({ ...prev, [inp.path]: e.target.value }))
+                      }
+                      onBlur={(e) => handleBlur(inp, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          (e.target as HTMLInputElement).blur();
+                        }
+                      }}
+                      className="w-full rounded-lg border border-surface-tertiary px-3 py-1.5 text-sm font-mono text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent"
+                    />
+                    <div className="text-xs text-text-tertiary mt-1 flex justify-between">
+                      <span>{t('stress.baseLabel')} {baseValue(inp)}</span>
+                      <span className="font-medium text-text-primary">
+                        {formatDisplay(current, inp.type)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Read-only output strip */}
+          <div className="mt-4 rounded-xl border border-surface-tertiary bg-surface-secondary/20 p-4 grid grid-cols-3 gap-4">
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{t('bank.stress.output.dscr')}</div>
+              <div className="font-mono font-semibold text-lg text-text-primary">
+                {model?.scenarios?.realistic?.stabilisedYear?.dscr != null
+                  ? model.scenarios.realistic.stabilisedYear.dscr.toFixed(2) + '×'
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{t('bank.stress.output.ebitda')}</div>
+              <div className="font-mono font-semibold text-lg text-text-primary">
+                {model?.scenarios?.realistic?.stabilisedYear?.ebitda != null
+                  ? formatCurrency(model.scenarios.realistic.stabilisedYear.ebitda, true, locale)
+                  : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{t('bank.stress.output.ltv')}</div>
+              <div className="font-mono font-semibold text-lg text-text-primary">
+                {model?.keyMetrics?.ltv != null
+                  ? (model.keyMetrics.ltv * 100).toFixed(1) + '%'
+                  : '—'}
+              </div>
+            </div>
           </div>
 
           {hasOverrides && (

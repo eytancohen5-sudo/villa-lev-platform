@@ -144,7 +144,12 @@ export function applySliders(
       ...clone.portfolioOpex,
       // Pool R&M is driven by poolCostPerUnit in the engine (not annualCost), so stress both.
       poolCostPerUnit: (clone.portfolioOpex.poolCostPerUnit ?? 1500) * m,
-      sharedServices: clone.portfolioOpex.sharedServices.map((s) => ({ ...s, annualCost: s.annualCost * m })),
+      sharedServices: clone.portfolioOpex.sharedServices.map((s) => ({
+        ...s,
+        annualCost: s.annualCost * m,
+        // Also stress per-unit cost where applicable (engine uses unitCount × costPerUnit for these lines)
+        ...(s.costPerUnit !== undefined ? { costPerUnit: s.costPerUnit * m } : {}),
+      })),
       sharedOverhead:  clone.portfolioOpex.sharedOverhead.map((s)  => ({ ...s, annualCost: s.annualCost * m })),
       staffRoles:      clone.portfolioOpex.staffRoles.map((r)      => ({ ...r, monthlyGross: r.monthlyGross * m, allowances: r.allowances * m })),
     };

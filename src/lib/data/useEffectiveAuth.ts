@@ -38,6 +38,22 @@ export type EffectiveRole = Role | "banker";
 const STORAGE_KEY = "villa-lev-viewAs";
 const SAME_WINDOW_EVENT = "villa-lev-viewAs-change";
 
+// Banker impersonation persisted across a hard refresh causes an immediate
+// redirect to /bank on every /admin/* page load, creating an inescapable
+// loop. Clear it at module-init so admins always start in their real role
+// after a refresh. Viewer/editor impersonation is left intact — those modes
+// are useful to persist (they affect what the admin sees on /admin pages,
+// not where they land).
+if (typeof window !== "undefined") {
+  try {
+    if (window.localStorage.getItem(STORAGE_KEY) === "banker") {
+      window.localStorage.removeItem(STORAGE_KEY);
+    }
+  } catch {
+    // Private mode / storage disabled — ignore.
+  }
+}
+
 const VALID_TARGETS: readonly ImpersonationTarget[] = [
   "banker",
   "viewer",
@@ -71,6 +87,21 @@ let snapshotInitialised = false;
 function refreshSnapshot(): void {
   cachedSnapshot = readStored();
   snapshotInitialised = true;
+}
+
+// Imperatively clear impersonation without going through React hooks.
+// Call this from layout effects that need to reset view-as state before
+// a redirect fires (e.g. landing on /admin/login clears banker mode so
+// the post-login redirect lands on /admin/dashboard, not /bank).
+export function clearImpersonation(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    refreshSnapshot();
+    window.dispatchEvent(new CustomEvent(SAME_WINDOW_EVENT));
+  } catch {
+    // Private mode — ignore.
+  }
 }
 
 function getSnapshot(): ImpersonationTarget | null {
@@ -210,13 +241,17 @@ export function useEffectiveAuth(): EffectiveAuthResult {
 
   return {
     // Pass through user / loading / profile / signIn / signOut /
-    // profileMissing untouched — only the role-derived flags change.
+    // profileMissing / statusPending / doSignInEmail / doSignUpEmail
+    // untouched — only the role-derived flags change.
     user: base.user,
     profile: base.profile,
     loading: base.loading,
     profileMissing: base.profileMissing,
+    statusPending: base.statusPending,
     signIn: base.signIn,
     signOut: base.signOut,
+    doSignInEmail: base.doSignInEmail,
+    doSignUpEmail: base.doSignUpEmail,
     // Overridden by impersonation:
     role: overrides.role,
     isAdmin: overrides.isAdmin,

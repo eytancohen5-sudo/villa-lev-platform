@@ -8,7 +8,6 @@ import type { TourConfig } from "@/lib/tours/types";
 const LANGUAGES: { code: Locale; native: string; abbr: string }[] = [
   { code: "en", native: "English", abbr: "EN" },
   { code: "el", native: "Ελληνικά", abbr: "EL" },
-  { code: "fr", native: "Français", abbr: "FR" },
   { code: "he", native: "עברית", abbr: "HE" },
 ];
 
@@ -25,7 +24,6 @@ const UI: Record<Locale, {
 }> = {
   en: { step: "Step", next: "Next", back: "Back", skip: "Skip", done: "Got it", start: "Start the tour", pickLang: "Pick your language" },
   el: { step: "Βήμα", next: "Επόμενο", back: "Πίσω", skip: "Παράλειψη", done: "Έτοιμο", start: "Ξεκίνημα ξενάγησης", pickLang: "Επιλέξτε γλώσσα" },
-  fr: { step: "Étape", next: "Suivant", back: "Retour", skip: "Passer", done: "Terminé", start: "Commencer la visite", pickLang: "Choisissez votre langue" },
   he: { step: "שלב", next: "הבא", back: "חזור", skip: "דלג", done: "סיימתי", start: "התחל את הסיור", pickLang: "בחרו את השפה" },
 };
 
@@ -59,6 +57,9 @@ export function PageTour({
   // (user manually scrolls — we only re-anchor the spotlight, never re-scroll).
   const stepRef = useRef(step);
   const skipScrollIntoViewRef = useRef(false);
+  // When the user clicks Next/Back/keyboard we suppress scroll-sync for 1 s
+  // so the smooth-scroll animation can't bounce us back to the previous step.
+  const scrollSyncSuppressedUntilRef = useRef<number>(0);
   useEffect(() => {
     stepRef.current = step;
   }, [step]);
@@ -112,15 +113,37 @@ export function PageTour({
   // tour to whichever target section is closest to the upper-third of the
   // viewport. Welcome step (no target) is preserved until the user clicks
   // Start, so accidental scrolls don't dismiss it.
+  //
+  // Oscillation guard: after the user clicks Next/Back the current step's
+  // target is set. We only sync to a different step if (a) the 2.5 s
+  // post-click suppression window has expired AND (b) the current target is
+  // no longer visible in the viewport. This prevents adjacent sections that
+  // are simultaneously visible from bouncing the tour back.
   useEffect(() => {
     if (!open) return;
     let raf = 0;
     const handler = () => {
       // Don't sync while we're still on welcome.
       if (stepRef.current === 0 && !config.steps[0].target) return;
+      // Don't sync for 2.5 s after a user-initiated Next/Back.
+      if (Date.now() < scrollSyncSuppressedUntilRef.current) return;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         const vh = window.innerHeight;
+
+        // If the current step has no target (centered informational card),
+        // don't sync — the user must click Next/Back to leave it.
+        const currentStep = config.steps[stepRef.current];
+        if (!currentStep.target) return;
+
+        // If the current step's target is still visible, stay on it —
+        // the user hasn't scrolled past it.
+        const currentEl = document.querySelector(currentStep.target);
+        if (currentEl) {
+          const cr = currentEl.getBoundingClientRect();
+          if (cr.bottom > 80 && cr.top < vh - 80) return;
+        }
+
         const targetCenter = vh * 0.4;
         let bestIdx = -1;
         let bestDist = Infinity;
@@ -162,10 +185,12 @@ export function PageTour({
   }, [onClose, config.storageKey]);
 
   const goNext = useCallback(() => {
+    scrollSyncSuppressedUntilRef.current = Date.now() + 2500;
     setStep((s) => Math.min(config.steps.length - 1, s + 1));
   }, [config.steps.length]);
 
   const goBack = useCallback(() => {
+    scrollSyncSuppressedUntilRef.current = Date.now() + 2500;
     setStep((s) => Math.max(0, s - 1));
   }, []);
 
@@ -178,9 +203,11 @@ export function PageTour({
         finish();
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
+        scrollSyncSuppressedUntilRef.current = Date.now() + 2500;
         goNext();
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
+        scrollSyncSuppressedUntilRef.current = Date.now() + 2500;
         goBack();
       }
     };
@@ -376,7 +403,6 @@ export function TourButton({
   const labels: Record<Locale, string> = {
     en: "Take the tour",
     el: "Ξενάγηση",
-    fr: "Faire la visite",
     he: "התחל סיור",
   };
   return (

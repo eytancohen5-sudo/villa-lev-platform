@@ -24,6 +24,7 @@ interface ReportContext {
   exitYear: number;
   exitMultiple: number;
   redacted: boolean;             // when true, other-investor names redacted
+  portfolioLabel?: string;       // e.g. "2× Villas" or "1× Villa + 4× Suites"
 }
 
 const eur = (n: number, locale = 'en-IE'): string => {
@@ -76,7 +77,7 @@ export async function exportInvestorReport(
   doc.setTextColor(...TEXT_TERTIARY);
   doc.setFontSize(8);
   doc.text(
-    `${ctx.pathLabel} · ${ctx.scenarioLabel} scenario · Exit ${ctx.exitYear} @ ${ctx.exitMultiple}× EBITDA`,
+    `${ctx.pathLabel}${ctx.portfolioLabel ? ` · ${ctx.portfolioLabel}` : ''} · ${ctx.scenarioLabel} scenario · Exit ${ctx.exitYear} @ ${ctx.exitMultiple}× EBITDA`,
     margin, y,
   );
   y += 8;

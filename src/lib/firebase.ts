@@ -14,6 +14,11 @@ import { getAuth, type Auth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyA-YnSf0FKpecug5P9ZeAdO_DrPwQVOSrg',
+  // authDomain must be the Firebase-owned domain, NOT a custom hosting domain.
+  // Using villa-lev-finance.web.app here breaks signInWithPopup on Safari: Safari's
+  // ITP partitions the popup's sessionStorage when it navigates through accounts.google.com
+  // and back to our domain, wiping the state Firebase stored before the OAuth redirect.
+  // The firebaseapp.com handler has built-in ITP workarounds that survive this navigation.
   authDomain: 'villa-lev-admin.firebaseapp.com',
   projectId: 'villa-lev-admin',
   storageBucket: 'villa-lev-admin.firebasestorage.app',
@@ -80,3 +85,4 @@ export const SCENARIOS_COLLECTION = 'scenarios';
 // does X live?". See ADR 0002 for the full data model.
 export const USERS_COLLECTION = 'users';
 export const INVITES_COLLECTION = 'invites';
+export const MAIL_COLLECTION = 'mail';

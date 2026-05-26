@@ -36,7 +36,7 @@ function Section({
   onToggle: () => void;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden transition-all" id={id}>
+    <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden transition-all" id={id}>
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-surface-secondary/20 transition-colors"
@@ -76,7 +76,8 @@ export default function LexiconPage() {
     <div>
       <div className="flex items-end justify-between mb-6">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">{t('lex.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">{t('lex.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('lex.pageIntro')}</p>
           <p className="text-sm text-text-secondary mt-1">{t('lex.subtitle')}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -176,18 +177,19 @@ export default function LexiconPage() {
 
         {/* OPEX */}
         <Section id="opex" title={t('lex.opex')} open={openSections.has('opex')} onToggle={() => toggle('opex')}>
-          <p>Operating expenses are computed per property type with a phased maintenance schedule reflecting building age.</p>
+          <p>Operating expenses are computed per property type. FF&E Reserve is phased as a % of revenue, floored at a per-property minimum.</p>
           <Formula>
-            OPEX (per unit) = Housekeeping + Maintenance + Utilities + Insurance + Property Tax + Marketing + Management + Consumables + Accounting
+            OPEX (per unit) = Housekeeping + Utilities + Insurance + Property Tax + Marketing + Consumables + Accounting + FF&E Reserve
           </Formula>
           <Formula>
             Total OPEX = OPEX<sub>A</sub> &times; n<sub>A</sub> + OPEX<sub>B</sub> &times; n<sub>B</sub>
           </Formula>
           <div className="mt-3 space-y-1">
-            <p className="font-medium text-text-primary">Maintenance Phasing (% of construction cost):</p>
-            <Variable name="Years 1-2 (2028-2029)" desc="0.5% — new build, minimal maintenance" />
-            <Variable name="Year 3 (2030)" desc="1.0% — first full service cycle" />
-            <Variable name="Year 4+ (2031+)" desc="1.5% — stabilised maintenance run-rate" />
+            <p className="font-medium text-text-primary">FF&E Reserve schedule (% of revenue, floored at property minimum):</p>
+            <Variable name="Year 1 (2028)" desc="Floor only — no revenue-% component in opening year" />
+            <Variable name="Year 2 (2029)" desc="max(floor, 2% of revenue)" />
+            <Variable name="Year 3 (2030)" desc="max(floor, 3% of revenue)" />
+            <Variable name="Year 4+ (2031+)" desc="max(floor, 4% of revenue) — capped" />
           </div>
         </Section>
 
@@ -380,7 +382,7 @@ export default function LexiconPage() {
         </Section>
       </div>
 
-      <div className="mt-8 bg-surface-secondary rounded-2xl p-6 text-xs text-text-tertiary">
+      <div className="mt-6 bg-surface-secondary rounded-xl p-6 text-xs text-text-tertiary">
         <p>This lexicon documents the mathematical methodology implemented in the Villa Lev Group financial engine. All formulas are deterministic and match the Excel Business Plan v4 model. The engine computes all five financing paths simultaneously, producing a complete 11-year P&L projection (2026-2036) for each scenario in under 10ms.</p>
       </div>
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={LEXICON_TOUR} />

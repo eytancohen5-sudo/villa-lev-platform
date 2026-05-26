@@ -133,6 +133,7 @@ export interface PropertyConfig {
   poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
   wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
   acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
+  interiorDesignerCost?: number;   // flat amount
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -191,6 +192,7 @@ export interface PropertyTemplate {
   poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
   wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
   acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
+  interiorDesignerCost?: number;   // flat amount
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -363,6 +365,11 @@ export interface TaxAssumptions {
    * Same deepMerge caution as otaCommissionRateByYear.
    */
   otaShareByYear?: Record<number, number>;
+  /**
+   * Years a CIT loss may be carried forward under Greek law (Article 27, Law 4172/2013).
+   * Defaults to 5. Set to 0 to disable the carryforward pool entirely.
+   */
+  corporateLossCarryForwardYears?: number;
 }
 
 // ── OpCo / PropCo Split ──
@@ -676,6 +683,12 @@ export interface AnnualPnL {
   partnerRepayment?: number;  // subordinated partner advance repaid this year (≥0)
   /** True when netCashFlowPostVAT has not yet crossed DISTRIBUTION_RESERVE_THRESHOLD in any prior year. ADR-0014. */
   distributionGated?: boolean;
+  /** Pre-opening loss added to the carryforward pool this year (positive number; 0 in operational years). */
+  taxLossGenerated?: number;
+  /** Loss utilised from the pool to reduce taxable profit this year (positive number; 0 in pre-opening years). */
+  taxLossUtilised?: number;
+  /** Cumulative unrelieved loss pool balance at end of this year (positive number; 0 when exhausted or expired). */
+  taxLossPoolBalance?: number;
 }
 
 export interface WorkingCapitalQuarter {
@@ -759,6 +772,7 @@ export type FinancingMetricKey =
   | 'totalLoanDrawn'
   | 'grantReceived'
   | 'equityRequired'
+  | 'graceInterestCarry'
   | 'annualDebtService'
   | 'stabilisedDSCR'
   | 'supplementaryLoan'
@@ -820,6 +834,12 @@ export interface ModelOutput {
     // non-tepix paths. Surfaced for UI tooltips.
     tepixLoanCap: number;
     grantAmount: number;
+    // Ring-fenced interest reserve injected at close to pre-fund all
+    // grace-period interest. NOT structural equity (equityRequired stays
+    // as CapEx × (1−LTV)). Used as IRR denominator add-on only.
+    graceInterestCarry: number;
+    // Number of years the reserve is held (graceEndYear − HORIZON_START_YEAR + 1).
+    graceInterestHoldYears: number;
   };
   dscrByYear: {
     year: number;

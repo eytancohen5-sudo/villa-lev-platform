@@ -6,6 +6,7 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { AnnualPnL } from "@/lib/engine/types";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { Chevron } from "@/components/icons/Chevron";
 import { PageSkeleton } from "@/components/Skeleton";
 import { PNL_TOUR } from "@/lib/tours/configs";
 import {
@@ -38,19 +39,6 @@ type RowDef = {
   /** Marks the equity distribution row for locale-safe gating indicator */
   isDistributionRow?: boolean;
 };
-
-// Chevron that rotates when the section is open
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="10" height="10" viewBox="0 0 10 10" fill="none"
-      xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
-      className={`transition-transform duration-150 ${open ? "rotate-90" : ""}`}
-    >
-      <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 export default function PnLPage() {
   const { t, locale } = useTranslation();
@@ -148,7 +136,6 @@ export default function PnLPage() {
     { label: t('pnl.portfolioPreOpening'), getValue: (p) => p.portfolioOpex?.preOpeningAmort ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
-    ...(opCoActive ? [{ label: t('pnl.opcoBaseFee'), getValue: (p: AnnualPnL) => p.opCoBaseFee, format: "currency" as const, color: "negative" as const, indent: true }] : []),
     { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
   );
@@ -185,9 +172,12 @@ export default function PnLPage() {
   // ── Tax & distributions ───────────────────────────────────────────────────
   rows.push({ label: "Tax & distributions", getValue: () => 0, format: "currency", separator: true, sectionKey: "tax" });
   rows.push(
-    { label: t('term.vatPayable'),     getValue: (p) => p.vatPayable,     format: "currency", color: "negative", detail: true, section: "tax" },
-    { label: t('term.citPayable'),     getValue: (p) => p.citPayable,     format: "currency", color: "negative", detail: true, section: "tax" },
-    { label: t('pnl.profitAfterTax'), getValue: (p) => p.profitAfterTax, format: "currency", bold: true, color: "dynamic", detail: true, section: "tax" },
+    { label: t('term.vatPayable'),       getValue: (p) => p.vatPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('term.citPayable'),       getValue: (p) => p.citPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('term.taxLossGenerated'), getValue: (p) => -(p.taxLossGenerated ?? 0),        format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('term.taxLossUtilised'),  getValue: (p) => p.taxLossUtilised ?? 0,            format: "currency", color: "dynamic",  detail: true, section: "tax" },
+    { label: t('term.taxLossPoolBalance'), getValue: (p) => p.taxLossPoolBalance ?? 0,       format: "currency",                    detail: true, section: "tax" },
+    { label: t('pnl.profitAfterTax'),   getValue: (p) => p.profitAfterTax,                  format: "currency", bold: true, color: "dynamic", detail: true, section: "tax" },
     { label: t('pnl.ncfPostVAT'),     getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
     {
       label: `Founder ManCo fee (${(DEFAULT_FOUNDER_MANCO_FEE_RATE * 100).toFixed(0)}% × revenue)`,

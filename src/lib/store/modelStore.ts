@@ -81,6 +81,19 @@ function ensureRoomAreas(tpl: PropertyTemplate): PropertyTemplate {
       ...tpl.opex,
       ffeReserveFloor: tpl.opex.ffeReserveFloor ?? builtIn?.opex.ffeReserveFloor ?? 0,
     },
+    landscapingCost: tpl.landscapingCost ?? builtIn?.landscapingCost,
+    licensesPermitsCost: tpl.licensesPermitsCost ?? builtIn?.licensesPermitsCost,
+    constructionDirectorCost: tpl.constructionDirectorCost || builtIn?.constructionDirectorCost,
+    // Treat empty poolSlots array same as undefined — old snapshots may have
+    // been saved with [] before the pool-slots feature existed.
+    poolSlots: (tpl.poolSlots && tpl.poolSlots.length > 0)
+      ? tpl.poolSlots
+      : builtIn?.poolSlots?.map(s => ({ ...s })),
+    wellnessFlatCost: tpl.wellnessFlatCost ?? builtIn?.wellnessFlatCost,
+    // 7.34% is the standard Greek acquisition legal rate; use as fallback for
+    // custom templates that pre-date this field.
+    acquisitionLegalRate: tpl.acquisitionLegalRate ?? builtIn?.acquisitionLegalRate ?? 0.0734,
+    interiorDesignerCost: tpl.interiorDesignerCost ?? builtIn?.interiorDesignerCost,
   };
 }
 
@@ -864,7 +877,7 @@ interface ModelStore {
   updateCustomSpace: (tplId: string, csId: string, key: 'name' | 'area', value: string | number) => void;
   removeCustomSpace: (tplId: string, csId: string) => void;
   // Extra annual OPEX lines (fold into P&L opex)
-  addOpexLine: (tplId: string) => void;
+  addOpexLine: () => void;
   removeOpexLine: (tplId: string, lineId: string) => void;
   updateOpexLine: (tplId: string, lineId: string, key: 'name' | 'value', value: string | number) => void;
   // Portfolio OPEX — shared staff roles
@@ -892,6 +905,11 @@ interface ModelStore {
   addVillaRoom: (tplId: string) => void;
   updateVillaRoom: (tplId: string, roomId: string, key: 'name' | 'count' | 'area', value: string | number) => void;
   removeVillaRoom: (tplId: string, roomId: string) => void;
+  // Pool slots (civil-engineer restructure 2026-05)
+  addPoolSlot: (tplId: string) => void;
+  updatePoolSlot: (tplId: string, slotId: string, key: 'qty' | 'widthM' | 'lengthM', value: number) => void;
+  removePoolSlot: (tplId: string, slotId: string) => void;
+  setWellnessFlatCost: (tplId: string, value: number | undefined) => void;
 
   // Project management
   addProject: (templateId: string) => void;
@@ -947,7 +965,7 @@ interface ModelStore {
 // users/{uid} is admin-only-readable in villa-lev-admin/firestore.rules, so
 // we cannot lazily look up another user's name. Instead, we denormalize:
 // stamp `ownerDisplayName` at write time and have readers consume it
-// directly. Fallback chain: displayName → email-local-part → 'Unknown'.
+// directly. Fallback chain: displayName → email-local-part → gate name → 'Unknown'.
 function resolveOwnerDisplayName(state: {
   currentUserDisplayName: string | null;
   currentUserEmail: string | null;
@@ -958,6 +976,14 @@ function resolveOwnerDisplayName(state: {
   if (state.currentUserEmail) {
     const localPart = state.currentUserEmail.split('@')[0];
     if (localPart) return localPart;
+  }
+  // Gate name: set by AuthGate when user enters their name on login.
+  // Covers anonymous Firebase Auth users before updateProfile resolves.
+  if (typeof window !== 'undefined') {
+    try {
+      const gateName = localStorage.getItem('vl-admin-name');
+      if (gateName) return gateName;
+    } catch { /* private mode */ }
   }
   return 'Unknown';
 }
@@ -1349,6 +1375,27 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         .map(ensureRoomAreas),
     ];
 
+    // Reconcile extraOpexLines: collect union of all line ids across templates,
+    // then fill missing entries on templates that don't have them.
+    const allLineIds = Array.from(
+      new Set(allTemplates.flatMap((t) => (t.extraOpexLines ?? []).map((l) => l.id)))
+    );
+    const reconciled = allTemplates.map((tpl) => {
+      const existing = tpl.extraOpexLines ?? [];
+      const existingIds = new Set(existing.map((l) => l.id));
+      const missing = allLineIds
+        .filter((lid) => !existingIds.has(lid))
+        .map((lid) => {
+          // Find the name from whichever template has it, to avoid blank labels
+          const donor = allTemplates.find((t) =>
+            (t.extraOpexLines ?? []).some((l) => l.id === lid)
+          );
+          const donorLine = donor?.extraOpexLines?.find((l) => l.id === lid);
+          return { id: lid, name: donorLine?.name ?? '', value: 0 };
+        });
+      return { ...tpl, extraOpexLines: [...existing, ...missing] };
+    });
+
     // Rebuild assumptions from BASE_CASE + persisted edits. Deep-merge so
     // fields added to the schema after the user's last save get defaults.
     let assumptions: ModelAssumptions = {
@@ -1362,6 +1409,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ) as unknown as ModelAssumptions;
     }
     assumptions = ensurePortfolioOpex(assumptions);
+    // Backfill poolConstructionCostPerM2 added 2026-05 — default 1000 if absent
+    if (assumptions.poolConstructionCostPerM2 == null) {
+      assumptions = { ...assumptions, poolConstructionCostPerM2: 1_000 };
+    }
 
     const projects = savedProjects ?? DEFAULT_PROJECTS.map((p) => ({ ...p }));
 
@@ -1373,7 +1424,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     set({
       assumptions,
       savedConfigs: configs,
-      templates: allTemplates,
+      templates: reconciled,
       projects,
       history,
       currentUser,
@@ -1386,6 +1437,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ...(savedWaterfall ? { waterfall: { ...DEFAULT_WATERFALL, ...savedWaterfall } } : {}),
     });
     get().recompute();
+    // Persist backfilled templates (ensureRoomAreas may have added new fields
+    // like landscapingCost / poolSlots that weren't in the saved version).
+    saveTemplatesToStorage(get().templates);
 
     // Background-fetch shared scenarios from the server (banker view: uid
     // is null → published-only). When auth wires up, ConfigPanel bridges
@@ -1605,6 +1659,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       builtIn: false,
       opex: { ...tpl.opex },
       roomAreas: tpl.roomAreas ? { ...tpl.roomAreas } : { ...DEFAULT_ROOM_AREAS },
+      extraOpexLines: (tpl.extraOpexLines ?? []).map((l) => ({
+        ...l,
+        id: generateId('opex-line'),
+      })),
     };
     const templates = [...get().templates, copy];
     set({ templates });
@@ -1674,27 +1732,23 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   // ── Extra OPEX Lines ──
 
-  addOpexLine: (tplId: string) => {
-    const templates = get().templates.map((tpl) => {
-      if (tpl.id !== tplId) return tpl;
-      const extraOpexLines = [
-        ...(tpl.extraOpexLines ?? []),
-        { id: generateId('opex-line'), name: '', value: 0 },
-      ];
-      return { ...tpl, extraOpexLines };
-    });
+  addOpexLine: () => {
+    const lineId = generateId('opex-line');
+    const templates = get().templates.map((tpl) => ({
+      ...tpl,
+      extraOpexLines: [...(tpl.extraOpexLines ?? []), { id: lineId, name: '', value: 0 }],
+    }));
     set({ templates, activeConfigId: null });
     saveTemplatesToStorage(templates);
     bumpEditCounter(get, set);
     get().recompute();
   },
 
-  removeOpexLine: (tplId: string, lineId: string) => {
-    const templates = get().templates.map((tpl) => {
-      if (tpl.id !== tplId) return tpl;
-      const extraOpexLines = (tpl.extraOpexLines ?? []).filter((l) => l.id !== lineId);
-      return { ...tpl, extraOpexLines };
-    });
+  removeOpexLine: (_tplId: string, lineId: string) => {
+    const templates = get().templates.map((tpl) => ({
+      ...tpl,
+      extraOpexLines: (tpl.extraOpexLines ?? []).filter((l) => l.id !== lineId),
+    }));
     set({ templates, activeConfigId: null });
     saveTemplatesToStorage(templates);
     bumpEditCounter(get, set);
@@ -1703,10 +1757,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   updateOpexLine: (tplId: string, lineId: string, key: 'name' | 'value', value: string | number) => {
     const templates = get().templates.map((tpl) => {
-      if (tpl.id !== tplId) return tpl;
-      const extraOpexLines = (tpl.extraOpexLines ?? []).map((l) =>
-        l.id === lineId ? { ...l, [key]: value } : l
-      );
+      const extraOpexLines = (tpl.extraOpexLines ?? []).map((l) => {
+        if (l.id !== lineId) return l;
+        if (key === 'name') return { ...l, name: value as string };       // fan out: all templates
+        if (tpl.id === tplId) return { ...l, value: value as number };    // per-template: only this one
+        return l;
+      });
       return { ...tpl, extraOpexLines };
     });
     set({ templates, activeConfigId: null });
@@ -1905,6 +1961,67 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     get().recompute();
   },
 
+  // ── Pool Slots ──
+
+  addPoolSlot: (tplId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const poolSlots = [
+        ...(tpl.poolSlots ?? []),
+        { id: generateId('ps'), qty: 1, widthM: 5, lengthM: 10 },
+      ];
+      return { ...tpl, poolSlots };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updatePoolSlot: (tplId: string, slotId: string, key: 'qty' | 'widthM' | 'lengthM', value: number) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const poolSlots = (tpl.poolSlots ?? []).map((s) =>
+        s.id === slotId ? { ...s, [key]: value } : s
+      );
+      return { ...tpl, poolSlots };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removePoolSlot: (tplId: string, slotId: string) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      const poolSlots = (tpl.poolSlots ?? []).filter((s) => s.id !== slotId);
+      return { ...tpl, poolSlots };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  setWellnessFlatCost: (tplId: string, value: number | undefined) => {
+    const templates = get().templates.map((tpl) => {
+      if (tpl.id !== tplId) return tpl;
+      if (value === undefined) {
+        // Switch to pool slots mode: clear wellnessFlatCost, add a default slot if none exist
+        const poolSlots = tpl.poolSlots && tpl.poolSlots.length > 0
+          ? tpl.poolSlots
+          : [{ id: generateId('ps'), qty: 1, widthM: 5, lengthM: 10 }];
+        return { ...tpl, wellnessFlatCost: undefined, poolSlots };
+      }
+      return { ...tpl, wellnessFlatCost: value };
+    });
+    set({ templates, activeConfigId: null });
+    saveTemplatesToStorage(templates);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
   // ── Project Management ──
 
   addProject: (templateId: string) => {
@@ -2000,20 +2117,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   saveConfig: async (name: string, opts?: { published?: boolean }) => {
     const state = get();
     const uid = state.currentUserUid;
-    if (!uid) {
-      // Hard-require sign-in for server writes. Surfaces via the same
-      // requestAlert flow used elsewhere so the user sees a real message
-      // rather than a silent permission-denied later.
-      state.requestAlert({
-        title: 'Sign-in required',
-        message:
-          'You need to be signed in to save a scenario. Click "Sign in to save" above the scenario list.',
-        tone: 'warning',
-      });
-      return;
-    }
     const id = crypto.randomUUID();
     const ownerDisplayName = resolveOwnerDisplayName(state);
+    // Default published:true — all team saves are visible to every
+    // password-gate user without needing to tick "Share with team" each time.
     const config: SavedConfiguration = {
       id,
       name,
@@ -2021,9 +2128,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       templates: JSON.parse(JSON.stringify(state.templates)),
       projects: JSON.parse(JSON.stringify(state.projects)),
       savedAt: Date.now(),
-      userId: uid,
+      userId: uid ?? undefined,
       ownerDisplayName,
-      published: !!opts?.published,
+      published: opts?.published ?? true,
       copiedFrom: null,
     };
     const configs = [...state.savedConfigs, config];
@@ -2038,6 +2145,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     });
     saveToStorage(configs);
     saveLastSavedConfig({ id, name });
+    if (!uid) {
+      // Anonymous auth resolves asynchronously after gate login. Save to
+      // localStorage only for now; the scenario will be pushed to Firestore
+      // once hydrateForUser runs after uid becomes available.
+      return;
+    }
     try {
       await pushServerConfig(config);
     } catch (err) {
@@ -2149,14 +2262,45 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     let targetAssumptions: ModelAssumptions;
     if (hasNewSchema) {
       const savedTemplates = source.templates ?? [];
+      const storeTemplates = get().templates;
       targetTemplates = [
         ...BUILT_IN_TEMPLATES.map((bt) => {
           const saved = savedTemplates.find((st) => st.id === bt.id);
-          return saved ? ensureRoomAreas({ ...saved, builtIn: true as const }) : bt;
+          if (!saved) return bt;
+          // Always pull constructionCostPerM2 from the current built-in — civil-
+          // engineer inputs updated these in May 2026 (luxury 5K→3K, boutique
+          // 4K→2.7K) and old Firestore snapshots still carry the wrong values.
+          return ensureRoomAreas({
+            ...saved,
+            builtIn: true as const,
+            constructionCostPerM2: bt.constructionCostPerM2,
+            constructionDirectorCost: saved.constructionDirectorCost || bt.constructionDirectorCost,
+            // Force built-in pool slots when saved snapshot has none — old
+            // scenarios may carry [] before pool-slots was added to the schema.
+            poolSlots: (saved.poolSlots && saved.poolSlots.length > 0)
+              ? saved.poolSlots
+              : bt.poolSlots?.map(s => ({ ...s })),
+          });
         }),
         ...savedTemplates
           .filter((st) => !BUILT_IN_TEMPLATES.some((bt) => bt.id === st.id))
-          .map(ensureRoomAreas),
+          .map((st) => {
+            // For custom templates, the in-memory store may carry new capex
+            // fields added after this scenario was saved. Backfill them so old
+            // saved configs pick up the new structure without losing any edits.
+            const cur = storeTemplates.find((t) => t.id === st.id);
+            const merged: PropertyTemplate = cur ? {
+              ...st,
+              landscapingCost: st.landscapingCost ?? cur.landscapingCost,
+              licensesPermitsCost: st.licensesPermitsCost ?? cur.licensesPermitsCost,
+              constructionDirectorCost: st.constructionDirectorCost || cur.constructionDirectorCost,
+              poolSlots: st.poolSlots ?? cur.poolSlots,
+              wellnessFlatCost: st.wellnessFlatCost ?? cur.wellnessFlatCost,
+              acquisitionLegalRate: st.acquisitionLegalRate ?? cur.acquisitionLegalRate,
+              interiorDesignerCost: st.interiorDesignerCost ?? cur.interiorDesignerCost,
+            } : st;
+            return ensureRoomAreas(merged);
+          }),
       ];
       targetProjects = source.projects!;
       targetAssumptions = ensurePortfolioOpex(mergedAssumptions);
@@ -2405,3 +2549,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     return { added, updated };
   },
 }));
+
+// Dev-only: expose store on window so browser eval / DevTools can call
+// updateTemplate, saveConfig, etc. for migration and debugging.
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  (window as unknown as Record<string, unknown>).__modelStore = useModelStore;
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
@@ -15,6 +15,7 @@ import BankControlBar from "@/components/BankControlBar";
 import BankSensitivityTab from "@/components/BankSensitivityTab";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { BANK_TOUR } from "@/lib/tours/configs";
+import { Chevron } from "@/components/icons/Chevron";
 import {
   BarChart,
   Bar,
@@ -71,6 +72,23 @@ export default function BankPage() {
   const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
   const [xlsxLoading, setXlsxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
+  const [capexExpanded, setCapexExpanded] = useState<Record<string, boolean>>({});
+  const [presentationFlipped, setPresentationFlipped] = useState(false);
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('bank-capex-expanded');
+      if (stored) setCapexExpanded(JSON.parse(stored));
+    } catch { /* ignore */ }
+  }, []);
+
+  const toggleCapexRow = (key: string) => {
+    setCapexExpanded(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try { sessionStorage.setItem('bank-capex-expanded', JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   const handleDownloadXlsx = async () => {
     if (!model || xlsxLoading) return;
@@ -107,6 +125,16 @@ export default function BankPage() {
 
   // The active path for display is the ephemeral override if set, else the stored assumption.
   const activePath = financingPathOverride ?? assumptions.financingPath;
+
+  // Derive per-instance column list for the CapEx table expand feature.
+  // One entry per physical plot (e.g. Property A ×2 becomes A N°1, A N°2).
+  const capexInstances = model.capex.properties.flatMap((prop) =>
+    Array.from({ length: prop.count }, (_, i) => ({
+      key: `${prop.id}-${i}`,
+      propId: prop.id,
+      name: prop.count > 1 ? `${prop.name} N°${i + 1}` : prop.name,
+    }))
+  );
 
   // Resolve the active scenario's P&L — charts and tables respond to the scenario pill.
   // km (keyMetrics) stays on realistic: loan sizing, LTV, DS are always on base case.
@@ -226,6 +254,9 @@ export default function BankPage() {
   const capitalData = [
     { name: t('inv.loan'), value: km.loanAmount, color: "#8B6914" },
     { name: t('kpi.equityRequired'), value: km.equityRequired, color: "#6B7A3D" },
+    ...(km.graceInterestCarry > 0
+      ? [{ name: t('kpi.graceInterestCarry'), value: km.graceInterestCarry, color: "#7A6B4A" }]
+      : []),
     ...(grantAmount > 0
       ? [{ name: t('path.grantShort'), value: grantAmount, color: "#4A6A8B" }]
       : []),
@@ -295,63 +326,6 @@ export default function BankPage() {
       {/* Overview tab — existing content */}
       {activeTab === 'overview' && <div key={activeScenario} className="animate-fade-in max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none">
 
-        {/* 1. Term Sheet */}
-        {(() => {
-          const stabDscr = km.stabilisedDSCR;
-          const dscrPass = stabDscr >= termSheetCovenant;
-          const cells = [
-            { label: t('dash.termsheet.loan'), value: formatCurrency(km.loanAmount, true, locale), sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}` },
-            { label: t('dash.termsheet.term'), value: `${term}y · ${grace}y`, sub: t('dash.termsheet.termSub') },
-            { label: t('dash.termsheet.rate'), value: `${(rate * 100).toFixed(2)}%`, sub: pathLabel },
-            { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
-            { label: t('dash.termsheet.dscrCovenant'), value: formatMultiple(stabDscr), sub: `Covenant ≥ ${termSheetCovenant.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
-            { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
-            { label: t('dash.termsheet.security'), value: t('bank.termsheet.securityValue'), sub: t('bank.termsheet.securitySub') },
-          ];
-          return (
-            <div id="bank-term-sheet" className="mb-6 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
-                {t('bank.section.termsheet')}
-              </h3>
-              <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-x-6 gap-y-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary/60">
-                  {cells.map((c, i) => (
-                    <div key={c.label} className={`${i > 0 ? 'pt-3 md:pt-0 md:pl-6' : ''} flex flex-col gap-0.5`}>
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{c.label}</span>
-                      <span className={`font-mono font-semibold text-lg ${c.tone === 'positive' ? 'text-positive' : c.tone === 'warning' ? 'text-warning' : 'text-text-primary'}`}>{c.value}</span>
-                      {c.sub && <span className="text-[11px] text-text-tertiary">{c.sub}</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {/* WC facility note — clarifies this is separate from the term loan */}
-              <div className="px-5 pt-3 pb-4 border-t border-surface-tertiary/50 flex items-start gap-2 text-[11px] text-text-tertiary">
-                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
-                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
-                  <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                </svg>
-                <span>
-                  <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
-                  {" "}—{" "}
-                  {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
-                  {assumptions.workingCapital.spreadOverTermRate > 0
-                    ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} ${t('bank.wc.bpsSpread')}`
-                    : ""}
-                  {assumptions.workingCapital.selfLiquidating
-                    ? ` · ${t('bank.wc.selfLiquidating')}`
-                    : ""}
-                  {" "}·{" "}
-                  <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
-                </span>
-              </div>
-              {/* Distribution covenant badge (ADR-0014) */}
-              <div className="px-5 pb-4">
-                <DistributionCovenantBadge gated={isGated} />
-              </div>
-            </div>
-          );
-        })()}
-
         {/* 2. Hero + Quick Access */}
         <div className="text-center mb-6 relative print:mb-4 print:break-after-avoid">
           <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3 print:mb-1">
@@ -395,28 +369,57 @@ export default function BankPage() {
               </div>
             </button>
 
-            {/* Bank Presentation */}
-            <a
-              href="/presentation"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
-            >
-              <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                  <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
-                    <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                    <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                    <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
-                  </svg>
+            {/* Bank Presentation — flip card */}
+            <div style={{ perspective: '800px' }}>
+              <div
+                style={{
+                  transformStyle: 'preserve-3d',
+                  transform: presentationFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                  transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  minHeight: '120px',
+                }}
+              >
+                {/* Front face */}
+                <button
+                  onClick={() => setPresentationFlipped(true)}
+                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
+                  className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full h-full"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+                      <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
+                        <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                        <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                        <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
+                      </svg>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">PDF</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
+                    <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
+                  </div>
+                </button>
+                {/* Back face */}
+                <div
+                  style={{
+                    backfaceVisibility: 'hidden',
+                    WebkitBackfaceVisibility: 'hidden',
+                    transform: 'rotateY(180deg)',
+                    position: 'absolute',
+                    inset: 0,
+                  }}
+                  className="flex flex-col items-center justify-center rounded-xl border border-brand-300 bg-gradient-to-br from-brand-50 to-brand-100 p-5 cursor-pointer"
+                  onClick={() => setPresentationFlipped(false)}
+                >
+                  <span className="text-2xl mb-2">📄</span>
+                  <p className="text-sm font-bold text-brand-700 text-center leading-snug">
+                    {t('bank.actions.presentation.comingSoon')}
+                  </p>
                 </div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">PDF</span>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
-                <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
-              </div>
-            </a>
+            </div>
 
             {/* Download the Model */}
             <button
@@ -527,6 +530,64 @@ export default function BankPage() {
 
         </div>
 
+        {/* Term Sheet — The Ask */}
+        {(() => {
+          const stabDscr = km.stabilisedDSCR;
+          const dscrPass = stabDscr >= termSheetCovenant;
+          const cells = [
+            { label: t('dash.termsheet.loan'), value: formatCurrency(km.loanAmount, true, locale), sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}` },
+            { label: t('dash.termsheet.term'), value: `${term}y · ${grace}y`, sub: t('dash.termsheet.termSub') },
+            { label: t('dash.termsheet.rate'), value: `${(rate * 100).toFixed(2)}%`, sub: pathLabel },
+            { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
+            { label: t('dash.termsheet.dscrCovenant'), value: formatMultiple(stabDscr), sub: `Covenant ≥ ${termSheetCovenant.toFixed(2)}× — ${dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}`, tone: dscrPass ? 'positive' : 'warning' as const },
+            { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
+            ...(km.graceInterestCarry > 0 ? [{ label: t('kpi.graceInterestCarry'), value: formatCurrency(km.graceInterestCarry, true, locale), sub: t('kpi.graceInterestCarrySub') }] : []),
+            { label: t('dash.termsheet.security'), value: t('bank.termsheet.securityValue'), sub: t('bank.termsheet.securitySub') },
+          ];
+          return (
+            <div id="bank-term-sheet" className="mb-6 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
+                {t('bank.section.termsheet')}
+              </h3>
+              <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-x-6 gap-y-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary/60">
+                  {cells.map((c, i) => (
+                    <div key={c.label} className={`${i > 0 ? 'pt-3 md:pt-0 md:pl-6' : ''} flex flex-col gap-0.5`}>
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{c.label}</span>
+                      <span className={`font-mono font-semibold text-lg ${c.tone === 'positive' ? 'text-positive' : c.tone === 'warning' ? 'text-warning' : 'text-text-primary'}`}>{c.value}</span>
+                      {c.sub && <span className="text-[11px] text-text-tertiary">{c.sub}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* WC facility note — clarifies this is separate from the term loan */}
+              <div className="px-5 pt-3 pb-4 border-t border-surface-tertiary/50 flex items-start gap-2 text-[11px] text-text-tertiary">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
+                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
+                  <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                <span>
+                  <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
+                  {" "}—{" "}
+                  {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
+                  {assumptions.workingCapital.spreadOverTermRate > 0
+                    ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} ${t('bank.wc.bpsSpread')}`
+                    : ""}
+                  {assumptions.workingCapital.selfLiquidating
+                    ? ` · ${t('bank.wc.selfLiquidating')}`
+                    : ""}
+                  {" "}·{" "}
+                  <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
+                </span>
+              </div>
+              {/* Distribution covenant badge (ADR-0014) */}
+              <div className="px-5 pb-4">
+                <DistributionCovenantBadge gated={isGated} />
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Stress-test CTA — navigates to the Sensitivity tab */}
         <button
           type="button"
@@ -631,35 +692,77 @@ export default function BankPage() {
             {t('capex.title')} — {t('bank.capex.useOfProceeds')}
           </h3>
           <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-surface-secondary/40">
-                  <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.costCategory')}</th>
-                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.total')}</th>
-                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.pctTotal')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {model.capex.categories.map((cat, i) => (
-                  <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/10'}`}>
-                    <td className="py-2.5 px-5 text-text-secondary">{cat.name}</td>
-                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-primary">{formatCurrency(cat.grandTotal, false, locale)}</td>
-                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-tertiary">
-                      {model.capex.portfolioTotal > 0
-                        ? `${((cat.grandTotal / model.capex.portfolioTotal) * 100).toFixed(1)}%`
-                        : '—'}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-surface-secondary/40">
+                    <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.costCategory')}</th>
+                    {capexInstances.map(inst => (
+                      <th key={inst.key} className="text-right py-3 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium print:hidden whitespace-nowrap">{inst.name}</th>
+                    ))}
+                    <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.total')}</th>
+                    <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('capex.pctTotal')}</th>
                   </tr>
-                ))}
-                <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
-                  <td className="py-3.5 px-5 text-text-primary">{t('capex.totalCapex')}</td>
-                  <td className="text-right py-3.5 px-5 font-mono text-brand-600">{formatCurrency(model.capex.portfolioTotal, false, locale)}</td>
-                  <td className="text-right py-3.5 px-5 font-mono text-text-tertiary">100%</td>
-                </tr>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {model.capex.categories.map((cat, i) => (
+                    <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/10'}`}>
+                      <td className="py-2.5 px-5 text-text-secondary">
+                        <button
+                          id={`capex-toggle-${cat.name}`}
+                          aria-expanded={!!capexExpanded[cat.name]}
+                          aria-controls={`capex-detail-${cat.name}`}
+                          title={capexExpanded[cat.name] ? t('bank.capex.collapseRow') : t('bank.capex.expandRow')}
+                          onClick={() => toggleCapexRow(cat.name)}
+                          className="w-full flex items-center gap-2 text-left text-text-secondary hover:text-text-primary transition-colors"
+                        >
+                          <Chevron open={!!capexExpanded[cat.name]} />
+                          <span>{cat.name}</span>
+                        </button>
+                      </td>
+                      {capexInstances.map((inst, instIdx) => {
+                        const pp = cat.perProperty?.find(p => p.id === inst.propId);
+                        let cellContent: string;
+                        if (!capexExpanded[cat.name]) {
+                          cellContent = '—';
+                        } else if (pp && pp.perUnit > 0) {
+                          const isDeveloperFee = cat.name.includes('Developer management fee');
+                          const formatted = formatCurrency(pp.perUnit, false, locale);
+                          cellContent = isDeveloperFee ? `~${formatted}` : formatted;
+                        } else {
+                          cellContent = '—';
+                        }
+                        return (
+                          <td
+                            key={inst.key}
+                            id={instIdx === 0 ? `capex-detail-${cat.name}` : undefined}
+                            className="text-right py-2.5 px-3 font-mono text-xs text-text-tertiary print:hidden whitespace-nowrap"
+                          >
+                            {cellContent}
+                          </td>
+                        );
+                      })}
+                      <td className="text-right py-2.5 px-5 font-mono text-sm text-text-primary">{formatCurrency(cat.grandTotal, false, locale)}</td>
+                      <td className="text-right py-2.5 px-5 font-mono text-sm text-text-tertiary">
+                        {model.capex.portfolioTotal > 0
+                          ? `${((cat.grandTotal / model.capex.portfolioTotal) * 100).toFixed(1)}%`
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
+                    <td className="py-3.5 px-5 text-text-primary">{t('capex.totalCapex')}</td>
+                    {capexInstances.map(inst => (
+                      <td key={inst.key} className="py-3.5 px-3 print:hidden" />
+                    ))}
+                    <td className="text-right py-3.5 px-5 font-mono text-brand-600">{formatCurrency(model.capex.portfolioTotal, false, locale)}</td>
+                    <td className="text-right py-3.5 px-5 font-mono text-text-tertiary">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <div className="px-5 py-2.5 border-t border-surface-tertiary/50 bg-surface-secondary/10 text-[11px] text-text-tertiary">
-              {t('bank.capex.footerLoan')} {formatCurrency(km.loanAmount, true, locale)} · {t('bank.capex.footerEquity')} {formatCurrency(km.equityRequired, true, locale)}{grantAmount > 0 ? ` · ${t('bank.capex.footerGrant')} ${formatCurrency(grantAmount, true, locale)}` : ''} · {t('bank.capex.footerTotal')} {formatCurrency(km.totalCapex, true, locale)}
+              {t('bank.capex.footerLoan')} {formatCurrency(km.loanAmount, true, locale)} · {t('bank.capex.footerEquity')} {formatCurrency(km.equityRequired, true, locale)}{km.graceInterestCarry > 0 ? ` · ${t('kpi.graceInterestCarry')} ${formatCurrency(km.graceInterestCarry, true, locale)}` : ''}{grantAmount > 0 ? ` · ${t('bank.capex.footerGrant')} ${formatCurrency(grantAmount, true, locale)}` : ''} · {t('bank.capex.footerTotal')} {formatCurrency(km.totalCapex, true, locale)}
             </div>
           </div>
         </div>

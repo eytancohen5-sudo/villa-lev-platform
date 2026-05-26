@@ -9,11 +9,15 @@ import { CAPEX_TOUR } from "@/lib/tours/configs";
 
 export default function CapexPage() {
   const { t, locale } = useTranslation();
-  const { model } = useModelStore();
+  const model = useModelStore(s => s.model);
+  const templates = useModelStore(s => s.templates);
+  const projects = useModelStore(s => s.projects);
+  const assumptions = useModelStore(s => s.assumptions);
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(CAPEX_TOUR.storageKey);
   if (!model) return <PageSkeleton variant="table" />;
 
   const { capex } = model;
+  const poolRate = assumptions.poolConstructionCostPerM2 ?? 1_000;
 
   // Expand each property into individual instance columns. Twin Villas with
   // count=2 → ["Twin Villas N°1", "Twin Villas N°2"]; Boutique Suites count=1
@@ -31,13 +35,73 @@ export default function CapexPage() {
     <div>
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary mb-1">{t('capex.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary mb-1 border-l-[3px] border-brand-400 pl-3">{t('capex.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('capex.pageIntro')}</p>
           <p className="text-sm text-text-secondary">{t('capex.subtitle')}</p>
         </div>
         <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
       </div>
 
-      <div id="capex-table" className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden scroll-mt-24">
+      {/* Pool configuration summary */}
+      <div className="mb-6 bg-white rounded-xl border border-surface-tertiary p-5">
+        <h2 className="font-semibold text-sm uppercase tracking-wider text-text-secondary mb-3">
+          {t('capex.poolConfig')}
+        </h2>
+        <p className="text-xs text-text-tertiary mb-4">{t('capex.poolConfigIntro')}</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-xs uppercase tracking-wider text-text-tertiary border-b border-surface-secondary/60">
+                <th className="text-left pb-2 pr-4">Property</th>
+                <th className="text-left pb-2 pr-4">Slot</th>
+                <th className="text-right pb-2 pr-4">Qty</th>
+                <th className="text-right pb-2 pr-4">W (m)</th>
+                <th className="text-right pb-2 pr-4">L (m)</th>
+                <th className="text-right pb-2 pr-4">Area (m²)</th>
+                <th className="text-right pb-2">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              {templates.filter(tpl => projects.some(p => p.templateId === tpl.id)).map((tpl) => {
+                if (tpl.wellnessFlatCost != null) {
+                  return (
+                    <tr key={tpl.id} className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-4 text-text-secondary text-xs">{tpl.name}</td>
+                      <td className="py-1.5 pr-4 text-text-tertiary text-xs italic">Wellness (flat)</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">—</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">—</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">—</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">—</td>
+                      <td className="py-1.5 text-right font-mono text-xs">{formatCurrency(tpl.wellnessFlatCost, false, locale)}</td>
+                    </tr>
+                  );
+                }
+                if (!tpl.poolSlots || tpl.poolSlots.length === 0) return null;
+                return tpl.poolSlots.map((slot, idx) => {
+                  const area = slot.qty * slot.widthM * slot.lengthM;
+                  const cost = area * poolRate;
+                  return (
+                    <tr key={`${tpl.id}-${slot.id}`} className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-4 text-text-secondary text-xs">{idx === 0 ? tpl.name : ''}</td>
+                      <td className="py-1.5 pr-4 text-text-tertiary text-xs">Pool {idx + 1}</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">{slot.qty}</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">{slot.widthM}</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">{slot.lengthM}</td>
+                      <td className="py-1.5 pr-4 text-right font-mono text-xs">{area}</td>
+                      <td className="py-1.5 text-right font-mono text-xs">{formatCurrency(cost, false, locale)}</td>
+                    </tr>
+                  );
+                });
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 text-xs text-text-tertiary">
+          Rate: {formatCurrency(poolRate, false, locale)}/m²
+        </div>
+      </div>
+
+      <div id="capex-table" className="bg-white rounded-xl border border-surface-tertiary overflow-hidden scroll-mt-24">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -82,7 +146,7 @@ export default function CapexPage() {
 
       {/* Summary cards */}
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-6 text-center">
           <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">{t('capex.totalProjectCost')}</div>
           <div className="kpi-value text-brand-600">{formatCurrency(capex.portfolioTotal, true, locale)}</div>
           <div className="text-xs text-text-tertiary mt-1">
@@ -90,7 +154,7 @@ export default function CapexPage() {
           </div>
         </div>
         {capex.properties.map((prop) => (
-          <div key={prop.id} className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6 text-center">
+          <div key={prop.id} className="bg-white rounded-xl border border-surface-tertiary p-6 text-center">
             <div className="text-xs uppercase tracking-wider text-text-tertiary mb-2">{prop.name} (each)</div>
             <div className="kpi-value text-text-primary">{formatCurrency(prop.perUnit, true, locale)}</div>
             {prop.count > 1 && (

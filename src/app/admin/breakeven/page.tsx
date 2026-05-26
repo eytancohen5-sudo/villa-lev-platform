@@ -71,10 +71,10 @@ export default function BreakEvenPage() {
     const baseSuiteNights = a.suiteBaseNights + 3;
     const suiteRevAtBase =
       (a.suiteStandardADR * nStdSuite + a.suiteDoubleADR * nDblSuite) * baseSuiteNights;
-    const breakEvenADR = Math.ceil(
-      (breakEvenRevenue - suiteRevAtBase - fixedRevenue) /
-        (nVilla * baseNights)
-    );
+    // Proportional formula: scale all ADRs uniformly until DSCR = 1.0×
+    const roomRevAtBase = revenuePerVillaNight * baseNights + revenuePerSuiteNight * baseSuiteNights;
+    const beADRFactor = roomRevAtBase > 0 ? (breakEvenRevenue - fixedRevenue) / roomRevAtBase : 0;
+    const breakEvenADR = Math.ceil(a.villaADR * beADRFactor);
 
     // ADR sweep
     const adrSweep = [];
@@ -127,9 +127,10 @@ export default function BreakEvenPage() {
       const beNights = Math.ceil(
         (beRev - fixedRevenue) / revenuePerNight
       );
-      const beADR = nVilla > 0 ? Math.ceil(
-        (beRev - suiteRevAtBase - fixedRevenue) / (nVilla * baseNights)
-      ) : 0;
+      const pathADRFactor = roomRevAtBase > 0 ? (beRev - fixedRevenue) / roomRevAtBase : 0;
+      const beADR = Math.ceil(a.villaADR * pathADRFactor);
+      const beStdADR = Math.ceil(a.suiteStandardADR * pathADRFactor);
+      const beDblADR = Math.ceil(a.suiteDoubleADR * pathADRFactor);
       return {
         // Stable identifier for matching against assumptions.financingPath —
         // do NOT use `path` (the localised label) for any conditional logic.
@@ -145,12 +146,15 @@ export default function BreakEvenPage() {
         breakEvenRevenue: beRev,
         breakEvenNights: beNights,
         breakEvenADR: beADR,
+        breakEvenStdADR: beStdADR,
+        breakEvenDblADR: beDblADR,
+        beADRCutPct: (1 - pathADRFactor) * 100,
         currentNights: baseNights,
         currentADR: a.villaADR,
         bufferNights: baseNights - beNights,
         bufferADR: a.villaADR - beADR,
         bufferNightsPct: ((baseNights - beNights) / baseNights) * 100,
-        bufferADRPct: beADR > 0 ? ((a.villaADR - beADR) / a.villaADR) * 100 : 0,
+        bufferADRPct: ((a.villaADR - beADR) / a.villaADR) * 100,
         color: path === "commercial" ? "#8B6914"
           : path === "rrf" ? "#4A6A8B"
           : path === "grant" ? "#4A7C3F"
@@ -247,30 +251,32 @@ export default function BreakEvenPage() {
     <div>
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary mb-1">{t('be.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary mb-1 border-l-[3px] border-brand-400 pl-3">{t('be.title')}</h1>
           <p className="text-sm text-text-secondary">{t('be.subtitle')}</p>
         </div>
         <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
       </div>
 
       {/* Hero KPIs */}
-      <div id="be-buffer" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 scroll-mt-24">
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+      <div id="be-buffer" className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 scroll-mt-24">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">{t('be.nights')}</div>
           <div className="kpi-value text-text-primary">{activePath.breakEvenNights}</div>
           <div className="text-xs text-text-tertiary mt-1">{t('be.nightsSub')}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">{t('be.buffer')}</div>
           <div className="kpi-value text-positive">+{activePath.bufferNights} nights</div>
           <div className="text-xs text-text-tertiary mt-1">{activePath.bufferNightsPct.toFixed(0)}% {t('be.bufferSub')}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">{t('be.adr')}</div>
           <div className="kpi-value text-text-primary">{formatCurrency(activePath.breakEvenADR, false, locale)}</div>
-          <div className="text-xs text-text-tertiary mt-1">{t('be.adrSub')}</div>
+          <div className="text-xs text-text-tertiary mt-1">{t('be.adrVillaLabel')}</div>
+          <div className="text-xs text-text-secondary mt-1 font-medium">{t('be.adrSuiteLabel')}: {formatCurrency(activePath.breakEvenStdADR, false, locale)}–{formatCurrency(activePath.breakEvenDblADR, false, locale)}</div>
+          <div className="text-xs text-text-tertiary mt-0.5">−{activePath.beADRCutPct.toFixed(0)}% {t('be.adrSub')}</div>
         </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-2">{t('be.adrBuffer')}</div>
           <div className="kpi-value text-positive">+{formatCurrency(activePath.bufferADR, false, locale)}</div>
           <div className="text-xs text-text-tertiary mt-1">{activePath.bufferADRPct.toFixed(0)}% {t('be.adrBufferSub')}</div>
@@ -291,7 +297,7 @@ export default function BreakEvenPage() {
         const get = (key: ColKey) => be[key];
 
         return (
-          <div className="bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-6 mb-8">
+          <div className="bg-white rounded-xl border-2 border-brand-200 p-6 mb-6">
             <h3 className="font-display text-lg text-text-primary mb-1">{t('be.scenarioTitle')}</h3>
             <p className="text-sm text-text-secondary mb-5">{t('be.scenarioSubtitle')}</p>
 
@@ -440,7 +446,7 @@ export default function BreakEvenPage() {
       })()}
 
       {/* Break-even across financing paths */}
-      <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6">
         <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">{t('be.byFinancingPath')}</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -466,7 +472,7 @@ export default function BreakEvenPage() {
                   <td className="text-right py-2.5 px-3 data-cell font-mono">{formatCurrency(p.annualDS, true, locale)}</td>
                   <td className="text-right py-2.5 px-3 data-cell font-mono font-medium">{p.breakEvenNights}</td>
                   <td className="text-right py-2.5 px-3 data-cell text-positive font-mono">+{p.bufferNights} ({p.bufferNightsPct.toFixed(0)}%)</td>
-                  <td className="text-right py-2.5 px-3 data-cell font-mono font-medium">{formatCurrency(p.breakEvenADR, false, locale)}</td>
+                  <td className="text-right py-2.5 px-3 data-cell font-mono font-medium">{formatCurrency(Math.max(0, p.breakEvenADR), false, locale)}</td>
                   <td className="text-right py-2.5 px-3 data-cell text-positive font-mono">+{formatCurrency(p.bufferADR, false, locale)} ({p.bufferADRPct.toFixed(0)}%)</td>
                 </tr>
               ))}
@@ -476,8 +482,8 @@ export default function BreakEvenPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">{t('be.dscrByOccupancy')}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={analysis.nightsSweep}>
@@ -492,7 +498,7 @@ export default function BreakEvenPage() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">{t('be.dscrByADR')}</h3>
           <ResponsiveContainer width="100%" height={280}>
             <LineChart data={analysis.adrSweep}>
@@ -510,7 +516,7 @@ export default function BreakEvenPage() {
       </div>
 
       {/* Heatmap */}
-      <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm p-5 mb-8">
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mb-6">
         <h3 id="be-matrix" className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4 scroll-mt-24">{t('be.dscrMatrix')}</h3>
         <p className="text-xs text-text-secondary mb-4">{t('be.dscrMatrixDesc')}</p>
         <div className="overflow-x-auto">

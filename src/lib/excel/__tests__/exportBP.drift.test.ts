@@ -57,7 +57,9 @@ import { exportBusinessPlan } from "@/lib/excel/exportBP";
 /** Load the exported XLSX blob into an ExcelJS workbook. */
 async function loadWorkbook(blob: Blob): Promise<ExcelJS.Workbook> {
   const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(Buffer.from(await blob.arrayBuffer()));
+  // ExcelJS types predate the Buffer<T> generic in @types/node; `as any` bridges the gap.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await wb.xlsx.load(Buffer.from(await blob.arrayBuffer()) as any);
   return wb;
 }
 
@@ -102,8 +104,8 @@ describe("L1 — engine metrics that feed the validation table", () => {
       stabilisedDSCR2031_coverageBasis: dscr2031,
       // IRR / MOIC live inside the Coverage sheet computation; keyMetrics
       // exposes them at the model level.
-      leveredEquityIRR: m.keyMetrics.equityIRR,
-      equityMOIC: m.keyMetrics.equityMOIC,
+      leveredEquityIRR: m.scenarios.realistic.equityIRR,
+      equityMOIC: m.scenarios.realistic.totalMOIC,
     };
 
     expect(metrics).toMatchSnapshot();

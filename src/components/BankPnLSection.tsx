@@ -5,6 +5,7 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { AnnualPnL } from "@/lib/engine/types";
+import { Chevron } from "@/components/icons/Chevron";
 
 type RowDef = {
   label: string;
@@ -24,19 +25,6 @@ type RowDef = {
   /** Key of the section this detail row belongs to */
   section?: string;
 };
-
-// Inline toggle chevron icon
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="10" height="10" viewBox="0 0 10 10" fill="none"
-      xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
-      className={`transition-transform duration-150 ${open ? "rotate-90" : ""}`}
-    >
-      <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 
 export function BankPnLSection() {
   const { t, locale } = useTranslation();
@@ -118,7 +106,6 @@ export function BankPnLSection() {
   // ── Operating costs ───────────────────────────────────────────────────────
   rows.push(
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", outflow: true },
-    ...(opCoActive ? [{ label: t('pnl.opcoBaseFee'), getValue: (p: AnnualPnL) => p.opCoBaseFee, format: "currency" as const, indent: true, outflow: true }] : []),
   );
 
   // ── EBITDA pre-OpCo (DSCR numerator line) ────────────────────────────────

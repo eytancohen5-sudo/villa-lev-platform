@@ -51,7 +51,6 @@ function getNowServerSnapshot(): number {
 
 const MONTH_NAMES: Record<Locale, string[]> = {
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-  fr: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
   el: ["Ιανουάριος", "Φεβρουάριος", "Μάρτιος", "Απρίλιος", "Μάιος", "Ιούνιος", "Ιούλιος", "Αύγουστος", "Σεπτέμβριος", "Οκτώβριος", "Νοέμβριος", "Δεκέμβριος"],
   he: ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"],
 };
@@ -119,7 +118,7 @@ const LR: Record<
   }
 > = {
   en: {
-    header: "Conservatism evidence · Antiparos",
+    header: "Conservatism evidence · Paros / Antiparos",
     yourTrackRecord: "",
     ytdRevenue: "YTD revenue",
     occupancy: "Occupancy",
@@ -141,19 +140,19 @@ const LR: Record<
     available: "available",
     sourceNote: "Source: admin.villalevantiparos.com",
     headlineConservatism:
-      "Our stabilised projections sit significantly below both live Villa Lev performance and the prevailing Antiparos hotel room market — on every metric, and by design.",
-    cushion: "Cushion",
+      "The model is deliberately showing less than Villa Lev already delivers today. Every projected figure — ADR, occupancy, RevPAR — is set below what the live operation is already recording in 2026. The same discipline applies to the hotel room projections: suite rates are modelled below the prevailing Paros/Antiparos market. This is not a cushion — it is a model that is already being beaten by reality.",
+    cushion: "Gap vs live",
     model: "Model",
     liveLabel: "Live",
     showDetail: "Show detail",
     hideDetail: "Hide detail",
     roomsPending:
-      "Room assumptions benchmarked against Antiparos boutique-hotel comparables — Market Study currently in preparation.",
+      "Room assumptions benchmarked against Paros/Antiparos boutique-hotel comparables — Market Study currently in preparation.",
     villaADR: "Villa ADR",
     villaOccupancy: "Villa occupancy",
     villaRevPAR: "Villa RevPAR",
-    cushionHeader: "Villa · existing property",
-    cushionSub: "Stabilised projections (2031) vs today's live villa. A positive cushion means the model assumes less than live reality.",
+    cushionHeader: "Villa · modelled vs live today",
+    cushionSub: "Each card shows what the model projects at stabilisation (2031) against what Villa Lev is already delivering in 2026. A negative gap means the model is set below what the live operation is already delivering.",
     history: "History · existing villa",
     historyYear: "Year",
     historyTotal: "Booking revenue",
@@ -170,73 +169,14 @@ const LR: Record<
     marketAbove: "Above market",
     marketOnPar: "On par",
     marketStatusFresh: "2026 capture · {n} hotels",
-    marketStatusBackstop: "Market study",
+    marketStatusBackstop: "Greek-market avg (net of OTA)",
     marketFootnoteFresh: "Fresh data: live 2026 medians from {n} captured Paros + Antiparos hotels.",
     marketFootnoteBackstop:
-      "Source: Greek Islands Hotel Market Study — pre-computed Basic / Premium tier averages across the Cyclades comparable set. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
+      "Source: Greek Islands hotel market study — curated 13-property Paros/Antiparos/Mykonos/Santorini luxury-boutique set. All market rates are net of 18% OTA commission (consumer price × 0.82), matching the net revenue a hotel actually keeps. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
     marketSeeComparables: "See the {n} comparables →",
   },
-  fr: {
-    header: "Preuve de prudence · Antiparos",
-    yourTrackRecord: "",
-    ytdRevenue: "CA YTD",
-    occupancy: "Occupation",
-    adr: "ADR (net)",
-    revpar: "RevPAR",
-    asOf: "au",
-    updatedFromPMS: "mis à jour quotidiennement depuis le PMS",
-    modelAssumes: "Modèle suppose",
-    liveTracking: "réel à",
-    versus: "vs",
-    dataUpdated: "Mis à jour",
-    dataStale: "Données rafraîchies",
-    live: "En direct",
-    loading: "Chargement des données en direct…",
-    perNight: "/ nuit",
-    nightsBooked: "nuits réservées",
-    nights: "nuits",
-    bookingOnly: "Réservations uniquement",
-    available: "disponibles",
-    sourceNote: "Source : admin.villalevantiparos.com",
-    headlineConservatism:
-      "Nos projections stabilisées sont significativement en dessous des performances réelles de Villa Lev et du marché hôtelier d'Antiparos — sur chaque indicateur, et délibérément.",
-    cushion: "Coussin",
-    model: "Modèle",
-    liveLabel: "Réel",
-    showDetail: "Afficher le détail",
-    hideDetail: "Masquer le détail",
-    roomsPending:
-      "Hypothèses des chambres calées sur les comparables hôtels boutique d'Antiparos — étude de marché en cours de préparation.",
-    villaADR: "ADR villa",
-    villaOccupancy: "Occupation villa",
-    villaRevPAR: "RevPAR villa",
-    cushionHeader: "Villa · bien existant",
-    cushionSub: "Projections stabilisées (2031) vs la villa réelle aujourd'hui. Un coussin positif signifie que le modèle suppose moins que la réalité.",
-    history: "Historique · villa existante",
-    historyYear: "Année",
-    historyTotal: "Revenus locatifs",
-    historyYoY: "YoY",
-    marketHeader: "Chambres · Paros + Antiparos",
-    marketSub:
-      "Tarifs nuit BP vs l'étude de marché des hôtels des îles grecques, par catégorie et lissés saison (50/50 HAUTE/MOY). Catégorie villa omise — les chiffres réels de Villa Lev ci-dessus sont le comparable.",
-    marketBP: "BP",
-    market: "Marché",
-    marketStandardSuite: "Suite standard",
-    marketDoubleSuite: "Suite double",
-    marketVilla: "Villa",
-    marketBelow: "Sous le marché",
-    marketAbove: "Au-dessus du marché",
-    marketOnPar: "Au niveau",
-    marketStatusFresh: "Relevé 2026 · {n} hôtels",
-    marketStatusBackstop: "Étude de marché",
-    marketFootnoteFresh:
-      "Données fraîches : médianes 2026 sur {n} hôtels relevés à Paros + Antiparos.",
-    marketFootnoteBackstop:
-      "Source : étude de marché des hôtels des îles grecques — moyennes pré-calculées des catégories Basic / Premium sur l'ensemble comparable des Cyclades. Mélange saisonnier opérationnel HAUTE (juil-août) et MOY (mai-juin, sept).",
-    marketSeeComparables: "Voir les {n} comparables →",
-  },
   el: {
-    header: "Τεκμήρια συντηρητισμού · Αντίπαρος",
+    header: "Τεκμήρια συντηρητισμού · Πάρος / Αντίπαρος",
     yourTrackRecord: "",
     ytdRevenue: "Έσοδα YTD",
     occupancy: "Πληρότητα",
@@ -258,19 +198,19 @@ const LR: Record<
     available: "διαθέσιμες",
     sourceNote: "Πηγή: admin.villalevantiparos.com",
     headlineConservatism:
-      "Οι σταθεροποιημένες προβολές μας βρίσκονται σημαντικά κάτω τόσο από τις πραγματικές επιδόσεις της Villa Lev όσο και από την αγορά ξενοδοχείων Αντιπάρου — σε κάθε δείκτη, και σκόπιμα.",
-    cushion: "Μαξιλάρι",
+      "Το μοντέλο δείχνει σκόπιμα λιγότερα από αυτά που η Villa Lev ήδη επιτυγχάνει σήμερα. Κάθε προβλεπόμενο νούμερο — ADR, πληρότητα, RevPAR — έχει οριστεί κάτω από αυτά που η πραγματική λειτουργία ήδη καταγράφει το 2026. Η ίδια πειθαρχία ισχύει και για τα ξενοδοχειακά δωμάτια: οι τιμές σουίτας μοντελοποιούνται κάτω από την αγορά Πάρου/Αντιπάρου. Αυτό δεν είναι μαξιλάρι ασφαλείας — είναι ένα μοντέλο που η πραγματικότητα ήδη ξεπερνά.",
+    cushion: "Κενό vs πραγματικό",
     model: "Μοντέλο",
     liveLabel: "Πραγματικό",
     showDetail: "Εμφάνιση λεπτομερειών",
     hideDetail: "Απόκρυψη λεπτομερειών",
     roomsPending:
-      "Οι παραδοχές δωματίων συγκρίνονται με boutique ξενοδοχεία της Αντιπάρου — Μελέτη Αγοράς σε εξέλιξη.",
+      "Οι παραδοχές δωματίων συγκρίνονται με boutique ξενοδοχεία της Πάρου/Αντιπάρου — Μελέτη Αγοράς σε εξέλιξη.",
     villaADR: "ADR βίλας",
     villaOccupancy: "Πληρότητα βίλας",
     villaRevPAR: "RevPAR βίλας",
-    cushionHeader: "Βίλα · υπάρχον ακίνητο",
-    cushionSub: "Σταθεροποιημένες προβολές (2031) vs τη βίλα σήμερα. Θετικό «μαξιλάρι» σημαίνει ότι το μοντέλο παραδέχεται λιγότερα από την πραγματικότητα.",
+    cushionHeader: "Βίλα · μοντέλο vs σήμερα",
+    cushionSub: "Κάθε κάρτα δείχνει τι προβλέπει το μοντέλο για το 2031 έναντι αυτών που η Villa Lev ήδη επιτυγχάνει το 2026. Αρνητικό κενό σημαίνει ότι το μοντέλο είναι κάτω από αυτά που η πραγματική λειτουργία ήδη επιτυγχάνει.",
     history: "Ιστορικό · υπάρχουσα βίλα",
     historyYear: "Έτος",
     historyTotal: "Έσοδα κρατήσεων",
@@ -287,11 +227,11 @@ const LR: Record<
     marketAbove: "Πάνω από την αγορά",
     marketOnPar: "Στο επίπεδο",
     marketStatusFresh: "Καταγραφή 2026 · {n} ξενοδοχεία",
-    marketStatusBackstop: "Μελέτη αγοράς",
+    marketStatusBackstop: "Μέσος αγοράς (καθαρός προμήθεια OTA)",
     marketFootnoteFresh:
       "Φρέσκα δεδομένα: διάμεσοι 2026 από {n} ξενοδοχεία Πάρου + Αντιπάρου.",
     marketFootnoteBackstop:
-      "Πηγή: Μελέτη Αγοράς Ξενοδοχείων Ελληνικών Νησιών — προ-υπολογισμένοι μέσοι όροι Basic / Premium στο συγκρίσιμο σύνολο των Κυκλάδων. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
+      "Πηγή: Μελέτη αγοράς ξενοδοχείων — 13 επιλεγμένα luxury ξενοδοχεία Πάρου/Αντιπάρου/Μυκόνου/Σαντορίνης. Όλες οι τιμές αγοράς είναι καθαρές προμήθειας OTA 18% (τιμή καταναλωτή × 0.82), αντιστοιχώντας στα καθαρά έσοδα που κρατά το ξενοδοχείο. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
     marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
   },
   he: {
@@ -317,8 +257,8 @@ const LR: Record<
     available: "זמינים",
     sourceNote: "מקור: admin.villalevantiparos.com",
     headlineConservatism:
-      "התחזיות המיוצבות שלנו נמוכות משמעותית הן מביצועי Villa Lev בפועל והן משוק המלונות באנטיפרוס — בכל מדד, ובמכוון.",
-    cushion: "כרית",
+      "המודל מציג בכוונה פחות ממה ש-Villa Lev כבר מספקת היום. כל נתון מוקרן — ADR, תפוסה, RevPAR — מוגדר מתחת למה שהפעילות בפועל כבר מתעדת ב-2026. אותה משמעת חלה על תחזיות חדרי המלון: מחירי הסוויטות מדוגמנים מתחת לשוק פרוס/אנטיפרוס. זה לא כרית ביטחון — זהו מודל שהמציאות כבר מכה אותו.",
+    cushion: "פער מול בפועל",
     model: "מודל",
     liveLabel: "בפועל",
     showDetail: "הצג פירוט",
@@ -328,8 +268,8 @@ const LR: Record<
     villaADR: "ADR וילה",
     villaOccupancy: "תפוסת וילה",
     villaRevPAR: "RevPAR וילה",
-    cushionHeader: "וילה · נכס קיים",
-    cushionSub: "תחזיות מיוצבות (2031) מול הוילה כיום. כרית חיובית מעידה שהמודל מניח פחות מהמציאות.",
+    cushionHeader: "וילה · מודל מול היום",
+    cushionSub: "כל כרטיס מציג את תחזית המודל ל-2031 מול מה ש-Villa Lev כבר מספקת ב-2026. פער שלילי מעיד שהמודל נמוך ממה שהפעילות בפועל כבר מספקת.",
     history: "היסטוריה · וילה קיימת",
     historyYear: "שנה",
     historyTotal: "הכנסות מהזמנות",
@@ -346,11 +286,11 @@ const LR: Record<
     marketAbove: "מעל השוק",
     marketOnPar: "ברמת השוק",
     marketStatusFresh: "איסוף 2026 · {n} מלונות",
-    marketStatusBackstop: "מחקר שוק",
+    marketStatusBackstop: "ממוצע שוק (נטו עמלת OTA)",
     marketFootnoteFresh:
       "נתונים טריים: חציוני 2026 מ-{n} מלונות שנאספו בפרוס + אנטיפרוס.",
     marketFootnoteBackstop:
-      "מקור: מחקר שוק מלונות האיים היווניים — ממוצעי קטגוריות Basic / Premium מחושבים מראש על פני סט המשווים בקיקלאדס. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
+      "מקור: מחקר שוק מלונות האיים היווניים — 13 מלונות luxury נבחרים בפרוס/אנטיפרוס/מיקונוס/סנטוריני. כל תעריפי השוק הם נטו עמלת OTA 18% (מחיר צרכן × 0.82), בהתאמה להכנסה הנטו שהמלון שומר לעצמו. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
     marketSeeComparables: "ראו את {n} המשווים →",
   },
 };
@@ -397,7 +337,7 @@ function CushionCard({
   const rounded = Math.round(gap * 200) / 200;
   const pct = Math.round(rounded * 1000) / 10;
   const tone: "positive" | "negative" | "neutral" =
-    Math.abs(rounded) < 0.005 ? "neutral" : rounded > 0 ? "positive" : "negative";
+    Math.abs(rounded) < 0.005 ? "neutral" : rounded < 0 ? "positive" : "negative";
   const sign = pct > 0 ? "+" : pct < 0 ? "" : "";
   const chipClass =
     tone === "positive"
@@ -561,11 +501,29 @@ export function LiveTrackRecord({
   const {
     currentSeason,
     historicalYears,
-    source: snapshotSource,
-    pulledAt,
     loading,
   } = useSeasonSnapshot();
   const { assumptions } = useModelStore();
+
+  // ── History rows — inject the current in-progress year if the live
+  // Firestore writer hasn't added it (it only appends completed seasons).
+  // currentSeason.rentalNet is the same figure the history table tracks
+  // (rental net of commissions, no services). The YoY is recomputed in
+  // the render loop so we just need the rental value to be present.
+  const historyRows = (() => {
+    const hasCurrentYear = historicalYears.some((h) => h.year === currentSeason.year);
+    if (hasCurrentYear) return historicalYears;
+    return [
+      ...historicalYears,
+      {
+        year: currentSeason.year,
+        rental: currentSeason.rentalNet,
+        services: currentSeason.services.total,
+        total: currentSeason.totalRevenueNet,
+        yoy: null,
+      },
+    ];
+  })();
 
   // ── Detail-toggle state ──
   // Default collapsed per spec: bankers see the headline + 3 cushion cards
@@ -669,14 +627,14 @@ export function LiveTrackRecord({
   };
 
   // ── Three conservatism cushions — model stabilised vs live (today) ──
-  // Gap % is (live - model) / live: positive = model is BELOW live (cushion),
-  // negative = model assumes more than today's reality (aggressive). Guard
+  // Gap % is (model - live) / live: negative = model is BELOW live (conservative),
+  // positive = model assumes more than today's reality (aggressive). Guard
   // against zero live values so the headline never blows up if the live feed
   // returns 0 (e.g. mid-season-start before the first booking).
   const safeDiv = (num: number, denom: number) => (denom === 0 ? 0 : num / denom);
-  const adrGap      = safeDiv(adr       - bpADR,        adr);
-  const occupancyGap = safeDiv(occupancy - bpOccupancy,  occupancy);
-  const revparGap   = safeDiv(revpar    - bpRevPAR,     revpar);
+  const adrGap      = safeDiv(bpADR       - adr,       adr);
+  const occupancyGap = safeDiv(bpOccupancy - occupancy, occupancy);
+  const revparGap   = safeDiv(bpRevPAR    - revpar,    revpar);
   const averageGap  = (adrGap + occupancyGap + revparGap) / 3;
   // Round to nearest 0.5% for the headline. Step = 0.005 in fractional units.
   const averageGapRounded = Math.round(averageGap * 200) / 200;
@@ -699,29 +657,7 @@ export function LiveTrackRecord({
   const currentYearForGap = hasNow ? year : currentSeason.year;
   const yearsToStabilisation = Math.max(0, STABILISED_YEAR - currentYearForGap);
 
-  // ── Freshness ──
-  const isStale = (() => {
-    if (!pulledAt || !hasNow) return false;
-    const t = Date.parse(pulledAt);
-    if (Number.isNaN(t)) return false;
-    return nowMs - t > STALE_THRESHOLD_MS;
-  })();
-  const pulledDate = pulledAt
-    ? (() => {
-        try {
-          return new Date(pulledAt).toLocaleDateString(locale, {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          });
-        } catch {
-          return pulledAt;
-        }
-      })()
-    : null;
-
   const isCompact = variant === "compact";
-  const liveBadgeOn = snapshotSource === "live";
 
   return (
     <section
@@ -751,21 +687,6 @@ export function LiveTrackRecord({
       <header className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2.5 mb-1.5">
-            <span
-              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                liveBadgeOn
-                  ? "bg-positive/15 text-positive"
-                  : "bg-surface-secondary text-text-tertiary"
-              }`}
-            >
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  liveBadgeOn ? "bg-positive live-pulse-dot" : "bg-text-tertiary"
-                }`}
-                aria-hidden="true"
-              />
-              {lr.live}
-            </span>
             <h2 className="font-display text-base md:text-lg text-text-primary uppercase tracking-[0.16em] leading-none truncate">
               {lr.header}
             </h2>
@@ -776,14 +697,6 @@ export function LiveTrackRecord({
             </p>
           )}
         </div>
-        {pulledDate && (
-          <div className="shrink-0 text-[10px] text-text-tertiary leading-tight text-right whitespace-nowrap">
-            <div className="font-medium">
-              {isStale ? lr.dataStale : lr.dataUpdated} · {pulledDate}
-            </div>
-            <div className="opacity-70">{lr.sourceNote}</div>
-          </div>
-        )}
       </header>
 
       {/* ── Headline conservatism statement ── */}
@@ -806,7 +719,7 @@ export function LiveTrackRecord({
               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
                 Math.abs(averageGapPct) < 0.5
                   ? "bg-surface-secondary text-text-tertiary"
-                  : averageGapPct > 0
+                  : averageGapPct < 0
                     ? "bg-positive/15 text-positive"
                     : "bg-warning/15 text-warning"
               }`}
@@ -869,102 +782,17 @@ export function LiveTrackRecord({
         )}
       </div>
 
-      {/* ── Market position strip ──
-          Surfaces the third comparator (BP vs the 2025 Greek Islands hotel
-          market study) alongside the BP vs Live cushions above. Each card
-          is BP-only (no Live, since the live villa doesn't operate suites
-          today) with a tier-matched market figure (50/50 HIGH/MED blend).
-          Villa tier intentionally omitted — Villa Lev's own actuals in
-          the cushion cards above are the truer villa comparable. Anchored
-          to the same dataset ConservatismTriangle below uses, so the two
-          panels never contradict each other. */}
       {!loading && (
-        <div className="mb-4">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-                {lr.marketHeader}
-              </h3>
-              <span
-                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
-                  Math.abs(marketAvgDeltaPct) < 0.5
-                    ? "bg-surface-secondary text-text-tertiary"
-                    : marketAvgDeltaPct < 0
-                      ? "bg-positive/15 text-positive"
-                      : "bg-warning/15 text-warning"
-                }`}
-              >
-                {marketAvgDeltaPct > 0 ? "+" : ""}{marketAvgDeltaPct.toFixed(1)}%
-              </span>
-            </div>
-            <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
-              {lr.marketSub}
-            </p>
-          </div>
-          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-            {visibleMarketRows.map((row) => (
-              <MarketCard
-                key={row.metric}
-                label={marketRowLabel(row)}
-                bpLabel={lr.marketBP}
-                marketLabel={lr.market}
-                bpValue={formatCurrency(row.bp, false, locale)}
-                marketValue={formatCurrency(row.market, false, locale)}
-                deltaPct={row.deltaPct}
-                statusBadge={marketStatusBadge(row.status, row.coverageHotels)}
-                statusBadgeTone={row.status === "fresh" ? "fresh" : "backstop"}
-              />
-            ))}
-          </div>
-          <p className="text-[10px] text-text-tertiary leading-snug mt-2 max-w-3xl">
-            {anyFresh
-              ? lr.marketFootnoteFresh.replace("{n}", String(freshHotelCount))
-              : ""}
-            {anyFresh && anyBackstop ? " · " : ""}
-            {anyBackstop ? lr.marketFootnoteBackstop : ""}
-          </p>
-          {/* "See the N comparables" → reuses the MarketComparablesDrawer
-              that ConservatismTriangle below also opens, so bankers reach
-              the same 2025 hotel set from either panel. */}
-          <div className="mt-2">
-            <button
-              type="button"
-              onClick={() => setMarketDrawerOpen(true)}
-              className="text-[12px] font-medium text-brand-700 hover:text-brand-900 underline underline-offset-4 decoration-brand-400/60 hover:decoration-brand-700 transition-colors"
-            >
-              {lr.marketSeeComparables.replace(
-                "{n}",
-                // Distinct hotel count (23 Greek + 18 international = 41),
-                // not raw tier-row count — matches the CTA on the
-                // ConservatismTriangle strip below.
-                String(distinctHotelCount()),
-              )}
-            </button>
-          </div>
-          <MarketComparablesDrawer
-            open={marketDrawerOpen}
-            onClose={() => setMarketDrawerOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* ── Show / hide detail toggle ──
-          Keeps the existing 4-figure block + history out of the bankers'
-          first glance, but accessible for anyone who wants the underlying
-          numbers. */}
-      {!loading && (
-        <div className="mb-1">
+        <div className="mt-3">
           <button
             type="button"
             onClick={() => setShowDetail((v) => !v)}
             aria-expanded={showDetail}
             aria-controls="live-track-record-detail"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-700 hover:text-brand-900 underline underline-offset-4 decoration-brand-400/60 hover:decoration-brand-700 transition-colors"
+            className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-brand-700 border border-brand-300 bg-brand-50 hover:bg-brand-100 hover:border-brand-500 hover:text-brand-900 transition-all duration-150"
           >
-            <span aria-hidden="true" className="text-[10px] leading-none">
-              {showDetail ? "▲" : "▼"}
-            </span>
-            {showDetail ? lr.hideDetail : lr.showDetail}
+            <span>{showDetail ? lr.hideDetail : lr.showDetail}</span>
+            <span className="transition-transform duration-150 group-hover:translate-x-0.5">{showDetail ? "↑" : "↓"}</span>
           </button>
         </div>
       )}
@@ -1023,7 +851,7 @@ export function LiveTrackRecord({
             />
           </div>
 
-          {historicalYears.length > 0 && (
+          {historyRows.length > 0 && (
             <div className="rounded-xl bg-white/60 border border-brand-200/60 px-4 py-3 backdrop-blur-sm mb-3">
               <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-brand-600 mb-2">
                 {lr.history}
@@ -1046,22 +874,34 @@ export function LiveTrackRecord({
                         here. Assumes historicalYears is sorted by year
                         ascending (which it is in both the static fallback
                         and the live writer). */}
-                    {historicalYears.map((h, i) => {
-                      const prev = i > 0 ? historicalYears[i - 1] : null;
+                    {historyRows.map((h, i) => {
+                      const prev = i > 0 ? historyRows[i - 1] : null;
                       const yoyRental =
                         prev && prev.rental > 0
                           ? (h.rental - prev.rental) / prev.rental
                           : null;
+                      const isLive = h.year === currentSeason.year;
                       return (
                         <tr
                           key={h.year}
-                          className="border-t border-brand-200/40 text-text-secondary"
+                          className={`border-t border-brand-200/40 ${isLive ? "text-positive" : "text-text-secondary"}`}
                         >
-                          <td className="py-1 pr-3 font-medium text-text-primary">
-                            {h.year}
+                          <td className="py-1 pr-3 font-medium">
+                            <span className={isLive ? "text-positive" : "text-text-primary"}>
+                              {h.year}
+                            </span>
+                            {isLive && (
+                              <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-positive/15 text-positive text-[9px] font-semibold uppercase tracking-wider">
+                                <span className="w-1 h-1 rounded-full bg-positive live-pulse-dot" aria-hidden="true" />
+                                live
+                              </span>
+                            )}
                           </td>
                           <td className="py-1 px-3 text-right">
                             {formatCurrency(h.rental, true, locale)}
+                            {isLive && (
+                              <div className="text-[9px] text-positive/70 font-normal leading-tight">in progress</div>
+                            )}
                           </td>
                           <td className="py-1 pl-3 text-right">
                             {yoyRental === null ? "—" : formatPercent(yoyRental, 1)}
@@ -1078,6 +918,83 @@ export function LiveTrackRecord({
           <p className="text-[11px] text-text-tertiary leading-snug max-w-3xl">
             {lr.roomsPending}
           </p>
+        </div>
+      )}
+
+      {/* ── Market position strip ──
+          Surfaces the third comparator (BP vs the 2025 Greek Islands hotel
+          market study) alongside the BP vs Live cushions above. Each card
+          is BP-only (no Live, since the live villa doesn't operate suites
+          today) with a tier-matched market figure (50/50 HIGH/MED blend).
+          Villa tier intentionally omitted — Villa Lev's own actuals in
+          the cushion cards above are the truer villa comparable. Anchored
+          to the same dataset ConservatismTriangle below uses, so the two
+          panels never contradict each other. */}
+      {!loading && (
+        <div className="mb-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
+            <div className="flex items-center gap-2">
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+                {lr.marketHeader}
+              </h3>
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
+                  Math.abs(marketAvgDeltaPct) < 0.5
+                    ? "bg-surface-secondary text-text-tertiary"
+                    : marketAvgDeltaPct < 0
+                      ? "bg-positive/15 text-positive"
+                      : "bg-warning/15 text-warning"
+                }`}
+              >
+                {marketAvgDeltaPct > 0 ? "+" : ""}{marketAvgDeltaPct.toFixed(1)}%
+              </span>
+            </div>
+            <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
+              {lr.marketSub}
+            </p>
+          </div>
+          <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+            {visibleMarketRows.map((row) => (
+              <MarketCard
+                key={row.metric}
+                label={marketRowLabel(row)}
+                bpLabel={lr.marketBP}
+                marketLabel={lr.market}
+                bpValue={formatCurrency(row.bp, false, locale)}
+                marketValue={formatCurrency(row.market, false, locale)}
+                deltaPct={row.deltaPct}
+                statusBadge={marketStatusBadge(row.status, row.coverageHotels)}
+                statusBadgeTone={row.status === "fresh" ? "fresh" : "backstop"}
+              />
+            ))}
+          </div>
+          <p className="text-[10px] text-text-tertiary leading-snug mt-2 max-w-3xl">
+            {anyFresh
+              ? lr.marketFootnoteFresh.replace("{n}", String(freshHotelCount))
+              : ""}
+            {anyFresh && anyBackstop ? " · " : ""}
+            {anyBackstop ? lr.marketFootnoteBackstop : ""}
+          </p>
+          {/* "See the N comparables" → reuses the MarketComparablesDrawer
+              that ConservatismTriangle below also opens, so bankers reach
+              the same 2025 hotel set from either panel. */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() => setMarketDrawerOpen(true)}
+              className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-brand-700 border border-brand-300 bg-brand-50 hover:bg-brand-100 hover:border-brand-500 hover:text-brand-900 transition-all duration-150"
+            >
+              <span>{lr.marketSeeComparables.replace(
+                "{n}",
+                String(distinctHotelCount()),
+              ).replace(" →", "")}</span>
+              <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+            </button>
+          </div>
+          <MarketComparablesDrawer
+            open={marketDrawerOpen}
+            onClose={() => setMarketDrawerOpen(false)}
+          />
         </div>
       )}
 

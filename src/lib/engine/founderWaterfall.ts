@@ -17,12 +17,16 @@
 // converges in 2–3 rounds for all realistic inputs.
 
 import { ScenarioOutput } from './types';
+import { PROJECT_CONSTANTS } from './defaults';
+import { npv, irrNewton } from './financeUtils';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
 export const EARNED_EQUITY_CAP = 0.33;      // grant_bonus + ratchet
 export const TOTAL_FOUNDER_CAP = 0.75;      // pari_passu + earned
 export const MIN_INVESTOR_SHARE = 1 - TOTAL_FOUNDER_CAP;
+export const GRANT_ROUTE_IRR_THRESHOLD = 0.30;
+export const GRANT_ROUTE_EXIT_CAP_BELOW_THRESHOLD = 0.55;
 
 // Bucket 1A — Collateral pledge cap.
 // Eytan pledges up to €1M collateral during building phase; documented for
@@ -54,7 +58,20 @@ export const DEFAULT_PROJECT_ASSET_VALUE = 8_440_000;
 // loan) would mechanically shrink the bonus.
 export const DEFAULT_BASELINE_BANK_LOAN = 3_540_000;
 // Year the consultant cash payment hits the PropCo books (grant approval).
-export const DEFAULT_GRANT_APPROVAL_YEAR = 2027;
+export const DEFAULT_GRANT_APPROVAL_YEAR = PROJECT_CONSTANTS.HORIZON_START_YEAR + 1;
+/**
+ * Default year in which both Aggelakakis's and Eytan's cash portions of the
+ * grant success fee are paid from operating cash flow (post-debt-service).
+ * Deferred to 2030 to avoid squeezing DSCR in the 2029 ramp year.
+ * Configurable via ModelAssumptions.grantSuccessFeePaymentYear.
+ */
+export const DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR = 2030;
+/**
+ * Default fraction of each party's grant success fee paid as cash (remainder = equity).
+ * Aggelakakis equity portion = fixed € deducted from exit proceeds before shareholder split.
+ * Eytan equity portion = feeds Layer B bonus calculation.
+ */
+export const DEFAULT_FEE_CASH_SPLIT_PCT = 0.50;
 // Bucket 2A — Base management fee: 5% of gross revenue, subtracted from NCF
 // before distributing to equity. Separate from the existing OPEX €90K/yr
 // property-management line which covers operational costs (cleaning, accounting).
@@ -82,13 +99,49 @@ export interface RatchetTierDef {
   ratchetNoGrant: number;  // ratchet % when grant denied
 }
 
-export const RATCHET_TIERS: RatchetTierDef[] = [
+export const RATCHET_TIERS: readonly RatchetTierDef[] = [
   { id: 'miss',      label: 'Miss',      irrMin: -Infinity, irrMax: 0.08,     moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
   { id: 'pref_met',  label: 'Pref met',  irrMin: 0.08,      irrMax: 0.22,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
   { id: 'excellent', label: 'Excellent', irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.29, ratchetNoGrant: 0.29 },
 ];
 
-export type CapBinding = 'none' | 'earned_33' | 'total_75';
+export interface DealTermsConfig {
+  /** € agreed reference grant amount. Intentionally stable — NOT linked to live model output.
+   *  Changing this does not recompute CAPEX or engine DSCR.
+   *  @see DEFAULT_GRANT_AMOUNT for provenance (60% × non-plot eligible costs) */
+  grantAmount: number;
+  /** Decimal. Total success fee as % of grant (default 0.10 = 10%).
+   *  Effective ceiling: raising this above ~0.10 causes grantBonusPct to approach
+   *  EARNED_EQUITY_CAP (0.33), collapsing the Layer C ratchet toward zero.
+   *  Do not set above 0.15 without reviewing EARNED_EQUITY_CAP arithmetic. */
+  grantProcurementFeePct: number;
+  /** € reference property appraisal at deal inception. Display-only — not in the Layer B formula. */
+  projectAssetValue: number;
+  /** € ghost commercial loan for Layer B stability across financing-path toggles.
+   *  Source: commercial-path loan from BASE_CASE at deal-inception CAPEX. */
+  baselineBankLoan: number;
+  /** Calendar year of TEPIX III grant approval. Drives Bucket 1B payment timing.
+   *  Default = HORIZON_START_YEAR + 1. Must match tepix/milestones.yaml disbursement schedule. */
+  grantApprovalYear: number;
+  /** Decimal. Base management fee on gross revenue (default 0.05 = 5%). */
+  baseMgmtFeeRate: number;
+  /** Layer C ratchet tiers. Contractual-grade — do not dial without legal review.
+   *  NOTE: irrMin = -Infinity and irrMax = Infinity are JavaScript sentinels; they cannot
+   *  be stored in Firestore without substitution (JSON.stringify produces null). */
+  ratchetTiers: readonly RatchetTierDef[];
+}
+
+export const DEFAULT_DEAL_TERMS: DealTermsConfig = {
+  grantAmount:            DEFAULT_GRANT_AMOUNT,
+  grantProcurementFeePct: DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
+  projectAssetValue:      DEFAULT_PROJECT_ASSET_VALUE,
+  baselineBankLoan:       DEFAULT_BASELINE_BANK_LOAN,
+  grantApprovalYear:      DEFAULT_GRANT_APPROVAL_YEAR,
+  baseMgmtFeeRate:        DEFAULT_BASE_MGMT_FEE_RATE,
+  ratchetTiers:           RATCHET_TIERS,
+};
+
+export type CapBinding = 'none' | 'earned_33' | 'total_75' | 'exit_55_grant';
 
 export interface FounderStakeInput {
   founderCashInvested: number;
@@ -111,6 +164,23 @@ export interface FounderStakeInput {
   // distributions AND exit proceeds. Only the ratchet (Layer C) is excluded
   // from exit.
   developerEquityPct?: number;
+  /**
+   * Year in which both parties' cash portions of the grant success fee are paid.
+   * Defaults to DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR (2030).
+   * Deferred to avoid squeezing DSCR in the 2029 ramp year.
+   */
+  grantSuccessFeePaymentYear?: number;
+  /**
+   * Fraction of each party's grant success fee paid as cash (0–1).
+   * Remainder is treated as equity: Aggelakakis equity → deducted from exit proceeds;
+   * Eytan equity → feeds Layer B bonus.
+   * Default: DEFAULT_FEE_CASH_SPLIT_PCT (0.50).
+   */
+  feeCashSplitPct?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear instead. */
+  bucket1BPaymentStartYear?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear instead. */
+  loanDisbursementYear?: number;
 }
 
 export interface FounderStakeBreakdown {
@@ -131,6 +201,8 @@ export interface FounderStakeBreakdown {
   // = max(pariPassu, developerEquity) + grantBonusPct, capped at 75%.
   // The performance ratchet (Layer C) is the only component excluded from exit.
   founderExitPct: number;
+  // True when the 55% grant exit cap fires (grantApproved + investor IRR < 30%).
+  grantExitCapActive: boolean;
   // Backward-compat alias for founderOperatingPct (used by existing UI/tests).
   founderTotalPct: number;
   investorTotalPct: number;
@@ -138,16 +210,30 @@ export interface FounderStakeBreakdown {
   ratchetTier: RatchetTier;
   ratchetTierLabel: string;
   moicFloorReduction: boolean;
-  // ── Layer B derivation telemetry (surfaced in UI/Excel) ──────────
-  consultantCashPayment: number;     // grant × consultantSharePct
-  founderNetGrantCash: number;       // gross_fee − consultant (drives equity bonus — UNCHANGED)
-  postGrantEquityValue: number;      // project_value − bank_loan
-  // ── Bucket 1B deferred advisory fee (restructured from grant-year) ──
-  // Total advisory fee = grant × DEFAULT_GRANT_PROCUREMENT_FEE_PCT (10%).
-  // Paid from operating cash flow after loan disbursement; NOT from grant proceeds.
-  bucket1B_deferredAdvisoryFee: number;  // total amount (0 if no grant)
-  bucket1B_annualPayment: number;        // total / 3 (0 if no grant)
-  bucket1B_paymentStartYear: number;     // first payment year (loanDisbursementYear)
+  // ── Grant success fee breakdown (Bucket 1B) ──────────────────────
+  // Total fee = grant × 10%, split between Aggelakakis (consultant) and Eytan (founder).
+  // Each party's share is further split cash/equity per feeCashSplitPct.
+  //   Aggelakakis cash  → paid from operating cash in grantSuccessFeePaymentYear
+  //   Aggelakakis equity → fixed € deducted from exit proceeds before shareholder split
+  //   Eytan cash        → paid from operating cash in grantSuccessFeePaymentYear
+  //   Eytan equity      → feeds Layer B grantBonusPct calculation
+  aggelakakisCash: number;          // Aggelakakis's cash portion (0 if no grant)
+  aggelakakisEquityAtExit: number;  // EUR input used to derive aggelakakisEquityPct (kept for backward compat)
+  /** % stake at inception — mirrors grantBonusPct for Eytan. Rides full waterfall (ops + exit). */
+  aggelakakisEquityPct: number;
+  eytan1BCash: number;              // Eytan's cash portion, Bucket 1B (0 if no grant)
+  grantSuccessFeePaymentYear: number; // year cash portions are paid
+  // Layer B telemetry (preserved for tooltips / Excel)
+  founderNetGrantCash: number;       // Eytan's equity portion = input to grantBonusPct
+  postGrantEquityValue: number;      // project_value − bank_loan (display only)
+  /** @deprecated — use aggelakakisCash. Was: grant × consultantSharePct. */
+  consultantCashPayment: number;
+  /** @deprecated — use eytan1BCash. Was 3-yr spread. */
+  bucket1B_deferredAdvisoryFee: number;
+  /** @deprecated */
+  bucket1B_annualPayment: number;
+  /** @deprecated */
+  bucket1B_paymentStartYear: number;
 }
 
 // ── Tier resolution ────────────────────────────────────────────────────
@@ -199,47 +285,59 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     ? input.founderCashInvested / input.totalEquityRaised
     : 0;
 
-  // ── Layer B derivation (transparent from inputs) ───────────────────
-  // Grant success fee structure:
-  //   grossFee   = grant × 10%
-  //   cashPortion  = 50% of grossFee  → paid to Eytan in cash (deferred, Bucket 1B)
-  //   equityPortion = 50% of grossFee → converted to equity at pari-passu valuation
-  //   grantBonus = equityPortion / totalEquityRaised   (pari-passu: €/equity pool)
-  //
-  // The denominator is the total equity raised from investors, NOT the project
-  // appraised value — the 50% equity portion is priced at the same rate as
-  // every other euro invested in equity.
+  // ── Grant success fee (Bucket 1B) — party split ──────────────────
+  // Total fee = grant × founderFeePct (10%).
+  // Party split: Aggelakakis (consultant) = consultantSharePct × grant (default 5%);
+  //              Eytan (founder)          = remainder (default 5%).
+  // Cash/equity split within each party: cashSplit% cash, (1−cashSplit)% equity.
+  //   Aggelakakis cash        → paid from operating cash in grantSuccessFeePaymentYear
+  //   Aggelakakis equity      → fixed € deducted from exit proceeds before shareholder split
+  //   Eytan cash (Bucket 1B)  → paid from operating cash in grantSuccessFeePaymentYear
+  //   Eytan equity            → feeds Layer B grantBonusPct calculation
   const grantAmount = input.grantAmount ?? DEFAULT_GRANT_AMOUNT;
   const founderFeePct = input.founderFeePct ?? DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
   const projectAssetValue = input.projectAssetValue ?? DEFAULT_PROJECT_ASSET_VALUE;
   const bankLoanAmount = input.bankLoanAmount ?? DEFAULT_BASELINE_BANK_LOAN;
+  const cashSplit = input.feeCashSplitPct ?? DEFAULT_FEE_CASH_SPLIT_PCT;
+  const paymentYear = input.grantSuccessFeePaymentYear
+    ?? input.bucket1BPaymentStartYear
+    ?? DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR;
 
   let grantBonus = 0;
-  let consultantCash = 0;   // renamed conceptually: this is Eytan's 50% cash fee
-  let founderNetCash = 0;   // Eytan's 50% equity portion (drives grantBonus)
-  let postGrantEquity = 0;  // retained for display only — no longer in formula
+  let aggelakakisCash = 0;
+  let aggelakakisEquityAtExit = 0;
+  let eytan1BCash = 0;
+  let founderNetCash = 0;   // Eytan's equity portion → Layer B
+  let postGrantEquity = 0;  // display only
+
   if (input.grantApproved) {
-    const grossFee = grantAmount * founderFeePct;          // 10% × grant
-    consultantCash = grossFee * 0.5;                        // 50% cash to Eytan
-    founderNetCash = grossFee * 0.5;                        // 50% equity portion
+    const grossFee = grantAmount * founderFeePct;                      // 10% × grant
+    const consultantShare = input.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT;
+    const aggelakakisTotal = grantAmount * consultantShare;            // default 5% of grant
+    const eytanTotal = grossFee - aggelakakisTotal;                    // default 5% of grant
+
+    aggelakakisCash       = aggelakakisTotal * cashSplit;              // default 2.5%
+    aggelakakisEquityAtExit = aggelakakisTotal * (1 - cashSplit);      // default 2.5%
+    eytan1BCash           = eytanTotal * cashSplit;                    // default 2.5%
+    founderNetCash        = eytanTotal * (1 - cashSplit);              // default 2.5% → Layer B
+
     postGrantEquity = Math.max(0, projectAssetValue - bankLoanAmount); // display only
-    // Equity valued pari-passu: fraction = equityPortion / totalEquityRaised
+    // Layer B: Eytan's equity portion priced pari-passu against total equity raised.
     grantBonus = input.totalEquityRaised > 0
       ? founderNetCash / input.totalEquityRaised
       : 0;
   }
 
-  // ── Bucket 1B deferred advisory fee ──────────────────────────────
-  // Only the CASH portion (50% of 10% = 5% of grant) flows through PropCo
-  // as a deferred cash payment. The equity portion (50%) is captured in
-  // grantBonus above and creates no PropCo cash outflow.
-  // Paid from operating cash after loan disbursement over 3 years.
-  const deferredAdvisoryFee = input.grantApproved
-    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT * 0.5  // cash half only
+  // Aggelakakis equity pct: same conversion as grantBonusPct — EUR input / equity pool.
+  const aggelakakisEquityPct = (input.grantApproved && input.totalEquityRaised > 0)
+    ? aggelakakisEquityAtExit / input.totalEquityRaised
     : 0;
-  const advisoryAnnual = deferredAdvisoryFee > 0 ? deferredAdvisoryFee / 3 : 0;
-  const advisoryStartYear = (input as FounderStakeInput & { loanDisbursementYear?: number }).loanDisbursementYear
-    ?? DEFAULT_GRANT_APPROVAL_YEAR + 1;
+
+  // Deprecated aliases — kept so existing call-sites don't break.
+  const consultantCash = aggelakakisCash;
+  const deferredAdvisoryFee = eytan1BCash;
+  const advisoryAnnual = 0;
+  const advisoryStartYear = paymentYear;
 
   // ── Layer C tier selection (unchanged) ─────────────────────────────
   let { tier, ratchet, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
@@ -279,7 +377,18 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   const founderOperatingPct = operatingTotal;
   // Exit: developer equity + grant bonus apply, but NOT the ratchet.
   // The ratchet is the only performance component excluded from sale proceeds.
-  const founderExitPct = Math.min(TOTAL_FOUNDER_CAP, operationalBase + grantBonus);
+  let founderExitPct = Math.min(TOTAL_FOUNDER_CAP, operationalBase + grantBonus);
+  let grantExitCapActive = false;
+  if (
+    input.grantApproved &&
+    input.investorIRR < GRANT_ROUTE_IRR_THRESHOLD &&
+    founderExitPct > GRANT_ROUTE_EXIT_CAP_BELOW_THRESHOLD &&
+    cap === 'none'
+  ) {
+    founderExitPct = GRANT_ROUTE_EXIT_CAP_BELOW_THRESHOLD;
+    grantExitCapActive = true;
+    cap = 'exit_55_grant';
+  }
 
   return {
     pariPassuPct: pariPassu,
@@ -289,66 +398,29 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     earnedPct: earned,
     founderOperatingPct,
     founderExitPct,
+    grantExitCapActive,
     founderTotalPct: founderOperatingPct,   // backward-compat alias
     investorTotalPct: 1 - founderOperatingPct,
     capBinding: cap,
     ratchetTier: tier.id,
     ratchetTierLabel: tier.label,
     moicFloorReduction: reduced,
-    consultantCashPayment: consultantCash,
+    aggelakakisCash,
+    aggelakakisEquityAtExit,
+    aggelakakisEquityPct,
+    eytan1BCash,
+    grantSuccessFeePaymentYear: paymentYear,
     founderNetGrantCash: founderNetCash,
     postGrantEquityValue: postGrantEquity,
+    // deprecated aliases
+    consultantCashPayment: consultantCash,
     bucket1B_deferredAdvisoryFee: deferredAdvisoryFee,
     bucket1B_annualPayment: advisoryAnnual,
     bucket1B_paymentStartYear: advisoryStartYear,
   };
 }
 
-// ── Cash-flow level helpers ────────────────────────────────────────────
-
-function npv(rate: number, cashFlows: number[]): number {
-  let total = 0;
-  for (let t = 0; t < cashFlows.length; t++) {
-    total += cashFlows[t] / Math.pow(1 + rate, t);
-  }
-  return total;
-}
-
-function irrNewton(cashFlows: number[], guess = 0.1): number {
-  const hasNeg = cashFlows.some((cf) => cf < 0);
-  const hasPos = cashFlows.some((cf) => cf > 0);
-  if (!hasNeg || !hasPos) return 0;
-  let r = guess;
-  for (let i = 0; i < 200; i++) {
-    const f = npv(r, cashFlows);
-    const dr = 1e-6;
-    const fPrime = (npv(r + dr, cashFlows) - f) / dr;
-    if (Math.abs(fPrime) < 1e-14) break;
-    const newR = r - f / fPrime;
-    if (!isFinite(newR)) break;
-    if (Math.abs(newR - r) < 1e-9) return newR;
-    r = newR;
-  }
-  // Bisection fallback.
-  let lo = -0.99;
-  let hi = 5.0;
-  const fLo0 = npv(lo, cashFlows);
-  const fHi0 = npv(hi, cashFlows);
-  if (fLo0 * fHi0 > 0) return 0;
-  let fLo = fLo0;
-  for (let i = 0; i < 200; i++) {
-    const mid = (lo + hi) / 2;
-    const fMid = npv(mid, cashFlows);
-    if (Math.abs(fMid) < 1e-6) return mid;
-    if (fLo * fMid < 0) {
-      hi = mid;
-    } else {
-      lo = mid;
-      fLo = fMid;
-    }
-  }
-  return (lo + hi) / 2;
-}
+// ── Cash-flow level helpers (npv, irrNewton) → financeUtils.ts ────────
 
 export interface YearDistribution {
   year: number;
@@ -359,10 +431,13 @@ export interface YearDistribution {
   exitDistribution: number;
   founderShare: number;       // founder equity share this year
   investorShare: number;      // total investor share this year
+  aggelakakisShare: number;   // Aggelakakis equity stake share this year (ops + exit)
   // ── Per-year fee deductions (informational) ───────────────────────
   founderManCoFee: number;          // Bucket 2A: 5% × revenue (base management fee)
-  deferredAdvisoryFeePayment: number; // Bucket 1B: deferred advisory fee instalment (spread over 3 years post-disbursement)
+  grantSuccessFeePayment: number;   // Bucket 1B: total cash (Aggelakakis + Eytan) in payment year; 0 other years
   ncfPreFees: number;               // NCF post-VAT before founder fees subtracted
+  /** @deprecated Use grantSuccessFeePayment. Was 3-yr spread. */
+  deferredAdvisoryFeePayment: number;
 }
 
 export interface ResolvedFounderWaterfall {
@@ -379,20 +454,34 @@ export interface ResolvedFounderWaterfall {
   totalProjectDistributable: number;
   // Aggregate fee totals (over the projection window, useful for UI).
   totalFounderManCoFee: number;
+  totalAggelakakisCash: number;       // total cash paid to Aggelakakis from operating cash
+  totalEytan1BCash: number;           // total cash paid to Eytan (Bucket 1B) from operating cash
+  aggelakakisEquityPct: number;       // % stake at inception (new — mirrors grantBonusPct)
+  aggelakakisEquityAtExit: number;    // EUR input preserved for UI backward compat
+  /** @deprecated Use totalAggelakakisCash + totalEytan1BCash. */
   totalDeferredAdvisoryFee: number;
 }
 
 export interface DistributionStreamOptions {
-  // Bucket 2A: 5% of gross revenue — base management fee. Subtracted from
-  // NCF before equity distributions, so equity holders see post-fee cash.
+  // Bucket 2A: 5% of gross revenue — base management fee.
   baseMgmtFeeRate?: number;
-  /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
+  /** @deprecated Use baseMgmtFeeRate. */
   founderManCoFeeRate?: number;
-  // Bucket 1B: deferred advisory fee (grant × 10%) paid from operating cash
-  // over 3 years starting from loanDisbursementYear. NOT from grant proceeds.
-  // Default: (grantApprovalYear ?? DEFAULT_GRANT_APPROVAL_YEAR) + 1.
+  // Bucket 1B: grant success fee cash portions — paid in a single year (not spread).
+  // Combined Aggelakakis + Eytan cash. Paid post-debt-service; does not affect DSCR.
+  aggelakakisCash?: number;        // Aggelakakis's cash portion
+  eytan1BCash?: number;            // Eytan's cash portion (Bucket 1B)
+  /** % stake at inception — preferred. Rides full waterfall (ops + exit). */
+  aggelakakisEquityPct?: number;
+  /** @deprecated — EUR input; pass aggelakakisEquityPct instead. */
+  aggelakakisEquityAtExit?: number;
+  /** Single year in which both cash portions are paid. Default: DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR. */
+  grantSuccessFeePaymentYear?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear. */
+  bucket1BPaymentStartYear?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear. */
   loanDisbursementYear?: number;
-  // Total Bucket 1B advisory fee to spread; 0 if no grant.
+  /** @deprecated Use aggelakakisCash + eytan1BCash. */
   deferredAdvisoryFee?: number;
 }
 
@@ -412,16 +501,20 @@ export function buildDistributionStream(
   scenario: ScenarioOutput,
   options: DistributionStreamOptions = {},
 ): YearDistribution[] {
-  const feeRate = options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate ?? DEFAULT_BASE_MGMT_FEE_RATE;
-  const disbursementYear = options.loanDisbursementYear ?? (DEFAULT_GRANT_APPROVAL_YEAR + 1);
-  const totalAdvisoryFee = options.deferredAdvisoryFee ?? 0;
-  const annualAdvisoryFee = totalAdvisoryFee > 0 ? totalAdvisoryFee / 3 : 0;
-  // Payment years: [disbursementYear, disbursementYear+1, disbursementYear+2]
-  const advisoryPaymentYears = new Set([
-    disbursementYear,
-    disbursementYear + 1,
-    disbursementYear + 2,
-  ]);
+  const feeRate = options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate ?? DEFAULT_DEAL_TERMS.baseMgmtFeeRate;
+
+  // Bucket 1B: single-year cash payment (Aggelakakis + Eytan combined).
+  // Backward-compat: if old deferredAdvisoryFee is passed, treat it as the total.
+  const legacyAdvisoryFee = options.deferredAdvisoryFee ?? 0;
+  const aggelakakisCash = options.aggelakakisCash ?? (legacyAdvisoryFee * 0.5);
+  const eytan1BCash = options.eytan1BCash ?? (legacyAdvisoryFee * 0.5);
+  const totalCashFeePayment = aggelakakisCash + eytan1BCash;
+  // Prefer the pct form; fall back to zero (deprecated EUR form no longer drives stream).
+  const aggelakakisEquityPct = options.aggelakakisEquityPct ?? 0;
+  const cashPaymentYear = options.grantSuccessFeePaymentYear
+    ?? options.bucket1BPaymentStartYear
+    ?? options.loanDisbursementYear
+    ?? DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR;
 
   const exitYear = scenario.exitYear;
   const pnlAll = scenario.pnl;
@@ -432,22 +525,28 @@ export function buildDistributionStream(
     const isExit = i === pnl.length - 1;
     const ncfPreFees = Math.max(0, p.netCashFlowPostVAT);
     const manCoFee = Math.max(0, p.totalRevenue) * feeRate;
-    const advisoryThisYear = advisoryPaymentYears.has(p.year) ? annualAdvisoryFee : 0;
+    // Grant success fee cash: paid in a single year, post-debt-service (no DSCR impact).
+    const grantFeeThisYear = (totalCashFeePayment > 0 && p.year === cashPaymentYear)
+      ? totalCashFeePayment : 0;
     // Operating component: post-fee NCF (floored at 0).
-    const operatingDistribution = Math.max(0, ncfPreFees - manCoFee - advisoryThisYear);
-    // Exit component: terminal equity value, added only at the exit year.
-    // Kept separate so the waterfall can apply the developer-equity rate to
-    // operating cash while using pari-passu only for the exit proceeds.
+    const operatingDistribution = Math.max(0, ncfPreFees - manCoFee - grantFeeThisYear);
+    // Exit component: full terminal equity (Aggelakakis rides as a % stake, not a deduction).
     const exitDistribution = isExit ? Math.max(0, scenario.terminalEquityValue) : 0;
+    // Aggelakakis's % stake: carved out of gross distributable before founder/investor split.
+    const grossDistribution = operatingDistribution + exitDistribution;
+    const aggelakakisShare = grossDistribution * aggelakakisEquityPct;
+    const totalDistribution = Math.max(0, grossDistribution - aggelakakisShare);
     return {
       year: p.year,
-      totalDistribution: operatingDistribution + exitDistribution,
+      totalDistribution,
       operatingDistribution,
       exitDistribution,
       founderShare: 0,    // populated after waterfall resolves
       investorShare: 0,
+      aggelakakisShare,
       founderManCoFee: manCoFee,
-      deferredAdvisoryFeePayment: advisoryThisYear,
+      grantSuccessFeePayment: grantFeeThisYear,
+      deferredAdvisoryFeePayment: grantFeeThisYear, // deprecated alias
       ncfPreFees,
     };
   });
@@ -465,10 +564,15 @@ export interface ResolveOptions {
   baseMgmtFeeRate?: number;
   /** @deprecated Use baseMgmtFeeRate. Accepted for backward compat. */
   founderManCoFeeRate?: number;
-  // First year Bucket 1B deferred advisory fee is paid from operating cash.
-  // Default: DEFAULT_GRANT_APPROVAL_YEAR + 1 (i.e., year after grant approval).
+  /** Single year in which both cash portions are paid. Default 2030. */
+  grantSuccessFeePaymentYear?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear. */
+  bucket1BPaymentStartYear?: number;
+  /** @deprecated Use grantSuccessFeePaymentYear. */
   loanDisbursementYear?: number;
   maxIterations?: number;
+  /** Fraction of each party's fee paid as cash; remainder = equity at exit. Default 0.50. */
+  feeCashSplitPct?: number;
   // Developer/promote equity granted at inception. See FounderStakeInput.
   developerEquityPct?: number;
 }
@@ -490,22 +594,42 @@ export function resolveFounderWaterfall(
   options: ResolveOptions = {},
 ): ResolvedFounderWaterfall {
   const maxIterations = options.maxIterations ?? 8;
-  // Bucket 1B deferred advisory fee: only the 50% cash portion of the grant
-  // success fee flows through PropCo (grant × 10% × 50% = 5% of grant).
-  // The equity 50% is priced into grantBonus and has no PropCo cash outflow.
-  const grantAmount = options.grantAmount ?? DEFAULT_GRANT_AMOUNT;
-  const deferredAdvisoryFee = grantApproved
-    ? grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT * 0.5
-    : 0;
-  const disbursementYear = options.loanDisbursementYear ?? (DEFAULT_GRANT_APPROVAL_YEAR + 1);
+  const grantAmount = options.grantAmount ?? DEFAULT_DEAL_TERMS.grantAmount;
+  const feePct = options.founderFeePct ?? DEFAULT_DEAL_TERMS.grantProcurementFeePct;
+  const consultantSharePct = options.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT;
+  const cashSplit = options.feeCashSplitPct ?? DEFAULT_FEE_CASH_SPLIT_PCT;
+  const paymentYear = options.grantSuccessFeePaymentYear
+    ?? options.bucket1BPaymentStartYear
+    ?? options.loanDisbursementYear
+    ?? DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR;
+
+  // Compute the party-split amounts for the distribution stream.
+  let aggelakakisCash = 0;
+  let aggelakakisEquityAtExit = 0;
+  let eytan1BCash = 0;
+  if (grantApproved) {
+    const grossFee = grantAmount * feePct;
+    const aggelakakisTotal = grantAmount * consultantSharePct;
+    const eytanTotal = grossFee - aggelakakisTotal;
+    aggelakakisCash = aggelakakisTotal * cashSplit;
+    aggelakakisEquityAtExit = aggelakakisTotal * (1 - cashSplit);
+    eytan1BCash = eytanTotal * cashSplit;
+  }
+
+  // Aggelakakis's % stake — carved from gross distributable before the founder/investor split.
+  // Both founder and investors are diluted proportionally (same mechanism as Eytan's grantBonusPct).
+  const aggelakakisEqPct = totalEquityRaised > 0 ? aggelakakisEquityAtExit / totalEquityRaised : 0;
+
   const stream = buildDistributionStream(scenario, {
     baseMgmtFeeRate: options.baseMgmtFeeRate ?? (options as { founderManCoFeeRate?: number }).founderManCoFeeRate,
-    loanDisbursementYear: disbursementYear,
-    deferredAdvisoryFee,
+    aggelakakisCash,
+    eytan1BCash,
+    aggelakakisEquityPct: aggelakakisEqPct,
+    grantSuccessFeePaymentYear: paymentYear,
   });
   const totalProject = stream.reduce((s, y) => s + y.totalDistribution, 0);
   const totalFounderManCoFee = stream.reduce((s, y) => s + y.founderManCoFee, 0);
-  const totalDeferredAdvisoryFee = stream.reduce((s, y) => s + y.deferredAdvisoryFeePayment, 0);
+  const totalGrantSuccessFeePayment = stream.reduce((s, y) => s + y.grantSuccessFeePayment, 0);
   const totalNonFounderCash = Math.max(0, totalEquityRaised - founderCashInvested);
 
   const stakeInputBase = {
@@ -513,11 +637,11 @@ export function resolveFounderWaterfall(
     totalEquityRaised,
     grantApproved,
     grantAmount,
-    founderFeePct: options.founderFeePct,
-    consultantSharePct: options.consultantSharePct ?? DEFAULT_CONSULTANT_SHARE_PCT,
+    founderFeePct: feePct,
+    consultantSharePct,
     projectAssetValue: options.projectAssetValue,
     bankLoanAmount: options.bankLoanAmount,
-    loanDisbursementYear: disbursementYear,
+    grantSuccessFeePaymentYear: paymentYear,
     developerEquityPct: options.developerEquityPct,
   };
 
@@ -537,15 +661,16 @@ export function resolveFounderWaterfall(
   // straddles a band boundary). On cycle, end on the *lower* ratchet to be
   // investor-friendly and flag as converged-by-stabilisation.
   const seen = new Set<string>();
-  seen.add(`${breakdown.ratchetTier}|${breakdown.performanceRatchetPct.toFixed(6)}`);
+  seen.add(`${breakdown.ratchetTier}|${breakdown.performanceRatchetPct.toFixed(6)}|${breakdown.founderExitPct.toFixed(6)}`);
 
   for (let i = 0; i < maxIterations; i++) {
     iterations = i + 1;
-    // Investors get: (1 − founderOperatingPct) of operating distributions
-    // and (1 − founderExitPct) of exit proceeds (devEq + grant, no ratchet at exit).
+    // Investors share the pool that remains after Aggelakakis's equity carve-out.
+    // Apply founderPct to the reduced distributions so both founder and investors
+    // bear the Aggelakakis dilution proportionally.
     const investorYearly = stream.map((y) => {
-      const opInvestor = y.operatingDistribution * (1 - breakdown.founderOperatingPct);
-      const exitInvestor = y.exitDistribution * (1 - breakdown.founderExitPct);
+      const opInvestor = y.operatingDistribution * (1 - aggelakakisEqPct) * (1 - breakdown.founderOperatingPct);
+      const exitInvestor = y.exitDistribution * (1 - aggelakakisEqPct) * (1 - breakdown.founderExitPct);
       return opInvestor + exitInvestor;
     });
     const cfStream = [-totalNonFounderCash, ...investorYearly];
@@ -558,7 +683,7 @@ export function resolveFounderWaterfall(
       investorIRR,
       investorMOIC,
     });
-    const nextKey = `${nextBreakdown.ratchetTier}|${nextBreakdown.performanceRatchetPct.toFixed(6)}`;
+    const nextKey = `${nextBreakdown.ratchetTier}|${nextBreakdown.performanceRatchetPct.toFixed(6)}|${nextBreakdown.founderExitPct.toFixed(6)}`;
 
     if (Math.abs(nextBreakdown.performanceRatchetPct - lastRatchet) < 1e-9) {
       breakdown = nextBreakdown;
@@ -576,10 +701,12 @@ export function resolveFounderWaterfall(
   }
 
   const yearly: YearDistribution[] = stream.map((y) => {
-    // Founder: developer equity + grant on both operations and exit; ratchet on operations only.
+    // Founder and investors split the pool that remains after Aggelakakis's equity carve-out.
+    // Apply founderPct to the reduced distributions (gross × (1 − aggelakakisEqPct)) so that
+    // both founder and investors bear the dilution proportionally — not investors alone.
     const founderShare =
-      y.operatingDistribution * breakdown.founderOperatingPct +
-      y.exitDistribution * breakdown.founderExitPct;
+      y.operatingDistribution * (1 - aggelakakisEqPct) * breakdown.founderOperatingPct +
+      y.exitDistribution * (1 - aggelakakisEqPct) * breakdown.founderExitPct;
     return { ...y, founderShare, investorShare: y.totalDistribution - founderShare };
   });
 
@@ -593,7 +720,11 @@ export function resolveFounderWaterfall(
     totalNonFounderCash,
     totalProjectDistributable: totalProject,
     totalFounderManCoFee,
-    totalDeferredAdvisoryFee,
+    totalAggelakakisCash: aggelakakisCash,
+    totalEytan1BCash: eytan1BCash,
+    aggelakakisEquityPct: breakdown.aggelakakisEquityPct,
+    aggelakakisEquityAtExit,
+    totalDeferredAdvisoryFee: totalGrantSuccessFeePayment, // deprecated alias
   };
 }
 

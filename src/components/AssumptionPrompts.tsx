@@ -92,12 +92,12 @@ function SaveModal() {
   const [name, setName] = useState("");
   const [showSaveAsNew, setShowSaveAsNew] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(false);
-  // Shared-scenarios extension: share-with-team checkbox. Default OFF so
-  // the user has to opt into making their work visible to other editors.
+  // Shared-scenarios extension: share-with-team checkbox. Default ON — small
+  // trusted team, all saves should be visible to each other by default.
   // Threaded through acceptSaveSuggestion → saveConfig as opts.published.
   // We do NOT show this on the Update-existing branch — preserving the
   // current published flag is handled inside updateConfig.
-  const [publishToTeam, setPublishToTeam] = useState(false);
+  const [publishToTeam, setPublishToTeam] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hasExisting = !!lastSavedConfigId && !!lastSavedConfigName;

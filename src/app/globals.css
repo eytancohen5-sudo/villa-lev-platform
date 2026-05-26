@@ -37,6 +37,9 @@
   --color-text-secondary: #5C564D;
   --color-text-tertiary: #8C8477;
 
+  /* ── Product-specific colors ── */
+  --color-tepix-purple: #7B5EA7;
+
   /* ── Fonts ── */
   --font-display: 'DM Serif Display', Georgia, serif;
   --font-body: 'Inter', system-ui, sans-serif;
@@ -215,6 +218,15 @@ body {
   }
 }
 
+/* ── Scenario / content fade animation ── */
+@keyframes fade-in {
+  from { opacity: 0.7; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.15s ease-out;
+}
+
 /* ── RTL support ── */
 [dir="rtl"] .data-cell {
   direction: ltr;
@@ -241,7 +253,16 @@ body {
    Investor page is the primary print target (banker PDFs). Tailwind 4
    `print:` utilities handle most layout-level visibility / spacing in the
    component tree; this block is for things Tailwind can't reach: page
-   colour, recharts SVG width, page-break orphan/widow control. */
+   colour, recharts SVG width, page-break orphan/widow control.
+
+   /admin/presentation uses @page A4 for banker-grade PDF output.
+   The rule is scoped to .presentation-root so it only fires when the
+   presentation layout wraps the page — other print targets (bank, pitch)
+   keep the browser default page size. */
+@page {
+  size: A4 portrait;
+  margin: 22mm 22mm 24mm 22mm;
+}
 @media print {
   html, body {
     background: white !important;
@@ -267,5 +288,15 @@ body {
   /* Tour-pulse ring is noise on paper. */
   .tour-trigger-pulse::after {
     display: none;
+  }
+  /* Presentation section page breaks — each <section> in /admin/presentation
+     gets a forced page break before it in print / PDF output. */
+  .presentation-section {
+    break-before: page;
+  }
+  /* Keep KPI tile rows and data tables from splitting across pages. */
+  .presentation-kpi-row,
+  .presentation-table {
+    break-inside: avoid;
   }
 }

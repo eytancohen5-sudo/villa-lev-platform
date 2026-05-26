@@ -179,7 +179,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     roomAreas: TWIN_VILLA_ROOMS,
     landCost: 400000,
     constructionArea: computeTotalArea(TWIN_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
-    constructionCostPerM2: 4000,
+    constructionCostPerM2: 3000,
     ffeCost: 120000,
     legalFees: 20000,
     architectFees: 44000,
@@ -188,6 +188,10 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     landscapingCost: 300_000,
     licensesPermitsCost: 250_000,
     constructionDirectorCost: 60_000,
+    // Source: BP v6 CAPEX sheet row B8 "Architect + interior design" for 11-Room Suites (Plot A).
+    // In BP v7+ this line was merged into licensesPermitsCost; the value here represents the
+    // interior-design sub-component of that bundle and is displayed separately in the CapEx table.
+    interiorDesignerCost: 50_000,
     acquisitionLegalRate: 0.0734,
     poolSlots: [
       { id: 'ps-a-1', qty: 8, widthM: 3, lengthM: 10 },
@@ -220,7 +224,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     roomAreas: BOUTIQUE_SUITE_ROOMS,
     landCost: 400000,
     constructionArea: computeTotalArea(BOUTIQUE_SUITE_ROOMS, { villaUnits: 0, standardSuites: 2, doubleSuites: 2 }),
-    constructionCostPerM2: 4000,
+    constructionCostPerM2: 2700,
     ffeCost: 100000,
     legalFees: 15000,
     architectFees: 32000,
@@ -231,6 +235,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     // Shared construction director across the 3 small plots (B1+B2+C) costs
     // €60K total — €20K allocated to each plot.
     constructionDirectorCost: 20_000,
+    // Source: BP v6 CAPEX sheet row B8 "Architect + interior design" for Boutique Suites (Plot C).
+    // In BP v7+ this line was merged into licensesPermitsCost; displayed separately in CapEx table.
+    interiorDesignerCost: 32_000,
     acquisitionLegalRate: 0.0734,
     wellnessFlatCost: 65_000,
     opexContingencyRate: 0,
@@ -260,7 +267,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     roomAreas: LUXURY_VILLA_ROOMS,
     landCost: 600000,
     constructionArea: computeTotalArea(LUXURY_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
-    constructionCostPerM2: 5000,
+    constructionCostPerM2: 3000,
     ffeCost: 200000,
     legalFees: 25000,
     architectFees: 65000,
@@ -271,6 +278,9 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     // Shared construction director across the 3 small plots (B1+B2+C) costs
     // €60K total — €20K allocated to each plot.
     constructionDirectorCost: 20_000,
+    // Source: BP v6 CAPEX sheet row B8 "Architect + interior design" for Luxury Villa (Plot B type).
+    // In BP v7+ this line was merged into licensesPermitsCost; displayed separately in CapEx table.
+    interiorDesignerCost: 40_000,
     acquisitionLegalRate: 0.0734,
     poolSlots: [
       { id: 'ps-b-1', qty: 1, widthM: 5, lengthM: 10 },
@@ -308,6 +318,11 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 20000,
     civilEngineerFees: 18000,
     contingencyRate: 0.10,
+    landscapingCost: 0,
+    constructionDirectorCost: 0,
+    // Source: proportional estimate based on BP v6 suite-type ratio. Not a live-deal plot.
+    // licensesPermitsCost intentionally omitted — engine falls back to legalFees + architectFees + civilEngineerFees.
+    interiorDesignerCost: 25_000,
     opexContingencyRate: 0,
     opex: {
       housekeeping: 8000,
@@ -341,6 +356,11 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 52000,
     civilEngineerFees: 38000,
     contingencyRate: 0.10,
+    landscapingCost: 20_000,
+    constructionDirectorCost: 30_000,
+    // Source: proportional estimate based on BP v6 mixed-type ratio. Not a live-deal plot.
+    // licensesPermitsCost intentionally omitted — engine falls back to legalFees + architectFees + civilEngineerFees.
+    interiorDesignerCost: 45_000,
     opexContingencyRate: 0,
     opex: {
       housekeeping: 20000,
@@ -407,6 +427,7 @@ export function resolvePortfolio(
         poolSlots: tpl.poolSlots ? tpl.poolSlots.map((s) => ({ ...s })) : undefined,
         wellnessFlatCost: tpl.wellnessFlatCost,
         acquisitionLegalRate: tpl.acquisitionLegalRate,
+        interiorDesignerCost: tpl.interiorDesignerCost,
         opex: { ...tpl.opex },
         extraOpexLines: tpl.extraOpexLines ?? [],
         extraCapexLines: tpl.extraCapexLines ?? [],
@@ -431,7 +452,7 @@ export const DEFAULT_VILLA: PropertyConfig = {
   roomAreas: TWIN_VILLA_ROOMS,
   landCost: 400000,
   constructionArea: computeTotalArea(TWIN_VILLA_ROOMS, { villaUnits: 1, standardSuites: 0, doubleSuites: 0 }),
-  constructionCostPerM2: 4000,
+  constructionCostPerM2: 3000,
   ffeCost: 120000,
   legalFees: 20000,
   architectFees: 44000,
@@ -594,6 +615,8 @@ export const BASE_CASE: ModelAssumptions = {
     otaCommissionRate: 0.175,
     otaShare: 1.0,             // 1.0 = 100% via OTA in opening year (backward-compat default)
     otaShareDeclinePerYear: 0, // 0 = no automatic channel shift. Per-year maps intentionally absent.
+    // Article 27, Law 4172/2013: losses may be carried forward for 5 years.
+    corporateLossCarryForwardYears: 5,
   },
 
   acquisitionLegalPerPlot: 50000,

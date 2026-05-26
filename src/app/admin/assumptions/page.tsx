@@ -10,7 +10,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
-import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
+import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, PoolSlot, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computePortfolioOpex } from "@/lib/engine/model";
@@ -220,16 +220,19 @@ function UnitStepper({
 // Controllable OPEX keys — the fields the engine actually sums as annual costs.
 // Deprecated fields (managementFee, maintenance) and the FF&E reserve floor
 // parameter (ffeReserveFloor) are excluded from display and from the OPEX total.
-const OPEX_CONTROLLABLE_KEYS = new Set([
+const OPEX_CONTROLLABLE_KEY_ORDER = [
   'housekeeping', 'utilities', 'insurance', 'propertyTax',
   'marketing', 'consumables', 'accounting',
-]);
+] as const;
+const OPEX_CONTROLLABLE_KEYS = new Set(OPEX_CONTROLLABLE_KEY_ORDER);
 
 function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: PropertyTemplate; startExpanded?: boolean; highlight?: boolean }) {
   const { locale, t } = useTranslation();
   const { updateTemplate, renameTemplate, duplicateTemplate, deleteTemplate, projects, model,
     addOpexLine, removeOpexLine, updateOpexLine,
-    addCapexLine, removeCapexLine, updateCapexLine } =
+    addCapexLine, removeCapexLine, updateCapexLine,
+    addPoolSlot, updatePoolSlot, removePoolSlot, setWellnessFlatCost,
+    assumptions } =
     useModelStore();
   const [expanded, setExpanded] = useState(startExpanded);
   const [editingName, setEditingName] = useState(false);
@@ -253,18 +256,31 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
   });
   const constructionCost = totalArea * tpl.constructionCostPerM2;
   const contingencyAmount = (constructionCost + tpl.ffeCost) * tpl.contingencyRate;
+  const poolRate = assumptions.poolConstructionCostPerM2 ?? 1_000;
+  const poolCostCalc = tpl.wellnessFlatCost != null
+    ? tpl.wellnessFlatCost
+    : (tpl.poolSlots ?? []).reduce((s, slot) => s + slot.qty * slot.widthM * slot.lengthM * poolRate, 0);
+  const softCostsCalc = tpl.licensesPermitsCost != null
+    ? tpl.licensesPermitsCost
+    : (tpl.legalFees ?? 0) + (tpl.architectFees ?? 0) + (tpl.civilEngineerFees ?? 0);
+  const acqLegalCalc = tpl.acquisitionLegalRate != null
+    ? tpl.landCost * tpl.acquisitionLegalRate
+    : assumptions.acquisitionLegalPerPlot;
   const capexPerUnit =
     tpl.landCost +
     constructionCost +
+    (tpl.landscapingCost ?? 0) +
+    poolCostCalc +
     tpl.ffeCost +
-    tpl.legalFees +
-    tpl.architectFees +
-    tpl.civilEngineerFees +
+    softCostsCalc +
+    (tpl.constructionDirectorCost ?? 0) +
+    (tpl.interiorDesignerCost ?? 0) +
     contingencyAmount +
+    acqLegalCalc +
     (tpl.extraCapexLines ?? []).reduce((s, l) => s + l.cost, 0);
 
   const rawOpex = Object.entries(tpl.opex)
-    .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k))
+    .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k as never))
     .reduce((s, [, v]) => s + (v as number), 0)
     + (tpl.extraOpexLines ?? []).reduce((s, l) => s + l.value, 0);
   const totalOpex = rawOpex * (1 + (tpl.opexContingencyRate ?? 0));
@@ -572,9 +588,107 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                     </tr>
                     <TemplateRow label="FF&E" value={tpl.ffeCost} tplId={tpl.id} path="ffeCost" format="currency" />
                     <FfePerM2Row tpl={tpl} totalArea={totalArea} />
-                    <TemplateRow label="Legal & notary" value={tpl.legalFees} tplId={tpl.id} path="legalFees" format="currency" />
-                    <TemplateRow label="Architect + design" value={tpl.architectFees} tplId={tpl.id} path="architectFees" format="currency" />
-                    <TemplateRow label="Civil engineer" value={tpl.civilEngineerFees} tplId={tpl.id} path="civilEngineerFees" format="currency" />
+                    <TemplateRow label={t('field.landscapingCost')} value={tpl.landscapingCost ?? 0} tplId={tpl.id} path="landscapingCost" format="currency" />
+                    {/* Pool / Wellness config */}
+                    {tpl.wellnessFlatCost != null ? (
+                      <>
+                        <tr className="border-b border-surface-secondary/30">
+                          <td className="py-1.5 pr-3 text-xs text-text-secondary">{t('field.wellnessFlat')}</td>
+                          <td className="py-1.5 w-28">
+                            <EditableCell
+                              value={tpl.wellnessFlatCost}
+                              format="currency"
+                              onChange={(v) => setWellnessFlatCost(tpl.id, v)}
+                            />
+                          </td>
+                        </tr>
+                        <tr className="border-b border-surface-secondary/30">
+                          <td colSpan={2} className="py-1 text-right">
+                            <button
+                              onClick={() => setWellnessFlatCost(tpl.id, undefined)}
+                              className="px-2 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              {t('field.switchToSlots')}
+                            </button>
+                          </td>
+                        </tr>
+                      </>
+                    ) : (
+                      <tr className="border-b border-surface-secondary/30">
+                        <td colSpan={2} className="py-2 px-0">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-xs text-text-secondary font-medium">Pools</span>
+                            <span className="text-[11px] text-text-tertiary">@ {formatCurrency(poolRate, false, locale)}/m²</span>
+                          </div>
+                          {(tpl.poolSlots ?? []).length > 0 && (
+                            <table className="w-full text-xs mb-1.5">
+                              <thead>
+                                <tr className="text-[10px] text-text-tertiary uppercase tracking-wide border-b border-surface-secondary/40">
+                                  <th className="text-left pb-1 pr-2">#</th>
+                                  <th className="text-right pb-1 pr-1">Qty</th>
+                                  <th className="text-right pb-1 pr-1">W (m)</th>
+                                  <th className="text-right pb-1 pr-1">L (m)</th>
+                                  <th className="text-right pb-1 pr-1">m²</th>
+                                  <th className="text-right pb-1">Cost</th>
+                                  <th className="pb-1 w-4"></th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(tpl.poolSlots ?? []).map((slot, idx) => {
+                                  const slotArea = slot.qty * slot.widthM * slot.lengthM;
+                                  const slotCost = slotArea * poolRate;
+                                  return (
+                                    <tr key={slot.id} className="border-b border-surface-secondary/20">
+                                      <td className="py-0.5 pr-2 text-text-tertiary">Pool {idx + 1}</td>
+                                      <td className="py-0.5 text-right pr-1">
+                                        <EditableCell value={slot.qty} format="number" label={t('field.poolSlotQty')} onChange={(v) => updatePoolSlot(tpl.id, slot.id, 'qty', Math.max(1, Math.round(v)))} />
+                                      </td>
+                                      <td className="py-0.5 text-right pr-1">
+                                        <EditableCell value={slot.widthM} format="number" label={t('field.poolSlotWidth')} onChange={(v) => updatePoolSlot(tpl.id, slot.id, 'widthM', v)} />
+                                      </td>
+                                      <td className="py-0.5 text-right pr-1">
+                                        <EditableCell value={slot.lengthM} format="number" label={t('field.poolSlotLength')} onChange={(v) => updatePoolSlot(tpl.id, slot.id, 'lengthM', v)} />
+                                      </td>
+                                      <td className="py-0.5 text-right pr-1 font-mono text-text-tertiary">{slotArea}</td>
+                                      <td className="py-0.5 text-right font-mono text-brand-600">{formatCurrency(slotCost, false, locale)}</td>
+                                      <td className="py-0.5 text-center">
+                                        <button onClick={() => removePoolSlot(tpl.id, slot.id)} className="text-text-tertiary hover:text-negative text-[11px]" title="Remove">&times;</button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                          <div className="flex gap-2 justify-end">
+                            <button
+                              onClick={() => addPoolSlot(tpl.id)}
+                              className="px-2 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              + {t('field.addPoolSlot')}
+                            </button>
+                            <button
+                              onClick={() => setWellnessFlatCost(tpl.id, 0)}
+                              className="px-2 py-0.5 rounded text-[11px] bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                            >
+                              {t('field.switchToFlat')}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    <TemplateRow label={t('field.licensesPermits')} value={tpl.licensesPermitsCost ?? (tpl.legalFees ?? 0) + (tpl.architectFees ?? 0) + (tpl.civilEngineerFees ?? 0)} tplId={tpl.id} path="licensesPermitsCost" format="currency" />
+                    <TemplateRow label={t('field.constructionDirector')} value={tpl.constructionDirectorCost ?? 0} tplId={tpl.id} path="constructionDirectorCost" format="currency" />
+                    <TemplateRow label={t('field.interiorDesignerCost')} value={tpl.interiorDesignerCost ?? 0} tplId={tpl.id} path="interiorDesignerCost" format="currency" />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary">
+                        Acquisition legal &amp; DD
+                        <div className="text-[10px] text-text-tertiary leading-tight mt-0.5">{t('field.acqLegalBreakdown')}</div>
+                      </td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary">
+                        {formatCurrency(acqLegalCalc, false, locale)}
+                      </td>
+                    </tr>
                     <TemplateRow label="Contingency rate" value={tpl.contingencyRate} tplId={tpl.id} path="contingencyRate" format="percent" />
                     <tr className="border-b border-surface-secondary/30">
                       <td className="py-1.5 pr-3 text-xs text-text-secondary italic">Contingency amount</td>
@@ -604,25 +718,23 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                 <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Annual OPEX (per unit)</h4>
                 <table className="w-full">
                   <tbody>
-                    {Object.entries(tpl.opex)
-                      .filter(([key]) => OPEX_CONTROLLABLE_KEYS.has(key))
-                      .map(([key, val]) => (
-                        <TemplateRow
-                          key={key}
-                          label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                          value={val as number}
-                          tplId={tpl.id}
-                          path={`opex.${key}`}
-                          format="currency"
-                        />
-                      ))}
+                    {OPEX_CONTROLLABLE_KEY_ORDER.map((key) => (
+                      <TemplateRow
+                        key={key}
+                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                        value={(tpl.opex[key as keyof typeof tpl.opex] as number) ?? 0}
+                        tplId={tpl.id}
+                        path={`opex.${key}`}
+                        format="currency"
+                      />
+                    ))}
                     {(tpl.extraOpexLines ?? []).map((line) => (
                       <CustomOpexRow key={line.id} tplId={tpl.id} line={line} />
                     ))}
                   </tbody>
                 </table>
                 <button
-                  onClick={() => addOpexLine(tpl.id)}
+                  onClick={() => addOpexLine()}
                   className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   {t('tpl.addOpexLine')}
@@ -899,6 +1011,7 @@ function ProjectCard({ projId }: { projId: string }) {
     updateProjectCount,
     changeProjectTemplate,
     renameProject,
+    assumptions,
   } = useModelStore();
   const proj = projects.find((p) => p.id === projId);
   if (!proj) return null;
@@ -912,15 +1025,33 @@ function ProjectCard({ projId }: { projId: string }) {
   const tplArea = tpl
     ? computeTotalArea(tpl.roomAreas, { villaUnits: tpl.villaUnits, standardSuites: tpl.standardSuites, doubleSuites: tpl.doubleSuites })
     : 0;
-  const capexPerUnit = tpl
-    ? tpl.landCost +
-      tplArea * tpl.constructionCostPerM2 +
+  const capexPerUnit = tpl ? (() => {
+    const constructionCost = tplArea * tpl.constructionCostPerM2;
+    const contingencyAmount = (constructionCost + tpl.ffeCost) * tpl.contingencyRate;
+    const poolRate = assumptions.poolConstructionCostPerM2 ?? 1_000;
+    const poolCostCalc = tpl.wellnessFlatCost != null
+      ? tpl.wellnessFlatCost
+      : (tpl.poolSlots ?? []).reduce((s, slot) => s + slot.qty * slot.widthM * slot.lengthM * poolRate, 0);
+    const softCostsCalc = tpl.licensesPermitsCost != null
+      ? tpl.licensesPermitsCost
+      : (tpl.legalFees ?? 0) + (tpl.architectFees ?? 0) + (tpl.civilEngineerFees ?? 0);
+    const acqLegalCalc = tpl.acquisitionLegalRate != null
+      ? tpl.landCost * tpl.acquisitionLegalRate
+      : (assumptions.acquisitionLegalPerPlot ?? 0);
+    return (
+      tpl.landCost +
+      constructionCost +
+      (tpl.landscapingCost ?? 0) +
+      poolCostCalc +
       tpl.ffeCost +
-      tpl.legalFees +
-      tpl.architectFees +
-      tpl.civilEngineerFees +
-      (tplArea * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate
-    : 0;
+      softCostsCalc +
+      (tpl.constructionDirectorCost ?? 0) +
+      (tpl.interiorDesignerCost ?? 0) +
+      contingencyAmount +
+      acqLegalCalc +
+      (tpl.extraCapexLines ?? []).reduce((s, l) => s + l.cost, 0)
+    );
+  })() : 0;
 
   return (
     <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
@@ -1020,7 +1151,7 @@ function ProjectCard({ projId }: { projId: string }) {
 // ── Add Project Panel ──
 
 function AddProjectPanel() {
-  const { templates, addProject } = useModelStore();
+  const { templates, addProject, assumptions } = useModelStore();
   const { locale } = useTranslation();
   const [showPicker, setShowPicker] = useState(false);
 
@@ -1049,14 +1180,30 @@ function AddProjectPanel() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {templates.map((tpl) => {
           const area = computeTotalArea(tpl.roomAreas, { villaUnits: tpl.villaUnits, standardSuites: tpl.standardSuites, doubleSuites: tpl.doubleSuites });
+          const constructionCost = area * tpl.constructionCostPerM2;
+          const contingencyAmount = (constructionCost + tpl.ffeCost) * tpl.contingencyRate;
+          const poolRate = assumptions.poolConstructionCostPerM2 ?? 1_000;
+          const poolCostCalc = tpl.wellnessFlatCost != null
+            ? tpl.wellnessFlatCost
+            : (tpl.poolSlots ?? []).reduce((s, slot) => s + slot.qty * slot.widthM * slot.lengthM * poolRate, 0);
+          const softCostsCalc = tpl.licensesPermitsCost != null
+            ? tpl.licensesPermitsCost
+            : (tpl.legalFees ?? 0) + (tpl.architectFees ?? 0) + (tpl.civilEngineerFees ?? 0);
+          const acqLegalCalc = tpl.acquisitionLegalRate != null
+            ? tpl.landCost * tpl.acquisitionLegalRate
+            : (assumptions.acquisitionLegalPerPlot ?? 0);
           const capex =
             tpl.landCost +
-            area * tpl.constructionCostPerM2 +
+            constructionCost +
+            (tpl.landscapingCost ?? 0) +
+            poolCostCalc +
             tpl.ffeCost +
-            tpl.legalFees +
-            tpl.architectFees +
-            tpl.civilEngineerFees +
-            (area * tpl.constructionCostPerM2 + tpl.ffeCost) * tpl.contingencyRate;
+            softCostsCalc +
+            (tpl.constructionDirectorCost ?? 0) +
+            (tpl.interiorDesignerCost ?? 0) +
+            contingencyAmount +
+            acqLegalCalc +
+            (tpl.extraCapexLines ?? []).reduce((s, l) => s + l.cost, 0);
 
           return (
             <button
@@ -1401,6 +1548,13 @@ export default function AssumptionsPage() {
                   format="currency"
                   note={`x${totalPlots} plots = ${formatCurrency(a.acquisitionLegalPerPlot * totalPlots, true, locale)}`}
                 />
+                <AssumptionRow
+                  label={t('field.poolCostPerM2')}
+                  value={a.poolConstructionCostPerM2 ?? 1_000}
+                  path="poolConstructionCostPerM2"
+                  format="currency"
+                  note="Shared pool construction rate (€/m²) applied to all pool slots across templates"
+                />
               </tbody>
             </table>
           </div>
@@ -1463,11 +1617,27 @@ export default function AssumptionsPage() {
               Click any template to expand it and edit its CAPEX/OPEX values. Click any number to change it.
             </p>
             <div className="space-y-3">
-              {/* Only auto-expand the freshly-created template; everything else
-                  starts collapsed so the page is scannable instead of a wall of forms. */}
-              {templates.map((tpl) => (
-                <TemplateCard key={tpl.id} tpl={tpl} startExpanded={tpl.id === newTemplateId} highlight={tpl.id === newTemplateId} />
-              ))}
+              {/* Active templates (used by at least one project) appear first and
+                  start expanded. Inactive templates appear after, collapsed by default.
+                  Freshly-created templates also start expanded regardless of active state. */}
+              {[...templates]
+                .sort((a, b) => {
+                  const aUsed = projects.some((p) => p.templateId === a.id) ? 0 : 1;
+                  const bUsed = projects.some((p) => p.templateId === b.id) ? 0 : 1;
+                  return aUsed - bUsed;
+                })
+                .map((tpl) => {
+                  const isActive = projects.some((p) => p.templateId === tpl.id);
+                  return (
+                    <TemplateCard
+                      key={tpl.id}
+                      tpl={tpl}
+                      startExpanded={isActive || tpl.id === newTemplateId}
+                      highlight={tpl.id === newTemplateId}
+                    />
+                  );
+                })
+              }
             </div>
           </div>
         </div>
@@ -1610,6 +1780,7 @@ export default function AssumptionsPage() {
                     </td>
                     <td className="py-2 pl-4 text-xs text-text-tertiary">Non-plot eligible x grant rate</td>
                   </tr>
+                  <AssumptionRow label={t('field.gracePeriod')} value={a.grant.gracePeriodYears} path="grant.gracePeriodYears" note="Interest-only period before principal repayment" />
                   <AssumptionRow label="Interest rate (on remaining loan)" value={a.commercialLoan.interestRate} path="commercialLoan.interestRate" format="percent" note="5% on reduced loan amount" />
                   <AssumptionRow label="Repayment term (years)" value={a.commercialLoan.repaymentTermYears} path="commercialLoan.repaymentTermYears" note="13 years from 2029" />
                 </tbody>
@@ -1701,6 +1872,51 @@ export default function AssumptionsPage() {
               <AssumptionRow label={t('field.vatRate')} value={a.tax.netVATRate} path="tax.netVATRate" format="percent" note="7% net after input credits" />
             </tbody>
           </table>
+
+          <SectionHeader title={t('as.otaDistribution')} />
+          <table className="w-full mb-4">
+            <tbody>
+              <AssumptionRow label={t('field.otaCommissionRate')} value={a.tax.otaCommissionRate} path="tax.otaCommissionRate" format="percent" note="Airbnb / Booking.com platform fee" />
+              <AssumptionRow label={t('field.otaShare')} value={a.tax.otaShare ?? 1.0} path="tax.otaShare" format="percent" note="% of guests via OTA in opening year (2028)" />
+              <AssumptionRow label={t('field.otaShareDecline')} value={a.tax.otaShareDeclinePerYear ?? 0} path="tax.otaShareDeclinePerYear" format="percent" note="OTA share shrinks by this amount each year as direct channel matures" />
+            </tbody>
+          </table>
+
+          {/* Read-only per-year preview — computed automatically from the 3 inputs above */}
+          <div className="mb-6 p-4 rounded-xl bg-amber-50/40 border border-amber-200/60">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-3">Computed Channel Mix (2028–2036)</h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-[11px] text-text-tertiary text-right">
+                    <th className="text-left font-medium py-1 pr-3">{t('as.otaDistribution.yearHeader')}</th>
+                    <th className="font-medium py-1 px-2">{t('as.otaDistribution.otaShareHeader')}</th>
+                    <th className="font-medium py-1 px-2">Direct</th>
+                    <th className="font-medium py-1 pl-2 text-amber-700">{t('as.otaDistribution.effectiveHeader')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 9 }, (_, i) => 2028 + i).map((year) => {
+                    const commRate = a.tax.otaCommissionRate;
+                    const otaShareBase = a.tax.otaShare ?? 1.0;
+                    const decline = a.tax.otaShareDeclinePerYear ?? 0;
+                    const yearsSince = Math.max(0, year - 2028);
+                    const otaShare = Math.max(0, otaShareBase - yearsSince * decline);
+                    const effectiveRate = commRate * otaShare;
+                    return (
+                      <tr key={year} className="border-t border-amber-100">
+                        <td className="py-1 pr-3 font-mono text-text-secondary text-left">{year}</td>
+                        <td className="py-1 px-2 text-right font-mono text-[12px]">{formatPercent(otaShare)}</td>
+                        <td className="py-1 px-2 text-right font-mono text-[12px] text-text-tertiary">{formatPercent(1 - otaShare)}</td>
+                        <td className="py-1 pl-2 text-right font-mono text-amber-700 text-[12px]">{formatPercent(effectiveRate)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-2">{t('as.otaDistribution.note')}</p>
+          </div>
         </div>
       )}
 
@@ -1711,9 +1927,30 @@ export default function AssumptionsPage() {
           <table className="w-full">
             <tbody>
               <AssumptionRow label={t('field.villaADR')} value={a.revenueRealistic.villaADR} path="revenueRealistic.villaADR" format="currency" note="Net of all commissions" />
+              <tr className="border-b border-surface-secondary/30 bg-amber-50/20">
+                <td className="py-1 pr-4 text-xs text-text-tertiary pl-6">↳ {t('field.grossADR')} — Villa</td>
+                <td className="py-1 w-36 text-xs font-mono text-text-tertiary text-right pr-2">
+                  {formatCurrency(a.revenueRealistic.villaADR / Math.max(0.001, 1 - (a.tax.otaCommissionRate ?? 0)), false, locale)}
+                </td>
+                <td className="py-1 pl-4 text-xs text-text-tertiary italic">{t('field.grossADR.note')}</td>
+              </tr>
               <AssumptionRow label={t('field.villaNights')} value={a.revenueRealistic.villaBaseNights} path="revenueRealistic.villaBaseNights" note="Per project" />
               <AssumptionRow label={t('field.stdSuiteADR')} value={a.revenueRealistic.suiteStandardADR} path="revenueRealistic.suiteStandardADR" format="currency" note={`Per suite / night · ${a.portfolio.reduce((s, p) => s + p.standardSuites * p.count, 0)} in portfolio`} />
+              <tr className="border-b border-surface-secondary/30 bg-amber-50/20">
+                <td className="py-1 pr-4 text-xs text-text-tertiary pl-6">↳ {t('field.grossADR')} — Standard Suite</td>
+                <td className="py-1 w-36 text-xs font-mono text-text-tertiary text-right pr-2">
+                  {formatCurrency(a.revenueRealistic.suiteStandardADR / Math.max(0.001, 1 - (a.tax.otaCommissionRate ?? 0)), false, locale)}
+                </td>
+                <td className="py-1 pl-4 text-xs text-text-tertiary italic">{t('field.grossADR.note')}</td>
+              </tr>
               <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueRealistic.suiteDoubleADR} path="revenueRealistic.suiteDoubleADR" format="currency" note={`Per suite / night · ${a.portfolio.reduce((s, p) => s + p.doubleSuites * p.count, 0)} in portfolio`} />
+              <tr className="border-b border-surface-secondary/30 bg-amber-50/20">
+                <td className="py-1 pr-4 text-xs text-text-tertiary pl-6">↳ {t('field.grossADR')} — Double Suite</td>
+                <td className="py-1 w-36 text-xs font-mono text-text-tertiary text-right pr-2">
+                  {formatCurrency(a.revenueRealistic.suiteDoubleADR / Math.max(0.001, 1 - (a.tax.otaCommissionRate ?? 0)), false, locale)}
+                </td>
+                <td className="py-1 pl-4 text-xs text-text-tertiary italic">{t('field.grossADR.note')}</td>
+              </tr>
               <AssumptionRow label={t('field.suiteNights')} value={a.revenueRealistic.suiteBaseNights} path="revenueRealistic.suiteBaseNights" />
               <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueRealistic.eventsPerYear} path="revenueRealistic.eventsPerYear" />
               <AssumptionRow label={t('field.profitPerEvent')} value={a.revenueRealistic.netProfitPerEvent} path="revenueRealistic.netProfitPerEvent" format="currency" />
@@ -1726,13 +1963,13 @@ export default function AssumptionsPage() {
           <SectionHeader title={t('as.upsideScenario')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow label="Villa ADR — Realistic" value={a.revenueUpside.villaADR} path="revenueUpside.villaADR" format="currency" />
-              <AssumptionRow label="Villa nights — Realistic (mature)" value={a.revenueUpside.villaBaseNights} path="revenueUpside.villaBaseNights" />
-              <AssumptionRow label="Standard Suite ADR — Realistic" value={a.revenueUpside.suiteStandardADR} path="revenueUpside.suiteStandardADR" format="currency" />
-              <AssumptionRow label="Double Suite ADR — Realistic" value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" />
-              <AssumptionRow label="Suite nights — Realistic" value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" />
-              <AssumptionRow label="Events — Realistic" value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" />
-              <AssumptionRow label="Ancillary growth years — Realistic (cap)" value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
+              <AssumptionRow label={t('field.villaADR')} value={a.revenueUpside.villaADR} path="revenueUpside.villaADR" format="currency" note="Upside scenario — net of all commissions" />
+              <AssumptionRow label={t('field.villaNights')} value={a.revenueUpside.villaBaseNights} path="revenueUpside.villaBaseNights" note="Upside scenario" />
+              <AssumptionRow label={t('field.stdSuiteADR')} value={a.revenueUpside.suiteStandardADR} path="revenueUpside.suiteStandardADR" format="currency" note="Upside scenario" />
+              <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" note="Upside scenario" />
+              <AssumptionRow label={t('field.suiteNights')} value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" note="Upside scenario" />
+              <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" note="Upside scenario" />
+              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Upside scenario — years of compounding from 2028, then flat" />
             </tbody>
           </table>
         </div>
@@ -1772,9 +2009,15 @@ export default function AssumptionsPage() {
             </p>
           </div>
 
-          {templates.map((tpl) => {
+          {[...templates]
+            .sort((a, b) => {
+              const aUsed = projects.some((p) => p.templateId === a.id) ? 0 : 1;
+              const bUsed = projects.some((p) => p.templateId === b.id) ? 0 : 1;
+              return aUsed - bUsed;
+            })
+            .map((tpl) => {
             const rawOpex = Object.entries(tpl.opex)
-              .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k))
+              .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k as never))
               .reduce((s, [, v]) => s + (v as number), 0)
               + (tpl.extraOpexLines ?? []).reduce((s, l) => s + l.value, 0);
             const totalOpex = rawOpex * (1 + (tpl.opexContingencyRate ?? 0));
@@ -1797,18 +2040,16 @@ export default function AssumptionsPage() {
                 </div>
                 <table className="w-full">
                   <tbody>
-                    {Object.entries(tpl.opex)
-                      .filter(([key]) => OPEX_CONTROLLABLE_KEYS.has(key))
-                      .map(([key, val]) => (
-                        <TemplateRow
-                          key={key}
-                          label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                          value={val as number}
-                          tplId={tpl.id}
-                          path={`opex.${key}`}
-                          format="currency"
-                        />
-                      ))}
+                    {OPEX_CONTROLLABLE_KEY_ORDER.map((key) => (
+                      <TemplateRow
+                        key={key}
+                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                        value={(tpl.opex[key as keyof typeof tpl.opex] as number) ?? 0}
+                        tplId={tpl.id}
+                        path={`opex.${key}`}
+                        format="currency"
+                      />
+                    ))}
                     {(tpl.extraOpexLines ?? []).map((line) => (
                       <CustomOpexRow key={line.id} tplId={tpl.id} line={line} />
                     ))}
@@ -1828,7 +2069,7 @@ export default function AssumptionsPage() {
                   </tbody>
                 </table>
                 <button
-                  onClick={() => useModelStore.getState().addOpexLine(tpl.id)}
+                  onClick={() => useModelStore.getState().addOpexLine()}
                   className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   {t('tpl.addOpexLine')}
@@ -1924,7 +2165,9 @@ export default function AssumptionsPage() {
                       <th className="text-left py-1 pr-2 font-medium">{t('as.portfolioOpex.colRole')}</th>
                       <th className="text-right py-1 pr-2 font-medium w-28">{t('as.portfolioOpex.colMonthlyGross')}</th>
                       <th className="text-right py-1 pr-2 font-medium w-24 text-text-tertiary">{t('as.portfolioOpex.colNetMonthly')}</th>
-                      <th className="text-right py-1 pr-2 font-medium w-20">{t('as.portfolioOpex.colMonths')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-14" title={t('as.portfolioOpex.colHeadcountTooltip')}>{t('as.portfolioOpex.colHeadcount')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-20" title="Calendar months in contract">{t('as.portfolioOpex.colMonths')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-28" title={t('as.portfolioOpex.colBonusTooltip')}>{t('as.portfolioOpex.colBonus')}</th>
                       <th className="text-right py-1 pr-2 font-medium w-20">{t('as.portfolioOpex.colBurden')}</th>
                       <th className="text-right py-1 pr-2 font-medium w-24">{t('as.portfolioOpex.colAllowances')}</th>
                       <th className="text-right py-1 font-medium w-28">{t('as.portfolioOpex.colAnnual')}</th>
@@ -1933,9 +2176,13 @@ export default function AssumptionsPage() {
                   </thead>
                   <tbody>
                     {po.staffRoles.map((role, idx) => {
-                      const annualBurdened = role.yearRound
-                        ? role.monthlyGross * role.monthsPaid * role.burdenMultiplier + role.allowances
-                        : role.monthlyGross * (role.seasonalMonths ?? 0) * role.burdenMultiplier * (role.headcount ?? 1) + role.allowances * (role.headcount ?? 1);
+                      const count = role.headcount ?? 1;
+                      const baseMonths = role.yearRound ? role.monthsPaid : (role.seasonalMonths ?? role.monthsPaid);
+                      // Greek law: (contractMonths / 12) × 2 bonus months — same formula as the engine
+                      const bonusM = baseMonths * (2 / 12);
+                      const effectiveMonths = baseMonths + bonusM; // = baseMonths × (14/12)
+                      const holidayBonus = role.monthlyGross * (role.monthsPaid / 12) * 2;
+                      const annualBurdened = role.monthlyGross * effectiveMonths * role.burdenMultiplier * count + role.allowances * count;
                       return (
                         <tr key={idx} className="border-b border-surface-secondary/40">
                           <td className="py-1.5 pr-2">
@@ -1953,7 +2200,18 @@ export default function AssumptionsPage() {
                             {formatCurrency(estimateGreekNetMonthly(role.monthlyGross), false, locale)}
                           </td>
                           <td className="py-1.5 pr-2">
-                            <EditableCell value={role.monthsPaid} format="number" label={t('as.portfolioOpex.colMonths')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, monthsPaid: v })} />
+                            <EditableCell value={role.headcount ?? 1} format="number" label={t('as.portfolioOpex.colHeadcount')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, headcount: Math.max(1, Math.round(v)) })} />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <EditableCell value={role.monthsPaid} format="number" label={t('as.portfolioOpex.colMonths')} onChange={(v) => {
+                              // Keep seasonalMonths in sync (holiday bonus is formula-derived from monthsPaid, no separate update needed)
+                              const update: Partial<typeof role> = { monthsPaid: v };
+                              if (!role.yearRound) update.seasonalMonths = v;
+                              updatePortfolioStaffRole(idx, { ...role, ...update });
+                            }} />
+                          </td>
+                          <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-secondary" title={t('as.portfolioOpex.colBonusTooltip')}>
+                            {formatCurrency(holidayBonus, false, locale)}
                           </td>
                           <td className="py-1.5 pr-2">
                             <EditableCell value={role.burdenMultiplier} format="number" label={t('as.portfolioOpex.colBurden')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, burdenMultiplier: v })} />
@@ -1979,7 +2237,7 @@ export default function AssumptionsPage() {
                 </table>
                 <button
                   type="button"
-                  onClick={() => addPortfolioStaffRole({ name: 'New Role', monthlyGross: 0, monthsPaid: 14, burdenMultiplier: 1.32, allowances: 0, yearRound: true })}
+                  onClick={() => addPortfolioStaffRole({ name: 'New Role', monthlyGross: 0, monthsPaid: 12, bonusMonths: 2, burdenMultiplier: 1.32, allowances: 0, yearRound: true, headcount: 1 })}
                   className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
                 >
                   + {t('as.portfolioOpex.addRole')}
@@ -2007,7 +2265,10 @@ export default function AssumptionsPage() {
                   <tbody>
                     {po.sharedServices.map((line, idx) => {
                       const isPool = line.name === 'Pool R&M';
+                      // Lines with unitCount + costPerUnit use the per-unit formula (e.g. Maintenance Contractor Pool)
+                      const hasUnitPricing = !isPool && line.unitCount !== undefined && line.costPerUnit !== undefined;
                       const poolTotal = (po.poolCount ?? 17) * (po.poolCostPerUnit ?? 1500);
+                      const unitTotal = hasUnitPricing ? (line.unitCount! * line.costPerUnit!) : 0;
                       return (
                         <tr key={idx} className="border-b border-surface-secondary/40">
                           <td className="py-1.5 pr-2">
@@ -2036,6 +2297,23 @@ export default function AssumptionsPage() {
                                 />
                                 <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
                               </span>
+                            ) : hasUnitPricing ? (
+                              <span className="flex items-center gap-1.5">
+                                <EditableCell
+                                  value={line.unitCount!}
+                                  format="number"
+                                  label={t('as.portfolioOpex.poolCount')}
+                                  onChange={(v) => updatePortfolioService(idx, { ...line, unitCount: Math.max(1, Math.round(v)), annualCost: Math.round(Math.max(1, Math.round(v)) * (line.costPerUnit ?? 0)) })}
+                                />
+                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
+                                <EditableCell
+                                  value={line.costPerUnit!}
+                                  format="currency"
+                                  label={t('as.portfolioOpex.poolCostPerUnit')}
+                                  onChange={(v) => updatePortfolioService(idx, { ...line, costPerUnit: v, annualCost: Math.round((line.unitCount ?? 1) * v) })}
+                                />
+                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
+                              </span>
                             ) : (
                               line.sizingBasis ?? ''
                             )}
@@ -2044,6 +2322,10 @@ export default function AssumptionsPage() {
                             {isPool ? (
                               <span className="text-right font-mono text-xs text-text-secondary block">
                                 {formatCurrency(poolTotal, false, locale)}
+                              </span>
+                            ) : hasUnitPricing ? (
+                              <span className="text-right font-mono text-xs text-text-secondary block">
+                                {formatCurrency(unitTotal, false, locale)}
                               </span>
                             ) : (
                               <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
@@ -2466,7 +2748,9 @@ function ConfigPanel() {
     isImpersonating,
     effectiveRole,
   } = useEffectiveAuth();
-  const canWrite = canEdit;
+  // Anonymous Firebase Auth users (set up by AuthGate after password login)
+  // can write scenarios — the password gate already controls app access.
+  const canWrite = canEdit || (user?.isAnonymous === true && !isImpersonating);
   // SECURITY: while admin is previewing as banker, treat the session as
   // unauthenticated for scenario-ownership purposes. Without this guard
   // useEffectiveAuth preserves the real `user`, so the real uid would
@@ -2476,9 +2760,9 @@ function ConfigPanel() {
   const isPreviewAsBanker = isImpersonating && effectiveRole === 'banker';
   const mineUid = isPreviewAsBanker ? null : (user?.uid ?? null);
   const [newName, setNewName] = useState('');
-  // Inline save row also gets the share-with-team toggle. Default off, so
-  // users opt into sharing each time. Independent of the modal's state.
-  const [publishToTeam, setPublishToTeam] = useState(false);
+  // Inline save row also gets the share-with-team toggle. Default on — small
+  // trusted team, all saves should be visible to each other by default.
+  const [publishToTeam, setPublishToTeam] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2675,13 +2959,15 @@ function ConfigPanel() {
             >
               {t('config.save')}
             </button>
-            <button
-              onClick={signOut}
-              className="px-3 py-2.5 rounded-xl bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-all"
-              title={`Signed in as ${user?.email ?? 'admin'}`}
-            >
-              Sign out
-            </button>
+            {!user?.isAnonymous && (
+              <button
+                onClick={signOut}
+                className="px-3 py-2.5 rounded-xl bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-all"
+                title={`Signed in as ${user?.email ?? 'admin'}`}
+              >
+                Sign out
+              </button>
+            )}
           </div>
           <label className="flex items-center gap-2 mt-2 text-xs text-text-secondary cursor-pointer select-none">
             <input

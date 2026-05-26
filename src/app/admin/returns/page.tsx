@@ -1,92 +1,32 @@
 "use client";
 
+import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   formatCurrency,
   formatPercent,
-  formatMultiple,
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
-
-// ── Shared UI components ─────────────────────────────────────
-
-function SectionHeader({ title, sub }: { title: string; sub?: string }) {
-  return (
-    <div className="flex items-baseline justify-between mb-3 mt-8 first:mt-0 px-1">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
-        {title}
-      </h2>
-      {sub && <span className="text-[11px] text-text-tertiary">{sub}</span>}
-    </div>
-  );
-}
-
-function StatusChip({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${
-        ok ? "bg-positive/15 text-positive" : "bg-warning/15 text-warning"
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-positive" : "bg-warning"}`} />
-      {label}
-    </span>
-  );
-}
-
-function KPICard({
-  label,
-  value,
-  sublabel,
-  threshold,
-  chip,
-  accent = false,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sublabel?: string;
-  threshold?: string;
-  chip?: { label: string; ok: boolean };
-  accent?: boolean;
-  tone?: "positive" | "warning" | "neutral";
-}) {
-  const valueColor =
-    tone === "positive" ? "text-positive" : tone === "warning" ? "text-warning" : "text-text-primary";
-  return (
-    <div
-      className={`relative rounded-xl border p-5 ${
-        accent ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-          {label}
-        </div>
-        {chip && <StatusChip label={chip.label} ok={chip.ok} />}
-      </div>
-      <div className={`kpi-value ${valueColor}`}>{value}</div>
-      {sublabel && <div className="text-xs text-text-tertiary mt-1">{sublabel}</div>}
-      {threshold && (
-        <div className="text-[11px] text-text-tertiary/80 mt-1.5 pt-1.5 border-t border-surface-tertiary/50">
-          {threshold}
-        </div>
-      )}
-    </div>
-  );
-}
+import { SectionHeader, KPICard } from "@/components/AdminUI";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { RETURNS_TOUR } from "@/lib/tours/configs";
 
 // ── Page ────────────────────────────────────────────────────
 
 export default function ReturnsPage() {
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(RETURNS_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
   const activeScenarioOutput = model.scenarios[activeScenario];
-  const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
+  const scenarioLabel =
+    activeScenario === 'upside' ? t('scenario.upside') :
+    activeScenario === 'downside' ? t('scenario.downside') :
+    activeScenario === 'breakeven' ? t('scenario.breakeven') :
+    t('scenario.realistic');
 
   const yieldStabilised = activeScenarioOutput.yieldStabilised;
   const cumulativeYieldFinal = activeScenarioOutput.cumulativeYieldFinal;
@@ -121,12 +61,16 @@ export default function ReturnsPage() {
       {/* Header */}
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">Returns Analysis</h1>
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">{t('returns.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('returns.pageIntro')}</p>
           <p className="text-sm font-medium text-text-secondary mt-1">
             <span className="text-text-primary">{pathLabel}</span>
             <span className="text-text-tertiary"> &middot; </span>
             {scenarioLabel}
           </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
         </div>
       </div>
 
@@ -135,7 +79,7 @@ export default function ReturnsPage() {
         title={t("dash.section.returns")}
         sub={t("dash.returnsSub")}
       />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div id="returns-kpi-grid" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KPICard
           label={t("kpi.equityYield")}
           value={yieldStabilised !== 0 ? formatPercent(yieldStabilised) : "—"}
@@ -156,7 +100,7 @@ export default function ReturnsPage() {
           sublabel={t("kpi.totalMOICSub")}
           tone={terminalUnderwater ? "warning" : totalMOIC >= 2 ? "positive" : totalMOIC > 1 ? undefined : "warning"}
           accent={totalMOIC >= 3 && !terminalUnderwater}
-          chip={terminalUnderwater ? { label: "underwater", ok: false } : undefined}
+          chip={terminalUnderwater ? { label: t('returns.underwater'), ok: false } : undefined}
           threshold={terminalUnderwater ? t("kpi.totalMOICUnderwaterNote") : undefined}
         />
         <KPICard
@@ -191,27 +135,28 @@ export default function ReturnsPage() {
       </div>
 
       {/* Section 2 — Full exit path comparison */}
+      <div id="returns-exit-valuations">
       <SectionHeader
         title={t("dash.section.exitPath")}
-        sub="Hotel sale (EBITDA × multiple) vs property sale (built surface × €/m²)"
+        sub={t('returns.exitSub')}
       />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPICard
-          label="Hotel sale value"
+          label={t('returns.hotelSaleValue')}
           value={terminalAssetValue > 0 ? formatCurrency(terminalAssetValue, true, locale) : "—"}
-          sublabel="EBITDA × exit multiple"
+          sublabel={t('returns.ebitdaExitMultiple')}
           accent={!propertyExitDominates}
           tone={!propertyExitDominates ? "positive" : undefined}
-          chip={!propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
+          chip={!propertyExitDominates ? { label: t('returns.preferredExit'), ok: true } : undefined}
         />
         <KPICard
-          label="Hotel sale IRR"
+          label={t('returns.hotelSaleIRR')}
           value={equityIRR > 0 ? formatPercent(equityIRR) : "—"}
-          sublabel="Equity IRR, hotel exit"
+          sublabel={t('returns.equityIRRHotel')}
           tone={equityIRR >= 0.15 ? "positive" : equityIRR > 0 ? undefined : "warning"}
         />
         <KPICard
-          label="Property sale value"
+          label={t('returns.propertySaleValue')}
           value={
             terminalAssetValuePropertySale > 0
               ? formatCurrency(terminalAssetValuePropertySale, true, locale)
@@ -220,12 +165,12 @@ export default function ReturnsPage() {
           sublabel={`Built surface × €${exitValuationPerM2?.toLocaleString() ?? "—"}/m²`}
           accent={propertyExitDominates}
           tone={propertyExitDominates ? "positive" : undefined}
-          chip={propertyExitDominates ? { label: "preferred exit", ok: true } : undefined}
+          chip={propertyExitDominates ? { label: t('returns.preferredExit'), ok: true } : undefined}
         />
         <KPICard
-          label="Property sale IRR"
+          label={t('returns.propertySaleIRR')}
           value={equityIRRPropertySale > 0 ? formatPercent(equityIRRPropertySale) : "—"}
-          sublabel="Equity IRR, property exit"
+          sublabel={t('returns.equityIRRProperty')}
           tone={equityIRRPropertySale >= 0.15 ? "positive" : equityIRRPropertySale > 0 ? undefined : "warning"}
         />
       </div>
@@ -233,49 +178,51 @@ export default function ReturnsPage() {
       {/* Net to equity for each path */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
         <KPICard
-          label="Hotel exit — net to equity"
-          value={terminalEquityValue > 0 ? formatCurrency(terminalEquityValue, true, locale) : terminalUnderwater ? "Underwater" : "—"}
-          sublabel="Asset value − remaining loan"
+          label={t('returns.hotelNetEquity')}
+          value={terminalEquityValue > 0 ? formatCurrency(terminalEquityValue, true, locale) : terminalUnderwater ? t('returns.underwater') : "—"}
+          sublabel={t('returns.assetMinusLoan')}
           tone={terminalUnderwater ? "warning" : "positive"}
         />
         <KPICard
-          label="Hotel exit — project IRR"
+          label={t('returns.hotelProjectIRR')}
           value={projectIRR > 0 ? formatPercent(projectIRR) : "—"}
-          sublabel="Unlevered, hotel sale"
+          sublabel={t('returns.unleveredHotel')}
           tone={projectIRR >= 0.10 ? "positive" : projectIRR > 0 ? undefined : "warning"}
         />
         <KPICard
-          label="Property exit — net to equity"
+          label={t('returns.propertyNetEquity')}
           value={
             terminalEquityValuePropertySale > 0
               ? formatCurrency(terminalEquityValuePropertySale, true, locale)
               : "—"
           }
-          sublabel="Property value − remaining loan"
+          sublabel={t('returns.propertyMinusLoan')}
           tone={terminalEquityValuePropertySale > 0 ? "positive" : "warning"}
         />
         <KPICard
-          label="Property exit — project IRR"
+          label={t('returns.propertyProjectIRR')}
           value={projectIRRPropertySale > 0 ? formatPercent(projectIRRPropertySale) : "—"}
-          sublabel="Unlevered, property sale"
+          sublabel={t('returns.unleveredProperty')}
           tone={projectIRRPropertySale >= 0.10 ? "positive" : projectIRRPropertySale > 0 ? undefined : "warning"}
         />
       </div>
+      </div>{/* end returns-exit-valuations */}
 
       {/* Section 3 — Sensitivity link */}
       <div className="mt-8 p-4 bg-surface-secondary rounded-xl border border-surface-tertiary">
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-secondary">
-            See how returns change under ADR, occupancy, and rate stress
+            {t('returns.sensitivityNote')}
           </span>
-          <a
+          <Link
             href="/admin/sensitivity"
-            className="text-sm font-medium text-brand-700 hover:underline"
+            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-brand-50 border border-brand-200 text-brand-700 text-[11px] font-medium hover:bg-brand-100 hover:border-brand-400 transition-all"
           >
-            Full sensitivity analysis and tornado →
-          </a>
+            {t('returns.sensitivityLink')}
+          </Link>
         </div>
       </div>
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={RETURNS_TOUR} />
     </div>
   );
 }

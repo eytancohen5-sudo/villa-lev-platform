@@ -6,10 +6,11 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { SCENARIOS_TOUR } from "@/lib/tours/configs";
+import { SectionHeader } from "@/components/AdminUI";
 
 export default function ScenariosPage() {
   const { t, locale } = useTranslation();
-  const { model } = useModelStore();
+  const { model, assumptions } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(SCENARIOS_TOUR.storageKey);
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -46,7 +47,8 @@ export default function ScenariosPage() {
     <div>
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary mb-1">{t('sc.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary mb-1 border-l-[3px] border-brand-400 pl-3">{t('sc.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('sc.pageIntro')}</p>
           <p className="text-sm text-text-secondary">{t('sc.subtitle')}</p>
         </div>
         <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
@@ -78,8 +80,11 @@ export default function ScenariosPage() {
       </div>
 
       {/* DSCR Year-by-Year */}
-      <h2 className="font-display text-lg text-text-primary mt-8 mb-4">{t('sc.dscrByYear')}</h2>
+      <SectionHeader title={t('sc.dscrByYear')} />
       <div id="sc-dscrByYear" className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto scroll-mt-24">
+        {model.dscrByYear.some(d => (d.effectiveRealistic ?? d.realistic) > d.realistic + 0.001) && (
+          <p className="text-xs text-brand-600 mb-3 font-medium">{t('pnl.effectiveDSCR')} — {t('dsra.sectionSub')}</p>
+        )}
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-surface-tertiary">
@@ -91,29 +96,37 @@ export default function ScenariosPage() {
             </tr>
           </thead>
           <tbody>
-            {model.dscrByYear.filter(d => d.year >= 2028).map((d) => (
-              <tr key={d.year} className="border-b border-surface-secondary/50">
-                <td className="py-2 pr-4 font-medium">{d.year}</td>
-                <td className={`text-right py-2 px-3 data-cell ${d.realistic >= 1.25 ? "text-positive" : d.realistic > 0 ? "text-warning" : ""}`}>
-                  {d.realistic > 0 ? formatMultiple(d.realistic) : "—"}
-                </td>
-                <td className={`text-right py-2 px-3 data-cell ${d.upside >= 1.25 ? "text-positive" : d.upside > 0 ? "text-warning" : ""}`}>
-                  {d.upside > 0 ? formatMultiple(d.upside) : "—"}
-                </td>
-                <td className={`text-right py-2 px-3 data-cell ${d.downside >= 1.25 ? "text-positive" : d.downside > 0 ? "text-warning" : ""}`}>
-                  {d.downside > 0 ? formatMultiple(d.downside) : "—"}
-                </td>
-                <td className={`text-right py-2 px-3 data-cell ${d.grant >= 1.25 ? "text-positive" : d.grant > 0 ? "text-warning" : ""}`}>
-                  {d.grant > 0 ? formatMultiple(d.grant) : "—"}
-                </td>
-              </tr>
-            ))}
+            {model.dscrByYear.filter(d => d.year >= 2028).map((d) => {
+              const floor = assumptions?.dsra?.targetDSCR ?? 1.25;
+              // Always use effective DSCR — equals raw dscr when no reserve needed
+              const r = d.effectiveRealistic ?? d.realistic;
+              const u = d.effectiveUpside ?? d.upside;
+              const dn = d.effectiveDownside ?? d.downside;
+              const g = d.effectiveGrant ?? d.grant;
+              return (
+                <tr key={d.year} className="border-b border-surface-secondary/50">
+                  <td className="py-2 pr-4 font-medium">{d.year}</td>
+                  <td className={`text-right py-2 px-3 data-cell ${r >= floor ? "text-positive" : r > 0 ? "text-warning" : ""}`}>
+                    {r > 0 ? formatMultiple(r) : "—"}
+                  </td>
+                  <td className={`text-right py-2 px-3 data-cell ${u >= floor ? "text-positive" : u > 0 ? "text-warning" : ""}`}>
+                    {u > 0 ? formatMultiple(u) : "—"}
+                  </td>
+                  <td className={`text-right py-2 px-3 data-cell ${dn >= floor ? "text-positive" : dn > 0 ? "text-warning" : ""}`}>
+                    {dn > 0 ? formatMultiple(dn) : "—"}
+                  </td>
+                  <td className={`text-right py-2 px-3 data-cell ${g >= floor ? "text-positive" : g > 0 ? "text-warning" : ""}`}>
+                    {g > 0 ? formatMultiple(g) : "—"}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Collateral */}
-      <h2 className="font-display text-lg text-text-primary mt-8 mb-4">{t('sc.collateral')}</h2>
+      <SectionHeader title={t('sc.collateral')} />
       <div id="sc-collateral" className="bg-white rounded-xl border border-surface-tertiary p-5 overflow-x-auto scroll-mt-24">
         <table className="w-full text-sm">
           <thead>

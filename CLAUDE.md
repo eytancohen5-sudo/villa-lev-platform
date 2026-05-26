@@ -12,6 +12,8 @@ When building React components, avoid patterns that cause infinite re-render loo
 
 When implementing financial calculations or numeric logic, always validate outputs against known expected values before presenting results. If source data (e.g., Excel) exists, cross-check totals row by row.
 
+**`defaults.ts` is a cold-start fallback only.** When asked about current model assumptions, never treat `BASE_CASE` as the source of truth. Live state is in Firestore `scenarios` (project `villa-lev-admin`) or localStorage; for document/memo work use the BP xlsx directly.
+
 ## Deployment
 
 After deploying to Firebase or any hosting platform, always hard-refresh and test in an incognito/private browser window to bypass caching. Mention this to the user when asking them to verify.

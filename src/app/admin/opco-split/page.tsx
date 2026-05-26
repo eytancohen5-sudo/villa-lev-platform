@@ -88,8 +88,6 @@ const T: Record<Locale, Record<string, string>> = {
     chartBarBase: 'Base management fee (Bucket 2A)',
     chartBarIncentive: 'Incentive fee (Bucket 2B)',
     tipText: 'Tip: change the financing path or scenario from the top bar to see how the same fee schedule plays out under different revenue assumptions. Use ROIC and DSCR delta on the Dashboard to judge whether bank covenants still pass after the split.',
-    deferToggleLabel: 'Defer 2029 senior fee',
-    deferToggleSub: 'Zero the senior floor in 2029 (first DS year) and add it to 2030. Flows through P&L, DSCR, and LLCR. Admin-only — not visible in bank view.',
     explainerHeading1: 'How the split works.',
     explainerBody1: 'When enabled, OpCo earns a guaranteed senior floor (in OpEx, senior to debt service) plus a tiered junior fee on the post-DS residual: Tier 1 rate up to the breakpoint, Tier 2 rate above it. DSCR is computed on ebitdaPreOpCo / DS in all views — junior is never in the numerator.',
     explainerHeading2: 'All metrics below are PropCo\'s',
@@ -694,24 +692,6 @@ export default function OpCoSplitPage() {
           onChange={(v) => setAssumption('opCoFee.juniorResidualThreshold', v)}
         />
       </div>
-
-      {/* Senior fee deferral — 2029 only */}
-      {opCoOn && (
-        <label className="flex items-start gap-3 mb-6 p-3 rounded-lg border border-dashed border-amber-400/30 bg-amber-500/5 cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded accent-amber-500 shrink-0"
-            checked={assumptions.opCoSeniorDefer2029 === true}
-            onChange={(e) =>
-              setAssumption('opCoSeniorDefer2029', e.target.checked ? true : undefined, 'Defer 2029 senior fee')
-            }
-          />
-          <div>
-            <div className="text-sm font-medium text-text-primary">{T[locale].deferToggleLabel}</div>
-            <div className="text-xs text-text-tertiary mt-0.5">{T[locale].deferToggleSub}</div>
-          </div>
-        </label>
-      )}
 
       {/* Rules summary */}
       <RulesSummaryBox assumptions={assumptions} locale={locale} />

@@ -5,10 +5,12 @@ import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { useModelStore } from "@/lib/store/modelStore";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
+import { useTranslation } from "@/lib/i18n/I18nProvider";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
   const { init, setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest } = useModelStore();
   useReferenceScenarioAutoLoad();
+  const { t } = useTranslation();
   // Freshness banner: mirrors the same guard in /admin/layout.tsx. When the
   // Firestore subscription returns nothing (or shape-mismatches), the hook
   // falls back to the static snapshot in currentVillaActuals.ts. Surface that
@@ -49,23 +51,9 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
           aria-live="polite"
           className="bg-amber-50 border-b border-amber-300 text-amber-900 text-xs px-6 py-2 flex items-center gap-2 print:hidden"
         >
-          <span aria-hidden="true">⚠</span>
+          <span aria-hidden="true">(!)</span>
           <span>
-            Showing static snapshot from <strong>{snapshotPulledAt}</strong> — live
-            <code className="mx-1 px-1 rounded bg-amber-100 font-mono">seasonSnapshots/latest</code>
-            feed not connected.
-          </span>
-        </div>
-      )}
-      {!showStaleBanner && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="bg-surface-secondary border-b border-surface-tertiary text-text-tertiary text-xs px-6 py-1.5 flex items-center gap-2 print:hidden"
-        >
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500" aria-hidden="true" />
-          <span>
-            Live data · refreshed <time dateTime={snapshotPulledAt}>{snapshotPulledAt}</time>
+            {t('admin.banner.stalePart1')}{snapshotPulledAt ? <> <strong>{snapshotPulledAt}</strong></> : null}{' '}{t('admin.banner.stalePart2')}
           </span>
         </div>
       )}

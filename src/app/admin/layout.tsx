@@ -13,7 +13,7 @@ import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
-import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
+import { useEffectiveAuth, clearImpersonation } from "@/lib/data/useEffectiveAuth";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 import { AuthGate } from "@/components/AuthGate";
 
@@ -95,12 +95,23 @@ function RateLoanPopover({
     return () => document.removeEventListener("mousedown", onDoc);
   }, [open]);
 
+  // Stepper helpers — step is the display-percentage step (e.g. 0.05 for rate,
+  // 1 for coverage), so the raw delta is step / 100.
+  const nudgeRate = (delta: number) => {
+    const next = Math.min(0.25, Math.max(0, rate + delta));
+    if (next !== rate) onRate(next);
+  };
+  const nudgeCoverage = (delta: number) => {
+    const next = Math.min(1, Math.max(0, coverage + delta));
+    if (next !== coverage) onCoverage(next);
+  };
+
   return (
     <div className="relative" ref={ref}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium uppercase tracking-wider transition-colors ${
           open
             ? "bg-brand-50 text-brand-700 border border-brand-200"
             : "bg-surface-secondary text-text-secondary border border-surface-tertiary hover:bg-surface-tertiary"
@@ -108,25 +119,83 @@ function RateLoanPopover({
         aria-expanded={open}
         title={t('admin.bar.adjust')}
       >
+        {/* Inline sliders / tuning icon */}
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          aria-hidden="true"
+          className="shrink-0 text-brand-500"
+        >
+          {/* Three horizontal track lines */}
+          <line x1="1" y1="2.5" x2="11" y2="2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="1" y1="6"   x2="11" y2="6"   stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <line x1="1" y1="9.5" x2="11" y2="9.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          {/* Thumb circles at staggered positions */}
+          <circle cx="4"  cy="2.5" r="1.5" fill="currentColor" />
+          <circle cx="8"  cy="6"   r="1.5" fill="currentColor" />
+          <circle cx="5"  cy="9.5" r="1.5" fill="currentColor" />
+        </svg>
         {t('admin.bar.adjust')} · {(rate * 100).toFixed(1)}% / {(coverage * 100).toFixed(0)}%
       </button>
       {open && (
-        <div className="absolute top-full mt-2 right-0 z-30 bg-white border border-surface-tertiary rounded-xl shadow-lg p-4 min-w-[220px]">
+        <div className="absolute top-full mt-2 right-0 z-30 bg-white border border-surface-tertiary rounded-xl shadow-lg p-4 min-w-[260px]">
           <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-3">
             {t('admin.bar.loanParams')}
           </div>
           <div className="space-y-3">
+            {/* Interest rate row */}
             <div className="flex items-center justify-between gap-3">
-              <label className="text-xs text-text-secondary">{t('field.interestRate')}</label>
+              <div className="flex flex-col">
+                <label className="text-xs text-text-secondary">{t('field.interestRate')}</label>
+                <span className="text-[10px] text-text-tertiary">Annual rate on drawn balance</span>
+              </div>
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeRate(-0.05 / 100)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary text-xs font-mono text-text-secondary"
+                  aria-label="Decrease interest rate"
+                >
+                  −
+                </button>
                 <PercentInput value={rate} decimals={2} step={0.05} onCommit={onRate} />
+                <button
+                  type="button"
+                  onClick={() => nudgeRate(0.05 / 100)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary text-xs font-mono text-text-secondary"
+                  aria-label="Increase interest rate"
+                >
+                  +
+                </button>
                 <span className="text-xs text-text-tertiary">%</span>
               </div>
             </div>
+            {/* Loan coverage row */}
             <div className="flex items-center justify-between gap-3">
-              <label className="text-xs text-text-secondary">{t('field.loanCoverage')}</label>
+              <div className="flex flex-col">
+                <label className="text-xs text-text-secondary">{t('field.loanCoverage')}</label>
+                <span className="text-[10px] text-text-tertiary">% of eligible cost financed</span>
+              </div>
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeCoverage(-1 / 100)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary text-xs font-mono text-text-secondary"
+                  aria-label="Decrease loan coverage"
+                >
+                  −
+                </button>
                 <PercentInput value={coverage} decimals={0} step={1} onCommit={onCoverage} />
+                <button
+                  type="button"
+                  onClick={() => nudgeCoverage(1 / 100)}
+                  className="w-6 h-6 flex items-center justify-center rounded-md bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary text-xs font-mono text-text-secondary"
+                  aria-label="Increase loan coverage"
+                >
+                  +
+                </button>
                 <span className="text-xs text-text-tertiary">%</span>
               </div>
             </div>
@@ -175,52 +244,19 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/capex",       labelKey: "nav.capex" },
       { href: "/admin/scenarios",   labelKey: "nav.scenarios" },
       { href: "/admin/lexicon",     labelKey: "nav.lexicon" },
+      { href: "/admin/team",        labelKey: "nav.team" },
     ],
   },
 ];
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  // Impersonation: only fires for an actual admin pretending to be a
-  // banker. Real unauthenticated visitors never satisfy isImpersonating,
-  // so this redirect is safe to live in /admin/* — bankers viewing the
-  // public share-link never hit this codepath.
-  const { isImpersonating, effectiveRole } = useEffectiveAuth();
-  useEffect(() => {
-    if (isImpersonating && effectiveRole === "banker") {
-      router.replace("/bank");
-    }
-  }, [isImpersonating, effectiveRole, router]);
-  const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption, capTable, waterfall } =
+  const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
   useReferenceScenarioAutoLoad();
-  const { t, locale } = useTranslation();
-  const [xlsxLoading, setXlsxLoading] = useState(false);
-
-  const handleDownloadXlsx = async () => {
-    if (!model || xlsxLoading) return;
-    setXlsxLoading(true);
-    try {
-      const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
-      const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-      const blob = await exportBusinessPlan(assumptions, model, exportScenario, capTable, waterfall, locale);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } finally {
-      setXlsxLoading(false);
-    }
-  };
+  const { t } = useTranslation();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [exitYearRaw, setExitYearRaw] = useState('');
   const activeScenarioOutput = model?.scenarios[activeScenario];
   const exitUnderwater = !!activeScenarioOutput?.terminalUnderwater;
   // Freshness banner: when the seasonSnapshot Firestore subscription returns
@@ -263,40 +299,53 @@ export default function AdminLayout({
   }, [init]);
 
   return (
-    <AuthGate>
     <div className="flex h-screen bg-surface-primary">
       {/* Sidebar */}
-      <aside className="w-56 bg-white border-e border-surface-tertiary flex flex-col shrink-0 h-screen">
-        <div className="p-5 border-b border-surface-tertiary">
+      <aside className={`${sidebarCollapsed ? 'w-14' : 'w-56'} transition-[width] duration-200 overflow-hidden bg-white border-e border-surface-tertiary flex flex-col shrink-0 h-screen`}>
+        <div className="p-5 border-b border-surface-tertiary overflow-hidden">
           <Link href="/" className="block">
-            <h1 className="font-display text-lg text-text-primary">
-              {t("app.title")}
-            </h1>
-            <p className="text-xs text-text-tertiary mt-0.5">
-              {t("app.platform")}
-            </p>
+            {sidebarCollapsed ? (
+              <h1 className="font-display text-lg text-brand-600 truncate">VL</h1>
+            ) : (
+              <>
+                <h1 className="font-display text-lg text-text-primary">
+                  {t("app.title")}
+                </h1>
+                <p className="text-xs text-text-tertiary mt-0.5">
+                  {t("app.platform")}
+                </p>
+              </>
+            )}
           </Link>
         </div>
 
         <nav className="flex-1 py-3 overflow-y-auto">
           {NAV_GROUPS.map((group, gIdx) => (
             <div key={group.labelKey} className={gIdx > 0 ? "mt-4" : ""}>
-              <div className="px-5 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-text-primary">
-                {t(group.labelKey)}
-              </div>
+              {!sidebarCollapsed && (
+                <div className="px-5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-tertiary">
+                  {t(group.labelKey)}
+                </div>
+              )}
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
+                const label = t(item.labelKey);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`block px-5 py-2 text-[13px] transition-colors ${
+                    className={`block px-5 py-2 text-[13px] transition-colors focus-visible:ring-2 focus-visible:ring-brand-400/40 focus-visible:outline-none rounded-sm ${
                       isActive
-                        ? "bg-brand-50 text-brand-700 border-e-2 border-brand-500 font-medium"
+                        ? "bg-brand-50 text-brand-700 border-e-2 border-brand-400 font-medium"
                         : "text-text-secondary hover:bg-surface-secondary hover:text-text-primary"
                     }`}
+                    title={sidebarCollapsed ? label : undefined}
                   >
-                    {t(item.labelKey)}
+                    {sidebarCollapsed ? (
+                      <span className="text-text-tertiary text-sm font-mono">{label.charAt(0).toUpperCase()}</span>
+                    ) : (
+                      <span>{label}</span>
+                    )}
                   </Link>
                 );
               })}
@@ -307,18 +356,29 @@ export default function AdminLayout({
         <div className="p-4 border-t border-surface-tertiary space-y-1.5">
           <LanguageToggle />
           <Link
-            href="/admin/presentation"
-            className="block text-[11px] text-text-tertiary hover:text-brand-700 transition-colors py-0.5"
-          >
-            {t('admin.bar.viewPresentation')}
-          </Link>
-          <Link
             href="/bank"
-            className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-[11px] font-medium text-text-secondary bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary transition-colors"
+            className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-[11px] font-medium text-text-secondary bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
+            title={sidebarCollapsed ? t('admin.bar.bankerView') : undefined}
           >
-            <span>{t('admin.bar.bankerView')}</span>
-            <span className="opacity-50">{t('admin.bar.bankerViewArrow')}</span>
+            {sidebarCollapsed ? (
+              <span className="opacity-50 mx-auto">{t('admin.bar.bankerViewArrow')}</span>
+            ) : (
+              <>
+                <span>{t('admin.bar.bankerView')}</span>
+                <span className="opacity-50">{t('admin.bar.bankerViewArrow')}</span>
+              </>
+            )}
           </Link>
+          <button
+            onClick={() => setSidebarCollapsed(v => !v)}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex items-center justify-center w-full py-2 text-text-tertiary hover:text-text-secondary hover:bg-surface-secondary transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className={`transition-transform duration-200 ${sidebarCollapsed ? 'rotate-180' : ''}`}>
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {!sidebarCollapsed && <span className="ml-2 text-xs">{t('admin.nav.collapse')}</span>}
+          </button>
         </div>
       </aside>
 
@@ -339,7 +399,7 @@ export default function AdminLayout({
         )}
         {/* Stripped control bar — Path, Scenario, Exit, Rate/Loan popover.
             Live KPIs removed (they're on the dashboard, one home only). */}
-        <div id="control-bar" className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-surface-tertiary scroll-mt-24">
+        <div id="control-bar" className="sticky top-0 z-20 bg-white border-b border-surface-tertiary scroll-mt-24">
           <div className="max-w-7xl mx-auto px-6 py-3 flex flex-wrap items-center gap-x-6 gap-y-2">
             {/* Financing path */}
             <div className="flex items-center gap-2">
@@ -353,10 +413,11 @@ export default function AdminLayout({
                     <button
                       key={fp.id}
                       onClick={() => setFinancingPath(fp.id)}
+                      aria-pressed={isActive}
                       className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                         isActive
-                          ? "bg-brand-700 text-white shadow-sm"
-                          : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
                       }`}
                     >
                       {t(fp.shortKey)}
@@ -380,10 +441,11 @@ export default function AdminLayout({
                     <button
                       key={s.id}
                       onClick={() => setActiveScenario(s.id)}
+                      aria-pressed={isActive}
                       className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                         isActive
-                          ? "bg-text-primary text-white shadow-sm"
-                          : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary"
+                          ? "bg-brand-600 text-white shadow-sm"
+                          : "bg-surface-secondary text-text-secondary hover:bg-surface-tertiary hover:text-text-primary"
                       }`}
                     >
                       {t(s.labelKey)}
@@ -406,15 +468,17 @@ export default function AdminLayout({
                   min={2030}
                   max={2036}
                   step={1}
-                  value={assumptions.exitYear ?? 2036}
+                  value={exitYearRaw || String(assumptions.exitYear ?? 2036)}
                   onChange={(e) => {
+                    setExitYearRaw(e.target.value);
                     const v = parseInt(e.target.value, 10);
                     if (Number.isFinite(v)) {
                       setAssumption("exitYear", Math.max(2030, Math.min(2036, v)), "Exit year");
                     }
                   }}
-                  className={`w-16 px-1.5 py-1 text-xs font-mono text-right rounded border bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
-                    exitUnderwater ? "border-warning ring-1 ring-warning/30" : "border-surface-tertiary"
+                  onBlur={() => setExitYearRaw('')}
+                  className={`w-16 px-1.5 py-1 text-xs font-mono text-right rounded border text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/40 ${
+                    exitUnderwater ? "border-warning ring-1 ring-warning/40" : "border-surface-tertiary"
                   }`}
                   title={
                     exitUnderwater
@@ -422,6 +486,9 @@ export default function AdminLayout({
                       : "Exit year"
                   }
                 />
+                {exitYearRaw && (parseInt(exitYearRaw) < 2030 || parseInt(exitYearRaw) > 2036) && (
+                  <span className="text-[10px] text-warning ml-1">{t('admin.bar.exitYearRange')}</span>
+                )}
                 {exitUnderwater && (
                   <span
                     className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-warning/15 text-warning"
@@ -449,7 +516,7 @@ export default function AdminLayout({
                       setAssumption("exitEbitdaMultiple", Math.max(4, v), "Exit EBITDA multiple");
                     }
                   }}
-                  className="w-14 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className="w-14 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/40"
                   title={
                     (assumptions.exitEbitdaMultiple ?? 10) < 7
                       ? t('bar.exitMultiple.tipLow')
@@ -481,7 +548,7 @@ export default function AdminLayout({
                       );
                     }
                   }}
-                  className="w-20 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className="w-20 px-1.5 py-1 text-xs font-mono text-right rounded border border-surface-tertiary text-text-primary bg-white focus:outline-none focus:ring-2 focus:ring-brand-400/40"
                   title="Property-sale exit valuation (€/m²). Drives the parallel exit-IRR alongside the EBITDA-multiple hotel-sale IRR."
                 />
               </div>
@@ -501,30 +568,6 @@ export default function AdminLayout({
               </>
             )}
 
-            {/* Export — primary CTA, always visible */}
-            <div className="ml-auto">
-              <button
-                onClick={handleDownloadXlsx}
-                disabled={!model || xlsxLoading}
-                title="Download financial model as Excel"
-                className={`inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
-                  xlsxLoading || !model
-                    ? 'bg-emerald-600 text-white opacity-60 cursor-not-allowed'
-                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                }`}
-              >
-                {xlsxLoading ? (
-                  t('bar.preparing')
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v9m0 0L5 8m3 3 3-3M2 14h12" />
-                    </svg>
-                    {t('bar.exportExcel')}
-                  </>
-                )}
-              </button>
-            </div>
           </div>
         </div>
 
@@ -535,6 +578,65 @@ export default function AdminLayout({
       <AssumptionPrompts />
       {/* <AssumptionsMemoButton /> */}
     </div>
+  );
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { t } = useTranslation();
+  // Impersonation: only fires for an actual admin pretending to be a
+  // banker. Real unauthenticated visitors never satisfy isImpersonating,
+  // so this redirect is safe to live in /admin/* — bankers viewing the
+  // public share-link never hit this codepath.
+  const { isImpersonating, effectiveRole } = useEffectiveAuth();
+  useEffect(() => {
+    // When landing on the login page, clear any active impersonation
+    // synchronously and stop. Without the early return, the stale
+    // isImpersonating closure value (from the same render) would still
+    // be true and router.replace('/bank') would fire before re-render.
+    if (pathname === "/admin/login") {
+      clearImpersonation();
+      return;
+    }
+    // Redirect fires only after the Firestore profile arrives and
+    // canImpersonate becomes true — no premature redirect on cold boot.
+    if (isImpersonating && effectiveRole === "banker") {
+      router.replace("/bank");
+    }
+  }, [pathname, isImpersonating, effectiveRole, router]);
+
+  // Login page: render a minimal shell — no sidebar, no control bar.
+  // Only Language toggle + Banker View link so the page is clean for unauthenticated visitors.
+  if (pathname === '/admin/login') {
+    return (
+      <AuthGate>
+        <div className="min-h-screen bg-surface-primary flex flex-col">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-b border-surface-tertiary bg-white">
+            <LanguageToggle />
+            <Link
+              href="/bank"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium text-text-secondary bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary transition-colors"
+            >
+              <span>{t('admin.bar.bankerView')}</span>
+              <span className="opacity-50">{t('admin.bar.bankerViewArrow')}</span>
+            </Link>
+          </div>
+          <div className="flex-1">
+            {children}
+          </div>
+        </div>
+      </AuthGate>
+    );
+  }
+
+  return (
+    <AuthGate>
+      <AuthenticatedShell>{children}</AuthenticatedShell>
     </AuthGate>
   );
 }

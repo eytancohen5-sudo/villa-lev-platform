@@ -8,6 +8,7 @@ import type { ModelAssumptions } from "@/lib/engine/types";
 import { useMemo } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { SENSITIVITY_TOUR } from "@/lib/tours/configs";
+import InvestorSensitivityTab from "@/components/InvestorSensitivityTab";
 
 // ── Tornado helpers ────────────────────────────────────────────────────
 // Tornado chart: vary one input at a time around the baseline, capture how
@@ -323,10 +324,16 @@ export default function SensitivityPage() {
     <div>
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary mb-1">{t('sens.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary mb-1 border-l-[3px] border-brand-400 pl-3">{t('sens.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('sens.pageIntro')}</p>
           <p className="text-sm text-text-secondary">{t('sens.subtitle')}</p>
         </div>
         <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+      </div>
+
+      {/* Investor Sensitivity Tab */}
+      <div className="mb-6">
+        <InvestorSensitivityTab />
       </div>
 
       {/* Tornado — which inputs move equity IRR the most. */}

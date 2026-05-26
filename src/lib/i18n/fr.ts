@@ -327,6 +327,9 @@ export const fr: TranslationDictionary = {
   'kpi.roicSub': 'NOPAT / total CapEx',
   'kpi.gracePeriodInterest': 'Intérêts période de grâce',
   'kpi.gracePeriodInterestSub': '2026-2028 cumulés',
+  'kpi.graceInterestCarry': 'Réserve d\'intérêts (à la clôture)',
+  'kpi.graceInterestCarrySub': 'Intérêts 2026–2028 · restituable après la période de grâce',
+  'kpi.graceInterestHoldYears': 'Durée de la réserve : {{n}} ans',
   'kpi.netLeverage': 'Levier net',
   'kpi.netLeverageSub': 'Prêt / EBITDA stabilisé',
   'kpi.peakDebt': 'Dette maximale',
@@ -1219,6 +1222,7 @@ export const fr: TranslationDictionary = {
   'finComp.totalLoanDrawn':            'Total loan drawn',
   'finComp.grantReceived':             'Grant received',
   'finComp.equityRequired':            'Equity required',
+  'finComp.graceInterestCarry':        'Réserve d\'intérêts période de grâce',
   'finComp.annualDebtService':         'Annual debt service',
   'finComp.stabilisedDSCR':            'DSCR — Stabilised',
   'finComp.supplementaryLoan':         'Supplementary commercial loan',
@@ -1399,4 +1403,13 @@ export const fr: TranslationDictionary = {
   'covenant.distributionGated': 'Distributions suspendues jusqu\'à NCF annuel de €400k',
   'covenant.distributionGatedTooltip': 'Aucune distribution aux actionnaires jusqu\'à ce qu\'une année opérationnelle génère un flux de trésorerie net ≥€400 000 (ADR-0014). Une fois ce seuil franchi, les distributions sont autorisées à partir de cette année.',
   'covenant.distributionUnlocked': 'Covenant de réserve satisfait — distributions autorisées',
+
+  // ── Bank CapEx per-plot expand (2026-05-26) ──
+  'bank.capex.expandRow': 'Afficher la ventilation par parcelle',
+  'bank.capex.collapseRow': 'Masquer la ventilation par parcelle',
+
+  // ── Tax-loss carryforward (Pass 2B) ───────────────────────────────────────
+  'term.taxLossGenerated':   'Perte fiscale générée',
+  'term.taxLossUtilised':    'Perte fiscale utilisée',
+  'term.taxLossPoolBalance': 'Solde du report de perte fiscale',
 };

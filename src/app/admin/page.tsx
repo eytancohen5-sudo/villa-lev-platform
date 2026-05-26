@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function AdminPage() {
   const router = useRouter();
-  const redirected = useRef(false);
 
   useEffect(() => {
-    if (!redirected.current) {
-      redirected.current = true;
-      router.replace("/admin/dashboard");
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    router.replace("/admin/dashboard");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return null;
 }

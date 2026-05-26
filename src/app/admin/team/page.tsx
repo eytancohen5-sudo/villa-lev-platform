@@ -73,7 +73,7 @@ function formatDate(ms: number | null): string {
 type FormState =
   | { kind: "idle" }
   | { kind: "submitting" }
-  | { kind: "success"; email: string }
+  | { kind: "success"; email: string; inviteText: string }
   | { kind: "error"; message: string };
 
 export default function TeamPage() {
@@ -90,6 +90,7 @@ export default function TeamPage() {
   const [roleInput, setRoleInput] = useState<Role>("viewer");
   const [noteInput, setNoteInput] = useState("");
   const [formState, setFormState] = useState<FormState>({ kind: "idle" });
+  const [copied, setCopied] = useState(false);
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(TEAM_TOUR.storageKey);
 
   // Live users list. We only subscribe when the caller is admin — rules
@@ -183,7 +184,18 @@ export default function TeamPage() {
         invitedAt: Date.now(),
         note: noteInput.trim() || null,
       });
-      setFormState({ kind: "success", email });
+      const appUrl = `${window.location.origin}/admin`;
+      const lines = [
+        `Hi,`,
+        ``,
+        `You've been invited to access the Villa Lev Finance model as a ${roleInput}.`,
+        ``,
+        `Sign in here: ${appUrl}`,
+      ];
+      if (noteInput.trim()) lines.push(``, `Note: ${noteInput.trim()}`);
+      const inviteText = lines.join('\n');
+      setFormState({ kind: "success", email, inviteText });
+      setCopied(false);
       setEmailInput("");
       setNoteInput("");
       setRoleInput("viewer");
@@ -193,6 +205,14 @@ export default function TeamPage() {
         message: (err as Error)?.message ?? "Failed to write invite.",
       });
     }
+  };
+
+  const handleCopy = () => {
+    if (formState.kind !== 'success') return;
+    navigator.clipboard.writeText(formState.inviteText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const handleApprove = async (targetUid: string) => {
@@ -238,7 +258,7 @@ export default function TeamPage() {
   if (!user) {
     return (
       <div className="max-w-3xl">
-        <h1 className="font-display text-2xl text-text-primary mb-2">{t('team.title')}</h1>
+        <h1 className="font-display text-2xl text-text-primary mb-2 border-l-[3px] border-brand-400 pl-3">{t('team.title')}</h1>
         <p className="text-sm text-text-secondary">
           {t('team.signInPrompt')}
         </p>
@@ -249,7 +269,7 @@ export default function TeamPage() {
   if (profileMissing || !isAdmin) {
     return (
       <div className="max-w-3xl">
-        <h1 className="font-display text-2xl text-text-primary mb-2">{t('team.title')}</h1>
+        <h1 className="font-display text-2xl text-text-primary mb-2 border-l-[3px] border-brand-400 pl-3">{t('team.title')}</h1>
         <p className="text-sm text-text-secondary">
           {profileMissing ? t('team.notInvited') : t('team.restricted')}
         </p>
@@ -263,7 +283,7 @@ export default function TeamPage() {
     <div className="max-w-3xl space-y-8">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">{t('team.title')}</h1>
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">{t('team.title')}</h1>
           <p className="text-sm text-text-secondary mt-1">{t('team.pageIntro')}</p>
           <p className="text-sm text-text-tertiary mt-1">
             {t('team.subtitle')}
@@ -392,15 +412,33 @@ export default function TeamPage() {
             >
               {formState.kind === "submitting" ? t('team.sending') : t('team.sendBtn')}
             </button>
-            {formState.kind === "success" && (
-              <span className="text-xs text-positive">
-                {t('team.inviteCreated').replace('{email}', formState.email)}
-              </span>
-            )}
             {formState.kind === "error" && (
               <span className="text-xs text-warning">{formState.message}</span>
             )}
           </div>
+          {formState.kind === "success" && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs text-positive">
+                {t('team.inviteCreated').replace('{email}', formState.email)}
+              </p>
+              <div className="relative">
+                <textarea
+                  readOnly
+                  value={formState.inviteText}
+                  rows={5}
+                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-surface-tertiary bg-surface-secondary font-mono resize-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="absolute top-2 right-2 px-2 py-0.5 text-[11px] rounded bg-brand-700 text-white hover:bg-brand-800 transition-colors"
+                >
+                  {copied ? t('team.copiedBtn') : t('team.copyBtn')}
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </section>
 

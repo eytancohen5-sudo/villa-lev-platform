@@ -132,8 +132,8 @@ export function ConservatismTriangle({
   const { t, locale } = useTranslation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const marketStandard = blend("basicRoom"); // 846
-  const marketPremium = blend("premiumSuite"); // 1261.5
+  const marketStandard = blend("basicRoom"); // 914 net (curated 8-hotel Paros/Antiparos, ÷1.13 VAT)
+  const marketPremium = blend("premiumSuite"); // 1322.5 net
 
   // Distinct hotel count, not raw tier-row count. The drawer table is one
   // row per (hotel, tier), but bankers read "41 comparables" as 41 hotels.
@@ -173,13 +173,14 @@ export function ConservatismTriangle({
         {t("triangle.defenceCopy")}
       </p>
 
-      <div className="mt-2 px-1">
+      <div className="mt-3 px-1">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="text-[12px] font-medium text-brand-700 hover:text-brand-900 underline underline-offset-4 decoration-brand-400/60 hover:decoration-brand-700 transition-colors"
+          className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-brand-700 border border-brand-300 bg-brand-50 hover:bg-brand-100 hover:border-brand-500 hover:text-brand-900 transition-all duration-150"
         >
-          {t("triangle.seeComparables").replace("{n}", String(totalComparables))}
+          <span>{t("triangle.seeComparables").replace("{n}", String(totalComparables)).replace(" →", "")}</span>
+          <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
         </button>
       </div>
 

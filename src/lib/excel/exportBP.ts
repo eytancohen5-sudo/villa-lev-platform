@@ -438,10 +438,10 @@ export async function exportBusinessPlan(
 
   // — Revenue —
   writeSection('Revenue assumptions (Conservative)');
-  writeInput('Villa ADR (€/night)', a.revenueRealistic.villaADR, FMT.euro, undefined, 'villaADR');
+  writeInput('Villa ADR — Net (€/night)', a.revenueRealistic.villaADR, FMT.euro, undefined, 'villaADR');
   writeInput('Villa base nights/year', a.revenueRealistic.villaBaseNights, FMT.num, undefined, 'villaBaseNights');
-  writeInput('Standard suite ADR (€/night)', a.revenueRealistic.suiteStandardADR, FMT.euro, undefined, 'stdADR');
-  writeInput('Double suite ADR (€/night)', a.revenueRealistic.suiteDoubleADR, FMT.euro, undefined, 'dblADR');
+  writeInput('Standard suite ADR — Net (€/night)', a.revenueRealistic.suiteStandardADR, FMT.euro, undefined, 'stdADR');
+  writeInput('Double suite ADR — Net (€/night)', a.revenueRealistic.suiteDoubleADR, FMT.euro, undefined, 'dblADR');
   writeInput('Suite base nights/year', a.revenueRealistic.suiteBaseNights, FMT.num, undefined, 'suiteBaseNights');
   writeInput('Events per year', a.revenueRealistic.eventsPerYear, FMT.num, undefined, 'eventsPerYear');
   writeInput('Net profit per event (€)', a.revenueRealistic.netProfitPerEvent, FMT.euro, undefined, 'netProfitPerEvent');
@@ -2732,6 +2732,7 @@ export async function exportBusinessPlan(
   writeThinRow('totalLoanDrawn', FMT.euro, 'engine.financingComparison.totalLoanDrawn');
   writeThinRow('grantReceived', FMT.euro, 'engine.financingComparison.grantReceived');
   writeThinRow('equityRequired', FMT.euro, 'engine.financingComparison.equityRequired');
+  writeThinRow('graceInterestCarry', FMT.euro, 'engine.financingComparison.graceInterestCarry — Grace-period interest reserve · injected at close; drawn over grace period; returnable surplus after grace ends');
   writeThinRow('annualDebtService', FMT.euro, 'engine.financingComparison.annualDebtService');
   writeThinRow('supplementaryLoan', FMT.euro, 'engine.financingComparison.supplementaryLoan (TEPIX only)');
   writeThinRow('equitySavingVsCommercial', FMT.euro, 'engine.financingComparison.equitySavingVsCommercial');

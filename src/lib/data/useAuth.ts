@@ -34,6 +34,7 @@ import {
   createUserWithEmailAndPassword,
   updateProfile,
   onAuthStateChanged,
+  type Auth,
   type User,
   type Unsubscribe,
 } from "firebase/auth";
@@ -111,6 +112,10 @@ let unsubAuth: Unsubscribe | null = null;
 let unsubProfile: Unsubscribe | null = null;
 let currentProfileUid: string | null = null;
 let subscribeCount = 0;
+// Incremented by stopAuth() so that any authStateReady() promise that was
+// pending when the subscription was torn down will see a stale generation
+// and skip wireAuthListener — prevents duplicate/leaked subscriptions.
+let authGeneration = 0;
 
 function emit(next: State) {
   current = next;
@@ -235,14 +240,9 @@ function startProfile(user: User) {
   );
 }
 
-function startAuth() {
-  const auth = getAuthInstance();
-  if (!auth) {
-    // SSR / Firebase not wired — match SERVER_STATE so client mount is a
-    // no-op when there's no auth backend to talk to.
-    emit({ ...SERVER_STATE });
-    return;
-  }
+// The actual onAuthStateChanged wiring, extracted so it can be called either
+// directly (fallback) or after auth.authStateReady() resolves (preferred).
+function wireAuthListener(auth: Auth) {
   unsubAuth = onAuthStateChanged(
     auth,
     (firebaseUser) => {
@@ -293,7 +293,48 @@ function startAuth() {
   );
 }
 
+function startAuth() {
+  const auth = getAuthInstance();
+  if (!auth) {
+    // SSR / Firebase not wired — match SERVER_STATE so client mount is a
+    // no-op when there's no auth backend to talk to.
+    emit({ ...SERVER_STATE });
+    return;
+  }
+
+  // auth.authStateReady() resolves once Firebase has read the initial auth
+  // state from the persistence layer (localStorage / IndexedDB). Awaiting it
+  // before subscribing to onAuthStateChanged prevents the null-then-user
+  // double-fire that causes a redirect bounce on hard refresh:
+  //
+  //   Without this: Firebase fires onAuthStateChanged(null) immediately on
+  //   startup (before IndexedDB read completes), AuthGate sees user=null and
+  //   redirects to /admin/login, then Firebase fires again with the real user,
+  //   login page sees user and redirects back — a hard-refresh bounce every
+  //   single session.
+  //
+  //   With this: we block until Firebase has resolved persistence. The very
+  //   first onAuthStateChanged fires with the correct final user state.
+  const gen = ++authGeneration;
+  const wire = () => {
+    // If stopAuth() was called while authStateReady() was pending, the
+    // generation will have advanced — bail out to avoid a leaked subscription.
+    if (gen !== authGeneration) return;
+    wireAuthListener(auth);
+  };
+
+  if (typeof (auth as { authStateReady?: unknown }).authStateReady === 'function') {
+    (auth as { authStateReady: () => Promise<void> })
+      .authStateReady()
+      .then(wire)
+      .catch(wire); // on error still subscribe — better than hanging forever
+  } else {
+    wire();
+  }
+}
+
 function stopAuth() {
+  authGeneration++; // invalidate any pending authStateReady promise
   if (unsubAuth) {
     unsubAuth();
     unsubAuth = null;
@@ -345,58 +386,53 @@ function toSafeAuthError(err: unknown): string {
     return 'auth/cancelled';
   }
   if (code === 'auth/popup-blocked') return 'auth/popup-blocked';
+  if (code === 'auth/unauthorized-domain') return 'auth/unauthorized-domain';
   return 'auth/unknown';
 }
 
 async function doSignIn(): Promise<void> {
   const auth = getAuthInstance();
   if (!auth) throw new Error("Auth not available (SSR or Firebase not initialised)");
-  const db = getDb();
   const provider = new GoogleAuthProvider();
-  // Diagnostic logging — surface the exact Firebase error code in the
-  // console so misconfiguration (unauthorized-domain, operation-not-allowed,
-  // popup-blocked) is debuggable without devtools-attached source maps.
+  // Uses signInWithPopup with authDomain:'villa-lev-finance.web.app' so the
+  // popup opens same-origin — no third-party storage partitioning issues.
+  // Requires a genuine user-gesture click (browser popup policy).
+  //
+  // Note: signInWithRedirect is intentionally NOT used as a fallback.
+  // Firebase SDK v12 stores the pending redirect state in a format the
+  // Firebase Hosting /__/auth/handler uses a different version to read,
+  // causing the handler to fail with "missing initial state". The result is
+  // the user navigates away and back but is never signed in. If popup is
+  // blocked for any reason, we surface auth/popup-blocked so the user can
+  // allow popups and retry — far better than a silent broken redirect loop.
   let cred;
   try {
     cred = await signInWithPopup(auth, provider);
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== "production") {
       // eslint-disable-next-line no-console
       console.error("[useAuth.doSignIn] signInWithPopup failed:", err);
     }
     throw new Error(toSafeAuthError(err));
   }
-
-  // First attempt: claim an invite if one is pending. This converts an
-  // invites/{email} doc into a users/{uid} doc atomically. If the user
-  // already has a users doc, claimInvite returns 'existing' as a no-op.
+  const db = getDb();
   if (db) {
     try {
       const result = await claimInvite(cred.user, db);
       if (result.kind === "not-invited") {
-        // No users doc AND no invite. Allow if legacy admin; otherwise
-        // self-register as pending — user stays signed in and AuthGate
-        // shows the pending screen. Do NOT sign them out.
         if (!isAdminEmail(cred.user.email)) {
           await selfRegister(cred.user, db);
-          // Profile snapshot will fire and set status:'pending', which
-          // causes statusPending=true and AuthGate to show the pending screen.
-          return;
         }
-        // Legacy admin: useAuth will synthesise an admin profile via the
-        // legacyAdminProfile() branch in startProfile().
       }
     } catch (err) {
-      // For any unexpected error during claimInvite/selfRegister we keep the
-      // user signed in if they're a legacy admin (Eytan), otherwise sign them
-      // out so they don't sit in a broken half-onboarded state.
-      const msg = (err as Error)?.message ?? "";
-      if (!isAdminEmail(cred.user.email)) {
-        await fbSignOut(auth);
-        throw new Error(
-          `Sign-in succeeded but onboarding failed: ${msg || "unknown error"}. Try again or ask Eytan.`,
-        );
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn("[useAuth.doSignIn] invite/onboarding failed (non-fatal):", (err as Error)?.message ?? err);
       }
+      // Non-fatal: Firebase auth succeeded but Firestore onboarding failed
+      // (e.g. rules deny selfRegister for uninvited user). Leave the user
+      // signed in — AuthGate will show profileMissing screen. Admin emails
+      // are covered by legacyAdminProfile and never need a Firestore doc.
     }
   }
 }
@@ -404,6 +440,16 @@ async function doSignIn(): Promise<void> {
 async function doSignOut(): Promise<void> {
   const auth = getAuthInstance();
   if (!auth) return;
+  // Clear any active impersonation before signing out. Without this, the
+  // ImpersonationBanner briefly shows stale isImpersonating=true after
+  // signOut fires, and a user who clicks "Exit" in that window gets an
+  // unintended route.
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage.removeItem('villa-lev-viewAs');
+      window.dispatchEvent(new CustomEvent('villa-lev-viewAs-change'));
+    } catch { /* private mode — ignore */ }
+  }
   await fbSignOut(auth);
 }
 
@@ -427,13 +473,12 @@ async function doSignInEmail(email: string, password: string): Promise<void> {
         }
       }
     } catch (err) {
-      const msg = (err as Error)?.message ?? "";
-      if (!isAdminEmail(cred.user.email)) {
-        await fbSignOut(auth);
-        throw new Error(
-          `Sign-in succeeded but onboarding failed: ${msg || "unknown error"}. Try again or ask Eytan.`,
-        );
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.warn("[useAuth.doSignInEmail] invite/onboarding failed (non-fatal):", (err as Error)?.message ?? err);
       }
+      // Non-fatal: same rationale as doSignIn — leave user signed in so
+      // AuthGate can show profileMissing instead of cycling to login.
     }
   }
 }
@@ -464,15 +509,21 @@ async function doSignUpEmail(
     }
   }
   if (db) {
-    try {
-      await selfRegister(cred.user, db);
-    } catch (err) {
-      const msg = (err as Error)?.message ?? "";
-      // Non-fatal for the auth itself — the user is signed in; the
-      // Firestore write will be retried when the onSnapshot fires.
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.warn("[useAuth.doSignUpEmail] selfRegister failed:", msg);
+    // Admin-email users skip selfRegister entirely — the legacy-admin fallback
+    // in startProfile grants them access without a Firestore doc. Creating a
+    // pending doc here would lock them in the approval queue until someone
+    // (themselves) approves them, which is nonsensical.
+    if (!isAdminEmail(cred.user.email)) {
+      try {
+        await selfRegister(cred.user, db);
+      } catch (err) {
+        const msg = (err as Error)?.message ?? "";
+        // Non-fatal for the auth itself — the user is signed in; the
+        // Firestore write will be retried when the onSnapshot fires.
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.warn("[useAuth.doSignUpEmail] selfRegister failed:", msg);
+        }
       }
     }
   }

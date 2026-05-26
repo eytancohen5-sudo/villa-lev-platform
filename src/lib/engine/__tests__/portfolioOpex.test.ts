@@ -4,23 +4,27 @@
 //
 // Seed arithmetic (from DEFAULT_PORTFOLIO_OPEX / BASE_CASE, year=2031):
 //
+//   Greek statutory holiday bonus formula: effectiveMonths = contractMonths × (14/12)
+//   (Christmas 1mo + Easter ½mo + Annual-leave ½mo = 2mo bonus per 12mo worked — all roles)
+//
 //   Staff roles:
-//   1. Ops Manager (yearRound):          3000 × 14 × 1.32 + 0         = 55,440.00
-//   2. Res & Marketing (yearRound):      2500 × 14 × 1.32 + 0         = 46,200.00
-//   3. Head HK (yearRound):              2156 × 13 × 1.32 + 3600      = 40,603.84
-//   4. HK Seasonal 6mo×2FTE (!yr):       1136 × 6 × 1.32 × 2 + 3600×2 = 25,178.88
-//   5. HK Seasonal 4mo×3FTE (!yr):       750  × 4 × 1.32 × 3 + 3600×3 = 22,680.00
-//   staffTotal ≈ 190,102.72
+//   1. Ops Manager (yearRound):          3000 × 12×(14/12) × 1.32 × 1 + 0        = 55,440.00
+//   2. Res & Marketing (yearRound):      2500 × 12×(14/12) × 1.32 × 1 + 0        = 46,200.00
+//   3. Head HK (yearRound):              2156 × 12×(14/12) × 1.32 × 1 + 3600     = 43,442.88
+//   4. HK Seasonal 6mo×2FTE (!yr):       1136 × 6×(14/12)  × 1.32 × 2 + 3600×2  = 28,193.28
+//   5. HK Seasonal 4mo×3FTE (!yr):       750  × 4×(14/12)  × 1.32 × 3 + 3600×3  ≈ 24,660.00
+//   6. Pool Technician (yearRound):      2100 × 12×(14/12) × 1.32 × 1 + 1200     = 40,008.00
+//   staffTotal ≈ 237,944.16
 //
 //   Shared services:
 //     Pool R&M: poolCount(17) × poolCostPerUnit(1500) = 25,500  (engine ignores annualCost for Pool R&M)
-//     Landscape: 12,000  |  Maintenance: 15,000
-//     servicesTotal = 52,500
+//     Landscape: 12,000  |  Maintenance: 17 × 882 = 14,994
+//     servicesTotal = 52,494
 //   Shared overhead: 30,000 + 10,000 + 15,000 + 3,000 + 9,000 + 1,000
 //                    + 35,000 + 30,000 + 25,000 = 158,000
 //   Pre-opening amort (2028–2032): 275,000 / 5 = 55,000
 //
-//   EXPECTED TOTAL = 190,102.72 + 52,500 + 158,000 + 55,000 = 455,602.72
+//   EXPECTED TOTAL ≈ 237,944.16 + 52,494 + 158,000 + 55,000 = 503,438.16
 
 import { describe, it, expect } from 'vitest';
 import { computeModel, computePortfolioOpex } from '@/lib/engine/model';
@@ -48,18 +52,18 @@ describe('computePortfolioOpex — seed defaults', () => {
   // ── Test 1: seed total ──────────────────────────────────────────────────────
   it('returns correct stabilised portfolio OPEX total from seed defaults', () => {
     // See file-header arithmetic comment for breakdown.
-    // staffTotal  ≈ 190,102.72
-    // services    =  52,500.00  (Pool R&M = 17 × €1,500; Landscape 12K; Maintenance 15K)
-    // overhead    = 158,000.00
-    // preOpening  =  55,000.00  (2031 is within 2028-2032 amort window)
-    // EXPECTED    ≈ 455,602.72
-    const EXPECTED_TOTAL = 190102.72 + 52500 + 158000 + 55000; // 455,602.72
+    // staffTotal  ≈ 237,944  (Greek holiday bonus formula: contractMonths×14/12 for all roles)
+    // services    =  52,494  (Pool R&M = 17 × €1,500; Landscape 12K; Maintenance 17×882)
+    // overhead    = 158,000
+    // preOpening  =  55,000  (2031 is within 2028-2032 amort window)
+    // EXPECTED    ≈ 503,438
+    const EXPECTED_TOTAL = 237944.16 + 52494 + 158000 + 55000; // 503,438.16
     const result = computePortfolioOpexForTest(2031, BASE_CASE);
-    // Allow ±100 tolerance for floating-point accumulation
+    // Allow ±200 tolerance for floating-point accumulation
     expect(result.total).toBeCloseTo(EXPECTED_TOTAL, -2);
   });
 
-  // ── Test 2: monthsPaid=0 zeroes role contribution ──────────────────────────
+  // ── Test 2: zeroing monthsPaid zeroes role contribution ─────────────────────
   it('zeroes a role contribution when monthsPaid is 0', () => {
     const firstRole = BASE_CASE.portfolioOpex!.staffRoles[0];
     const modified: ModelAssumptions = {
@@ -74,11 +78,14 @@ describe('computePortfolioOpex — seed defaults', () => {
     const base    = computePortfolioOpexForTest(2031, BASE_CASE);
     const reduced = computePortfolioOpexForTest(2031, modified);
 
-    // First role is yearRound: monthlyGross × monthsPaid × burdenMultiplier + allowances
-    // With monthsPaid=0: 3000 × 0 × 1.32 + 0 = 0
-    // So contribution was: 3000 × 14 × 1.32 = 55,440
+    // First role (Ops Manager, yearRound, headcount=1):
+    // effectiveMonths = 12 × (14/12) = 14  (Greek law formula: contractMonths × 14/12)
+    // contribution = 3000 × 14 × 1.32 × 1 + 0 = 55,440
+    const count = firstRole.headcount ?? 1;
+    const effectiveMonths = firstRole.monthsPaid * (14 / 12);
     const firstRoleContrib =
-      firstRole.monthlyGross * firstRole.monthsPaid * firstRole.burdenMultiplier + (firstRole.allowances ?? 0);
+      firstRole.monthlyGross * effectiveMonths * firstRole.burdenMultiplier * count
+      + (firstRole.allowances ?? 0) * count;
 
     expect(base.staffTotal - reduced.staffTotal).toBeCloseTo(firstRoleContrib, 0);
   });

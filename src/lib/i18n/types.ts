@@ -226,6 +226,9 @@ export interface TranslationDictionary {
   'kpi.roicSub': string;
   'kpi.gracePeriodInterest': string;
   'kpi.gracePeriodInterestSub': string;
+  'kpi.graceInterestCarry': string;
+  'kpi.graceInterestCarrySub': string;
+  'kpi.graceInterestHoldYears': string;
   'kpi.netLeverage': string;
   'kpi.netLeverageSub': string;
   'kpi.peakDebt': string;
@@ -533,6 +536,7 @@ export interface TranslationDictionary {
   'field.landscapingCost': string;
   'field.licensesPermits': string;
   'field.constructionDirector': string;
+  'field.interiorDesignerCost': string;
   'field.poolCostPerM2': string;
   'field.poolSlotQty': string;
   'field.poolSlotWidth': string;
@@ -1024,6 +1028,7 @@ export interface TranslationDictionary {
   'bank.actions.tour.sub': string;
   'bank.actions.presentation.title': string;
   'bank.actions.presentation.sub': string;
+  'bank.actions.presentation.comingSoon': string;
   'bank.actions.model.title': string;
   'bank.actions.model.sub': string;
   'bank.section.termsheet': string;
@@ -1044,6 +1049,8 @@ export interface TranslationDictionary {
   'bank.capex.footerEquity': string;
   'bank.capex.footerGrant': string;
   'bank.capex.footerTotal': string;
+  'bank.capex.expandRow': string;
+  'bank.capex.collapseRow': string;
   'bank.capitalStructure.netLeverage': string;
   'bank.capitalStructure.xEbitda': string;
   'bank.capitalStructure.peakDebt': string;
@@ -1604,6 +1611,7 @@ export interface TranslationDictionary {
   'finComp.totalLoanDrawn': string;
   'finComp.grantReceived': string;
   'finComp.equityRequired': string;
+  'finComp.graceInterestCarry': string;
   'finComp.annualDebtService': string;
   'finComp.stabilisedDSCR': string;
   'finComp.supplementaryLoan': string;
@@ -1784,4 +1792,9 @@ export interface TranslationDictionary {
   'covenant.distributionGated': string;
   'covenant.distributionGatedTooltip': string;
   'covenant.distributionUnlocked': string;
+
+  // ── Tax-loss carryforward (Pass 2B) ───────────────────────────────────────
+  'term.taxLossGenerated': string;
+  'term.taxLossUtilised': string;
+  'term.taxLossPoolBalance': string;
 }

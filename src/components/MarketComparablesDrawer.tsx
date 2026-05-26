@@ -27,7 +27,7 @@ import {
   HOTEL_URLS,
 } from "@/lib/data/marketBenchmarks";
 
-type SortKey = "name" | "location" | "stars" | "rooms" | "highEur" | "medEur" | "annualEur" | "tier";
+type SortKey = "name" | "location" | "rooms" | "highEur" | "medEur" | "annualEur" | "tier";
 type SortDir = "asc" | "desc";
 
 // Resolve the URL the hotel name should link to. Priority:
@@ -139,7 +139,7 @@ export function MarketComparablesDrawer({
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortKey(key);
-      const isNumeric = key === "stars" || key === "rooms" || key === "highEur" || key === "medEur" || key === "annualEur";
+      const isNumeric = key === "rooms" || key === "highEur" || key === "medEur" || key === "annualEur";
       setSortDir(isNumeric ? "desc" : "asc");
     }
   };
@@ -279,9 +279,6 @@ export function MarketComparablesDrawer({
                   <Th onClick={() => handleHeaderClick("location")} arrow={headerArrow("location")} align="start">
                     {t("drawer.colLocation")}
                   </Th>
-                  <Th onClick={() => handleHeaderClick("stars")} arrow={headerArrow("stars")} align="end">
-                    {t("drawer.colStars")}
-                  </Th>
                   <Th onClick={() => handleHeaderClick("rooms")} arrow={headerArrow("rooms")} align="end">
                     {t("drawer.colRooms")}
                   </Th>
@@ -317,7 +314,6 @@ export function MarketComparablesDrawer({
                       </a>
                     </td>
                     <td className="px-3 py-2 text-text-secondary">{r.location}</td>
-                    <td className="px-3 py-2 text-right text-text-secondary">{r.stars ?? "—"}</td>
                     <td className="px-3 py-2 text-right text-text-secondary">{r.rooms ?? "—"}</td>
                     <td className="px-3 py-2 text-right text-text-primary font-semibold">
                       {r.highEur === null ? "—" : formatCurrency(r.highEur, false, locale)}

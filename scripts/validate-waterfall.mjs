@@ -1,3 +1,8 @@
+// WARNING: This script duplicates founderWaterfall.ts logic inline and uses a stale
+// 5-tier ratchet structure. It should not be treated as a source of truth for deal economics.
+// See src/lib/engine/founderWaterfall.ts for the authoritative implementation.
+// npv/irrNewton inline copies here are also duplicated from src/lib/engine/financeUtils.ts.
+
 // Standalone validation of the v2 founder waterfall engine (derived grant
 // bonus, with €200K consultant payment + 5% × revenue ManCo fee subtracted
 // from cash distributable to equity). Mirrors the TS source.

@@ -219,26 +219,58 @@ function countHotelsContributing(benchmarks: HotelBenchmark[], tier: TierKey): n
 }
 
 // ── 2025 backstop ──────────────────────────────────────────────
-// Pre-computed Greek-islands market averages from the 2025 hotel market study
-// (root-level /tmp/hotel_market_study.csv, rows 87-95). Used when fresh 2026
-// capture coverage for a tier is too thin for a credible median (single-
-// property results would mislead the bank narrative). Mapping rationale:
+// Curated mean rates from the bank-facing headline comparable set:
+// 13 five-star luxury properties across Paros, Antiparos, Mykonos,
+// and Santorini (see MARKET_HEADLINE_HOTEL_NAMES below).
+// All values are NET of 18% OTA commission (gross consumer price × 0.82),
+// showing what the hotel actually earns per room per night after paying
+// booking.com / Expedia — a like-for-like basis vs Villa Lev's own ADR
+// which also carries an 8% blended OTA cost.
 //
-//   - basicRoom / doubleRoom backstop  = CSV "BASIC"   row (HIGH 993 / MED 699)
-//   - premiumSuite backstop            = CSV "PREMIUM" row (HIGH 1482 / MED 1041)
-//   - luxurySuite backstop             = CSV "LUXURY"  row (HIGH 1992 / MED 1456)
-//   - villa backstop                   = CSV "LUXURY VILLA, 2-5 rooms" row
-//                                         (HIGH 4467 / MED 4275). NOT the all-
-//                                         villas average — Villa Lev positions
-//                                         in the luxury whole-villa tier.
+// Computation (50/50 HIGH/MED blend, curated 13-hotel set):
+//   basicRoom / doubleRoom:
+//     8 Paros/Antiparos gross HIGH 1227.5, MED 838.75
+//     + Nomad HIGH 1388 MED 702, Cavo Tagoo HIGH 1765 MED 1515,
+//       Iconic HIGH 815 MED 615, Andronis(SNT) HIGH 1080 MED 844,
+//       Santa Marina(MYK) HIGH 1850 MED 1378
+//     13-hotel gross mean HIGH 1285.7 / MED 905.0 → ×0.82 = 1054/742 net
+//   premiumSuite:
+//     8 Paros/Antiparos gross HIGH 1790.6, MED 1197.5
+//     + Nomad HIGH 1711 MED 1065, Cavo Tagoo HIGH 2265 MED 1973,
+//       Iconic HIGH 1615 MED 1285, Andronis(SNT) HIGH 1347 MED 1122,
+//       Santa Marina(MYK) HIGH 2274 MED 1739
+//     13-hotel gross mean HIGH 1810.5 / MED 1289.5 → ×0.82 = 1485/1057 net
+//   luxurySuite / villa: legacy CSV gross rows × 0.82 for consistency.
+//
+// Hotels in the headline set:
+//   Paros/Antiparos: Kameo Antiparos, Andronis (Paros), Parilio, Cove,
+//     Cosme, Avant Mar, Parocks, Astir of Paros.
+//   Mykonos: Nomad, Cavo Tagoo, Santa Marina (Marriott).
+//   Santorini: Iconic, Andronis (Santorini).
 //
 // LOW (Oct-Apr) intentionally absent: Villa Lev operates 15 May – 15 Sep.
+export const MARKET_HEADLINE_HOTEL_NAMES = new Set([
+  "Kameo Antiparos",
+  "Parilio",
+  "Cove",
+  "Cosme",
+  "Avant Mar",
+  "Parocks",
+  "Astir of Paros",
+  "Andronis",              // both Paros and Santorini entries included
+  "Nomad",                 // Mykonos
+  "Cavo Tagoo",            // Mykonos
+  "Iconic",                // Santorini
+  "Santa Marina (Marriott)", // Mykonos
+]);
+export const MARKET_OTA_RATE = 0.18; // OTA commission applied to gross market rates
+
 export const MARKET_2025_BACKSTOP: Record<TierKey, { high: number; med: number }> = {
-  basicRoom: { high: 993, med: 699 },
-  doubleRoom: { high: 993, med: 699 },
-  premiumSuite: { high: 1482, med: 1041 },
-  luxurySuite: { high: 1992, med: 1456 },
-  villa: { high: 4467, med: 4275 },
+  basicRoom: { high: 1054, med: 742 },
+  doubleRoom: { high: 1054, med: 742 },
+  premiumSuite: { high: 1485, med: 1057 },
+  luxurySuite: { high: 1633, med: 1194 },
+  villa: { high: 3663, med: 3505 },
 };
 
 export const MARKET_BACKSTOP_SOURCE = {
@@ -374,133 +406,10 @@ export type PerHotelComparable = {
 };
 
 export const MARKET_2025_PER_HOTEL: PerHotelComparable[] = [
-  // ── Greek Islands (23 hotels, 4–5★) — CSV file lines 7–86 ──
-  {
-    name: "Lilly Residence",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 12,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 725,
-    medEur: 640,
-    lowEur: 390,
-    annualEur: 508,
-    url: "",
-  },
-  {
-    name: "Lilly Residence",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 12,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 1400,
-    medEur: 1135,
-    lowEur: 670,
-    annualEur: 908,
-    url: "",
-  },
-  {
-    name: "Lilly Residence",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 12,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 2385,
-    medEur: 1340,
-    lowEur: 950,
-    annualEur: 1287,
-    url: "",
-  },
-  {
-    name: "Mythic Paros",
-    location: "Paros Agia Irini",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 770,
-    medEur: 500,
-    lowEur: 405,
-    annualEur: 490,
-    url: "",
-  },
-  {
-    name: "Mythic Paros",
-    location: "Paros Agia Irini",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 875,
-    medEur: 625,
-    lowEur: 600,
-    annualEur: 652,
-    url: "",
-  },
-  {
-    name: "Mythic Paros",
-    location: "Paros Agia Irini",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 1460,
-    medEur: 1050,
-    lowEur: 900,
-    annualEur: 1031,
-    url: "",
-  },
-  {
-    name: "Hotel Senia",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 30,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 520,
-    medEur: 290,
-    lowEur: 180,
-    annualEur: 264,
-    url: "",
-  },
-  {
-    name: "Hotel Senia",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 30,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 1170,
-    medEur: 530,
-    lowEur: 460,
-    annualEur: 596,
-    url: "",
-  },
-  {
-    name: "Hotel Senia",
-    location: "Paros",
-    country: "Greece",
-    stars: 4,
-    rooms: 30,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 1730,
-    medEur: 1680,
-    lowEur: 809,
-    annualEur: 1180,
-    url: "",
-  },
+  // ── Greek Islands (16 hotels, 5★ luxury boutique) — CSV file lines 7–86 ──
+  // Curated set: 4-star properties, mid-tier resorts, and properties with
+  // ADR profiles below the luxury-boutique segment removed. Full study data
+  // (incl. removed hotels) available in the source CSV.
   {
     name: "The Rooster Antiparos",
     location: "Antiparos Livadia Bay",
@@ -782,48 +691,6 @@ export const MARKET_2025_PER_HOTEL: PerHotelComparable[] = [
     url: "",
   },
   {
-    name: "Summer Senses Luxury Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 510,
-    medEur: 250,
-    lowEur: 250,
-    annualEur: 293,
-    url: "",
-  },
-  {
-    name: "Summer Senses Luxury Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 850,
-    medEur: 540,
-    lowEur: 540,
-    annualEur: 592,
-    url: "",
-  },
-  {
-    name: "Summer Senses Luxury Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 40,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 1180,
-    medEur: 775,
-    lowEur: 775,
-    annualEur: 843,
-    url: "",
-  },
-  {
     name: "Astir of Paros",
     location: "Paros",
     country: "Greece",
@@ -913,96 +780,12 @@ export const MARKET_2025_PER_HOTEL: PerHotelComparable[] = [
     country: "Greece",
     stars: 5,
     rooms: 60,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 535,
-    medEur: 315,
-    lowEur: 315,
-    annualEur: 352,
-    url: "",
-  },
-  {
-    name: "Yria Boutique Hotel",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 60,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 665,
-    medEur: 615,
-    lowEur: 600,
-    annualEur: 615,
-    url: "",
-  },
-  {
-    name: "Yria Boutique Hotel",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 60,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 945,
-    medEur: 855,
-    lowEur: 750,
-    annualEur: 809,
-    url: "",
-  },
-  {
-    name: "Yria Boutique Hotel",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 60,
     tier: "Villa",
     tierRaw: "Villa (8adults)",
     highEur: 4215,
     medEur: 3415,
     lowEur: 3415,
     annualEur: 3548,
-    url: "",
-  },
-  {
-    name: "Kouros Blanc Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 38,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 421,
-    medEur: 225,
-    lowEur: 200,
-    annualEur: 243,
-    url: "",
-  },
-  {
-    name: "Kouros Blanc Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 38,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 681,
-    medEur: 392,
-    lowEur: 300,
-    annualEur: 387,
-    url: "",
-  },
-  {
-    name: "Kouros Blanc Resort",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 38,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 930,
-    medEur: 450,
-    lowEur: 330,
-    annualEur: 460,
     url: "",
   },
   {
@@ -1045,90 +828,6 @@ export const MARKET_2025_PER_HOTEL: PerHotelComparable[] = [
     medEur: 2800,
     lowEur: 2280,
     annualEur: 2551,
-    url: "",
-  },
-  {
-    name: "Agnanti",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 55,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 448,
-    medEur: 268,
-    lowEur: 268,
-    annualEur: 298,
-    url: "",
-  },
-  {
-    name: "Agnanti",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 55,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 1025,
-    medEur: 422,
-    lowEur: 390,
-    annualEur: 504,
-    url: "",
-  },
-  {
-    name: "Agnanti",
-    location: "Paros",
-    country: "Greece",
-    stars: 5,
-    rooms: 55,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 1260,
-    medEur: 516,
-    lowEur: 516,
-    annualEur: 640,
-    url: "",
-  },
-  {
-    name: "The Beach House",
-    location: "Antiparos",
-    country: "Greece",
-    stars: 5,
-    rooms: 9,
-    tier: "Basic",
-    tierRaw: "Basic",
-    highEur: 562,
-    medEur: 551,
-    lowEur: 425,
-    annualEur: 479,
-    url: "",
-  },
-  {
-    name: "The Beach House",
-    location: "Antiparos",
-    country: "Greece",
-    stars: 5,
-    rooms: 9,
-    tier: "Premium",
-    tierRaw: "Premium",
-    highEur: 933,
-    medEur: 816,
-    lowEur: 720,
-    annualEur: 780,
-    url: "",
-  },
-  {
-    name: "The Beach House",
-    location: "Antiparos",
-    country: "Greece",
-    stars: 5,
-    rooms: 9,
-    tier: "Luxury",
-    tierRaw: "Luxury",
-    highEur: 1037,
-    medEur: 1022,
-    lowEur: 825,
-    annualEur: 910,
     url: "",
   },
   {
@@ -2412,7 +2111,6 @@ export function distinctHotelCount(
 // will fail CI.
 export const HOTEL_URLS: Record<string, string> = {
   // ── Greek (Paros / Antiparos / Mykonos / Santorini) ──
-  "Agnanti": "https://www.parosagnanti.com",
   "Andronis": "https://www.andronisarcadia.com", // Santorini property in the CSV
   "Astir of Paros": "https://www.astirofparos.com",
   "Avant Mar": "https://avantmar.com",
@@ -2423,12 +2121,8 @@ export const HOTEL_URLS: Record<string, string> = {
   // "Cosme": ...stripped — falls through to resolveHotelUrl fallback.
 
   "Cove": "https://www.coveparos.com",
-  "Hotel Senia": "https://www.booking.com/hotel/gr/senia.html", // own site broken
   "Iconic": "https://iconicsantorini.com",
   "Kameo Antiparos": "https://www.booking.com/searchresults.html?ss=Kameo+Antiparos", // own site broken
-  "Kouros Blanc Resort": "https://www.kourosvillage.gr",
-  "Lilly Residence": "https://www.booking.com/hotel/gr/lilly-residence.html", // own site SSL broken
-  "Mythic Paros": "https://www.mythicparos.com",
   "Nomad": "https://nomadmykonos.com",
   "Omna Caldera": "https://www.omnacaldera.com",
   "Parilio": "https://www.pariliohotelparos.com",
@@ -2436,8 +2130,6 @@ export const HOTEL_URLS: Record<string, string> = {
   // Santa Marina (Marriott): same Marriott URL pattern returned 404. Stripped.
   // "Santa Marina (Marriott)": ...stripped — falls through to booking.com search.
 
-  "Summer Senses Luxury Resort": "https://www.summersenses.com",
-  "The Beach House": "https://thebeachhouseantiparos.com",
   "The Rooster Antiparos": "https://theroosterantiparos.com",
   "Yria Boutique Hotel": "https://www.yriahotel.gr",
   // ── International ──
@@ -2468,8 +2160,6 @@ export const HOTEL_URLS: Record<string, string> = {
 // Kept as a separate const so the orphan-guard test can assert the matching
 // values in HOTEL_URLS are booking.com URLs (not direct sites).
 export const HOTELS_DIRECT_SITE_BROKEN: ReadonlySet<string> = new Set([
-  "Lilly Residence",
-  "Hotel Senia",
   "Kameo Antiparos",
 ]);
 

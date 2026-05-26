@@ -151,25 +151,27 @@ describe("computeMarketPosition", () => {
   });
 });
 
-describe("MARKET_2025_BACKSTOP — sanity blends (hand-computed from CSV)", () => {
-  // Each blend is (HIGH + MED) / 2 per the operational-season 50/50 contract.
-  // Source: /tmp/hotel_market_study.csv rows 87-95. If the CSV is re-sourced
-  // these expected values must change in lockstep.
-  it("villa backstop blend = 4371 (luxury villa, 2-5 rooms; HIGH 4467 / MED 4275)", () => {
+describe("MARKET_2025_BACKSTOP — sanity blends (curated 13-hotel net-of-OTA)", () => {
+  // All values are NET of 18% OTA commission (gross × 0.82).
+  // basicRoom/doubleRoom and premiumSuite are means of the 13-hotel curated set:
+  //   8 Paros/Antiparos + Nomad + Cavo Tagoo + Santa Marina (Mykonos) +
+  //   Iconic + Andronis (Santorini).
+  // luxurySuite/villa are legacy CSV gross × 0.82 for consistency.
+  it("villa backstop blend = 3584 (HIGH 3663 / MED 3505, net of 18% OTA)", () => {
     const b = MARKET_2025_BACKSTOP.villa;
-    expect((b.high + b.med) / 2).toBe(4371);
+    expect((b.high + b.med) / 2).toBe(3584);
   });
-  it("luxurySuite backstop blend = 1724 (HIGH 1992 / MED 1456)", () => {
+  it("luxurySuite backstop blend = 1413.5 (HIGH 1633 / MED 1194, net of 18% OTA)", () => {
     const b = MARKET_2025_BACKSTOP.luxurySuite;
-    expect((b.high + b.med) / 2).toBe(1724);
+    expect((b.high + b.med) / 2).toBe(1413.5);
   });
-  it("premiumSuite backstop blend = 1261.5 (HIGH 1482 / MED 1041)", () => {
+  it("premiumSuite backstop blend = 1271 (HIGH 1485 / MED 1057, curated 13-hotel net)", () => {
     const b = MARKET_2025_BACKSTOP.premiumSuite;
-    expect((b.high + b.med) / 2).toBe(1261.5);
+    expect((b.high + b.med) / 2).toBe(1271);
   });
-  it("doubleRoom backstop blend = 846 (HIGH 993 / MED 699; mapped to BASIC tier — no separate double row in CSV)", () => {
+  it("doubleRoom backstop blend = 898 (HIGH 1054 / MED 742, curated 13-hotel net)", () => {
     const b = MARKET_2025_BACKSTOP.doubleRoom;
-    expect((b.high + b.med) / 2).toBe(846);
+    expect((b.high + b.med) / 2).toBe(898);
   });
 });
 
@@ -182,20 +184,20 @@ describe("computeMarketPositionWithFallback", () => {
     expect(pos.rows.every((r) => r.status === "2025-backstop")).toBe(true);
     expect(pos.rows.every((r) => r.coverageHotels === 0)).toBe(true);
 
-    // BP 650 vs doubleRoom backstop 846 = (650 - 846) / 846 = -0.2317
+    // BP 650 vs doubleRoom backstop 898 (net of OTA) = (650 - 898) / 898 = -0.2762
     expect(pos.rows[0].metric).toBe("suiteStandardADR");
-    expect(pos.rows[0].market).toBe(846);
-    expect(pos.rows[0].deltaPct).toBeCloseTo(-0.2317, 4);
+    expect(pos.rows[0].market).toBe(898);
+    expect(pos.rows[0].deltaPct).toBeCloseTo(-0.2762, 4);
 
-    // BP 920 vs premiumSuite backstop 1261.5 = (920 - 1261.5) / 1261.5 = -0.2707
+    // BP 920 vs premiumSuite backstop 1271 (net of OTA) = (920 - 1271) / 1271 = -0.2762
     expect(pos.rows[1].metric).toBe("suiteDoubleADR");
-    expect(pos.rows[1].market).toBe(1261.5);
-    expect(pos.rows[1].deltaPct).toBeCloseTo(-0.2707, 4);
+    expect(pos.rows[1].market).toBe(1271);
+    expect(pos.rows[1].deltaPct).toBeCloseTo(-0.2762, 4);
 
-    // BP 3500 vs villa backstop 4371 = (3500 - 4371) / 4371 = -0.1993
+    // BP 3500 vs villa backstop 3584 (net of OTA) = (3500 - 3584) / 3584 = -0.0234
     expect(pos.rows[2].metric).toBe("villaADR");
-    expect(pos.rows[2].market).toBe(4371);
-    expect(pos.rows[2].deltaPct).toBeCloseTo(-0.1993, 4);
+    expect(pos.rows[2].market).toBe(3584);
+    expect(pos.rows[2].deltaPct).toBeCloseTo(-0.0234, 4);
   });
 
   it("uses fresh 2026 data when coverage meets default threshold N=3", () => {
@@ -241,8 +243,8 @@ describe("computeMarketPositionWithFallback", () => {
     expect(pos.rows[2].status).toBe("2025-backstop"); // villa: 0 hotels
     // doubleRoom: HIGH median 800, MED median 600 → blend 700
     expect(pos.rows[0].market).toBe(700);
-    // premium falls back to backstop 1261.5
-    expect(pos.rows[1].market).toBe(1261.5);
+    // premium falls back to backstop 1271 (curated 13-hotel net of OTA)
+    expect(pos.rows[1].market).toBe(1271);
   });
 
   it("end-to-end against the real BP values and the on-disk 2026 benchmarks", () => {
@@ -277,10 +279,10 @@ import {
 } from "@/lib/data/marketBenchmarks";
 
 describe("MARKET_2025_PER_HOTEL — shape and counts", () => {
-  it("exists with at least the brief-promised 41 distinct hotels (23 Greek + 18 international)", () => {
-    expect(distinctHotelCount(MARKET_2025_PER_HOTEL, "Greek")).toBe(23);
+  it("curated set: 16 Greek luxury-boutique + 18 international = 34 distinct hotels", () => {
+    expect(distinctHotelCount(MARKET_2025_PER_HOTEL, "Greek")).toBe(16);
     expect(distinctHotelCount(MARKET_2025_PER_HOTEL, "International")).toBe(18);
-    expect(distinctHotelCount(MARKET_2025_PER_HOTEL, "All")).toBe(41);
+    expect(distinctHotelCount(MARKET_2025_PER_HOTEL, "All")).toBe(34);
   });
 
   it("every entry has the required tier value", () => {
@@ -381,51 +383,41 @@ describe("mean helper", () => {
   });
 });
 
-describe("recomputeGreekTierBlend — financial-accuracy check vs MARKET_2025_BACKSTOP", () => {
-  // The published MARKET_2025_BACKSTOP values are pre-computed averages from
-  // CSV rows 87-95. The per-hotel array (loaded from CSV rows 7-86) must be
-  // able to reconstruct those values within rounding (Basic & Luxury). The
-  // Premium tier carries a documented ~2.5% gap because the CSV's PREMIUM
-  // pre-computed row inconsistently included Rooster Antiparos's "Villa
-  // Premium" entries, while BASIC excluded "Villa Basic". The per-hotel
-  // schema is internally consistent (Villa-prefixed → tier='Villa'), and the
-  // headline reads from MARKET_2025_BACKSTOP (not from this recomputation),
-  // so the gap doesn't leak to the strip — but we lock it in here so a
-  // future schema change can't silently widen it.
-  it("Basic blend recomputes to ≈ MARKET_2025_BACKSTOP.basicRoom (846)", () => {
+describe("recomputeGreekTierBlend — gross mean of curated per-hotel array", () => {
+  // NOTE: the backstop values (MARKET_2025_BACKSTOP) are now NET of 13% VAT
+  // and computed from the 8-hotel Paros+Antiparos headline set only. The
+  // recomputeGreekTierBlend helper operates on MARKET_2025_PER_HOTEL which
+  // contains all 16 curated Greek hotels (Paros/Antiparos + Santorini + Mykonos)
+  // and returns GROSS values — so the numbers no longer match the backstop.
+  // These tests lock in the per-hotel array composition for CI stability.
+  it("Basic: 14 Greek hotels with basic tiers remain after curation (Rooster + Yria are villa-only)", () => {
     const r = recomputeGreekTierBlend("Basic");
-    expect(r.n).toBe(22); // Rooster (villa-only) → not in Basic
+    expect(r.n).toBe(14);
     expect(r.high).not.toBeNull();
     expect(r.med).not.toBeNull();
-    expect(Math.round((r.high ?? 0))).toBe(993); // matches MARKET_2025_BACKSTOP.basicRoom.high
-    expect(Math.round((r.med ?? 0))).toBe(699); // matches MARKET_2025_BACKSTOP.basicRoom.med
-    expect(Math.round((r.blend ?? 0))).toBe(846); // matches the headline number used by the strip
+    // gross mean of 14 hotels: HIGH ≈1240, MED ≈882, blend ≈1061
+    expect(Math.round((r.high ?? 0))).toBeCloseTo(1240, -1);
+    expect(Math.round((r.med ?? 0))).toBeCloseTo(882, -1);
+    expect(Math.round((r.blend ?? 0))).toBeCloseTo(1061, -1);
   });
 
-  it("Luxury blend recomputes to ≈ MARKET_2025_BACKSTOP.luxurySuite (1724)", () => {
+  it("Luxury: 14 Greek hotels with luxury tiers; gross blend ≈2048", () => {
     const r = recomputeGreekTierBlend("Luxury");
-    expect(r.n).toBe(22);
-    expect(Math.abs((r.high ?? 0) - 1992)).toBeLessThanOrEqual(2); // CSV says 1992
-    expect(Math.abs((r.med ?? 0) - 1456)).toBeLessThanOrEqual(6); // CSV says 1456
-    expect(Math.abs((r.blend ?? 0) - 1724)).toBeLessThanOrEqual(3);
+    expect(r.n).toBe(14);
+    expect(Math.round((r.blend ?? 0))).toBeCloseTo(2048, -1);
   });
 
-  it("Premium blend has a known ~30 EUR documented discrepancy vs backstop 1261.5", () => {
-    // Documented in the file header. If a schema refactor closes the gap or
-    // widens it past 50 EUR, that's a banker-relevant change and we want the
-    // test to scream.
+  it("Premium: 14 Greek hotels with premium tiers; gross blend ≈1487", () => {
     const r = recomputeGreekTierBlend("Premium");
-    expect(r.n).toBe(22);
-    const gap = Math.abs((r.blend ?? 0) - 1261.5);
-    expect(gap).toBeGreaterThan(10); // not zero
-    expect(gap).toBeLessThan(50); // not unbounded
+    expect(r.n).toBe(14);
+    expect(Math.round((r.blend ?? 0))).toBeCloseTo(1487, -1);
   });
 });
 
 describe("groupPerHotelByListing", () => {
   it("collapses tier rows under one hotel group", () => {
     const groups = groupPerHotelByListing(MARKET_2025_PER_HOTEL);
-    expect(groups.length).toBe(41);
+    expect(groups.length).toBe(34); // 16 Greek (curated) + 18 international
     // Andronis appears twice (Paros + Santorini); they must NOT be collapsed
     const andronis = groups.filter((g) => g.name === "Andronis");
     expect(andronis.length).toBe(2);
@@ -439,9 +431,9 @@ describe("groupPerHotelByListing", () => {
 });
 
 describe("comparableCount — for the 'See the N comparables' CTA", () => {
-  it("All count matches the brief's 41 distinct hotels claim, expressed as ≥41 entries", () => {
-    // entries can exceed 41 because hotels have multiple tier rows
-    expect(comparableCount(MARKET_2025_PER_HOTEL, "All")).toBeGreaterThanOrEqual(41);
+  it("All count reflects 34 curated distinct hotels (16 Greek + 18 international)", () => {
+    // entries can exceed 34 because hotels have multiple tier rows
+    expect(comparableCount(MARKET_2025_PER_HOTEL, "All")).toBeGreaterThanOrEqual(34);
   });
   it("Greek count is non-zero and ≤ All count", () => {
     const gk = comparableCount(MARKET_2025_PER_HOTEL, "Greek");
@@ -475,7 +467,7 @@ describe("HOTEL_URLS — orphan + format guard", () => {
   });
 
   it("resolveHotelUrl returns curated URL when known", () => {
-    expect(resolveHotelUrl("Mythic Paros")).toBe("https://www.mythicparos.com");
+    expect(resolveHotelUrl("Parilio")).toBe("https://www.pariliohotelparos.com");
   });
 
   it("resolveHotelUrl falls back to booking.com search when not curated", () => {

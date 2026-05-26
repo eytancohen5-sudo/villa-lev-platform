@@ -30,7 +30,7 @@ const ALL_TOURS: TourConfig[] = [
   LEXICON_TOUR,
 ];
 
-const LOCALES = ["en", "el", "fr", "he"] as const;
+const LOCALES = ["en", "el", "he"] as const;
 const STORAGE_KEY_RE = /^villaLev\..+\.seen\.v\d+$/;
 
 describe("tour configs — storageKey uniqueness", () => {
@@ -54,7 +54,7 @@ describe("tour configs — step shape", () => {
     }
   });
 
-  it("every step has all four locales with non-empty title and body", () => {
+  it("every step has all three locales (en, el, he) with non-empty title and body", () => {
     for (const tour of ALL_TOURS) {
       for (const step of tour.steps) {
         for (const locale of LOCALES) {

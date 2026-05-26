@@ -118,16 +118,22 @@ export default function DebtCoveragePage() {
     activeScenario === 'breakeven' ? t('scenario.breakeven') :
     t('scenario.realistic');
 
-  // DSCR trajectory chart data
-  const dscrTrajectoryData = model.dscrByYear
-    .filter((d) => d.year >= 2028)
-    .map((d) => ({
-      year: d.year,
-      Conservative: Number(d.realistic.toFixed(2)),
-      Downside: Number(d.downside.toFixed(2)),
-      Grant: Number(d.grant.toFixed(2)),
-      Realistic: Number(d.upside.toFixed(2)),
-    }));
+  // DSCR trajectory chart — realistic/downside/upside use the active path's debt schedule.
+  // Grant is kept as a fixed reference line (always grant debt, path-invariant).
+  const dscrTrajectoryData = model.scenarios.realistic.pnl
+    .filter((p) => p.year >= 2028)
+    .map((p) => {
+      const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
+      const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
+      const grantRow = model.dscrByYear.find((d) => d.year === p.year);
+      return {
+        year: p.year,
+        Conservative: Number(p.dscr.toFixed(2)),
+        Downside:     Number((down?.dscr ?? 0).toFixed(2)),
+        Grant:        Number((grantRow?.grant ?? 0).toFixed(2)),
+        Realistic:    Number((up?.dscr ?? 0).toFixed(2)),
+      };
+    });
 
   return (
     <div>
