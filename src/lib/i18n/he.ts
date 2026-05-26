@@ -1834,7 +1834,7 @@ export const he: TranslationDictionary = {
   // ── Tax-loss carryforward (Pass 2B) ───────────────────────────────────────
   'term.taxLossGenerated':   'הפסד מס שנוצר', // TODO: translate
   'term.taxLossUtilised':    'הפסד מס שנוצל', // TODO: translate
-  'term.taxLossPoolBalance': 'יתרת הפסד מס צבוי', // TODO: translate
+  'term.taxLossPoolBalance': 'הפסדים להעברה', // Losses carry forward
 
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
   'pnl.depreciation':        'פחת (סעיף 24, קו ישר)', // TODO: translate

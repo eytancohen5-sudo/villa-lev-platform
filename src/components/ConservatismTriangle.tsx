@@ -22,7 +22,7 @@
 import { useState } from "react";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
-import { MARKET_2025_BACKSTOP, distinctHotelCount } from "@/lib/data/marketBenchmarks";
+import { MARKET_2025_BACKSTOP, MARKET_2025_PER_HOTEL, comparableCount } from "@/lib/data/marketBenchmarks";
 import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
 
 // 50/50 HIGH/MED blend, matching how MARKET_2025_BACKSTOP feeds the headline.
@@ -135,9 +135,9 @@ export function ConservatismTriangle({
   const marketStandard = blend("basicRoom"); // 914 net (curated 8-hotel Paros/Antiparos, ÷1.13 VAT)
   const marketPremium = blend("premiumSuite"); // 1322.5 net
 
-  // Distinct hotel count, not raw tier-row count. The drawer table is one
-  // row per (hotel, tier), but bankers read "41 comparables" as 41 hotels.
-  const totalComparables = distinctHotelCount();
+  // Total row count matching what the drawer shows when "All" is selected,
+  // so the CTA button label matches the drawer header.
+  const totalComparables = comparableCount(MARKET_2025_PER_HOTEL, "All");
 
   return (
     <section id={id} className="scroll-mt-24 mb-6">

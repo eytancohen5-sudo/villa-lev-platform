@@ -1832,7 +1832,7 @@ export const el: TranslationDictionary = {
   // ── Tax-loss carryforward (Pass 2B) ───────────────────────────────────────
   'term.taxLossGenerated':   'Φορολογική ζημία χρήσης',
   'term.taxLossUtilised':    'Αξιοποιηθείσα φορολογική ζημία',
-  'term.taxLossPoolBalance': 'Υπόλοιπο μεταφοράς φορολογικής ζημίας',
+  'term.taxLossPoolBalance': 'Μεταφερόμενες ζημίες',
 
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
   'pnl.depreciation':        'Αποσβέσεις (Άρθ. 24, σταθερή μέθοδος)',

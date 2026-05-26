@@ -21,11 +21,14 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
 import {
   MARKET_2025_PER_HOTEL,
+  MARKET_OTA_RATE,
   type PerHotelComparable,
   type ComparableCountryFilter,
   filterPerHotel,
   HOTEL_URLS,
 } from "@/lib/data/marketBenchmarks";
+
+const OTA_NET = 1 - MARKET_OTA_RATE;
 
 type SortKey = "name" | "location" | "rooms" | "highEur" | "medEur" | "annualEur" | "tier";
 type SortDir = "asc" | "desc";
@@ -316,13 +319,13 @@ export function MarketComparablesDrawer({
                     <td className="px-3 py-2 text-text-secondary">{r.location}</td>
                     <td className="px-3 py-2 text-right text-text-secondary">{r.rooms ?? "—"}</td>
                     <td className="px-3 py-2 text-right text-text-primary font-semibold">
-                      {r.highEur === null ? "—" : formatCurrency(r.highEur, false, locale)}
+                      {r.highEur === null ? "—" : formatCurrency(Math.round(r.highEur * OTA_NET), false, locale)}
                     </td>
                     <td className="px-3 py-2 text-right text-text-secondary">
-                      {r.medEur === null ? "—" : formatCurrency(r.medEur, false, locale)}
+                      {r.medEur === null ? "—" : formatCurrency(Math.round(r.medEur * OTA_NET), false, locale)}
                     </td>
                     <td className="px-3 py-2 text-right text-text-secondary">
-                      {r.annualEur === null ? "—" : formatCurrency(r.annualEur, false, locale)}
+                      {r.annualEur === null ? "—" : formatCurrency(Math.round(r.annualEur * OTA_NET), false, locale)}
                     </td>
                     <td className="px-3 py-2 text-text-tertiary text-[11px]">
                       {r.tier} <span className="opacity-60">· {r.tierRaw}</span>
