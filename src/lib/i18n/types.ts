@@ -488,6 +488,14 @@ export interface TranslationDictionary {
   'field.nightsCap': string;
   'field.citRate': string;
   'field.vatRate': string;
+  'as.otaDistribution': string;
+  'as.otaDistribution.note': string;
+  'as.otaDistribution.yearHeader': string;
+  'as.otaDistribution.commissionHeader': string;
+  'as.otaDistribution.directHeader': string;
+  'as.otaDistribution.effectiveHeader': string;
+  'field.otaCommissionRate': string;
+  'field.otaDirectShare': string;
   'field.villaADR': string;
   'field.villaNights': string;
   'field.stdSuiteADR': string;
@@ -1060,6 +1068,7 @@ export interface TranslationDictionary {
   'pnl.opcoIncentiveFee': string;
   'pnl.opcoTotalFees': string;
   'pnl.netOfMgmtFees': string;
+  'pnl.postDsResidual': string;
   'pnl.cfadsBridge': string;
   'pnl.corporateTax': string;
   'pnl.cfadsDscrNumerator': string;

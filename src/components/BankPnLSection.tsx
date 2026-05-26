@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -11,17 +12,68 @@ type RowDef = {
   format: "currency" | "percent" | "multiple" | "raw";
   bold?: boolean;
   indent?: boolean;
-  /** Section separator — renders a shaded label row, no data cells */
+  /** Section separator — renders a shaded label row with optional expand toggle */
   separator?: boolean;
+  /** Section key this separator controls (omit for separators with no detail rows) */
+  sectionKey?: string;
   dscrRow?: boolean;
-  /** Negative values rendered in warning colour (costs / outflows) */
+  /** Negative values rendered in muted colour (costs / outflows) */
   outflow?: boolean;
+  /** Detail row — hidden when its parent section is collapsed */
+  detail?: boolean;
+  /** Key of the section this detail row belongs to */
+  section?: string;
 };
+
+// Inline toggle chevron icon
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10" height="10" viewBox="0 0 10 10" fill="none"
+      xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+      className={`transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+    >
+      <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 export function BankPnLSection() {
   const { t, locale } = useTranslation();
   const { model, activeScenario } = useModelStore();
+  // useState must be unconditional (Rules of Hooks) — placed before any early return.
+  // Each key maps to whether that section is expanded; default is all collapsed.
+  // Hydrates from sessionStorage after mount so expand state survives scenario switches.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    // SSR safe: return empty during server render
+    return {};
+  });
+
+  useEffect(() => {
+    // Hydrate from sessionStorage after mount only
+    try {
+      const raw = sessionStorage.getItem('bank-pnl-expanded');
+      if (raw) setExpanded(JSON.parse(raw));
+    } catch {
+      // sessionStorage unavailable (private browsing, etc.)
+    }
+  }, []); // empty deps: run once on mount
+
+  const toggleSection = (key: string) => {
+    setExpanded(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
   if (!model) return null;
+
+  const isExpanded = (key: string) => !!expanded[key];
 
   // Use the active scenario for revenue / cost / EBITDA rows so the P&L
   // responds to the scenario pill selection in the control bar.
@@ -39,7 +91,7 @@ export function BankPnLSection() {
   const rows: RowDef[] = [];
 
   // ── Revenue block ────────────────────────────────────────────────────────
-  rows.push({ label: "Revenue", getValue: () => "", format: "raw", separator: true });
+  rows.push({ label: t('pnl.revenue'), getValue: () => "", format: "raw", separator: true, sectionKey: "revenue" });
 
   for (const prop of portfolioShape) {
     rows.push({
@@ -50,13 +102,17 @@ export function BankPnLSection() {
       },
       format: "currency",
       indent: true,
+      detail: true,
+      section: "revenue",
     });
   }
 
   rows.push(
-    { label: t('pnl.events'),       getValue: (p) => p.revenueEvents,    format: "currency", indent: true },
-    { label: t('pnl.ancillary'),    getValue: (p) => p.revenueAncillary, format: "currency", indent: true },
-    { label: t('pnl.totalRevenue'), getValue: (p) => p.totalRevenue,     format: "currency", bold: true },
+    { label: t('pnl.events'),           getValue: (p) => p.revenueEvents,    format: "currency", indent: true, detail: true, section: "revenue" },
+    { label: t('pnl.ancillary'),        getValue: (p) => p.revenueAncillary, format: "currency", indent: true, detail: true, section: "revenue" },
+    { label: t('pnl.grossRevenue'),     getValue: (p) => p.grossRevenue,     format: "currency", bold: true },
+    { label: t('pnl.otaCommissions'),   getValue: (p) => p.otaCommissions,   format: "currency", indent: true, outflow: true },
+    { label: t('pnl.netRevenuePostOTA'), getValue: (p) => p.totalRevenue,    format: "currency", bold: true },
   );
 
   // ── Operating costs ───────────────────────────────────────────────────────
@@ -64,22 +120,11 @@ export function BankPnLSection() {
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", outflow: true },
   );
 
-  // ── OpCo management fee waterfall (only when active) ─────────────────────
-  if (opCoActive) {
-    rows.push(
-      { label: "GOP / EBITDA pre-management fees", getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
-      { label: "OpCo base fee",      getValue: (p) => p.opCoBaseFee,      format: "currency", indent: true, outflow: true },
-      { label: "OpCo brand fee",     getValue: (p) => p.opCoBrandFee,     format: "currency", indent: true, outflow: true },
-      { label: "OpCo incentive fee", getValue: (p) => p.opCoIncentiveFee, format: "currency", indent: true, outflow: true },
-      { label: "Total OpCo fees",    getValue: (p) => p.opCoTotalFee,     format: "currency", bold: false, outflow: true },
-    );
-  }
-
-  // ── EBITDA ────────────────────────────────────────────────────────────────
+  // ── EBITDA pre-OpCo (DSCR numerator line) ────────────────────────────────
   rows.push(
     {
-      label: opCoActive ? `${t('term.ebitda')} (net of mgmt fees)` : t('term.ebitda'),
-      getValue: (p) => p.ebitda,
+      label: t('pnl.gopPreMgmt'),
+      getValue: (p) => p.ebitdaPreOpCo,
       format: "currency",
       bold: true,
     },
@@ -87,19 +132,19 @@ export function BankPnLSection() {
   );
 
   // ── CFADS bridge (EBITDA → CIT → CFADS) ──────────────────────────────────
-  // Finding 3: CIT must be explicit so the CFADS arithmetic is visible.
-  // Finding 2: CFADS must be disclosed — it is the DSCR numerator.
-  rows.push({ label: "CFADS bridge", getValue: () => "", format: "raw", separator: true });
+  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "cfads" });
   rows.push(
     {
-      label: "Corporate income tax (CIT)",
+      label: t('pnl.corporateTax'),
       getValue: (p) => p.citPayable,   // stored negative in engine
       format: "currency",
       indent: true,
       outflow: true,
+      detail: true,
+      section: "cfads",
     },
     {
-      label: "CFADS (DSCR numerator)",
+      label: t('pnl.cfadsDscrNumerator'),
       getValue: (p) => p.cfads,
       format: "currency",
       bold: true,
@@ -107,64 +152,85 @@ export function BankPnLSection() {
   );
 
   // ── Debt service block ────────────────────────────────────────────────────
-  // Finding 4: term-loan balance moved INTO this block (before the DS total)
-  // so the sequence reads: Interest → Principal → Closing Balance → Debt Service
-  rows.push({ label: "Debt service", getValue: () => "", format: "raw", separator: true });
+  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "debtService" });
   rows.push(
-    { label: t('pnl.termLoanInterest'),   getValue: (p) => p.termLoanInterest,   format: "currency", indent: true, outflow: true },
-    { label: t('pnl.termLoanPrincipal'),  getValue: (p) => p.termLoanPrincipal,  format: "currency", indent: true, outflow: true },
-    { label: "Loan balance (closing)",    getValue: (p) => p.termLoanBalance,    format: "currency", indent: true },
+    { label: t('pnl.termLoanInterest'),   getValue: (p) => p.termLoanInterest,   format: "currency", indent: true, outflow: true, detail: true, section: "debtService" },
+    { label: t('pnl.termLoanPrincipal'),  getValue: (p) => p.termLoanPrincipal,  format: "currency", indent: true, outflow: true, detail: true, section: "debtService" },
+    { label: t('pnl.loanBalanceClosing'), getValue: (p) => p.termLoanBalance,    format: "currency", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.debtService'),        getValue: (p) => p.debtService,        format: "currency", bold: true, outflow: true },
+    { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
+    ...(opCoActive ? [
+      { label: t('pnl.opcoFeeBreakdown'), getValue: () => "" as string, format: "raw" as const, separator: true, sectionKey: "opco" },
+      { label: t('pnl.opcoBaseFee'),      getValue: (p: AnnualPnL) => p.opCoBaseFee,      format: "currency" as const, indent: true, outflow: true, detail: true, section: "opco" },
+      { label: t('pnl.opcoIncentiveFee'), getValue: (p: AnnualPnL) => p.opCoIncentiveFee, format: "currency" as const, indent: true, outflow: true, detail: true, section: "opco" },
+      { label: t('pnl.opcoTotalFees'),    getValue: (p: AnnualPnL) => p.opCoTotalFee,     format: "currency" as const, bold: true, outflow: true },
+    ] as RowDef[] : []),
+    {
+      label: opCoActive ? `${t('term.ebitda')} ${t('pnl.netOfMgmtFees')}` : t('term.ebitda'),
+      getValue: (p) => p.ebitda,
+      format: "currency" as const,
+      bold: true,
+    },
+    {
+      label: t('term.ncfFull'),
+      getValue: (p) => p.netCashFlow,
+      format: "currency" as const,
+      bold: true,
+    },
   );
 
   // ── Coverage ratios ───────────────────────────────────────────────────────
-  // Finding 7: rename "DSCR Realistic" → "DSCR — Base Case"
-  // Finding 6: Upside/Downside DSCR kept but separated with a label so it is
-  // clear these are sensitivity values, not a second set of revenue assumptions.
-  rows.push({ label: "Coverage", getValue: () => "", format: "raw", separator: true });
+  rows.push({ label: t('pnl.coverageSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "coverage" });
   rows.push(
     {
-      label: "DSCR — Base Case",
+      label: t('pnl.dscrBaseCase'),
       getValue: (p) => p.dscr,
       format: "multiple",
       bold: true,
       dscrRow: true,
     },
     {
-      label: "DSCR — Upside",
+      label: t('pnl.dscrUpside'),
       getValue: (p) => upside.find((u) => u.year === p.year)?.dscr ?? 0,
       format: "multiple",
       indent: true,
       dscrRow: true,
+      detail: true,
+      section: "coverage",
     },
     {
-      label: "DSCR — Downside",
+      label: t('pnl.dscrDownside'),
       getValue: (p) => downside.find((d) => d.year === p.year)?.dscr ?? 0,
       format: "multiple",
       indent: true,
       dscrRow: true,
+      detail: true,
+      section: "coverage",
     },
     {
-      label: "DSCR Loaded (incl. WC interest)",
+      label: t('pnl.dscrLoadedLabel'),
       getValue: (p) => p.dscrLoaded,
       format: "multiple",
       indent: true,
       dscrRow: true,
+      detail: true,
+      section: "coverage",
     },
     {
-      label: "ICR (interest coverage)",
+      label: t('pnl.icrInterestCoverage'),
       getValue: (p) => p.interestCoverageRatio,
       format: "multiple",
       indent: true,
       dscrRow: true,
+      detail: true,
+      section: "coverage",
     },
   );
 
-  // ── Equity return (last, after all debt metrics) ──────────────────────────
-  // Finding 5: NCF moved below DSCR; Finding 8: renamed to standard label.
-  rows.push({ label: "Equity return", getValue: () => "", format: "raw", separator: true });
+  // ── Equity return ─────────────────────────────────────────────────────────
+  rows.push({ label: t('pnl.equityReturnSection'), getValue: () => "", format: "raw", separator: true });
   rows.push({
-    label: "Net Cash Flow to Equity",
+    label: t('pnl.ncfToEquity'),
     getValue: (p) => p.netCashFlowPostVAT,
     format: "currency",
     bold: true,
@@ -191,22 +257,51 @@ export function BankPnLSection() {
   };
 
   const phaseLabel = (year: number) =>
-    year <= 2027 ? "Dev" : year === 2028 ? "Ramp · grace" : year === 2029 ? "Ramp · full DS" : "Stab.";
+    year <= 2027 ? t('pnl.phaseDev') : year === 2028 ? t('pnl.phaseRampGrace') : year === 2029 ? t('pnl.phaseRampDS') : t('pnl.phaseStab');
+
+  // How many sections currently have at least one detail row visible
+  const anyExpanded = Object.values(expanded).some(Boolean);
+
+  const expandAll = () => {
+    const keys = rows.filter((r) => r.sectionKey).map((r) => r.sectionKey as string);
+    const next = Object.fromEntries(keys.map((k) => [k, true]));
+    setExpanded(next);
+    try { sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(next)); } catch { /* ignore */ }
+  };
 
   return (
-    <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
-      <div className="px-6 pt-5 pb-3 border-b border-surface-tertiary">
-        <h3 className="text-sm font-semibold text-text-primary">
-          {t('pnl.title')} — {{
-            realistic: t('bank.bar.realistic'),
-            upside:    t('bank.bar.upside'),
-            downside:  t('bank.bar.downside'),
-            breakeven: t('bank.bar.breakeven'),
-          }[activeScenario] ?? t('bank.bar.realistic')} · Year-by-Year
-        </h3>
-        <p className="text-xs text-text-tertiary mt-0.5">
-          Revenue, OpEx, and EBITDA reflect the selected scenario. DSCR sensitivity rows always show Upside and Downside for comparison.
-        </p>
+    <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-clip">
+      <div className="px-6 pt-5 pb-3 border-b border-surface-tertiary flex items-start justify-between gap-4 sticky top-[57px] z-20 bg-white">
+        <div>
+          <h3 className="text-sm font-semibold text-text-primary">
+            {t('pnl.title')} — {{
+              realistic: t('bank.bar.realistic'),
+              upside:    t('bank.bar.upside'),
+              downside:  t('bank.bar.downside'),
+              breakeven: t('bank.bar.breakeven'),
+            }[activeScenario] ?? t('bank.bar.realistic')} · {t('pnl.yearByYear')}
+          </h3>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            {t('pnl.expandHint')}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
+          {!anyExpanded ? (
+            <button
+              onClick={expandAll}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-brand-500 text-brand-600 hover:bg-brand-50 transition-colors"
+            >
+              {t('pnl.expandAll')}
+            </button>
+          ) : (
+            <button
+              onClick={() => { setExpanded({}); try { sessionStorage.removeItem('bank-pnl-expanded'); } catch { /* ignore */ } }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-surface-tertiary text-text-secondary hover:bg-surface-secondary/60 transition-colors"
+            >
+              {t('pnl.collapseAll')}
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -214,7 +309,7 @@ export function BankPnLSection() {
           <thead>
             <tr className="bg-surface-secondary/40">
               <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary/40 min-w-[220px] z-10">
-                Line
+                {t('pnl.lineHeader')}
               </th>
               {years.map((yr) => {
                 const tone =
@@ -235,7 +330,7 @@ export function BankPnLSection() {
             </tr>
             <tr className="border-b border-surface-tertiary">
               <td className="py-1 px-4 text-xs text-text-tertiary sticky left-0 bg-white z-10">
-                Phase
+                {t('pnl.phase')}
               </td>
               {years.map((yr) => (
                 <td key={yr} className="text-right py-1 px-2 text-xs text-text-tertiary">
@@ -246,16 +341,35 @@ export function BankPnLSection() {
           </thead>
 
           <tbody>
-            {rows.map((row, ri) => {
+            {rows.filter((r) => !r.detail || isExpanded(r.section ?? "")).map((row, ri) => {
               // Section separator row
               if (row.separator) {
+                const hasToggle = !!row.sectionKey;
+                const open = hasToggle && isExpanded(row.sectionKey!);
                 return (
                   <tr key={ri} className="bg-surface-secondary/60">
                     <td
                       colSpan={years.length + 1}
-                      className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-semibold sticky left-0"
+                      className="py-0 sticky left-0"
                     >
-                      {row.label}
+                      {hasToggle ? (
+                        <button
+                          onClick={() => toggleSection(row.sectionKey!)}
+                          className="w-full flex items-center justify-between py-1.5 pl-4 pr-3 text-[10px] uppercase tracking-wider text-text-tertiary font-semibold hover:bg-surface-secondary/80 transition-colors group"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Chevron open={open} />
+                            {row.label}
+                          </span>
+                          <span className={`normal-case tracking-normal text-[10px] font-medium transition-colors ${open ? "text-brand-500" : "text-text-tertiary/60 group-hover:text-brand-400"}`}>
+                            {open ? t('common.collapse') : t('common.expand')}
+                          </span>
+                        </button>
+                      ) : (
+                        <div className="py-1.5 pl-4 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-semibold">
+                          {row.label}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -309,10 +423,7 @@ export function BankPnLSection() {
       <div className="px-6 py-3 border-t border-surface-tertiary bg-surface-secondary/20">
         <p className="text-xs text-text-tertiary">
           {t('bank.pnlFooterNote')}
-          {" "}CFADS = EBITDA + CIT (tax stored negative). DSCR Loaded includes WC
-          facility interest. Scenario sensitivity rows (Upside / Downside) apply
-          to the DSCR and coverage metrics only — revenue and cost lines above
-          are Base Case.
+          {" "}{t('pnl.cfadsNote')}
         </p>
       </div>
     </div>

@@ -695,9 +695,9 @@ export const el: TranslationDictionary = {
   // TODO: translate
   'as.portfolioOpex.colHeadcountTooltip': 'Number of workers in this role. Multiplies gross salary, burden, and allowances.',
   // TODO: translate
-  'as.portfolioOpex.colBonus': 'Bonus mo.',
+  'as.portfolioOpex.colBonus': 'Επίδομα διακοπών',
   // TODO: translate
-  'as.portfolioOpex.colBonusTooltip': 'Statutory bonus in salary-month equivalents. Greek law: Christmas (1 month) + Easter (½) + Holiday (½) = 2 for year-round staff. Seasonal = contract months ÷ 12 × 2 (pro-rata).',
+  'as.portfolioOpex.colBonusTooltip': 'Νόμιμο επίδομα διακοπών (€). Δώρο Χριστουγέννων (1 μηνιαίος μισθός) + Δώρο Πάσχα (½) + Επίδομα άδειας (½) = 2 μήνες για εκτάκτους. Εποχικοί: μικτός × (μήνες σύμβασης ÷ 12) × 2.',
   // TODO: translate
   'as.portfolioOpex.poolCount': 'Pools',
   // TODO: translate
@@ -744,6 +744,14 @@ export const el: TranslationDictionary = {
   'field.nightsCap': 'Ανώτατο όριο διανυκτερεύσεων (μέγ. διαν./έτος)',
   'field.citRate': 'Συντελεστής φόρου εισοδήματος νομικών προσώπων',
   'field.vatRate': 'Καθαρός συντελεστής ΦΠΑ (πραγματικός)',
+  'as.otaDistribution': 'OTA Distribution', // TODO: translate
+  'as.otaDistribution.note': 'Effective rate = commission × (1 − direct share). Direct share 0 = 100% OTA; 1 = 100% direct.', // TODO: translate
+  'as.otaDistribution.yearHeader': 'Year', // TODO: translate
+  'as.otaDistribution.commissionHeader': 'OTA Commission', // TODO: translate
+  'as.otaDistribution.directHeader': 'Direct Share', // TODO: translate
+  'as.otaDistribution.effectiveHeader': 'Effective Rate', // TODO: translate
+  'field.otaCommissionRate': 'OTA platform commission (scalar fallback)', // TODO: translate
+  'field.otaDirectShare': 'Direct booking share (scalar fallback)', // TODO: translate
   'field.villaADR': 'ΜΗΤ βίλας — μεικτό καθαρό (€/διαν.)',
   'field.villaNights': 'Διανυκτερεύσεις βίλας / έτος (βάση, ωρίμανση)',
   'field.stdSuiteADR': 'ΜΗΤ σουίτας standard (€/διαν.)',
@@ -1205,6 +1213,7 @@ export const el: TranslationDictionary = {
   'pnl.opcoIncentiveFee': 'Junior αμοιβή',
   'pnl.opcoTotalFees': 'Σύνολο αμοιβών OpCo',
   'pnl.netOfMgmtFees': '(μετά αφαίρεση αμοιβών διαχείρισης)',
+  'pnl.postDsResidual': 'Υπόλοιπο μετά DS',
   'pnl.cfadsBridge': 'Γέφυρα CFADS',
   'pnl.corporateTax': 'Φόρος εισοδήματος εταιρειών (ΦΕΕ)',
   'pnl.cfadsDscrNumerator': 'CFADS (αριθμητής DSCR)',

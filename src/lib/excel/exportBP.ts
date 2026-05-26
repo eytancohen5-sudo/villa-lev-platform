@@ -171,7 +171,7 @@ const XL_EN: XlStrings = {
   lbl_principal: 'Principal',
   lbl_phase: 'Phase',
   lbl_realistic: 'Conservative',
-  lbl_upside: 'Realistic+',
+  lbl_upside: 'Realistic',
   lbl_downside: 'Downside',
   lbl_value: 'Value',
   lbl_rate: 'Rate',
@@ -529,7 +529,7 @@ export async function exportBusinessPlan(
       totalArea, prop.landCost, prop.constructionCostPerM2, prop.ffeCost,
       prop.legalFees, prop.architectFees, prop.civilEngineerFees, prop.contingencyRate,
       prop.opex.housekeeping, prop.opex.utilities, prop.opex.insurance, prop.opex.propertyTax,
-      prop.opex.marketing, prop.opex.managementFee, prop.opex.consumables, prop.opex.accounting,
+      prop.opex.marketing, prop.opex.managementFee ?? 0, prop.opex.consumables, prop.opex.accounting,
       prop.opexContingencyRate ?? 0,
       (prop.extraOpexLines ?? []).reduce((s: number, l: { value?: number }) => s + (l.value || 0), 0),
     ];
@@ -581,49 +581,28 @@ export async function exportBusinessPlan(
   defineName('dscrCovenantThreshold', A_('dscrCovenantThreshold'));
   defineName('devConstructionFeePerYear', A_('devConstructionFeePerYear'));
 
-  // ── Issue 6: portfolio fee summary ──
-  // Single-source-of-truth aggregates so a banker comparing this BP against the
-  // v73 deck can spot inconsistencies. Each row sums across the property rows
-  // above using SUMPRODUCT(plots × per-property fee).
+  // Portfolio OPEX summary (derived). The management fee summary block has been
+  // removed — managementFee is now 0 in all templates (accounted for in OpCo,
+  // not in per-property OpEx). opexMgmtFee column (PCOL position 18) is retained
+  // in PCOL to preserve column positions for drift tests; the column writes 0
+  // from templates so it contributes nothing to sums.
   r += 1;
   writeSection('Portfolio summary (derived)');
-  const mgmtFeeSummaryRow = r;
-  A.getCell(`B${r}`).value = 'Total annual management fee (Σ plots × mgmt fee/plot)';
-  A.getCell(`B${r}`).font = FONT.bold;
-  // Build the SUMPRODUCT formula across all property rows.
-  const plotsRange = propRows.length > 0
-    ? `${col(2 + PCOL.plots)}${propRows[0].row}:${col(2 + PCOL.plots)}${propRows[propRows.length - 1].row}`
-    : null;
-  const mgmtFeeRange = propRows.length > 0
-    ? `${col(2 + PCOL.opexMgmtFee)}${propRows[0].row}:${col(2 + PCOL.opexMgmtFee)}${propRows[propRows.length - 1].row}`
-    : null;
-  const totalMgmtFee = propRows.reduce((s, pr) => s + pr.prop.count * pr.prop.opex.managementFee, 0);
-  if (plotsRange && mgmtFeeRange) {
-    A.getCell(`C${r}`).value = { formula: `=SUMPRODUCT(${plotsRange},${mgmtFeeRange})`, result: totalMgmtFee };
-  } else {
-    A.getCell(`C${r}`).value = totalMgmtFee;
-  }
-  A.getCell(`C${r}`).numFmt = FMT.euro;
-  A.getCell(`C${r}`).fill = STYLE.totalFill;
-  A.getCell(`C${r}`).font = FONT.bold;
-  A.getCell(`E${r}`).value = 'Cross-check this number against the v73 banker deck. Single source of truth.';
-  A.getCell(`E${r}`).font = FONT.italic;
-  r += 1;
-  void mgmtFeeSummaryRow;
 
-  // Total OPEX (annual, ex-maintenance) across portfolio — analogous summary.
-  A.getCell(`B${r}`).value = 'Total annual property OPEX (ex-maintenance, Σ plots × per-property OPEX stack)';
+  // Total OPEX (annual, ex-FFE Reserve) across portfolio — excludes managementFee
+  // since that column is always 0 after the OpEx restructure (2026-05-25).
+  A.getCell(`B${r}`).value = 'Total annual property OPEX (ex-FFE Reserve, Σ plots × per-property OPEX stack)';
   const opexStackFormulas = propRows.map((pr) => {
     const stack = [
       PCOL.opexHousekeeping, PCOL.opexUtilities, PCOL.opexInsurance,
-      PCOL.opexPropertyTax, PCOL.opexMarketing, PCOL.opexMgmtFee,
+      PCOL.opexPropertyTax, PCOL.opexMarketing,
       PCOL.opexConsumables, PCOL.opexAccounting,
     ].map((ci) => `${col(2 + ci)}${pr.row}`).join('+');
     return `${col(2 + PCOL.plots)}${pr.row}*(${stack})`;
   }).join('+');
   const totalOpexAnnual = propRows.reduce((s, pr) => {
     const stack = pr.prop.opex.housekeeping + pr.prop.opex.utilities + pr.prop.opex.insurance +
-      pr.prop.opex.propertyTax + pr.prop.opex.marketing + pr.prop.opex.managementFee +
+      pr.prop.opex.propertyTax + pr.prop.opex.marketing +
       pr.prop.opex.consumables + pr.prop.opex.accounting;
     return s + pr.prop.count * stack;
   }, 0);
@@ -1064,18 +1043,21 @@ export async function exportBusinessPlan(
   });
   pr2 += 2;
 
-  // OPEX per property
-  // Engine: per-property opex = base (8 categories) + maintenance
-  //   maintenance = construction × rate where rate = 0.005 (yr<=2029), 0.01 (2030), 0.015 (>=2031)
+  // OPEX per property — one row per property, fully engine-seeded (no live formula).
   //
-  // Bank-view OPEX adjustment (mirrors engine model.ts lines ~729-731):
-  //   Internal view: per-property managementFee stays inside baseOpex.
-  //   Bank view: per-property managementFee is REMOVED from baseOpex; a single
-  //   portfolio-level "Senior management floor" (opCoSeniorFloor × totalVillaCount)
-  //   is added as a separate OPEX row, paid SENIOR to debt service. The opCoFeeRow
-  //   below then shows only the JUNIOR overage (= 0 when OpCo is disabled).
-  //   This prevents the senior floor from being double-charged (once in totalOpex
-  //   via opCoFeeRow and again via the per-property mgmtFee formula).
+  // FF&E Reserve is revenue-based: max(ffeReserveFloor, rate% × revenuePerUnit)
+  //   Rates: 0% OPENING_YEAR (2028, floor only), 2% (2029), 3% (2030), 4%+ thereafter.
+  // Revenue-based FF&E Reserve cannot be expressed as an Assumptions-sheet formula
+  // without referencing the Revenue sheet (circular). Per-property OPEX rows are
+  // seeded directly from engine output — they will NOT drift when Excel recalculates.
+  //
+  // Assumptions sheet columns $T$/$W$/$X$ (mgmtFee/opexContingency/extraOpex)
+  // are retained to prevent index shifts in any cross-sheet lookups.
+  //
+  // Bank-view OPEX adjustment (mirrors engine model.ts ~lines 739-772):
+  //   Bank view: adds a single "Senior management floor" row
+  //   (opCoSeniorFloor × totalVillaCount) paid SENIOR to debt service.
+  //   opCoFeeRow then shows only the JUNIOR overage.
   const isBankViewExport = (a.viewMode ?? 'internal') === 'bank';
   const totalVillaCountExport = a.portfolio.reduce((sum, p) => sum + p.count, 0);
 
@@ -1085,28 +1067,16 @@ export async function exportBusinessPlan(
 
   const propOpexRows: number[] = [];
   propRows.forEach((pr) => {
+    // Per-property combined OPEX = controllable + FF&E Reserve, seeded from engine.
+    // No live Excel formula — FF&E Reserve is revenue-based and revenue-circular.
     PnL.getCell(`A${pr2}`).value = `  ${pr.prop.name}`;
-    // Bank view: exclude managementFee — it is replaced by the senior floor row below.
-    // Both views include extraOpex and apply the opexContingencyRate multiplier to
-    // the controllable base (all categories + extraOpex), mirroring computeOpexForProperty:
-    //   opexPerUnit = (base + extra) * (1 + contingency) + maintenance
-    const baseControllable = isBankViewExport
-      ? `(${P(pr.row, PCOL.opexHousekeeping)}+${P(pr.row, PCOL.opexUtilities)}+${P(pr.row, PCOL.opexInsurance)}+${P(pr.row, PCOL.opexPropertyTax)}+${P(pr.row, PCOL.opexMarketing)}+${P(pr.row, PCOL.opexConsumables)}+${P(pr.row, PCOL.opexAccounting)}+${P(pr.row, PCOL.extraOpex)})`
-      : `(${P(pr.row, PCOL.opexHousekeeping)}+${P(pr.row, PCOL.opexUtilities)}+${P(pr.row, PCOL.opexInsurance)}+${P(pr.row, PCOL.opexPropertyTax)}+${P(pr.row, PCOL.opexMarketing)}+${P(pr.row, PCOL.opexMgmtFee)}+${P(pr.row, PCOL.opexConsumables)}+${P(pr.row, PCOL.opexAccounting)}+${P(pr.row, PCOL.extraOpex)})`;
-    const construction = `(${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)})`;
     years.forEach((y, i) => {
       const cell = PnL.getCell(`${col(2 + i)}${pr2}`);
       const eng = py(y);
       const engineOpex = eng?.propertyBreakdown.find((p) => p.id === pr.prop.id)?.totalOpex ?? 0;
-      if (y <= 2027) {
-        cell.value = 0;
-      } else {
-        const maintRate = y <= 2029 ? 0.005 : y === 2030 ? 0.01 : 0.015;
-        const formula = `=((${baseControllable})*(1+${P(pr.row, PCOL.opexContingency)})+${construction}*${maintRate})*${P(pr.row, PCOL.plots)}`;
-        cell.value = { formula, result: engineOpex };
-      }
+      cell.value = y <= 2027 ? 0 : engineOpex;
       cell.numFmt = FMT.euro;
-      cell.fill = STYLE.formulaFill;
+      cell.fill = STYLE.inputFill;
     });
     propOpexRows.push(pr2);
     pr2 += 1;
@@ -1444,7 +1414,7 @@ export async function exportBusinessPlan(
   pr2 += 1;
 
   // DSCR upside — engine values (upside scenario uses different ADR/occupancy)
-  PnL.getCell(`A${pr2}`).value = '  DSCR — Realistic+';
+  PnL.getCell(`A${pr2}`).value = '  DSCR — Realistic';
   PnL.getCell(`A${pr2}`).font = FONT.italic;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
@@ -1660,10 +1630,10 @@ export async function exportBusinessPlan(
   });
   xr += 1;
 
-  Cov.getCell(`A${xr}`).value = XL.lbl_ebitda;
+  Cov.getCell(`A${xr}`).value = 'EBITDA (pre-OpCo fees)';
   years.forEach((y, i) => {
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
-    c.value = { formula: `='${XL.sh_opexPnl}'!${col(2 + i)}${ebitdaRow}`, result: pyVal(y, 'ebitda') };
+    c.value = { formula: `='${XL.sh_opexPnl}'!${col(2 + i)}${revRowOnPnL}-'${XL.sh_opexPnl}'!${col(2 + i)}${totalOpexRow}`, result: pyVal(y, 'ebitdaPreOpCo') };
     c.numFmt = FMT.euro;
     c.fill = STYLE.formulaFill;
   });
@@ -1713,7 +1683,7 @@ export async function exportBusinessPlan(
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
     const e = py(y);
     const totalDs = e ? e.termLoanInterest + e.termLoanPrincipal + e.wcInterestExpense : 0;
-    const dscr = totalDs > 0 ? (e?.ebitda ?? 0) / totalDs : 0;
+    const dscr = totalDs > 0 ? (e?.ebitdaPreOpCo ?? 0) / totalDs : 0;
     c.value = { formula: `=IFERROR(${col(2 + i)}${covEbitdaRow}/${col(2 + i)}${covTotalDsRow},0)`, result: dscr };
     c.numFmt = FMT.mul;
     c.fill = STYLE.totalFill;
@@ -1729,8 +1699,8 @@ export async function exportBusinessPlan(
     const c = Cov.getCell(`${col(2 + i)}${xr}`);
     const e = py(y);
     const totalDs = e ? e.termLoanInterest + e.termLoanPrincipal + e.wcInterestExpense : 0;
-    const dscr = totalDs > 0 ? (e?.ebitda ?? 0) / totalDs : 0;
-    const operational = (e?.debtService ?? 0) > 0 || (e?.ebitda ?? 0) > 0;
+    const dscr = totalDs > 0 ? (e?.ebitdaPreOpCo ?? 0) / totalDs : 0;
+    const operational = (e?.debtService ?? 0) > 0 || (e?.ebitdaPreOpCo ?? 0) > 0;
     const result = !operational ? 'n/a' : dscr >= a.dscrCovenantThreshold ? '✓ PASS' : '✗ FAIL';
     // Excel formula: PASS if DSCR ≥ threshold AND DS > 0; n/a in pre-op years.
     c.value = {
@@ -1990,7 +1960,7 @@ export async function exportBusinessPlan(
   const scenarioBlocks: Array<{ key: 'downside' | 'realistic' | 'upside'; label: string }> = [
     { key: 'downside', label: 'Downside' },
     { key: 'realistic', label: 'Conservative' },
-    { key: 'upside', label: 'Realistic+' },
+    { key: 'upside', label: 'Realistic' },
   ];
 
   // Per-scenario yearly section
@@ -2536,7 +2506,7 @@ export async function exportBusinessPlan(
   const totalDs2031 = stab2031
     ? stab2031.termLoanInterest + stab2031.termLoanPrincipal + stab2031.wcInterestExpense
     : 0;
-  const dscr2031 = totalDs2031 > 0 ? (stab2031?.ebitda ?? 0) / totalDs2031 : 0;
+  const dscr2031 = totalDs2031 > 0 ? (stab2031?.ebitdaPreOpCo ?? 0) / totalDs2031 : 0;
   const validations = [
     { label: 'Total CAPEX', engine: m.capex.portfolioTotal, workbookRef: capexTotalCell, fmt: FMT.euro },
     { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },

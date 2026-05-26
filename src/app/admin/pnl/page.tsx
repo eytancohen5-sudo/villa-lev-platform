@@ -13,6 +13,8 @@ import {
   DEFAULT_GRANT_AMOUNT,
   DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
   DEFAULT_GRANT_APPROVAL_YEAR,
+  DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR,
+  DEFAULT_FEE_CASH_SPLIT_PCT,
 } from "@/lib/engine/founderWaterfall";
 
 type RowDef = {
@@ -54,10 +56,6 @@ export default function PnLPage() {
   // Hooks must be unconditional — placed before early return.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const grantApproved = assumptions.financingPath === "grant";
-  const totalAdvisoryFee = grantApproved ? DEFAULT_GRANT_AMOUNT * DEFAULT_GRANT_PROCUREMENT_FEE_PCT : 0;
-  const advisoryAnnual = totalAdvisoryFee > 0 ? totalAdvisoryFee / 3 : 0;
-  const advisoryStartYear = DEFAULT_GRANT_APPROVAL_YEAR + 1;
-  const advisoryPaymentYears = new Set([advisoryStartYear, advisoryStartYear + 1, advisoryStartYear + 2]);
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(PNL_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="table" />;
@@ -67,7 +65,14 @@ export default function PnLPage() {
   const isExpanded = (key: string) => !!expanded[key];
   const anyExpanded = Object.values(expanded).some(Boolean);
 
+  // Grant success fee — cash portion paid in a single year, post-DS (no DSCR impact).
+  // Total cash = grant × 10% (fee) × 50% (cash split). Only shown on the grant path.
+  const grantPaymentYear = assumptions.grantSuccessFeePaymentYear ?? DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR;
+  const grantFeeTotal = (model.keyMetrics.grantAmount ?? DEFAULT_GRANT_AMOUNT) * DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
+  const grantFeeTotalCash = grantFeeTotal * DEFAULT_FEE_CASH_SPLIT_PCT;
+
   const pnl = model.scenarios[activeScenario].pnl;
+  const opCoActive = pnl.some((p: AnnualPnL) => p.opCoTotalFee !== 0);
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
     activeScenario === 'downside' ? t('scenario.downside') :
@@ -141,7 +146,7 @@ export default function PnLPage() {
     { label: t('pnl.portfolioPreOpening'), getValue: (p) => p.portfolioOpex?.preOpeningAmort ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
-    { label: t('term.ebitda'), getValue: (p) => p.ebitda, format: "currency", bold: true },
+    { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
   );
 
@@ -155,6 +160,47 @@ export default function PnLPage() {
     { label: t('pnl.dsraBalance'),      getValue: (p: AnnualPnL) => p.dsraBalance ?? 0,      format: "currency", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.partnerRepayment'), getValue: (p: AnnualPnL) => p.partnerRepayment ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.debtService'),       getValue: (p) => p.debtService,       format: "currency", color: "negative", anchorId: "pnl-row-debtService" },
+    { label: t('pnl.postDsResidual'),   getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
+    ...(opCoActive ? [
+      {
+        label: t('pnl.opcoFeeBreakdown'),
+        getValue: () => 0 as number,
+        format: "currency" as const,
+        separator: true,
+        sectionKey: 'opco',
+      },
+      {
+        label: t('pnl.opcoBaseFee'),
+        getValue: (p: AnnualPnL) => p.opCoBaseFee,
+        format: "currency" as const,
+        detail: true,
+        section: 'opco',
+        color: "negative" as const,
+        indent: true,
+      },
+      {
+        label: t('pnl.opcoIncentiveFee'),
+        getValue: (p: AnnualPnL) => p.opCoIncentiveFee,
+        format: "currency" as const,
+        detail: true,
+        section: 'opco',
+        color: "negative" as const,
+        indent: true,
+      },
+      {
+        label: t('pnl.opcoTotalFees'),
+        getValue: (p: AnnualPnL) => p.opCoTotalFee,
+        format: "currency" as const,
+        bold: true,
+        color: "negative" as const,
+      },
+    ] : []),
+    {
+      label: opCoActive ? `${t('term.ebitda')} ${t('pnl.netOfMgmtFees')}` : t('term.ebitda'),
+      getValue: (p: AnnualPnL) => p.ebitda,
+      format: "currency" as const,
+      bold: true,
+    },
     { label: t('term.ncfFull'),          getValue: (p) => p.netCashFlow,       format: "currency", bold: true, color: "dynamic" },
   );
 
@@ -174,21 +220,21 @@ export default function PnLPage() {
       detail: true,
       section: "tax",
     },
-    {
-      label: 'Deferred advisory fee (Bucket 1B, 3-yr from disbursement)',
-      getValue: (p) => (advisoryPaymentYears.has(p.year) ? -advisoryAnnual : 0),
-      format: "currency",
-      color: "negative",
+    ...(grantApproved ? [{
+      label: `Grant success fee — cash (Aggelakakis + Eytan, ${grantPaymentYear})`,
+      getValue: (p: AnnualPnL) => p.year === grantPaymentYear ? -grantFeeTotalCash : 0,
+      format: "currency" as const,
+      color: "negative" as const,
       indent: true,
       detail: true,
       section: "tax",
-    },
+    }] : []),
     {
       label: 'Distributable to equity',
       getValue: (p) => {
         const manCo = p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE;
-        const advisory = advisoryPaymentYears.has(p.year) ? advisoryAnnual : 0;
-        return Math.max(0, p.netCashFlowPostVAT - manCo - advisory);
+        const grantFee = (grantApproved && p.year === grantPaymentYear) ? grantFeeTotalCash : 0;
+        return Math.max(0, p.netCashFlowPostVAT - manCo - grantFee);
       },
       format: "currency",
       bold: true,
