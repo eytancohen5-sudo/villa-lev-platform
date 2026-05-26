@@ -26,6 +26,7 @@ import {
   Legend,
 } from "recharts";
 import { SectionHeader, StatusChip, KPICard } from "@/components/AdminUI";
+import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 
 function MiniStat({
   label,
@@ -399,6 +400,35 @@ export default function DebtCoveragePage() {
                 </ResponsiveContainer>
               </div>
             </div>
+            {/* Dual-use facility note (ADR-0015) */}
+            <div className="border-t border-surface-tertiary bg-surface-secondary/40 px-5 py-3 mt-0">
+              <div className="flex items-start gap-2 text-[11px] text-text-tertiary">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
+                  <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
+                  <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                <span>
+                  <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
+                  {" "}—{" "}
+                  {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
+                  {" "}·{" "}
+                  <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
+                </span>
+              </div>
+              <div className="mt-2 ml-5 space-y-1">
+                <div className="text-[11px]">
+                  <span className="font-medium text-text-secondary">{t('bank.wc.dual.vatBridgeLabel')}</span>
+                  {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.vatBridgeSub')}</span>
+                </div>
+                <div className="text-[11px]">
+                  <span className="font-medium text-text-secondary">{t('bank.wc.dual.opWcLabel')}</span>
+                  {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.opWcSub')}</span>
+                </div>
+                <div className="text-[10px] text-text-tertiary/70 italic mt-1">
+                  {t('bank.wc.dual.sizingNote')}
+                </div>
+              </div>
+            </div>
           </div>
         </>
       )}
@@ -517,6 +547,11 @@ export default function DebtCoveragePage() {
           </section>
         );
       })()}
+
+      {/* Section 5b — Construction VAT Cashflow (ADR-0015) */}
+      <div className="mb-6">
+        <ConstructionVatCashflow />
+      </div>
 
       {/* Section 6 — Collateral */}
       <div id="section-collateral" className="scroll-mt-24">

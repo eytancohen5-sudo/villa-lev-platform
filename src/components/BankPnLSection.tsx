@@ -24,6 +24,17 @@ type RowDef = {
   detail?: boolean;
   /** Key of the section this detail row belongs to */
   section?: string;
+  /** 'vat' — amber when negative (cash tied up), green when positive (refund received) */
+  tone?: 'vat';
+};
+
+// Static year-end VAT receivable position (memo — not in NCF)
+// Negative = cash tied up awaiting AADE refund; positive = refund received (2029)
+const VAT_YEAR_END: Record<number, number> = {
+  2026: -364_278,
+  2027: -455_346,
+  2028: -273_208,
+  2029:  273_208,
 };
 
 export function BankPnLSection() {
@@ -119,7 +130,24 @@ export function BankPnLSection() {
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
   );
 
-  // ── CFADS bridge (EBITDA → CIT → CFADS) ──────────────────────────────────
+  // ── Depreciation → EBIT ──────────────────────────────────────────────────
+  rows.push(
+    {
+      label: t('pnl.depreciation'),
+      getValue: (p) => -(p.annualDepreciation ?? 0),
+      format: "currency",
+      indent: true,
+      outflow: true,
+    },
+    {
+      label: t('pnl.ebit'),
+      getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0),
+      format: "currency",
+      bold: true,
+    },
+  );
+
+  // ── CFADS bridge (EBIT → CIT → CFADS) ────────────────────────────────────
   rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "cfads" });
   rows.push(
     {
@@ -157,7 +185,7 @@ export function BankPnLSection() {
       bold: true,
     },
     {
-      label: t('term.ncfFull'),
+      label: t('pnl.profitBeforeTax'),
       getValue: (p) => p.netCashFlow,
       format: "currency" as const,
       bold: true,
@@ -170,6 +198,13 @@ export function BankPnLSection() {
     {
       label: t('pnl.dscrBaseCase'),
       getValue: (p) => p.dscr,
+      format: "multiple",
+      bold: true,
+      dscrRow: true,
+    },
+    {
+      label: t('pnl.dscrCfads'),
+      getValue: (p) => p.debtService > 0 ? (p.cfads ?? 0) / p.debtService : 0,
       format: "multiple",
       bold: true,
       dscrRow: true,
@@ -219,6 +254,15 @@ export function BankPnLSection() {
     getValue: (p) => p.netCashFlowPostVAT,
     format: "currency",
     bold: true,
+  });
+
+  // ── Construction VAT timing (memo) ────────────────────────────────────────
+  rows.push({ label: t('pnl.vatMemoSection'), getValue: () => "", format: "raw", separator: true });
+  rows.push({
+    label: t('pnl.vatReceivable'),
+    getValue: (p) => VAT_YEAR_END[p.year] ?? 0,
+    format: "currency",
+    tone: 'vat',
   });
 
   // ── Formatting helpers ────────────────────────────────────────────────────
@@ -384,6 +428,8 @@ export function BankPnLSection() {
                     let colorClass = "";
                     if (row.dscrRow) {
                       colorClass = dscrColor(val);
+                    } else if (row.tone === 'vat') {
+                      colorClass = numVal > 0 ? "text-positive font-semibold" : numVal < 0 ? "text-amber-600 font-semibold" : "";
                     } else if (row.outflow && numVal !== 0) {
                       colorClass = "text-text-secondary";
                     } else if (row.format === "currency" && row.bold) {
@@ -409,10 +455,13 @@ export function BankPnLSection() {
         </table>
       </div>
 
-      <div className="px-6 py-3 border-t border-surface-tertiary bg-surface-secondary/20">
+      <div className="px-6 py-3 border-t border-surface-tertiary bg-surface-secondary/20 space-y-1">
         <p className="text-xs text-text-tertiary">
           {t('bank.pnlFooterNote')}
           {" "}{t('pnl.cfadsNote')}
+        </p>
+        <p className="text-xs text-amber-600/80 italic">
+          {t('pnl.vatMemoNote')}
         </p>
       </div>
     </div>

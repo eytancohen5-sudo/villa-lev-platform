@@ -949,6 +949,9 @@ export const fr = {
   'pnl.effectiveDSCR': 'Effective DSCR (incl. DSRA)',
   'pnl.partnerRepayment': 'Partner Advance Repayment',
   'pnl.distributableToEquity': 'Distribuable aux actionnaires',
+  'pnl.vatMemoSection': 'TVA construction — calendrier (mémo — hors NCF)',
+  'pnl.vatReceivable': 'Créance TVA fin d\'année / remboursement reçu',
+  'pnl.vatMemoNote': 'TVA 100% récupérable — décalage de trésorerie uniquement. Négatif : trésorerie bloquée en attente de remboursement AADE. Positif (2029) : remboursement reçu.',
   // ── DSRA tile ──
   'dsra.sectionTitle': 'Debt Service Reserve Account',
   'dsra.sectionSub': 'Auto-sized to bridge years below DSCR target',
@@ -1413,6 +1416,11 @@ export const fr = {
   'bank.vatCashflow.withinCovenant': 'All quarters within the €470K revolving covenant',
   'bank.vatCashflow.lagNote': 'VAT-liable CapEx €7,589,108 @ 24% · Draw schedule 20/50/30% · 2-quarter refund lag',
   'bank.vatCashflow.postRefundNote': 'Post-construction refund €273,208 expected Q1-Q2 2029 — improves opening-year cash',
+  'bank.wc.dual.vatBridgeLabel': '① Pont TVA construction',
+  'bank.wc.dual.vatBridgeSub': '2026–2028 · pic €455K · 100% récupérable AADE · remboursement €273K Q1–Q2 2029',
+  'bank.wc.dual.opWcLabel': '② Fonds de roulement opérationnel',
+  'bank.wc.dual.opWcSub': 'à partir de 2028 · tirage saisonnier ≤€200K · autofinancé chaque saison haute',
+  'bank.wc.dual.sizingNote': 'Dimensionné pour le pic du pont TVA ; même facilité bascule vers le FDR opérationnel après construction',
 
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'Voie de Sortie',

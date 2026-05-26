@@ -151,6 +151,7 @@ export interface TranslationDictionary {
   'pnl.events': string;
   'pnl.ancillary': string;
   'pnl.ancillaryCapped': string;
+  'pnl.profitBeforeTax': string;
   'pnl.profitAfterTax': string;
   'pnl.ffeReserve': string;
   'pnl.wcInterest': string;
@@ -997,15 +998,7 @@ export interface TranslationDictionary {
 
   // ── Bank page full i18n (2026-05-23) ──
   'bank.about.title': string;
-  'bank.about.intro': string;
   'bank.about.plotsIn': string;
-  'bank.about.luxuryVilla': string;
-  'bank.about.luxuryVillas': string;
-  'bank.about.and': string;
-  'bank.about.boutiqueHotelSuite': string;
-  'bank.about.boutiqueHotelSuites': string;
-  'bank.about.singleConcept': string;
-  'bank.about.anchorText': string;
   'bank.about.colPlot': string;
   'bank.about.colCount': string;
   'bank.about.colType': string;
@@ -1051,6 +1044,11 @@ export interface TranslationDictionary {
   'bank.wc.bpsSpread': string;
   'bank.wc.selfLiquidating': string;
   'bank.wc.notIncluded': string;
+  'bank.wc.dual.vatBridgeLabel': string;
+  'bank.wc.dual.vatBridgeSub': string;
+  'bank.wc.dual.opWcLabel': string;
+  'bank.wc.dual.opWcSub': string;
+  'bank.wc.dual.sizingNote': string;
   'bank.collateral.sub': string;
   'bank.section.loanMetrics': string;
   'bank.kpi.ofCapex': string;
@@ -1110,12 +1108,16 @@ export interface TranslationDictionary {
   'pnl.loanBalanceClosing': string;
   'pnl.coverageSection': string;
   'pnl.dscrBaseCase': string;
+  'pnl.dscrCfads': string;
   'pnl.dscrUpside': string;
   'pnl.dscrDownside': string;
   'pnl.dscrLoadedLabel': string;
   'pnl.icrInterestCoverage': string;
   'pnl.equityReturnSection': string;
   'pnl.ncfToEquity': string;
+  'pnl.vatMemoSection': string;
+  'pnl.vatReceivable': string;
+  'pnl.vatMemoNote': string;
   'pnl.distributableToEquity': string;
   'pnl.yearByYear': string;
   'pnl.expandHint': string;
@@ -1453,6 +1455,14 @@ export interface TranslationDictionary {
   'bank.about.villaUnitMixMaxSplit': string;
   'bank.about.totalKeysLabel':       string;
   'bank.about.totalBedroomsLabel':   string;
+  'bank.about.isDeveloping':         string;
+  'bank.about.villaDesc':            string;
+  'bank.about.suiteDesc':            string;
+  'bank.about.inventoryIntro':       string;
+  'bank.about.bedroomsAcross':       string;
+  'bank.about.rentableKeys':         string;
+  'bank.about.anchorPrefix':         string;
+  'bank.about.anchorSuffix':         string;
 
   // ── /admin/presentation ──
   'presentation.exportDocx': string;

@@ -401,17 +401,18 @@ export default function BankPage() {
           <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden print:border-0 print:shadow-none">
             <div className="px-6 py-5 border-b border-surface-tertiary">
               <p className="text-sm text-text-secondary leading-relaxed">
-                <span className="font-semibold text-text-primary">Villa Lev Group</span>{" "}
-                {t('bank.about.intro')}{" "}
-                <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>{" "}
-                {totalVillas > 0 && (
-                  <><span className="font-semibold text-text-primary">{totalVillas} {totalVillas > 1 ? t('bank.about.luxuryVillas') : t('bank.about.luxuryVilla')}</span>{totalSuites > 0 ? ` ${t('bank.about.and')} ` : ""}</>
-                )}
-                {totalSuites > 0 && (
-                  <><span className="font-semibold text-text-primary">{totalSuites} {totalSuites > 1 ? t('bank.about.boutiqueHotelSuites') : t('bank.about.boutiqueHotelSuite')}</span></>
-                )}
-                {" "}{t('bank.about.singleConcept')}
-                {" "}The anchor asset —{" "}
+                <span className="font-semibold text-text-primary">Villa Lev Group</span>
+                {' '}{t('bank.about.isDeveloping')}{' '}
+                <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>
+                {' '}{t('bank.about.inventoryIntro')}{' '}
+                <span className="font-semibold text-text-primary">{totalBedrooms} {t('bank.about.bedroomsAcross')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{totalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>
+                {' '}{t('bank.about.anchorPrefix')}{' '}
                 <a
                   href="https://www.airbnb.com/rooms/49627193?guests=1&adults=1&s=67&unique_share_id=20f5564b-2002-4925-a2c1-17be7c330dea"
                   target="_blank"
@@ -419,8 +420,8 @@ export default function BankPage() {
                   className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
                 >
                   Villa Lev Antiparos
-                </a>{" "}
-                {t('bank.about.anchorText')}
+                </a>
+                {' '}{t('bank.about.anchorSuffix')}
               </p>
             </div>
 
@@ -556,25 +557,41 @@ export default function BankPage() {
                     </div>
                   ))}
                 </div>
-                {/* WC facility note — inside card for visual cohesion */}
-                <div className="border-t border-surface-tertiary bg-surface-secondary/40 px-5 py-3 flex items-center gap-2 text-[11px] text-text-tertiary">
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 text-text-tertiary/60" aria-hidden="true">
-                    <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
-                    <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                  </svg>
-                  <span>
-                    <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
-                    {" "}—{" "}
-                    {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
-                    {assumptions.workingCapital.spreadOverTermRate > 0
-                      ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} ${t('bank.wc.bpsSpread')}`
-                      : ""}
-                    {assumptions.workingCapital.selfLiquidating
-                      ? ` · ${t('bank.wc.selfLiquidating')}`
-                      : ""}
-                    {" "}·{" "}
-                    <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
-                  </span>
+                {/* WC facility note — dual-use decomposition (ADR-0015) */}
+                <div className="border-t border-surface-tertiary bg-surface-secondary/40 px-5 py-3">
+                  <div className="flex items-start gap-2 text-[11px] text-text-tertiary">
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
+                      <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
+                      <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                    </svg>
+                    <span>
+                      <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
+                      {" "}—{" "}
+                      {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
+                      {assumptions.workingCapital.spreadOverTermRate > 0
+                        ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} ${t('bank.wc.bpsSpread')}`
+                        : ""}
+                      {assumptions.workingCapital.selfLiquidating
+                        ? ` · ${t('bank.wc.selfLiquidating')}`
+                        : ""}
+                      {" "}·{" "}
+                      <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
+                    </span>
+                  </div>
+                  {/* Dual-use sub-items */}
+                  <div className="mt-2 ml-5 space-y-1">
+                    <div className="text-[11px]">
+                      <span className="font-medium text-text-secondary">{t('bank.wc.dual.vatBridgeLabel')}</span>
+                      {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.vatBridgeSub')}</span>
+                    </div>
+                    <div className="text-[11px]">
+                      <span className="font-medium text-text-secondary">{t('bank.wc.dual.opWcLabel')}</span>
+                      {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.opWcSub')}</span>
+                    </div>
+                    <div className="text-[10px] text-text-tertiary/70 italic mt-1">
+                      {t('bank.wc.dual.sizingNote')}
+                    </div>
+                  </div>
                 </div>
               </div>
               {/* Distribution covenant badge (ADR-0014) */}
