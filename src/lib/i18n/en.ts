@@ -751,6 +751,7 @@ export const en: TranslationDictionary = {
   'field.landscapingCost': 'Landscaping / stone fence',
   'field.licensesPermits': 'Licenses & permits',
   'field.constructionDirector': 'Construction director',
+  'field.interiorDesignerCost': 'Interior designer',
   'field.poolCostPerM2': 'Pool construction cost (€/m²)',
   'field.poolSlotQty': 'Count',
   'field.poolSlotWidth': 'Width (m)',

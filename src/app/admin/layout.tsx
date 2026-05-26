@@ -13,7 +13,7 @@ import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { FinancingPath } from "@/lib/engine/types";
 import { TranslationDictionary } from "@/lib/i18n/types";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
-import { useEffectiveAuth, clearImpersonation } from "@/lib/data/useEffectiveAuth";
+import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 import { AuthGate } from "@/components/AuthGate";
 
@@ -600,7 +600,6 @@ export default function AdminLayout({
     // isImpersonating closure value (from the same render) would still
     // be true and router.replace('/bank') would fire before re-render.
     if (pathname === "/admin/login") {
-      clearImpersonation();
       return;
     }
     // Redirect fires only after the Firestore profile arrives and

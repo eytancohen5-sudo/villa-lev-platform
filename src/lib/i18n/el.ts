@@ -1811,6 +1811,7 @@ export const el: TranslationDictionary = {
   'field.landscapingCost':         'Διαμόρφωση / πέτρινος φράκτης',
   'field.licensesPermits':         'Άδειες & εγκρίσεις',
   'field.constructionDirector':    'Διευθυντής κατασκευής',
+  'field.interiorDesignerCost':    'Εσωτερικός σχεδιαστής',
   'field.poolCostPerM2':           'Κόστος κατασκευής πισίνας (€/m²)',
   'field.poolSlotQty':             'Count',
   'field.poolSlotWidth':           'Πλάτος (m)',

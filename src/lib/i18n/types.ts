@@ -535,6 +535,7 @@ export interface TranslationDictionary {
   'field.landscapingCost': string;
   'field.licensesPermits': string;
   'field.constructionDirector': string;
+  'field.interiorDesignerCost': string;
   'field.poolCostPerM2': string;
   'field.poolSlotQty': string;
   'field.poolSlotWidth': string;

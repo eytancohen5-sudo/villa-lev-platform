@@ -914,3 +914,38 @@ export const LEXICON_TOUR: TourConfig = {
     },
   ],
 };
+
+export const RETURNS_TOUR: TourConfig = {
+  storageKey: "villaLev.returnsTour.seen.v1",
+  steps: [
+    {
+      title: { en: "Returns Analysis", el: "Returns Analysis", he: "Returns Analysis", fr: "Returns Analysis" },
+      body: {
+        en: "Sponsor-side economics at the active exit year and financing path. Two exit methods side-by-side: hotel sale (EBITDA × multiple) and property sale (built surface × €/m²).",
+        el: "Sponsor-side economics at the active exit year and financing path. Two exit methods side-by-side: hotel sale (EBITDA × multiple) and property sale (built surface × €/m²).",
+        he: "אקונומיקה צד ספונסר בשנת היציאה הפעילה. שני שיטות יציאה: מכירת מלון (EBITDA × כפולה) ומכירת נכס (שטח × €/m²).",
+        fr: "Économie côté sponsor à l'année de sortie active. Deux méthodes de sortie: vente hôtel (EBITDA × multiple) et vente propriété (surface × €/m²).",
+      },
+    },
+    {
+      target: "#returns-exit-valuations",
+      title: { en: "Two exit valuation methods", el: "Two exit valuation methods", he: "שתי שיטות הערכה", fr: "Deux méthodes de valorisation" },
+      body: {
+        en: "Hotel sale: EBITDA × multiple. Property sale: built surface × €/m². The preferred exit is whichever yields the higher net equity value after repaying the loan.",
+        el: "Hotel sale: EBITDA × multiple. Property sale: built surface × €/m². The preferred exit is whichever yields the higher net equity value after repaying the loan.",
+        he: "מכירת מלון: EBITDA × כפולה. מכירת נכס: שטח × €/m². היציאה המועדפת היא זו עם ערך ההון הנקי הגבוה יותר.",
+        fr: "Vente hôtel: EBITDA × multiple. Vente propriété: surface × €/m². La sortie préférée est celle qui génère la valeur nette la plus élevée.",
+      },
+    },
+    {
+      target: "#returns-kpi-grid",
+      title: { en: "Equity KPI cards", el: "Equity KPI cards", he: "כרטיסי KPI", fr: "Cartes KPI" },
+      body: {
+        en: "Annual equity yield, operating yield multiple, Total MOIC (including terminal value), payback period, levered Equity IRR, and unlevered Project IRR. All update live.",
+        el: "Annual equity yield, operating yield multiple, Total MOIC, payback period, levered Equity IRR, unlevered Project IRR.",
+        he: "תשואה שנתית, כפולת תפעול, MOIC כולל ערך טרמינלי, תקופת החזר, IRR מינופי ולא-מינופי.",
+        fr: "Rendement annuel, multiple, MOIC total, période de remboursement, IRR avec et sans levier.",
+      },
+    },
+  ],
+};

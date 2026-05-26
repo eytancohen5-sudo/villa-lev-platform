@@ -1813,6 +1813,7 @@ export const he: TranslationDictionary = {
   'field.landscapingCost':         'גינון / גדר אבן',
   'field.licensesPermits':         'רישיונות והיתרים',
   'field.constructionDirector':    'מנהל בנייה',
+  'field.interiorDesignerCost':    'מעצב פנים',
   'field.poolCostPerM2':           'עלות בניית בריכה (€/מ"ר)',
   'field.poolSlotQty':             'Count',
   'field.poolSlotWidth':           'רוחב (מ)',

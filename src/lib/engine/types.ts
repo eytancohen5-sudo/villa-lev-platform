@@ -187,6 +187,7 @@ export interface PropertyTemplate {
   landscapingCost?: number;
   licensesPermitsCost?: number;
   constructionDirectorCost?: number;
+  interiorDesignerCost?: number;
   poolSlots?: PoolSlot[];
   poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
   wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
