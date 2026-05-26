@@ -19,6 +19,7 @@ import {
   type MarketRowWithFallback,
 } from "@/lib/data/marketBenchmarks";
 import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
+import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 import type { Locale } from "@/lib/i18n/types";
 
 // Stabilised year — matches engine model.ts `stabilisedYear = pnl.find(p => p.year === 2031)`.
@@ -441,7 +442,7 @@ export function LiveTrackRecord({
 }: {
   variant?: "default" | "compact";
 }) {
-  const { locale } = useTranslation();
+  const { locale, t } = useTranslation();
   const lr = LR[locale] ?? LR.en;
   const {
     currentSeason,
@@ -481,6 +482,7 @@ export function LiveTrackRecord({
   // strip lets a banker drill from the BP-vs-market deltas straight into the
   // 2025 Greek Islands hotel set without scrolling further down the page.
   const [marketDrawerOpen, setMarketDrawerOpen] = useState(false);
+  const [villaMarketDrawerOpen, setVillaMarketDrawerOpen] = useState(false);
 
   // ── Compute live KPIs ──
   // `nowMs` comes from a useSyncExternalStore so we don't call impure
@@ -923,7 +925,7 @@ export function LiveTrackRecord({
           {/* "See the N comparables" → reuses the MarketComparablesDrawer
               that ConservatismTriangle below also opens, so bankers reach
               the same 2025 hotel set from either panel. */}
-          <div className="mt-3">
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => setMarketDrawerOpen(true)}
@@ -935,10 +937,23 @@ export function LiveTrackRecord({
               ).replace(" →", "")}</span>
               <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
+            <button
+              data-testid="villa-market-btn"
+              type="button"
+              onClick={() => setVillaMarketDrawerOpen(true)}
+              className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+            >
+              <span>{t("triangle.seeVillaMarket").replace(" →", "")}</span>
+              <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+            </button>
           </div>
           <MarketComparablesDrawer
             open={marketDrawerOpen}
             onClose={() => setMarketDrawerOpen(false)}
+          />
+          <VillaMarketDrawer
+            open={villaMarketDrawerOpen}
+            onClose={() => setVillaMarketDrawerOpen(false)}
           />
         </div>
       )}

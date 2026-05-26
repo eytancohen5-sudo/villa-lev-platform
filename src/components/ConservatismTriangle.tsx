@@ -184,11 +184,12 @@ export function ConservatismTriangle({
           <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
         </button>
         <button
+          data-testid="villa-market-btn"
           type="button"
           onClick={() => setVillaDrawerOpen(true)}
           className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
         >
-          <span>{t("triangle.seeVillaMarket")}</span>
+          <span>{t("triangle.seeVillaMarket").replace(" →", "")}</span>
           <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
         </button>
       </div>
