@@ -1016,6 +1016,13 @@ export const fr: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
+  'dc.seniorDeferCard': 'Sensitivity', // TODO: translate
+  'dc.seniorDeferCheckbox': 'Defer 2029 OpCo senior fee', // TODO: translate
+  'dc.seniorDeferSub': 'Shows adjusted DSCR for 2029 (fee deferred) and 2030 (catch-up). Does not affect saved model or bank view.', // TODO: translate
+  'dc.seniorDeferBadge': 'Deferral active', // TODO: translate
+  'dc.seniorDeferYear': 'Year', // TODO: translate
+  'dc.seniorDeferAdjDscr': 'Adj. DSCR', // TODO: translate
+  'dc.seniorDeferNote': 'Net LLCR unchanged — 2030 bears the deferred fee.', // TODO: translate
   'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
@@ -1331,6 +1338,20 @@ export const fr: TranslationDictionary = {
   'ct.layerB.cashDeferred':     '50% cash (deferred)',
   'ct.layerB.equityDiv':        '50% equity ÷ equity pool',
   'ct.layerB.grantBonus':       '= Grant bonus',
+  'ct.layerB.totalFee':         'Commission de succès (10% × subvention)',
+  'ct.layerB.aggelakakis':      'Aggelakakis (consultant)',
+  'ct.layerB.eytan':            'Eytan (fondateur)',
+  'ct.layerB.cashPortion':      'Cash — différé à {year}',
+  'ct.layerB.equityAtExit':     'Equity déduit à la sortie',
+  'ct.layerB.layerBEquity':     'Equity → Layer B',
+  'ct.layerB.paymentYear':      'Année de paiement cash',
+  'ct.grantConv.heading':           'Structure des honoraires de succès',
+  'ct.grantConv.feePct':            'Honoraires totaux',
+  'ct.grantConv.consultantSharePct': 'Part du consultant',
+  'ct.grantConv.cashSplitPct':      'Part en liquidités',
+  'ct.grantConv.aggelakakisExitPct': "Part de sortie d'Aggelakakis",
+  'ct.grantConv.subGrant':          '% de la subvention',
+  'ct.grantConv.subCash':           '% en liquidités; reste = capital à la sortie',
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
   'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
   'ct.redactedShowFor':         'Show full detail for:',

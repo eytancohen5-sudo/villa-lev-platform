@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   formatCurrency,
@@ -8,11 +9,15 @@ import {
 } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
+import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
+import { DEBT_COVERAGE_TOUR } from "@/lib/tours/configs";
 import {
   LineChart,
   Line,
   AreaChart,
   Area,
+  ComposedChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,74 +26,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
-
-// ── Shared UI components ─────────────────────────────────────
-
-function SectionHeader({ title, sub }: { title: string; sub?: string }) {
-  return (
-    <div className="flex items-baseline justify-between mb-3 mt-8 first:mt-0 px-1">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-secondary">
-        {title}
-      </h2>
-      {sub && <span className="text-[11px] text-text-tertiary">{sub}</span>}
-    </div>
-  );
-}
-
-function StatusChip({ label, ok }: { label: string; ok: boolean }) {
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider ${
-        ok ? "bg-positive/15 text-positive" : "bg-warning/15 text-warning"
-      }`}
-    >
-      <span className={`w-1.5 h-1.5 rounded-full ${ok ? "bg-positive" : "bg-warning"}`} />
-      {label}
-    </span>
-  );
-}
-
-function KPICard({
-  label,
-  value,
-  sublabel,
-  threshold,
-  chip,
-  accent = false,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sublabel?: string;
-  threshold?: string;
-  chip?: { label: string; ok: boolean };
-  accent?: boolean;
-  tone?: "positive" | "warning" | "neutral";
-}) {
-  const valueColor =
-    tone === "positive" ? "text-positive" : tone === "warning" ? "text-warning" : "text-text-primary";
-  return (
-    <div
-      className={`relative rounded-xl border p-5 ${
-        accent ? "bg-brand-50 border-brand-200" : "bg-white border-surface-tertiary"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="text-xs font-medium uppercase tracking-wider text-text-tertiary">
-          {label}
-        </div>
-        {chip && <StatusChip label={chip.label} ok={chip.ok} />}
-      </div>
-      <div className={`kpi-value ${valueColor}`}>{value}</div>
-      {sublabel && <div className="text-xs text-text-tertiary mt-1">{sublabel}</div>}
-      {threshold && (
-        <div className="text-[11px] text-text-tertiary/80 mt-1.5 pt-1.5 border-t border-surface-tertiary/50">
-          {threshold}
-        </div>
-      )}
-    </div>
-  );
-}
+import { SectionHeader, StatusChip, KPICard } from "@/components/AdminUI";
 
 function MiniStat({
   label,
@@ -120,6 +58,8 @@ function MiniStat({
 export default function DebtCoveragePage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario } = useModelStore();
+  const [tourOpen, setTourOpen, neverSeen] = usePageTour(DEBT_COVERAGE_TOUR.storageKey);
+  const [seniorDeferActive, setSeniorDeferActive] = useState(false);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -174,17 +114,34 @@ export default function DebtCoveragePage() {
           ? t("path.tepixLoan")
           : t("path.commercial");
 
-  const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
+  const scenarioLabel =
+    activeScenario === 'upside' ? t('scenario.upside') :
+    activeScenario === 'downside' ? t('scenario.downside') :
+    activeScenario === 'breakeven' ? t('scenario.breakeven') :
+    t('scenario.realistic');
+
+  // Senior fee deferral sensitivity (ephemeral display-only — does not touch engine)
+  const pnl2029 = activePnL.find((p) => p.year === 2029)
+  const pnl2030 = activePnL.find((p) => p.year === 2030)
+  const deferredFee = pnl2029?.opCoSeniorPaid ?? 0
+  const adj2029DSCR =
+    seniorDeferActive && pnl2029 && pnl2029.debtService > 0
+      ? (pnl2029.ebitdaPreOpCo + deferredFee) / pnl2029.debtService
+      : null
+  const adj2030DSCR =
+    seniorDeferActive && pnl2030 && pnl2030.debtService > 0
+      ? (pnl2030.ebitdaPreOpCo - deferredFee) / pnl2030.debtService
+      : null
 
   // DSCR trajectory chart data
   const dscrTrajectoryData = model.dscrByYear
     .filter((d) => d.year >= 2028)
     .map((d) => ({
       year: d.year,
-      Realistic: Number(d.realistic.toFixed(2)),
+      Conservative: Number(d.realistic.toFixed(2)),
       Downside: Number(d.downside.toFixed(2)),
       Grant: Number(d.grant.toFixed(2)),
-      "TEPIX Loan": Number(d.tepixLoan.toFixed(2)),
+      Realistic: Number(d.upside.toFixed(2)),
     }));
 
   return (
@@ -192,17 +149,77 @@ export default function DebtCoveragePage() {
       {/* Header */}
       <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">Debt Coverage</h1>
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">{t('dc.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('dc.pageIntro')}</p>
           <p className="text-sm font-medium text-text-secondary mt-1">
             <span className="text-text-primary">{pathLabel}</span>
             <span className="text-text-tertiary"> &middot; </span>
             {scenarioLabel}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+        </div>
+      </div>
+
+      {/* Senior fee deferral sensitivity — admin only, ephemeral */}
+      <div className="mb-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            {t('dc.seniorDeferCard')}
+          </span>
+          {seniorDeferActive && (
+            <StatusChip label={t('dc.seniorDeferBadge')} ok={false} />
+          )}
+        </div>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-surface-tertiary accent-amber-500"
+            checked={seniorDeferActive}
+            onChange={(e) => setSeniorDeferActive(e.target.checked)}
+          />
+          <div>
+            <div className="text-sm font-medium text-text-primary">
+              {t('dc.seniorDeferCheckbox')}
+            </div>
+            <div className="text-xs text-text-tertiary mt-0.5">
+              {t('dc.seniorDeferSub')}
+            </div>
+          </div>
+        </label>
+
+        {seniorDeferActive && adj2029DSCR !== null && adj2030DSCR !== null && (
+          <div className="mt-3 rounded-lg bg-surface-secondary/60 p-3">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-text-tertiary">
+                  <th className="text-left font-medium pb-1">{t('dc.seniorDeferYear')}</th>
+                  <th className="text-right font-medium pb-1">{t('dc.seniorDeferAdjDscr')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="text-text-primary">2029</td>
+                  <td className="text-right font-mono font-semibold text-amber-600">
+                    {adj2029DSCR.toFixed(2)}×
+                  </td>
+                </tr>
+                <tr>
+                  <td className="text-text-primary">2030</td>
+                  <td className="text-right font-mono font-semibold text-text-secondary">
+                    {adj2030DSCR.toFixed(2)}×
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="mt-2 text-xs text-text-tertiary">{t('dc.seniorDeferNote')}</p>
+          </div>
+        )}
       </div>
 
       {/* Section 1 — DSCR Trajectory Chart */}
-      <div id="section-dscr-hero" className="bg-white rounded-2xl border border-surface-tertiary p-5 shadow-sm scroll-mt-24">
+      <div id="section-dscr-hero" className="bg-white rounded-xl border border-surface-tertiary p-5 scroll-mt-24">
         <div className="mb-3">
           <div className="flex items-baseline justify-between">
             <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary">
@@ -231,20 +248,20 @@ export default function DebtCoveragePage() {
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <ReferenceLine
-              y={1.25}
+              y={assumptions?.dscrCovenantThreshold ?? 1.25}
               stroke="#9E3B3B"
               strokeDasharray="5 5"
-              label={{ value: "1.25× covenant", fontSize: 10, fill: "#9E3B3B" }}
+              label={{ value: t('dc.covenantLabel'), fontSize: 10, fill: "#9E3B3B" }}
             />
             <ReferenceLine
               y={1.50}
               stroke="#6B7A3D"
               strokeDasharray="3 3"
-              label={{ value: "1.50× comfort", fontSize: 10, fill: "#6B7A3D" }}
+              label={{ value: t('dc.comfortLabel'), fontSize: 10, fill: "#6B7A3D" }}
             />
             <Line
               type="monotone"
-              dataKey="Realistic"
+              dataKey="Conservative"
               name={t("scenario.realistic")}
               stroke="#8B6914"
               strokeWidth={2.5}
@@ -260,15 +277,15 @@ export default function DebtCoveragePage() {
             <Line
               type="monotone"
               dataKey="Grant"
-              name={t("path.grantShort")}
+              name={t("dc.grantLineName")}
               stroke="#4A7C3F"
               strokeWidth={1.5}
               strokeDasharray="6 3"
             />
             <Line
               type="monotone"
-              dataKey="TEPIX Loan"
-              name={t("path.tepixLoanShort")}
+              dataKey="Realistic"
+              name="Realistic"
               stroke="#7B5EA7"
               strokeWidth={1.5}
             />
@@ -277,6 +294,7 @@ export default function DebtCoveragePage() {
       </div>
 
       {/* Section 2 — Coverage Ratios */}
+      <div id="section-coverage-ratios" className="scroll-mt-24">
       <SectionHeader title={t("dash.section.coverage")} sub={t("dash.coverageSub")} />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPICard
@@ -301,21 +319,22 @@ export default function DebtCoveragePage() {
           label={t("kpi.covHeadroom")}
           value={(() => {
             if (dscrPostRamp <= 0) return "—";
-            const covenant = 1.25;
+            const covenant = assumptions?.dscrCovenantThreshold ?? 1.25;
             const deltaPct = (dscrPostRamp - covenant) / covenant;
             const sign = deltaPct >= 0 ? "+" : "−";
             return `${sign}${(Math.abs(deltaPct) * 100).toFixed(1)}%`;
           })()}
           sublabel={t("kpi.covHeadroomSub")}
           tone={
-            dscrPostRamp - 1.25 >= 0.2
+            dscrPostRamp - (assumptions?.dscrCovenantThreshold ?? 1.25) >= 0.2
               ? "positive"
-              : dscrPostRamp >= 1.25
+              : dscrPostRamp >= (assumptions?.dscrCovenantThreshold ?? 1.25)
                 ? undefined
                 : "warning"
           }
         />
       </div>
+      </div>{/* end section-coverage-ratios */}
 
       {/* Section 3 — Capital Structure & Debt */}
       <SectionHeader title={t("dash.section.capital")} sub={pathLabel} />
@@ -449,7 +468,123 @@ export default function DebtCoveragePage() {
         </>
       )}
 
+      {/* Section — DSRA (conditional) */}
+      {(activeScenarioOutput?.dsraTarget ?? 0) > 0 && (() => {
+        const dsraTarget = activeScenarioOutput.dsraTarget ?? 0;
+        const dsraChartData = activePnL
+          .filter((p) => p.year >= 2029)
+          .map((p) => ({
+            year: p.year,
+            balance: Math.round(p.dsraBalance ?? 0),
+            draw: Math.round(p.dsraDraw ?? 0),
+            replenishment: Math.round(p.dsraReplenishment ?? 0),
+          }));
+        const hasActivity = dsraChartData.some((d) => d.draw > 0 || d.replenishment > 0);
+        return (
+          <section>
+            <div className="mb-3 mt-6">
+              <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide">
+                {t('dsra.sectionTitle')}
+              </h3>
+              <p className="text-xs text-text-secondary mt-0.5">{t('dsra.sectionSub')}</p>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mb-4">
+              <KPICard
+                label={t('dsra.target')}
+                value={formatCurrency(dsraTarget, true, locale)}
+                sublabel={t('dsra.targetSub')}
+              />
+              <KPICard
+                label={t('dsra.sweep')}
+                value={formatCurrency(activeScenarioOutput.dsraSweep2028 ?? 0, true, locale)}
+                sublabel={t('dsra.sweepSub')}
+              />
+              <KPICard
+                label={t('dsra.partnerAdvance')}
+                value={formatCurrency(activeScenarioOutput.dsraPartnerAdvance ?? 0, true, locale)}
+                sublabel={t('dsra.partnerAdvanceSub')}
+              />
+            </div>
+
+            {/* DSRA Balance & Activity chart */}
+            <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+              <div className="flex items-baseline justify-between mb-1">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+                  {t('dsra.chartTitle')}
+                </h4>
+                <span className="text-[10px] text-text-tertiary font-mono">
+                  {t('dsra.target')}: {formatCurrency(dsraTarget, true, locale)}
+                </span>
+              </div>
+              <p className="text-[11px] text-text-tertiary mb-4">{t('dsra.chartSub')}</p>
+              {hasActivity ? (
+                <ResponsiveContainer width="100%" height={240}>
+                  <ComposedChart data={dsraChartData} margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="dsraBalGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#C4A55E" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#C4A55E" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                    <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                    <Tooltip
+                      formatter={(v) => formatCurrency(Number(v), false, locale)}
+                      contentStyle={{ borderRadius: 8, border: '1px solid #EDE6D5', fontSize: 12 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <ReferenceLine
+                      y={dsraTarget}
+                      stroke="#8B6914"
+                      strokeDasharray="5 4"
+                      label={{ value: t('dsra.target'), position: 'insideTopRight', fontSize: 9, fill: '#8B6914' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="balance"
+                      name={t('dsra.legend.balance')}
+                      stroke="#C4A55E"
+                      strokeWidth={2}
+                      fill="url(#dsraBalGrad)"
+                    />
+                    <Bar
+                      dataKey="replenishment"
+                      name={t('dsra.legend.replenish')}
+                      yAxisId="right"
+                      barSize={16}
+                      fill="#6B7A3D"
+                    />
+                    <Bar
+                      dataKey="draw"
+                      name={t('dsra.legend.draw')}
+                      yAxisId="right"
+                      barSize={16}
+                      fill="#9E3B3B"
+                    />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-24 text-xs text-positive font-medium gap-2">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                    <circle cx="7" cy="7" r="6.5" stroke="#6B7A3D" />
+                    <path d="M4 7l2.5 2.5L10 4.5" stroke="#6B7A3D" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  {t('dsra.noActivity')}
+                </div>
+              )}
+            </div>
+
+            <p className="text-[11px] text-text-tertiary mt-3 leading-relaxed">
+              {t('dsra.debtCoverageCaption')}
+            </p>
+          </section>
+        );
+      })()}
+
       {/* Section 6 — Collateral */}
+      <div id="section-collateral" className="scroll-mt-24">
       <SectionHeader title={t("dash.section.collateral")} sub={t("dash.collateralTiers")} />
       <div className="bg-white rounded-xl border border-surface-tertiary p-5">
         <div className="overflow-x-auto">
@@ -549,6 +684,8 @@ export default function DebtCoveragePage() {
           />
         </div>
       </div>
+      </div>{/* end section-collateral */}
+      <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={DEBT_COVERAGE_TOUR} />
     </div>
   );
 }

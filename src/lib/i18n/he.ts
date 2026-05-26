@@ -683,6 +683,14 @@ export const he: TranslationDictionary = {
   // TODO: translate
   'as.portfolioOpex.colNetMonthlyTooltip': 'Estimated employee take-home: gross minus EFKA (13.87%) and simplified Greek income-tax brackets. Not a payroll calculation.',
   // TODO: translate
+  'as.portfolioOpex.colHeadcount': 'FTE',
+  // TODO: translate
+  'as.portfolioOpex.colHeadcountTooltip': 'Number of workers in this role. Multiplies gross salary, burden, and allowances.',
+  // TODO: translate
+  'as.portfolioOpex.colBonus': 'Bonus mo.',
+  // TODO: translate
+  'as.portfolioOpex.colBonusTooltip': 'Statutory bonus in salary-month equivalents. Greek law: Christmas (1 month) + Easter (½) + Holiday (½) = 2 for year-round staff. Seasonal = contract months ÷ 12 × 2 (pro-rata).',
+  // TODO: translate
   'as.portfolioOpex.poolCount': 'Pools',
   // TODO: translate
   'as.portfolioOpex.poolsAt': 'pools ×',
@@ -1243,6 +1251,13 @@ export const he: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
+  'dc.seniorDeferCard': 'ניתוח רגישות',
+  'dc.seniorDeferCheckbox': 'דחיית עמלת OpCo הסיניור לשנת 2029',
+  'dc.seniorDeferSub': 'מציג DSCR מותאם ל-2029 (דחייה) ו-2030 (השלמה). אינו משפיע על המודל השמור או תצוגת הבנק.',
+  'dc.seniorDeferBadge': 'דחייה פעילה',
+  'dc.seniorDeferYear': 'שנה',
+  'dc.seniorDeferAdjDscr': 'DSCR מותאם',
+  'dc.seniorDeferNote': 'LLCR נטו ללא שינוי — 2030 נושא את העמלה הנדחית.',
   'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
@@ -1718,6 +1733,20 @@ export const he: TranslationDictionary = {
   'ct.layerB.cashDeferred':     '50% cash (deferred)',
   'ct.layerB.equityDiv':        '50% equity ÷ equity pool',
   'ct.layerB.grantBonus':       '= Grant bonus',
+  'ct.layerB.totalFee':         'עמלת הצלחה (10% × מענק)',
+  'ct.layerB.aggelakakis':      'אגלאקאקיס (יועץ)',
+  'ct.layerB.eytan':            'איתן (מייסד)',
+  'ct.layerB.cashPortion':      'מזומן — נדחה ל-{year}',
+  'ct.layerB.equityAtExit':     'הון — מנוכה ביציאה',
+  'ct.layerB.layerBEquity':     'הון → Layer B',
+  'ct.layerB.paymentYear':      'שנת תשלום מזומן',
+  'ct.grantConv.heading':           'Grant success fee structure',
+  'ct.grantConv.feePct':            'Total fee',
+  'ct.grantConv.consultantSharePct': 'Consultant share',
+  'ct.grantConv.cashSplitPct':      'Cash portion',
+  'ct.grantConv.aggelakakisExitPct': 'Aggelakakis exit share',
+  'ct.grantConv.subGrant':          '% of grant',
+  'ct.grantConv.subCash':           '% paid cash; remainder = equity at exit',
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
   'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
   'ct.redactedShowFor':         'Show full detail for:',

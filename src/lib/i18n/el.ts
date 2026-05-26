@@ -691,6 +691,14 @@ export const el: TranslationDictionary = {
   // TODO: translate
   'as.portfolioOpex.colNetMonthlyTooltip': 'Estimated employee take-home: gross minus EFKA (13.87%) and simplified Greek income-tax brackets. Not a payroll calculation.',
   // TODO: translate
+  'as.portfolioOpex.colHeadcount': 'FTE',
+  // TODO: translate
+  'as.portfolioOpex.colHeadcountTooltip': 'Number of workers in this role. Multiplies gross salary, burden, and allowances.',
+  // TODO: translate
+  'as.portfolioOpex.colBonus': 'Bonus mo.',
+  // TODO: translate
+  'as.portfolioOpex.colBonusTooltip': 'Statutory bonus in salary-month equivalents. Greek law: Christmas (1 month) + Easter (½) + Holiday (½) = 2 for year-round staff. Seasonal = contract months ÷ 12 × 2 (pro-rata).',
+  // TODO: translate
   'as.portfolioOpex.poolCount': 'Pools',
   // TODO: translate
   'as.portfolioOpex.poolsAt': 'pools ×',
@@ -1251,6 +1259,13 @@ export const el: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
+  'dc.seniorDeferCard': 'Ανάλυση ευαισθησίας',
+  'dc.seniorDeferCheckbox': 'Αναβολή senior αμοιβής OpCo 2029',
+  'dc.seniorDeferSub': 'Εμφανίζει προσαρμοσμένο ΔΚΕΧ για το 2029 (αναβολή) και 2030 (επιστροφή). Δεν επηρεάζει το αποθηκευμένο μοντέλο ή την τραπεζική προβολή.',
+  'dc.seniorDeferBadge': 'Αναβολή ενεργή',
+  'dc.seniorDeferYear': 'Έτος',
+  'dc.seniorDeferAdjDscr': 'Προσ. ΔΚΕΧ',
+  'dc.seniorDeferNote': 'Ο καθαρός LLCR παραμένει αμετάβλητος — το 2030 φέρει την αναβληθείσα αμοιβή.',
   'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
@@ -1716,6 +1731,20 @@ export const el: TranslationDictionary = {
   'ct.layerB.cashDeferred':     '50% cash (deferred)',
   'ct.layerB.equityDiv':        '50% equity ÷ equity pool',
   'ct.layerB.grantBonus':       '= Grant bonus',
+  'ct.layerB.totalFee':         'Grant success fee (10% × grant)',
+  'ct.layerB.aggelakakis':      'Αγγελακάκης (σύμβουλος)',
+  'ct.layerB.eytan':            'Eytan (ιδρυτής)',
+  'ct.layerB.cashPortion':      'Μετρητά — αναβολή στο {year}',
+  'ct.layerB.equityAtExit':     'Equity αφαιρείται στην έξοδο',
+  'ct.layerB.layerBEquity':     'Equity → Layer B',
+  'ct.layerB.paymentYear':      'Έτος πληρωμής μετρητών',
+  'ct.grantConv.heading':           'Δομή αμοιβής επιτυχίας επιχορήγησης',
+  'ct.grantConv.feePct':            'Συνολική αμοιβή',
+  'ct.grantConv.consultantSharePct': 'Μερίδιο συμβούλου',
+  'ct.grantConv.cashSplitPct':      'Μετρητά',
+  'ct.grantConv.aggelakakisExitPct': 'Ποσοστό εξόδου Αγγελακάκη',
+  'ct.grantConv.subGrant':          '% επιχορήγησης',
+  'ct.grantConv.subCash':           '% σε μετρητά· υπόλοιπο = μετοχές',
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
   'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
   'ct.redactedShowFor':         'Show full detail for:',
