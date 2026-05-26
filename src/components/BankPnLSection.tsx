@@ -145,7 +145,7 @@ export function BankPnLSection() {
       format: "currency",
       bold: true,
     },
-    { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
+    { label: t('term.ebitdaMargin'), getValue: (p) => p.totalRevenue > 0 ? (p.ebitdaPreOpCo ?? 0) / p.totalRevenue : 0, format: "percent" },
   );
 
   // ── EBIT section (default collapsed) ─────────────────────────────────────
@@ -226,7 +226,7 @@ export function BankPnLSection() {
     },
     {
       label: t('pnl.profitBeforeTax'),
-      getValue: (p) => p.netCashFlow,
+      getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0) - (p.termLoanInterest ?? 0) - (p.wcInterestExpense ?? 0),
       format: "currency" as const,
       bold: true,
     },
