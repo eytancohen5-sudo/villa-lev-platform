@@ -826,7 +826,7 @@ export default function PresentationPage() {
                   <tr key={p.id} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                     <td className="px-3 py-2 font-medium text-text-primary">{p.name}</td>
                     <td className="px-3 py-2 text-text-secondary">
-                      {p.villaUnits > 0 ? "Luxury Villa" : "Boutique Hotel"}
+                      {p.villaUnits > 0 ? t('admin.about.luxuryVilla') : t('admin.about.hotelRooms')}
                     </td>
                     <td className="px-3 py-2 text-right">{unitCount * p.count}</td>
                     <td className="px-3 py-2 text-right">
