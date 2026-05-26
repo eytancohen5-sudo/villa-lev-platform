@@ -7,6 +7,7 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { BankPnLSection } from "@/components/BankPnLSection";
+import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
@@ -763,6 +764,22 @@ export default function BankPage() {
             </div>
           );
         })()}
+
+        {/* 7b. Sources & Uses Panel */}
+        <SourcesUsesPanel
+          km={{
+            loanAmount: km.loanAmount,
+            equityRequired: km.equityRequired,
+            graceInterestCarry: km.graceInterestCarry,
+            grantAmount: km.grantAmount,
+          }}
+          capexCategories={model.capex.categories}
+          wc={{
+            facilitySize: assumptions.workingCapital.facilitySize,
+            internalCashBuffer: assumptions.workingCapital.internalCashBuffer ?? 100000,
+          }}
+          locale={locale}
+        />
 
         {/* 8. Capital Structure + Stabilised Metrics */}
         <div id="bank-capital-structure" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">

@@ -77,7 +77,7 @@ export default function PnLPage() {
   const rows: RowDef[] = [];
 
   // ── Revenue ──────────────────────────────────────────────────────────────
-  rows.push({ label: "Revenue", getValue: () => 0, format: "currency", separator: true, sectionKey: "revenue" });
+  rows.push({ label: t('pnl.revenue'), getValue: () => 0, format: "currency", separator: true, sectionKey: "revenue" });
 
   for (const prop of portfolioShape) {
     const propId = prop.id;
@@ -110,7 +110,7 @@ export default function PnLPage() {
   );
 
   // ── Operating costs ───────────────────────────────────────────────────────
-  rows.push({ label: "Operating costs", getValue: () => 0, format: "currency", separator: true, sectionKey: "opex" });
+  rows.push({ label: t('pnl.totalOpex'), getValue: () => 0, format: "currency", separator: true, sectionKey: "opex" });
 
   for (const prop of portfolioShape) {
     const propId = prop.id;
@@ -129,7 +129,6 @@ export default function PnLPage() {
   }
 
   rows.push(
-    { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.portfolioStaff'),      getValue: (p) => p.portfolioOpex?.staffTotal    ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.portfolioServices'),   getValue: (p) => p.portfolioOpex?.servicesTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.portfolioOverhead'),   getValue: (p) => p.portfolioOpex?.overheadTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
@@ -138,12 +137,18 @@ export default function PnLPage() {
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
     { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
-    { label: t('pnl.depreciation'), getValue: (p) => -(p.annualDepreciation ?? 0), format: "currency", color: "negative", indent: true, detail: true },
-    { label: t('pnl.ebit'), getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0), format: "currency", bold: true, detail: true },
+    { label: t('pnl.depreciation'), getValue: (p) => -(p.annualDepreciation ?? 0), format: "currency", color: "negative", indent: true },
+    { label: t('pnl.ebit'), getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0), format: "currency", bold: true },
+  );
+
+  // ── Finance (WC interest + term loan detail) ──────────────────────────────
+  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "finance" });
+  rows.push(
+    { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", detail: false, section: "finance" },
   );
 
   // ── Debt service ──────────────────────────────────────────────────────────
-  rows.push({ label: "Debt service", getValue: () => 0, format: "currency", separator: true, sectionKey: "debtService" });
+  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "debtService" });
   rows.push(
     { label: t('pnl.termLoanInterest'),  getValue: (p) => p.termLoanInterest,  format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.termLoanPrincipal'), getValue: (p) => p.termLoanPrincipal, format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
@@ -168,18 +173,18 @@ export default function PnLPage() {
       format: "currency" as const,
       bold: true,
     },
-    { label: t('term.ncfFull'),          getValue: (p) => p.netCashFlow,       format: "currency", bold: true, color: "dynamic" },
+    { label: t('pnl.profitBeforeTax'),   getValue: (p) => p.netCashFlow,       format: "currency", bold: true, color: "dynamic" },
   );
 
   // ── Tax & distributions ───────────────────────────────────────────────────
-  rows.push({ label: "Tax & distributions", getValue: () => 0, format: "currency", separator: true, sectionKey: "tax" });
+  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => 0, format: "currency", separator: true, sectionKey: "tax" });
   rows.push(
     { label: t('term.vatPayable'),       getValue: (p) => p.vatPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
     { label: t('term.citPayable'),       getValue: (p) => p.citPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
     { label: t('term.taxLossGenerated'), getValue: (p) => -(p.taxLossGenerated ?? 0),        format: "currency", color: "negative", detail: true, section: "tax" },
     { label: t('term.taxLossUtilised'),  getValue: (p) => p.taxLossUtilised ?? 0,            format: "currency", color: "dynamic",  detail: true, section: "tax" },
     { label: t('term.taxLossPoolBalance'), getValue: (p) => p.taxLossPoolBalance ?? 0,       format: "currency",                    detail: true, section: "tax" },
-    { label: t('pnl.profitAfterTax'),   getValue: (p) => p.profitAfterTax,                  format: "currency", bold: true, color: "dynamic", detail: true, section: "tax" },
+    { label: t('pnl.profitAfterTax'),   getValue: (p) => p.profitAfterTax,                  format: "currency", bold: true, color: "dynamic" },
     { label: t('pnl.ncfPostVAT'),     getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
     {
       label: `Founder ManCo fee (${(DEFAULT_FOUNDER_MANCO_FEE_RATE * 100).toFixed(0)}% × revenue)`,
@@ -215,20 +220,21 @@ export default function PnLPage() {
   );
 
   // ── Returns & ratios ──────────────────────────────────────────────────────
-  rows.push({ label: "Returns & ratios", getValue: () => 0, format: "currency", separator: true, sectionKey: "returns" });
+  rows.push({ label: t('pnl.coverageSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "returns" });
   rows.push(
     { label: t('pnl.cfads'),              getValue: (p) => p.cfads,                        format: "currency", color: "dynamic", detail: true, section: "returns" },
     { label: t('pnl.yieldOnEquity'),      getValue: (p) => p.yieldOnInitialEquity,          format: "percent",  color: "dynamic", anchorId: "pnl-row-yieldOnEquity", detail: true, section: "returns" },
     { label: t('pnl.totalYieldOnEquity'), getValue: (p) => p.cumulativeYieldOnInitialEquity,format: "percent",  bold: true, color: "dynamic", detail: true, section: "returns" },
     { label: t('pnl.cumulativeNCF'),      getValue: (p) => p.cumulativeNCF,                 format: "currency", color: "dynamic" },
     { label: t('term.dscr'),              getValue: (p) => p.dscr,                          format: "multiple", anchorId: "pnl-row-dscr", goodAt: 1.25, bold: true },
+    { label: t('pnl.dscrCfads'),          getValue: (p) => p.debtService > 0 ? (p.cfads ?? 0) / p.debtService : 0, format: "multiple", goodAt: 1.25, bold: true },
     { label: t('pnl.effectiveDSCR'),      getValue: (p: AnnualPnL) => p.effectiveDSCR ?? p.dscr ?? 0, format: "multiple", bold: true, goodAt: assumptions?.dsra?.targetDSCR ?? 1.25, detail: true, section: "returns" },
     { label: t('term.dscrLoaded'),        getValue: (p) => p.dscrLoaded,                    format: "multiple", goodAt: 1.25, detail: true, section: "returns" },
     { label: t('pnl.icr'),               getValue: (p) => p.interestCoverageRatio,          format: "multiple", goodAt: 2.0,  detail: true, section: "returns" },
   );
 
   // ── Working capital ───────────────────────────────────────────────────────
-  rows.push({ label: "Working capital", getValue: () => 0, format: "currency", separator: true, sectionKey: "wc" });
+  rows.push({ label: t('pnl.wcSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "wc" });
   rows.push(
     { label: t('pnl.wcAvg'),            getValue: (p) => p.wcAvgBalance,      format: "currency", detail: true, section: "wc" },
     { label: t('pnl.wcPeak'),           getValue: (p) => p.wcPeakBalance,     format: "currency", detail: true, section: "wc" },
@@ -333,7 +339,7 @@ export default function PnLPage() {
                               {row.label}
                             </span>
                             <span className={`normal-case tracking-normal text-[10px] font-medium transition-colors ${open ? "text-brand-500" : "text-text-tertiary/60 group-hover:text-brand-400"}`}>
-                              {open ? "collapse" : "expand"}
+                              {open ? t('common.collapse') : t('common.expand')}
                             </span>
                           </button>
                         ) : (

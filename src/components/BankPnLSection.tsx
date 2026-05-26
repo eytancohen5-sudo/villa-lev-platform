@@ -37,6 +37,15 @@ const VAT_YEAR_END: Record<number, number> = {
   2029:  273_208,
 };
 
+// Default expanded state for first visit (bank view)
+// cfads and finance sections start expanded; all others collapsed
+function getDefaultExpanded(): Record<string, boolean> {
+  return {
+    cfads: true,
+    finance: true,
+  };
+}
+
 export function BankPnLSection() {
   const { t, locale } = useTranslation();
   const { model, activeScenario } = useModelStore();
@@ -52,9 +61,17 @@ export function BankPnLSection() {
     // Hydrate from sessionStorage after mount only
     try {
       const raw = sessionStorage.getItem('bank-pnl-expanded');
-      if (raw) setExpanded(JSON.parse(raw));
+      if (raw) {
+        setExpanded(JSON.parse(raw));
+      } else {
+        // First visit — default cfads and finance expanded
+        const defaults = getDefaultExpanded();
+        setExpanded(defaults);
+        sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(defaults));
+      }
     } catch {
       // sessionStorage unavailable (private browsing, etc.)
+      setExpanded(getDefaultExpanded());
     }
   }, []); // empty deps: run once on mount
 
@@ -107,19 +124,20 @@ export function BankPnLSection() {
   }
 
   rows.push(
-    { label: t('pnl.events'),           getValue: (p) => p.revenueEvents,    format: "currency", indent: true, detail: true, section: "revenue" },
-    { label: t('pnl.ancillary'),        getValue: (p) => p.revenueAncillary, format: "currency", indent: true, detail: true, section: "revenue" },
-    { label: t('pnl.grossRevenue'),     getValue: (p) => p.grossRevenue,     format: "currency", bold: true },
-    { label: t('pnl.otaCommissions'),   getValue: (p) => p.otaCommissions,   format: "currency", indent: true, outflow: true },
-    { label: t('pnl.netRevenuePostOTA'), getValue: (p) => p.totalRevenue,    format: "currency", bold: true },
+    { label: t('pnl.events'),            getValue: (p) => p.revenueEvents,    format: "currency", indent: true, detail: true, section: "revenue" },
+    { label: t('pnl.ancillary'),         getValue: (p) => p.revenueAncillary, format: "currency", indent: true, detail: true, section: "revenue" },
+    { label: t('pnl.grossRevenue'),      getValue: (p) => p.grossRevenue,     format: "currency", bold: true },
+    { label: t('pnl.otaCommissions'),    getValue: (p) => p.otaCommissions,   format: "currency", indent: true, outflow: true },
+    { label: t('pnl.netRevenuePostOTA'), getValue: (p) => p.totalRevenue,     format: "currency", bold: true },
   );
 
   // ── Operating costs ───────────────────────────────────────────────────────
+  rows.push({ label: t('pnl.totalOpex'), getValue: () => "", format: "raw", separator: true, sectionKey: "opex" });
   rows.push(
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", outflow: true },
   );
 
-  // ── EBITDA pre-OpCo (DSCR numerator line) ────────────────────────────────
+  // ── EBITDA pre-OpCo (pivot row) ───────────────────────────────────────────
   rows.push(
     {
       label: t('pnl.gopPreMgmt'),
@@ -130,7 +148,8 @@ export function BankPnLSection() {
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
   );
 
-  // ── Depreciation → EBIT ──────────────────────────────────────────────────
+  // ── EBIT section (default collapsed) ─────────────────────────────────────
+  rows.push({ label: t('pnl.ebit'), getValue: () => "", format: "raw", separator: true, sectionKey: "ebit" });
   rows.push(
     {
       label: t('pnl.depreciation'),
@@ -138,6 +157,8 @@ export function BankPnLSection() {
       format: "currency",
       indent: true,
       outflow: true,
+      detail: true,
+      section: "ebit",
     },
     {
       label: t('pnl.ebit'),
@@ -147,18 +168,40 @@ export function BankPnLSection() {
     },
   );
 
-  // ── CFADS bridge (EBIT → CIT → CFADS) ────────────────────────────────────
-  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "cfads" });
+  // ── Finance section (default EXPANDED in bank view) ───────────────────────
+  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "finance" });
+  rows.push(
+    // NEW: wcInterestExpense row
+    {
+      label: t('pnl.wcInterest'),
+      getValue: (p) => p.wcInterestExpense ?? 0,
+      format: "currency",
+      outflow: true,
+      detail: false,
+      section: "finance",
+    },
+    { label: t('pnl.termLoanInterest'), getValue: (p) => p.termLoanInterest, format: "currency", indent: true, outflow: true, detail: true, section: "finance" },
+    { label: t('pnl.termLoanPrincipal'), getValue: (p) => p.termLoanPrincipal, format: "currency", indent: true, outflow: true, detail: true, section: "finance" },
+    { label: t('pnl.loanBalanceClosing'), getValue: (p) => p.termLoanBalance, format: "currency", indent: true, detail: true, section: "finance" },
+  );
+
+  // ── Tax section (default collapsed) ──────────────────────────────────────
+  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "tax" });
   rows.push(
     {
       label: t('pnl.corporateTax'),
-      getValue: (p) => p.citPayable,   // stored negative in engine
+      getValue: (p) => p.citPayable,
       format: "currency",
       indent: true,
       outflow: true,
       detail: true,
-      section: "cfads",
+      section: "tax",
     },
+  );
+
+  // ── CFADS section (default EXPANDED in bank view) ─────────────────────────
+  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "cfads" });
+  rows.push(
     {
       label: t('pnl.cfadsDscrNumerator'),
       getValue: (p) => p.cfads,
@@ -170,9 +213,6 @@ export function BankPnLSection() {
   // ── Debt service block ────────────────────────────────────────────────────
   rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "debtService" });
   rows.push(
-    { label: t('pnl.termLoanInterest'),   getValue: (p) => p.termLoanInterest,   format: "currency", indent: true, outflow: true, detail: true, section: "debtService" },
-    { label: t('pnl.termLoanPrincipal'),  getValue: (p) => p.termLoanPrincipal,  format: "currency", indent: true, outflow: true, detail: true, section: "debtService" },
-    { label: t('pnl.loanBalanceClosing'), getValue: (p) => p.termLoanBalance,    format: "currency", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.debtService'),        getValue: (p) => p.debtService,        format: "currency", bold: true, outflow: true },
     { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
     ...(opCoActive ? [

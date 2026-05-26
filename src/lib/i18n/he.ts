@@ -344,7 +344,7 @@ export const he: TranslationDictionary = {
   'dash.section.capital': 'מבנה ההון',
   'dash.section.workingCapital': 'מסגרת הון חוזר',
   'dash.section.collateral': 'בטחונות ומרווחים',
-  'dash.wcPanelSub': 'מסגרת €470K · מתאזן בכל עונת שיא',
+  'dash.wcPanelSub': 'מסגרת €560K · מתאזן בכל עונת שיא',
   'dash.wcSparkLabel': 'יתרה רבעונית, 2026–2036',
   'dash.wcQuarterly': 'יתרה רבעונית',
   'dash.wcPeak': 'שיא Y2',
@@ -1161,15 +1161,15 @@ export const he: TranslationDictionary = {
   'bank.wc.dual.opWcSub': 'מ-2028 · משיכה עונתית ≤€200K · מתפרק עצמית בכל עונת שיא',
   'bank.wc.dual.sizingNote': 'ממוקד לשיא גשר ΦΠΑ; אותה מסגרת עוברת להון חוזר תפעולי לאחר הבנייה',
   'bank.vatCashflow.title': 'תזרים ΦΠΑ הבנייה',
-  'bank.vatCashflow.sub': 'מע"מ ששולם על חשבוניות בנייה · עיכוב החזר 2 רבעונים · קובנאנט מתחדש €470K',
+  'bank.vatCashflow.sub': 'מע"מ ששולם על חשבוניות בנייה · עיכוב החזר 2 רבעונים · קובנאנט מתחדש €560K',
   'bank.vatCashflow.colQuarter': 'רבעון',
   'bank.vatCashflow.colVatPaid': 'מע"מ ששולם',
   'bank.vatCashflow.colVatRefund': 'החזר מע"מ',
   'bank.vatCashflow.colNetFloat': 'השפעה נטו',
-  'bank.vatCashflow.colCovenant': 'vs €470K',
+  'bank.vatCashflow.colCovenant': 'vs €560K',
   'bank.vatCashflow.covenantOk': 'OK',
   'bank.vatCashflow.covenantBreach': 'הפרה',
-  'bank.vatCashflow.withinCovenant': 'כל הרבעונים בתוך קובנאנט מתחדש €470K',
+  'bank.vatCashflow.withinCovenant': 'כל הרבעונים בתוך קובנאנט מתחדש €560K',
   'bank.vatCashflow.lagNote': 'CAPEX חייב מע"מ €7,589,108 @ 24% · לוח משיכה 20/50/30% · עיכוב החזר 2 רבעונים',
   'bank.vatCashflow.postRefundNote': 'החזר לאחר בנייה €273,208 צפוי Q1-Q2 2029 — משפר תזרים שנת פתיחה',
   'bank.collateral.sub': 'קרקע + מבנה שהושלם · משכנתא מדרגה ראשונה · שלוש רמות הערכה',
@@ -1849,4 +1849,21 @@ export const he: TranslationDictionary = {
   'pnl.depreciation':        'פחת (סעיף 24, קו ישר)', // TODO: translate
   'pnl.ebit':                'EBIT (לאחר פחת)', // TODO: translate
   'term.annualDepreciation': 'פחת שנתי', // TODO: translate
+
+  // ── Sources & Uses panel (SourcesUsesPanel) ───────────────────────────────
+  'sau.sectionTitle':   'מקורות ושימושים',
+  'sau.sectionSub':     'מימון הפרויקט',
+  'sau.sources':        'מקורות',
+  'sau.uses':           'שימושים',
+  'sau.wcMemo':         'מסגרת הון חוזר (לא מומשה בסגירה)',
+  'sau.graceCarryNote': '¹ ה-grace carry הוא ריבית שנצברה בתקופת הגרייס.',
+  'sau.wcNote':         '² מסגרת ההון החוזר היא התחייבות בנקאית, לא מומשה.',
+  'sau.balanceNote':    'מקורות ושימושים הם משוערים.',
+
+  // ── Financing comparison — new rows (2026-05-26) ──────────────────────────
+  'finComp.graceInterestCarry':    'רזרבת ריבית בסגירה',
+  'finComp.equityIRR':             'IRR הון',
+  'finComp.moic':                  'מכפיל הון (MOIC)',
+  'finComp.payback':               'תקופת החזר',
+  'finComp.totalEquityAtClose':    'סה״כ הון בסגירה',
 };

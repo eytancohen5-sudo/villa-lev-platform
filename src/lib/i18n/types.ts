@@ -1636,6 +1636,11 @@ export interface TranslationDictionary {
   'finComp.stabilisedDSCR': string;
   'finComp.supplementaryLoan': string;
   'finComp.equitySavingVsCommercial': string;
+  'finComp.graceInterestCarry': string;
+  'finComp.equityIRR': string;
+  'finComp.moic': string;
+  'finComp.payback': string;
+  'finComp.totalEquityAtClose': string;
 
   // ── Bank fee disclosure (2026-05-25) ──
   'bank.dscr.mgmtFeeNote': string;
@@ -1822,4 +1827,14 @@ export interface TranslationDictionary {
   'pnl.depreciation': string;
   'pnl.ebit': string;
   'term.annualDepreciation': string;
+
+  // ── Sources & Uses panel ─────────────────────────────────────────────────
+  'sau.sectionTitle': string;
+  'sau.sectionSub': string;
+  'sau.sources': string;
+  'sau.uses': string;
+  'sau.wcMemo': string;
+  'sau.graceCarryNote': string;
+  'sau.wcNote': string;
+  'sau.balanceNote': string;
 }
