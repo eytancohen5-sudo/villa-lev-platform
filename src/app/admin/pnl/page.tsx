@@ -146,6 +146,7 @@ export default function PnLPage() {
     { label: t('pnl.portfolioPreOpening'), getValue: (p) => p.portfolioOpex?.preOpeningAmort ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
+    ...(opCoActive ? [{ label: t('pnl.opcoBaseFee'), getValue: (p: AnnualPnL) => p.opCoBaseFee, format: "currency" as const, color: "negative" as const, indent: true }] : []),
     { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
   );
@@ -163,36 +164,11 @@ export default function PnLPage() {
     { label: t('pnl.postDsResidual'),   getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
     ...(opCoActive ? [
       {
-        label: t('pnl.opcoFeeBreakdown'),
-        getValue: () => 0 as number,
-        format: "currency" as const,
-        separator: true,
-        sectionKey: 'opco',
-      },
-      {
-        label: t('pnl.opcoBaseFee'),
-        getValue: (p: AnnualPnL) => p.opCoBaseFee,
-        format: "currency" as const,
-        detail: true,
-        section: 'opco',
-        color: "negative" as const,
-        indent: true,
-      },
-      {
         label: t('pnl.opcoIncentiveFee'),
         getValue: (p: AnnualPnL) => p.opCoIncentiveFee,
         format: "currency" as const,
-        detail: true,
-        section: 'opco',
         color: "negative" as const,
-        indent: true,
-      },
-      {
-        label: t('pnl.opcoTotalFees'),
-        getValue: (p: AnnualPnL) => p.opCoTotalFee,
-        format: "currency" as const,
         bold: true,
-        color: "negative" as const,
       },
     ] : []),
     {

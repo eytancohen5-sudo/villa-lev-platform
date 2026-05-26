@@ -118,6 +118,7 @@ export function BankPnLSection() {
   // ── Operating costs ───────────────────────────────────────────────────────
   rows.push(
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", outflow: true },
+    ...(opCoActive ? [{ label: t('pnl.opcoBaseFee'), getValue: (p: AnnualPnL) => p.opCoBaseFee, format: "currency" as const, indent: true, outflow: true }] : []),
   );
 
   // ── EBITDA pre-OpCo (DSCR numerator line) ────────────────────────────────
@@ -160,10 +161,7 @@ export function BankPnLSection() {
     { label: t('pnl.debtService'),        getValue: (p) => p.debtService,        format: "currency", bold: true, outflow: true },
     { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
     ...(opCoActive ? [
-      { label: t('pnl.opcoFeeBreakdown'), getValue: () => "" as string, format: "raw" as const, separator: true, sectionKey: "opco" },
-      { label: t('pnl.opcoBaseFee'),      getValue: (p: AnnualPnL) => p.opCoBaseFee,      format: "currency" as const, indent: true, outflow: true, detail: true, section: "opco" },
-      { label: t('pnl.opcoIncentiveFee'), getValue: (p: AnnualPnL) => p.opCoIncentiveFee, format: "currency" as const, indent: true, outflow: true, detail: true, section: "opco" },
-      { label: t('pnl.opcoTotalFees'),    getValue: (p: AnnualPnL) => p.opCoTotalFee,     format: "currency" as const, bold: true, outflow: true },
+      { label: t('pnl.opcoIncentiveFee'), getValue: (p: AnnualPnL) => p.opCoIncentiveFee, format: "currency" as const, bold: true, outflow: true },
     ] as RowDef[] : []),
     {
       label: opCoActive ? `${t('term.ebitda')} ${t('pnl.netOfMgmtFees')}` : t('term.ebitda'),
