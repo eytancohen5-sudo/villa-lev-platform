@@ -10,7 +10,10 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
-import { FinancingPath, PropertyTemplate, VillaRoom, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea } from "@/lib/engine/types";
+import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
+import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
+import { resolvePortfolio } from "@/lib/engine/defaults";
+import { computePortfolioOpex } from "@/lib/engine/model";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { getDb } from "@/lib/firebase";
 import {
@@ -214,9 +217,19 @@ function UnitStepper({
 
 // ── Template Card ──
 
+// Controllable OPEX keys — the fields the engine actually sums as annual costs.
+// Deprecated fields (managementFee, maintenance) and the FF&E reserve floor
+// parameter (ffeReserveFloor) are excluded from display and from the OPEX total.
+const OPEX_CONTROLLABLE_KEYS = new Set([
+  'housekeeping', 'utilities', 'insurance', 'propertyTax',
+  'marketing', 'consumables', 'accounting',
+]);
+
 function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: PropertyTemplate; startExpanded?: boolean; highlight?: boolean }) {
-  const { locale } = useTranslation();
-  const { updateTemplate, renameTemplate, duplicateTemplate, deleteTemplate, projects } =
+  const { locale, t } = useTranslation();
+  const { updateTemplate, renameTemplate, duplicateTemplate, deleteTemplate, projects, model,
+    addOpexLine, removeOpexLine, updateOpexLine,
+    addCapexLine, removeCapexLine, updateCapexLine } =
     useModelStore();
   const [expanded, setExpanded] = useState(startExpanded);
   const [editingName, setEditingName] = useState(false);
@@ -231,6 +244,7 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
 
   const inUse = projects.some((p) => p.templateId === tpl.id);
   const projectCount = projects.filter((p) => p.templateId === tpl.id).length;
+  const tplProject = projects.find((p) => p.templateId === tpl.id);
 
   const totalArea = computeTotalArea(tpl.roomAreas, {
     villaUnits: tpl.villaUnits,
@@ -246,13 +260,18 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
     tpl.legalFees +
     tpl.architectFees +
     tpl.civilEngineerFees +
-    contingencyAmount;
+    contingencyAmount +
+    (tpl.extraCapexLines ?? []).reduce((s, l) => s + l.cost, 0);
 
-  const totalOpex = Object.values(tpl.opex).reduce((s, v) => s + v, 0);
+  const rawOpex = Object.entries(tpl.opex)
+    .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k))
+    .reduce((s, [, v]) => s + (v as number), 0)
+    + (tpl.extraOpexLines ?? []).reduce((s, l) => s + l.value, 0);
+  const totalOpex = rawOpex * (1 + (tpl.opexContingencyRate ?? 0));
 
   return (
     <div ref={cardRef} className={`bg-white rounded-xl border overflow-hidden transition-all ${
-      tpl.builtIn ? 'border-surface-tertiary' : 'border-brand-300 shadow-sm'
+      tpl.builtIn ? 'border-surface-tertiary' : 'border-brand-300'
     } ${highlight ? 'ring-2 ring-brand-500 ring-offset-2 animate-pulse' : ''}`}>
       {/* Header — clickable to expand/collapse */}
       <button
@@ -304,7 +323,7 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
             <div className="flex items-center gap-4 text-xs text-text-tertiary">
               <span>{totalArea}m² &middot; {formatCurrency(tpl.constructionCostPerM2, false, locale)}/m²</span>
               <span>Land: {formatCurrency(tpl.landCost, false, locale)}</span>
-              <span>OPEX/yr: {formatCurrency(totalOpex, true, locale)}</span>
+              <span>Controllable OPEX/yr: {formatCurrency(totalOpex, true, locale)}</span>
             </div>
             <div className="flex items-center gap-2">
               {/* Rename */}
@@ -393,9 +412,45 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                   color="indigo"
                 />
               </div>
+              {/* Bedroom / key topology */}
+              <table className="w-full mt-3">
+                <tbody>
+                  {tpl.standardSuites > 0 && (
+                    <TemplateRow label={t('tpl.bedroomsPerStandard')} value={tpl.bedroomsPerStandard ?? 1}
+                      tplId={tpl.id} path="bedroomsPerStandard" format="number" />
+                  )}
+                  {tpl.doubleSuites > 0 && (
+                    <TemplateRow label={t('tpl.bedroomsPerDouble')} value={tpl.bedroomsPerDouble ?? 2}
+                      tplId={tpl.id} path="bedroomsPerDouble" format="number" />
+                  )}
+                  {tpl.villaUnits > 0 && (
+                    <TemplateRow label={t('tpl.bedroomsInMain')} value={tpl.bedroomsInMain ?? 4}
+                      tplId={tpl.id} path="bedroomsInMain" format="number" />
+                  )}
+                  {tpl.villaUnits > 0 && (
+                    <TemplateRow label={t('tpl.lockableSubUnits')} value={tpl.lockableSubUnits ?? 3}
+                      tplId={tpl.id} path="lockableSubUnits" format="number" />
+                  )}
+                  {tpl.villaUnits > 0 && (
+                    <TemplateRow label={t('tpl.bedroomsPerSubUnit')} value={tpl.bedroomsPerSubUnit ?? 1}
+                      tplId={tpl.id} path="bedroomsPerSubUnit" format="number" />
+                  )}
+                </tbody>
+              </table>
+              {(tpl.standardSuites > 0 || tpl.doubleSuites > 0) && (
+                <p className="text-[10px] text-text-tertiary mt-1">
+                  {t('tpl.totalBedroomsPerPlot')}: {tpl.standardSuites * (tpl.bedroomsPerStandard ?? 1) + tpl.doubleSuites * (tpl.bedroomsPerDouble ?? 2)}
+                </p>
+              )}
+              {tpl.villaUnits > 0 && (
+                <p className="text-[10px] text-text-tertiary mt-1">
+                  {t('tpl.totalBedroomsPerVilla')}: {(tpl.bedroomsInMain ?? 4) + (tpl.lockableSubUnits ?? 3) * (tpl.bedroomsPerSubUnit ?? 1)}
+                  {' · '}{t('tpl.keysAtMaxSplit')}: {1 + (tpl.lockableSubUnits ?? 3)}
+                </p>
+              )}
               <p className="text-[10px] text-text-tertiary mt-2">
-                Total accommodation units per plot: {tpl.villaUnits + tpl.standardSuites + tpl.doubleSuites}
-                {tpl.villaUnits > 0 && tpl.standardSuites + tpl.doubleSuites > 0 && ' (mixed-use)'}
+                {t('tpl.totalUnitsPerPlot')}: {tpl.villaUnits + tpl.standardSuites + tpl.doubleSuites}
+                {tpl.villaUnits > 0 && tpl.standardSuites + tpl.doubleSuites > 0 && <> ({t('tpl.mixedUse')})</>}
               </p>
             </div>
 
@@ -527,8 +582,17 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                         {formatCurrency(contingencyAmount, false, locale)}
                       </td>
                     </tr>
+                    {(tpl.extraCapexLines ?? []).map((line) => (
+                      <CustomCapexRow key={line.id} tplId={tpl.id} line={line} />
+                    ))}
                   </tbody>
                 </table>
+                <button
+                  onClick={() => addCapexLine(tpl.id)}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  {t('tpl.addCapexLine')}
+                </button>
                 <div className="mt-2 pt-2 border-t border-surface-secondary/50 flex justify-between text-xs">
                   <span className="font-medium text-text-secondary">Total CAPEX/unit</span>
                   <span className="font-mono font-semibold text-text-primary">{formatCurrency(capexPerUnit, true, locale)}</span>
@@ -540,21 +604,85 @@ function TemplateCard({ tpl, startExpanded = false, highlight = false }: { tpl: 
                 <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Annual OPEX (per unit)</h4>
                 <table className="w-full">
                   <tbody>
-                    {Object.entries(tpl.opex).map(([key, val]) => (
-                      <TemplateRow
-                        key={key}
-                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                        value={val}
-                        tplId={tpl.id}
-                        path={`opex.${key}`}
-                        format="currency"
-                      />
+                    {Object.entries(tpl.opex)
+                      .filter(([key]) => OPEX_CONTROLLABLE_KEYS.has(key))
+                      .map(([key, val]) => (
+                        <TemplateRow
+                          key={key}
+                          label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                          value={val as number}
+                          tplId={tpl.id}
+                          path={`opex.${key}`}
+                          format="currency"
+                        />
+                      ))}
+                    {(tpl.extraOpexLines ?? []).map((line) => (
+                      <CustomOpexRow key={line.id} tplId={tpl.id} line={line} />
                     ))}
                   </tbody>
                 </table>
+                <button
+                  onClick={() => addOpexLine(tpl.id)}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  {t('tpl.addOpexLine')}
+                </button>
+                <table className="w-full">
+                  <tbody>
+                    <TemplateRow
+                      label={t('field.opexContingencyRate')}
+                      value={tpl.opexContingencyRate ?? 0}
+                      tplId={tpl.id}
+                      path="opexContingencyRate"
+                      format="percent"
+                    />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary italic">Contingency amount</td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary italic">
+                        {formatCurrency(totalOpex - rawOpex, false, locale)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
                 <div className="mt-2 pt-2 border-t border-surface-secondary/50 flex justify-between text-xs">
-                  <span className="font-medium text-text-secondary">Total OPEX/yr</span>
+                  <span className="font-medium text-text-secondary">Controllable OPEX/yr</span>
                   <span className="font-mono font-semibold text-text-primary">{formatCurrency(totalOpex, true, locale)}</span>
+                </div>
+
+                {/* FF&E Reserve floor + combined total */}
+                <div className="mt-4 pt-3 border-t border-amber-200/60">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 mb-2">FF&amp;E Reserve (engine-computed)</p>
+                  <table className="w-full">
+                    <tbody>
+                      <TemplateRow
+                        label="Reserve floor (€/yr)"
+                        value={tpl.opex.ffeReserveFloor ?? 0}
+                        tplId={tpl.id}
+                        path="opex.ffeReserveFloor"
+                        format="currency"
+                      />
+                    </tbody>
+                  </table>
+                  <p className="text-[10px] text-text-tertiary mt-1.5 leading-relaxed">
+                    Engine computes <span className="font-mono bg-amber-50 px-1 rounded">max(floor, rate × revenue)</span> and adds it on top of controllable OPEX. Edit rates in the <strong>OPEX tab</strong>.
+                  </p>
+
+                  {/* Combined total — pulls 2031 stabilised engine value if project exists */}
+                  {(() => {
+                    const bd2031 = tplProject
+                      ? model?.scenarios.realistic.pnl.find((r) => r.year === 2031)?.propertyBreakdown.find((b) => b.id === tplProject.id)
+                      : null;
+                    const combinedTotal = bd2031
+                      ? bd2031.opexPerUnit
+                      : totalOpex + (tpl.opex.ffeReserveFloor ?? 0);
+                    const label = bd2031 ? 'Total OPEX incl. FF&E (2031, stabilised)' : 'Total OPEX incl. FF&E (floor estimate)';
+                    return (
+                      <div className="mt-3 pt-2 border-t border-amber-200/60 flex justify-between items-baseline">
+                        <span className="text-xs font-semibold text-amber-800">{label}</span>
+                        <span className="font-mono font-bold text-amber-900 text-sm">{formatCurrency(combinedTotal, true, locale)}/unit</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -690,6 +818,76 @@ function CustomSpaceRow({ tplId, space }: { tplId: string; space: { id: string; 
   );
 }
 
+// Editable row for a custom annual OPEX line — name + value + remove button.
+function CustomOpexRow({ tplId, line }: { tplId: string; line: CustomLine }) {
+  const { t } = useTranslation();
+  const { updateOpexLine, removeOpexLine } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-3">
+        <input
+          type="text"
+          value={line.name}
+          onChange={(e) => updateOpexLine(tplId, line.id, 'name', e.target.value)}
+          className="w-full px-2 py-1 text-xs bg-blue-50/40 border border-blue-200/60 rounded focus:outline-none focus:border-blue-400"
+          placeholder={t('tpl.opexLineName')}
+        />
+      </td>
+      <td className="py-1.5 w-28">
+        <EditableCell
+          value={line.value}
+          format="currency"
+          onChange={(v) => updateOpexLine(tplId, line.id, 'value', v)}
+        />
+      </td>
+      <td className="py-1.5 pl-2 w-6">
+        <button
+          onClick={() => removeOpexLine(tplId, line.id)}
+          className="w-6 h-6 rounded text-text-tertiary hover:bg-red-50 hover:text-negative transition-colors text-sm"
+          title={t('tpl.removeOpexLine')}
+        >
+          &times;
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// Editable row for a custom one-off CAPEX line — name + cost + remove button.
+function CustomCapexRow({ tplId, line }: { tplId: string; line: CustomCapexLine }) {
+  const { t } = useTranslation();
+  const { updateCapexLine, removeCapexLine } = useModelStore();
+  return (
+    <tr className="border-b border-surface-secondary/30">
+      <td className="py-1.5 pr-3">
+        <input
+          type="text"
+          value={line.name}
+          onChange={(e) => updateCapexLine(tplId, line.id, 'name', e.target.value)}
+          className="w-full px-2 py-1 text-xs bg-blue-50/40 border border-blue-200/60 rounded focus:outline-none focus:border-blue-400"
+          placeholder={t('tpl.capexLineName')}
+        />
+      </td>
+      <td className="py-1.5 w-28">
+        <EditableCell
+          value={line.cost}
+          format="currency"
+          onChange={(v) => updateCapexLine(tplId, line.id, 'cost', v)}
+        />
+      </td>
+      <td className="py-1.5 pl-2 w-6">
+        <button
+          onClick={() => removeCapexLine(tplId, line.id)}
+          className="w-6 h-6 rounded text-text-tertiary hover:bg-red-50 hover:text-negative transition-colors text-sm"
+          title={t('tpl.removeCapexLine')}
+        >
+          &times;
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 // ── Project Card ──
 
 function ProjectCard({ projId }: { projId: string }) {
@@ -725,7 +923,7 @@ function ProjectCard({ projId }: { projId: string }) {
     : 0;
 
   return (
-    <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
+    <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4">
         <div className="flex items-center gap-3">
           <div className={`w-3 h-3 rounded-full ${tpl ? (getPropertyDisplayType(tpl) === 'villa' ? 'bg-brand-600' : getPropertyDisplayType(tpl) === 'mixed' ? 'bg-purple-500' : 'bg-info') : 'bg-gray-400'}`} />
@@ -891,6 +1089,54 @@ function AddProjectPanel() {
   );
 }
 
+// ── Greek net-salary estimator (display only, not payroll) ──
+// Employee EFKA ~13.87% + simplified Greek income-tax brackets (2024).
+// Tax-free credit €777 applied. Label as "approx" in UI.
+function estimateGreekNetMonthly(grossMonthly: number): number {
+  if (grossMonthly <= 0) return 0;
+  const efka = grossMonthly * 0.1387;
+  const annual = grossMonthly * 12;
+  let tax = 0;
+  tax += Math.min(annual, 10000) * 0.09;
+  if (annual > 10000) tax += Math.min(annual - 10000, 10000) * 0.22;
+  if (annual > 20000) tax += Math.min(annual - 20000, 10000) * 0.28;
+  if (annual > 30000) tax += Math.min(annual - 30000, 10000) * 0.36;
+  if (annual > 40000) tax += (annual - 40000) * 0.44;
+  tax = Math.max(0, tax - 777); // tax-free credit
+  return Math.round(grossMonthly - efka - tax / 12);
+}
+
+// ── Portfolio OPEX Migration Banner ──
+
+function PortfolioOpexMigrationBanner() {
+  const { t } = useTranslation();
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('vlg_portfolio_opex_migration_banner_dismissed') === '1';
+  });
+
+  const migrated = typeof window !== 'undefined' &&
+    localStorage.getItem('vlg_portfolio_opex_migrated_v2') === '1';
+
+  if (!migrated || dismissed) return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+      <span>{t('as.portfolioOpex.migrationBanner')}</span>
+      <button
+        type="button"
+        onClick={() => {
+          localStorage.setItem('vlg_portfolio_opex_migration_banner_dismissed', '1');
+          setDismissed(true);
+        }}
+        className="shrink-0 px-3 py-1 rounded text-xs font-medium bg-blue-100 hover:bg-blue-200 transition-colors"
+      >
+        {t('as.portfolioOpex.migrationDismiss')}
+      </button>
+    </div>
+  );
+}
+
 // ── Main Page ──
 
 export default function AssumptionsPage() {
@@ -907,10 +1153,20 @@ export default function AssumptionsPage() {
     activeConfigId,
     editsSinceLastSave,
     savedConfigs,
+    addPortfolioStaffRole,
+    updatePortfolioStaffRole,
+    removePortfolioStaffRole,
+    addPortfolioService,
+    updatePortfolioService,
+    removePortfolioService,
+    addPortfolioOverhead,
+    updatePortfolioOverhead,
+    removePortfolioOverhead,
+    updatePortfolioOpexScalar,
   } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
-    "portfolio" | "templates" | "general" | "revenue" | "opex" | "financing"
+    "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra"
   >("portfolio");
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
 
@@ -927,8 +1183,9 @@ export default function AssumptionsPage() {
     string | null
   >(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
-  const autoLoadAttempted = useRef(false);
 
+  // Subscribe to appConfig/current to keep banner state in sync.
+  // Auto-load is handled by useReferenceScenarioAutoLoad in the layout.
   useEffect(() => {
     const db = getDb();
     if (!db) return;
@@ -937,24 +1194,6 @@ export default function AssumptionsPage() {
     });
     return () => unsub();
   }, []);
-
-  // First-visit auto-load: applies once per mount, only if the user
-  // has not edited locally AND the reference scenario doc exists.
-  // editsSinceLastSave === 0 is the "untouched" signal per the perf
-  // audit — every assumption mutator bumps it. Depends on savedConfigs
-  // so we retry once the background server fetch in init() lands the
-  // shared scenario list.
-  useEffect(() => {
-    if (autoLoadAttempted.current) return;
-    if (!referenceScenarioId) return;
-    const state = useModelStore.getState();
-    if (state.editsSinceLastSave > 0) return;
-    if (state.activeConfigId === referenceScenarioId) return;
-    const exists = state.savedConfigs.some((c) => c.id === referenceScenarioId);
-    if (!exists) return; // Scenario list hasn't hydrated yet — try again on next render.
-    autoLoadAttempted.current = true;
-    state.loadConfig(referenceScenarioId);
-  }, [referenceScenarioId, savedConfigs]);
 
   // Clear highlight after animation
   useEffect(() => {
@@ -976,6 +1215,9 @@ export default function AssumptionsPage() {
 
   const a = assumptions;
   const totalPlots = a.portfolio.reduce((s, p) => s + p.count, 0);
+  const portfolioResolved = resolvePortfolio(templates, projects);
+  const totalKeysMaxSplit = computeTotalKeysMaxSplit(portfolioResolved);
+  const totalBedrooms     = computeTotalBedrooms(portfolioResolved);
 
   // Banner is visible when the active config matches the reference,
   // the user has no pending edits, and they haven't dismissed it.
@@ -993,9 +1235,10 @@ export default function AssumptionsPage() {
     <div>
       <div className="flex items-baseline justify-between mb-6">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">
             {t('as.title')}
           </h1>
+          <p className="text-sm text-text-secondary mt-1">{t('as.pageIntro')}</p>
           <p className="text-sm text-text-secondary mt-1">
             {t('as.subtitle')}
           </p>
@@ -1064,7 +1307,7 @@ export default function AssumptionsPage() {
       )}
 
       {/* Portfolio Summary Bar */}
-      <div id="assumptions-portfolio-overview" className="mb-6 bg-white rounded-2xl border-2 border-brand-200 shadow-sm p-5">
+      <div id="assumptions-portfolio-overview" className="mb-6 bg-white rounded-xl border border-brand-200 p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-display text-base text-text-primary">Portfolio Overview</h3>
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
@@ -1073,23 +1316,31 @@ export default function AssumptionsPage() {
             <span>{projects.length} projects</span>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Projects</label>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('as.portfolioOverview.projects')}</label>
             <div className="font-mono text-2xl font-bold text-brand-600">{projects.length}</div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Total Units</label>
-            <div className="font-mono text-2xl font-bold text-text-primary">{totalPlots}</div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">
+              {t('as.portfolioOverview.keysMaxSplit')}
+            </label>
+            <div className="font-mono text-2xl font-bold text-text-primary">{totalKeysMaxSplit}</div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Built Surface</label>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">
+              {t('as.portfolioOverview.bedrooms')}
+            </label>
+            <div className="font-mono text-2xl font-bold text-text-primary">{totalBedrooms}</div>
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('as.portfolioOverview.builtSurface')}</label>
             <div className="font-mono text-lg font-semibold text-text-primary">
               {a.portfolio.reduce((s, p) => s + computeTotalArea(p.roomAreas, { villaUnits: p.villaUnits, standardSuites: p.standardSuites, doubleSuites: p.doubleSuites }) * p.count, 0).toLocaleString()}m²
             </div>
           </div>
           <div>
-            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">Total CAPEX</label>
+            <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('as.portfolioOverview.totalCapex')}</label>
             <div className="font-mono text-lg font-semibold text-text-primary">
               {formatCurrency(model.capex.portfolioTotal, true, locale)}
             </div>
@@ -1107,6 +1358,8 @@ export default function AssumptionsPage() {
             { id: "general", label: t('as.general') },
             { id: "revenue", label: t('as.revenue') },
             { id: "opex", label: t('as.opexTab') },
+            { id: "portfolio-opex", label: t('as.portfolioOpexTab') },
+            { id: "dsra", label: t('as.dsra') },
           ] as const
         ).map((tabDef) => (
           <button
@@ -1173,7 +1426,7 @@ export default function AssumptionsPage() {
       {tab === "templates" && (
         <div className="space-y-6">
           {/* Create New Template — prominent CTA at top */}
-          <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-2xl border-2 border-dashed border-brand-300 p-6">
+          <div className="bg-gradient-to-r from-brand-50 to-blue-50 rounded-xl border border-dashed border-brand-300 p-6">
             <h3 className="font-display text-lg text-text-primary mb-2">Create a New Template</h3>
             <p className="text-sm text-text-secondary mb-4">
               Start from a default template, then customize all CAPEX and OPEX values.
@@ -1182,19 +1435,19 @@ export default function AssumptionsPage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => handleAddTemplate('villa')}
-                className="px-5 py-3 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors shadow-sm"
+                className="px-5 py-3 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors"
               >
                 + New Villa Template
               </button>
               <button
                 onClick={() => handleAddTemplate('suite')}
-                className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                className="px-5 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
               >
                 + New Suite Template
               </button>
               <button
                 onClick={() => handleAddTemplate('mixed')}
-                className="px-5 py-3 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors shadow-sm"
+                className="px-5 py-3 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 transition-colors"
               >
                 + New Mixed Template
               </button>
@@ -1419,7 +1672,7 @@ export default function AssumptionsPage() {
                 <AssumptionRow label={t('field.wcSeasonal')} value={a.workingCapital.seasonalDrawPerCycle} path="workingCapital.seasonalDrawPerCycle" format="currency" note="Drawn Q4, repaid Q3 next year" />
                 <AssumptionRow label={t('field.wcY2Buffer')} value={a.workingCapital.y2RampBufferTopup} path="workingCapital.y2RampBufferTopup" format="currency" note="Extra Y2 ramp buffer" />
                 <ToggleRow label={t('field.wcSelfLiquidating')} value={a.workingCapital.selfLiquidating} path="workingCapital.selfLiquidating" note="Repay outstanding each Q3" />
-                <ToggleRow label={t('field.wcDsra')} value={a.workingCapital.dsraConversionEnabled} path="workingCapital.dsraConversionEnabled" note="Locks DSRA share, reduces flex" />
+                <ToggleRow label={t('field.wcDsra')} value={a.workingCapital.dsraConversionEnabled} path="workingCapital.dsraConversionEnabled" note={t('as.wcDsraNote')} />
                 <AssumptionRow label={t('field.wcDsraLock')} value={a.workingCapital.dsraLockAmount} path="workingCapital.dsraLockAmount" format="currency" note="Locked when DSRA enabled" />
                 <AssumptionRow label={t('field.wcInternalBuffer')} value={a.workingCapital.internalCashBuffer} path="workingCapital.internalCashBuffer" format="currency" note="Cash kept on hand; surplus above this offsets WC draws" />
               </tbody>
@@ -1473,13 +1726,13 @@ export default function AssumptionsPage() {
           <SectionHeader title={t('as.upsideScenario')} />
           <table className="w-full">
             <tbody>
-              <AssumptionRow label="Villa ADR — upside" value={a.revenueUpside.villaADR} path="revenueUpside.villaADR" format="currency" />
-              <AssumptionRow label="Villa nights — upside (mature)" value={a.revenueUpside.villaBaseNights} path="revenueUpside.villaBaseNights" />
-              <AssumptionRow label="Standard Suite ADR — upside" value={a.revenueUpside.suiteStandardADR} path="revenueUpside.suiteStandardADR" format="currency" />
-              <AssumptionRow label="Double Suite ADR — upside" value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" />
-              <AssumptionRow label="Suite nights — upside" value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" />
-              <AssumptionRow label="Events — upside" value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" />
-              <AssumptionRow label="Ancillary growth years — upside (cap)" value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
+              <AssumptionRow label="Villa ADR — Realistic" value={a.revenueUpside.villaADR} path="revenueUpside.villaADR" format="currency" />
+              <AssumptionRow label="Villa nights — Realistic (mature)" value={a.revenueUpside.villaBaseNights} path="revenueUpside.villaBaseNights" />
+              <AssumptionRow label="Standard Suite ADR — Realistic" value={a.revenueUpside.suiteStandardADR} path="revenueUpside.suiteStandardADR" format="currency" />
+              <AssumptionRow label="Double Suite ADR — Realistic" value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" />
+              <AssumptionRow label="Suite nights — Realistic" value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" />
+              <AssumptionRow label="Events — Realistic" value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" />
+              <AssumptionRow label="Ancillary growth years — Realistic (cap)" value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
             </tbody>
           </table>
         </div>
@@ -1492,8 +1745,39 @@ export default function AssumptionsPage() {
             Annual operating expenses per unit, by template. Click any value to edit. Changes apply to all projects using that template and recalculate the model instantly.
           </p>
 
+          {/* ── FF&E Reserve Rate Schedule ── */}
+          <div className="mb-6 p-4 rounded-xl bg-amber-50/40 border border-amber-200/60">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-3">FF&amp;E Reserve Rate Schedule</h4>
+            <div className="grid grid-cols-3 gap-6">
+              {[
+                { label: '2029 — Year 1 of ops', key: 'rate2029' as const, def: 0.02 },
+                { label: '2030 — Year 2 of ops', key: 'rate2030' as const, def: 0.03 },
+                { label: '2031+ — Stabilised',   key: 'rateStabilised' as const, def: 0.04 },
+              ].map(({ label, key, def }) => (
+                <div key={key}>
+                  <p className="text-[11px] text-text-tertiary mb-1">{label}</p>
+                  <EditableCell
+                    value={a.ffeSchedule?.[key] ?? def}
+                    format="percent"
+                    label={label}
+                    onChange={(v) => setAssumption(`ffeSchedule.${key}`, v, label)}
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] text-text-tertiary mt-2">
+              Engine computes <span className="font-mono bg-amber-50 px-1 rounded">max(floor, rate × revenue/unit)</span> per year.
+              Floor is set per template in the Templates tab.
+              Year 2028 (opening, pre-revenue): floor only.
+            </p>
+          </div>
+
           {templates.map((tpl) => {
-            const totalOpex = Object.values(tpl.opex).reduce((s, v) => s + v, 0);
+            const rawOpex = Object.entries(tpl.opex)
+              .filter(([k]) => OPEX_CONTROLLABLE_KEYS.has(k))
+              .reduce((s, [, v]) => s + (v as number), 0)
+              + (tpl.extraOpexLines ?? []).reduce((s, l) => s + l.value, 0);
+            const totalOpex = rawOpex * (1 + (tpl.opexContingencyRate ?? 0));
             const projectCount = projects.filter((p) => p.templateId === tpl.id).length;
             return (
               <div key={tpl.id} className="mb-8 last:mb-0">
@@ -1513,21 +1797,419 @@ export default function AssumptionsPage() {
                 </div>
                 <table className="w-full">
                   <tbody>
-                    {Object.entries(tpl.opex).map(([key, val]) => (
-                      <TemplateRow
-                        key={key}
-                        label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                        value={val}
-                        tplId={tpl.id}
-                        path={`opex.${key}`}
-                        format="currency"
-                      />
+                    {Object.entries(tpl.opex)
+                      .filter(([key]) => OPEX_CONTROLLABLE_KEYS.has(key))
+                      .map(([key, val]) => (
+                        <TemplateRow
+                          key={key}
+                          label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                          value={val as number}
+                          tplId={tpl.id}
+                          path={`opex.${key}`}
+                          format="currency"
+                        />
+                      ))}
+                    {(tpl.extraOpexLines ?? []).map((line) => (
+                      <CustomOpexRow key={line.id} tplId={tpl.id} line={line} />
                     ))}
+                    <TemplateRow
+                      label={t('field.opexContingencyRate')}
+                      value={tpl.opexContingencyRate ?? 0}
+                      tplId={tpl.id}
+                      path="opexContingencyRate"
+                      format="percent"
+                    />
+                    <tr className="border-b border-surface-secondary/30">
+                      <td className="py-1.5 pr-3 text-xs text-text-secondary italic">Contingency amount</td>
+                      <td className="py-1.5 w-28 text-right px-2 font-mono text-xs text-text-tertiary italic">
+                        {formatCurrency(totalOpex - rawOpex, false, locale)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <button
+                  onClick={() => useModelStore.getState().addOpexLine(tpl.id)}
+                  className="mt-2 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  {t('tpl.addOpexLine')}
+                </button>
+
+                {/* ── Year-by-year FF&E + OPEX projection ── */}
+                {(() => {
+                  const tplProject = projects.find((p) => p.templateId === tpl.id);
+                  if (!tplProject || !model) return null;
+                  const rows = [2029, 2030, 2031, 2032].map((year) => {
+                    const pnlRow = model.scenarios.realistic.pnl.find((r) => r.year === year);
+                    const bd = pnlRow?.propertyBreakdown.find((b) => b.id === tplProject.id);
+                    const ffe = bd?.ffeReservePerUnit ?? 0;
+                    const ctrl = bd ? bd.opexPerUnit - ffe : 0;
+                    const total = bd?.opexPerUnit ?? 0;
+                    return { year, ffe, ctrl, total };
+                  });
+                  return (
+                    <div className="mt-4 pt-3 border-t border-amber-200/40">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-700 mb-2">
+                        FF&amp;E &amp; OPEX evolution — per unit
+                      </p>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-secondary">
+                            <th className="text-left py-1 pr-3 font-medium">Year</th>
+                            <th className="text-right py-1 pr-3 font-medium">Controllable</th>
+                            <th className="text-right py-1 pr-3 font-medium text-amber-700">FF&amp;E Reserve</th>
+                            <th className="text-right py-1 font-medium">Total OPEX/unit</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rows.map(({ year, ffe, ctrl, total }) => (
+                            <tr key={year} className="border-b border-surface-secondary/30">
+                              <td className="py-1.5 pr-3 font-mono text-text-tertiary">{year}</td>
+                              <td className="py-1.5 pr-3 text-right font-mono text-text-secondary">{formatCurrency(ctrl, false, locale)}</td>
+                              <td className="py-1.5 pr-3 text-right font-mono text-amber-700 font-medium">{formatCurrency(ffe, false, locale)}</td>
+                              <td className="py-1.5 text-right font-mono font-semibold text-text-primary">{formatCurrency(total, false, locale)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <p className="text-[10px] text-text-tertiary mt-1">
+                        Floor: {formatCurrency(tpl.opex.ffeReserveFloor ?? 0, false, locale)}/yr &middot; count: {tplProject.count} unit{tplProject.count !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── PORTFOLIO OPEX TAB ── */}
+      {tab === "portfolio-opex" && (
+        <div className="space-y-4">
+          <PortfolioOpexMigrationBanner />
+
+          {/* Summary strip */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            if (!po) return null;
+            const result = computePortfolioOpex(2031, assumptions);
+            return (
+              <div className="flex flex-wrap gap-3 mb-2">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 border border-blue-200">
+                  <span className="text-xs text-text-tertiary">{t('as.portfolioOpex.totalBadge')}</span>
+                  <span className="font-mono text-sm font-bold text-blue-800">{formatCurrency(result.total, true, locale)}</span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-secondary border border-surface-tertiary">
+                  <span className="text-xs text-text-tertiary">{t('as.portfolioOpex.yearRoundFixed')}</span>
+                  <span className="font-mono text-sm font-semibold text-text-primary">{formatCurrency(result.yearRoundFixed, true, locale)}</span>
+                </div>
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-secondary border border-surface-tertiary">
+                  <span className="text-xs text-text-tertiary">{t('as.portfolioOpex.variable')}</span>
+                  <span className="font-mono text-sm font-semibold text-text-primary">{formatCurrency(result.variable, true, locale)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Section 1 — Shared Staff */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            if (!po) return null;
+            return (
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.staffSection')}</h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-secondary">
+                      <th className="text-left py-1 pr-2 font-medium">{t('as.portfolioOpex.colRole')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-28">{t('as.portfolioOpex.colMonthlyGross')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-24 text-text-tertiary">{t('as.portfolioOpex.colNetMonthly')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-20">{t('as.portfolioOpex.colMonths')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-20">{t('as.portfolioOpex.colBurden')}</th>
+                      <th className="text-right py-1 pr-2 font-medium w-24">{t('as.portfolioOpex.colAllowances')}</th>
+                      <th className="text-right py-1 font-medium w-28">{t('as.portfolioOpex.colAnnual')}</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {po.staffRoles.map((role, idx) => {
+                      const annualBurdened = role.yearRound
+                        ? role.monthlyGross * role.monthsPaid * role.burdenMultiplier + role.allowances
+                        : role.monthlyGross * (role.seasonalMonths ?? 0) * role.burdenMultiplier * (role.headcount ?? 1) + role.allowances * (role.headcount ?? 1);
+                      return (
+                        <tr key={idx} className="border-b border-surface-secondary/40">
+                          <td className="py-1.5 pr-2">
+                            <input
+                              type="text"
+                              value={role.name}
+                              onChange={(e) => updatePortfolioStaffRole(idx, { ...role, name: e.target.value })}
+                              className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <EditableCell value={role.monthlyGross} format="currency" label={role.name} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, monthlyGross: v })} />
+                          </td>
+                          <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-tertiary" title={t('as.portfolioOpex.colNetMonthlyTooltip')}>
+                            {formatCurrency(estimateGreekNetMonthly(role.monthlyGross), false, locale)}
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <EditableCell value={role.monthsPaid} format="number" label={t('as.portfolioOpex.colMonths')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, monthsPaid: v })} />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <EditableCell value={role.burdenMultiplier} format="number" label={t('as.portfolioOpex.colBurden')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, burdenMultiplier: v })} />
+                          </td>
+                          <td className="py-1.5 pr-2">
+                            <EditableCell value={role.allowances} format="currency" label={t('as.portfolioOpex.colAllowances')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, allowances: v })} />
+                          </td>
+                          <td className="py-1.5 text-right font-mono text-xs text-text-secondary">
+                            {formatCurrency(annualBurdened, false, locale)}
+                          </td>
+                          <td className="py-1.5 pl-2">
+                            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded ${role.yearRound ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                              {role.yearRound ? t('as.portfolioOpex.roleYearRound') : t('as.portfolioOpex.roleSeasonal')}
+                            </span>
+                          </td>
+                          <td className="py-1.5 pl-1">
+                            <button type="button" onClick={() => removePortfolioStaffRole(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <button
+                  type="button"
+                  onClick={() => addPortfolioStaffRole({ name: 'New Role', monthlyGross: 0, monthsPaid: 14, burdenMultiplier: 1.32, allowances: 0, yearRound: true })}
+                  className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  + {t('as.portfolioOpex.addRole')}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Section 2 — Shared Services */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            if (!po) return null;
+            return (
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.servicesSection')}</h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-secondary">
+                      <th className="text-left py-1 pr-2 font-medium">Name</th>
+                      <th className="text-left py-1 pr-2 font-medium text-text-tertiary">{t('as.portfolioOpex.sizingBasis')}</th>
+                      <th className="text-right py-1 font-medium w-28">Annual €</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {po.sharedServices.map((line, idx) => (
+                      <tr key={idx} className="border-b border-surface-secondary/40">
+                        <td className="py-1.5 pr-2">
+                          <input
+                            type="text"
+                            value={line.name}
+                            onChange={(e) => updatePortfolioService(idx, { ...line, name: e.target.value })}
+                            className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                          />
+                        </td>
+                        <td className="py-1.5 pr-2 text-xs text-text-tertiary">{line.sizingBasis ?? ''}</td>
+                        <td className="py-1.5">
+                          <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
+                        </td>
+                        <td className="py-1.5 pl-1">
+                          <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <button
+                  type="button"
+                  onClick={() => addPortfolioService({ name: 'New Service', sizingBasis: '', annualCost: 0 })}
+                  className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  + {t('as.portfolioOpex.addService')}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Section 3 — Shared Overhead */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            if (!po) return null;
+            return (
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.overheadSection')}</h4>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-secondary">
+                      <th className="text-left py-1 pr-2 font-medium">Name</th>
+                      <th className="text-left py-1 pr-2 font-medium text-text-tertiary">{t('as.portfolioOpex.sizingBasis')}</th>
+                      <th className="text-right py-1 font-medium w-28">Annual €</th>
+                      <th className="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {po.sharedOverhead.map((line, idx) => {
+                      const isBanking = line.name.includes('Banking') || line.name.includes('Payment');
+                      const isInsurance = line.name.includes('Insurance');
+                      return (
+                        <tr key={idx} className="border-b border-surface-secondary/40">
+                          <td className="py-1.5 pr-2">
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="text"
+                                value={line.name}
+                                onChange={(e) => updatePortfolioOverhead(idx, { ...line, name: e.target.value })}
+                                className="flex-1 px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                              />
+                              {isBanking && (
+                                <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.bankingTooltip')}>?</span>
+                              )}
+                              {isInsurance && (
+                                <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.insuranceTooltip')}>?</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-1.5 pr-2 text-xs text-text-tertiary">{line.sizingBasis ?? ''}</td>
+                          <td className="py-1.5">
+                            <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioOverhead(idx, { ...line, annualCost: v })} />
+                          </td>
+                          <td className="py-1.5 pl-1">
+                            <button type="button" onClick={() => removePortfolioOverhead(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                <button
+                  type="button"
+                  onClick={() => addPortfolioOverhead({ name: 'New Overhead', sizingBasis: '', annualCost: 0 })}
+                  className="mt-3 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"
+                >
+                  + {t('as.portfolioOpex.addOverhead')}
+                </button>
+              </div>
+            );
+          })()}
+
+          {/* Section 4 — Pre-opening Amortisation */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            if (!po) return null;
+            const annualAmort = po.preOpeningAmortYears > 0 ? po.preOpeningTotal / po.preOpeningAmortYears : 0;
+            return (
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.preOpeningSection')}</h4>
+                <table className="w-full text-sm">
+                  <tbody>
+                    <tr className="border-b border-surface-secondary/40">
+                      <td className="py-2 pr-4 text-text-secondary">{t('as.portfolioOpex.preOpeningTotal')}</td>
+                      <td className="py-2 w-36">
+                        <EditableCell value={po.preOpeningTotal} format="currency" label={t('as.portfolioOpex.preOpeningTotal')} onChange={(v) => updatePortfolioOpexScalar('preOpeningTotal', v)} />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-surface-secondary/40">
+                      <td className="py-2 pr-4 text-text-secondary">{t('as.portfolioOpex.preOpeningAmortYears')}</td>
+                      <td className="py-2 w-36">
+                        <EditableCell value={po.preOpeningAmortYears} format="number" label={t('as.portfolioOpex.preOpeningAmortYears')} onChange={(v) => updatePortfolioOpexScalar('preOpeningAmortYears', v)} />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-surface-secondary/40">
+                      <td className="py-2 pr-4 text-text-secondary">{t('as.portfolioOpex.preOpeningStartYear')}</td>
+                      <td className="py-2 w-36">
+                        <EditableCell value={po.preOpeningStartYear} format="number" label={t('as.portfolioOpex.preOpeningStartYear')} onChange={(v) => updatePortfolioOpexScalar('preOpeningStartYear', v)} />
+                      </td>
+                    </tr>
+                    <tr className="border-b border-surface-secondary/40">
+                      <td className="py-2 pr-4 text-text-secondary text-text-tertiary italic">{t('as.portfolioOpex.annualAmort')}</td>
+                      <td className="py-2 w-36 text-right px-2 font-mono text-sm text-text-tertiary italic">
+                        {formatCurrency(annualAmort, false, locale)}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
             );
-          })}
+          })()}
+        </div>
+      )}
+
+      {/* ── DSRA TAB ── */}
+      {tab === "dsra" && (
+        <div className="bg-white rounded-xl border border-surface-tertiary p-6 space-y-4">
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide mb-1">
+              {t('dsra.sectionTitle')}
+            </h3>
+            <p className="text-xs text-text-secondary">{t('dsra.sectionSub')}</p>
+          </div>
+          <table className="w-full text-sm">
+            <tbody>
+              {/* Target DSCR */}
+              <tr className="border-b border-surface-secondary">
+                <td className="py-2 pr-4 text-text-secondary">
+                  {t('as.dsraTargetDSCR')}
+                </td>
+                <td className="py-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.targetDSCR ?? 1.25}
+                    onChange={v => setAssumption('dsra.targetDSCR' as any, v)}
+                    format="number"
+                  />
+                </td>
+              </tr>
+              {/* 2028 sweep % */}
+              <tr>
+                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraSweepPct')}</td>
+                <td className="pt-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.sweep2028Pct ?? 1.0}
+                    onChange={v => setAssumption('dsra.sweep2028Pct' as any, v)}
+                    format="percent"
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-surface-secondary">
+                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
+                  {t('as.dsraSweepNote')}
+                </td>
+              </tr>
+              {/* Replenishment priority */}
+              <tr className="border-b border-surface-secondary">
+                <td className="py-2 pr-4 text-text-secondary">{t('as.dsraReplenishPriority')}</td>
+                <td className="py-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.replenishmentPriority ?? 1.0}
+                    onChange={v => setAssumption('dsra.replenishmentPriority' as any, v)}
+                    format="percent"
+                  />
+                </td>
+              </tr>
+              {/* Partner repayment threshold */}
+              <tr>
+                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraRepayThreshold')}</td>
+                <td className="pt-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.partnerRepaymentThreshold ?? 2}
+                    onChange={v => setAssumption('dsra.partnerRepaymentThreshold' as any, Math.round(v))}
+                    format="number"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
+                  {t('as.dsraRepayThresholdNote')}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="text-xs text-text-tertiary leading-relaxed">{t('dsra.assumptionsCaption')}</p>
         </div>
       )}
 
@@ -1574,7 +2256,7 @@ function HistoryPanel() {
   const activeCount = history.filter((h) => !h.superseded && !h.reverted).length;
 
   return (
-    <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
+    <div className="mt-8 bg-white rounded-xl border border-surface-tertiary p-6">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="font-display text-lg text-text-primary">Change History</h3>
@@ -1884,7 +2566,7 @@ function ConfigPanel() {
   };
 
   return (
-    <div className="mt-8 bg-white rounded-2xl border border-surface-tertiary shadow-sm p-6">
+    <div className="mt-8 bg-white rounded-xl border border-surface-tertiary p-6">
       <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
         <h3 className="font-display text-lg text-text-primary">{t('config.savedConfigs')}</h3>
         <div className="flex items-center gap-2">
@@ -1958,7 +2640,7 @@ function ConfigPanel() {
             <button
               onClick={handleSave}
               disabled={!newName.trim()}
-              className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+              className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               {t('config.save')}
             </button>
@@ -1989,7 +2671,7 @@ function ConfigPanel() {
           </div>
           <button
             onClick={handleSignIn}
-            className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all shadow-sm"
+            className="px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-medium hover:bg-brand-700 transition-all"
           >
             Sign in to save
           </button>

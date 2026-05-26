@@ -8,6 +8,9 @@ import {
   PropertyConfig,
   PropertyOpex,
   RoomAreaBreakdown,
+  StaffRole,
+  SharedServiceLine,
+  PortfolioOpex,
 } from '../engine/types';
 import {
   BASE_CASE,
@@ -17,6 +20,8 @@ import {
   DEFAULT_VILLA,
   DEFAULT_SUITE,
   resolvePortfolio,
+  DEFAULT_PORTFOLIO_OPEX,
+  ensurePortfolioOpex,
 } from '../engine/defaults';
 import { computeModel } from '../engine/model';
 import {
@@ -54,12 +59,28 @@ function ensureRoomAreas(tpl: PropertyTemplate): PropertyTemplate {
           ],
         }
       : baseRooms;
+  const bedroomsPerStandard = tpl.bedroomsPerStandard ?? builtIn?.bedroomsPerStandard ?? 1;
+  const bedroomsPerDouble   = tpl.bedroomsPerDouble   ?? builtIn?.bedroomsPerDouble   ?? 2;
+  const bedroomsInMain      = tpl.bedroomsInMain      ?? builtIn?.bedroomsInMain      ?? 4;
+  const lockableSubUnits    = tpl.lockableSubUnits    ?? builtIn?.lockableSubUnits    ?? 3;
+  const bedroomsPerSubUnit  = tpl.bedroomsPerSubUnit  ?? builtIn?.bedroomsPerSubUnit  ?? 1;
   return {
     ...tpl,
     roomAreas,
     villaUnits: villaUnitsCount,
     standardSuites: tpl.standardSuites ?? builtIn?.standardSuites ?? 0,
     doubleSuites: tpl.doubleSuites ?? builtIn?.doubleSuites ?? 0,
+    bedroomsPerStandard,
+    bedroomsPerDouble,
+    bedroomsInMain,
+    lockableSubUnits,
+    bedroomsPerSubUnit,
+    // Backfill ffeReserveFloor added 2026-05 — built-in templates use the
+    // canonical value; custom templates default to 0.
+    opex: {
+      ...tpl.opex,
+      ffeReserveFloor: tpl.opex.ffeReserveFloor ?? builtIn?.opex.ffeReserveFloor ?? 0,
+    },
   };
 }
 
@@ -439,6 +460,7 @@ function saveAssumptionsToStorage(assumptions: ModelAssumptions) {
   try {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { portfolio: _portfolio, ...persistable } = assumptions;
+    // portfolioOpex is retained in persistable — it is user-edited state, not a derived field.
     localStorage.setItem(ASSUMPTIONS_STORAGE_KEY, JSON.stringify(persistable));
   } catch { /* storage full */ }
 }
@@ -525,10 +547,26 @@ function clearPersistedState() {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function migrateToPortfolio(raw: any): ModelAssumptions {
   if (raw.portfolio && Array.isArray(raw.portfolio)) {
-    const merged = deepMerge(
+    let merged = deepMerge(
       BASE_CASE as unknown as Record<string, unknown>,
       raw as Record<string, unknown>
     ) as unknown as ModelAssumptions;
+    // v1→v2 migration: if portfolioOpex is missing, housekeeping costs were
+    // tracked per-template. Zero them out and seed portfolioOpex from defaults.
+    if (!raw.portfolioOpex) {
+      merged = {
+        ...merged,
+        portfolio: (merged.portfolio ?? []).map((prop: PropertyConfig) => ({
+          ...prop,
+          opex: { ...prop.opex, housekeeping: 0 },
+        })),
+      };
+      // Trigger one-time migration banner
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('vlg_portfolio_opex_migrated_v2', '1');
+      }
+      merged = ensurePortfolioOpex(merged);
+    }
     return merged;
   }
 
@@ -553,6 +591,7 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
       architectFees: oldA.architectFees ?? DEFAULT_VILLA.architectFees,
       civilEngineerFees: oldA.civilEngineerFees ?? DEFAULT_VILLA.civilEngineerFees,
       contingencyRate: oldA.contingencyRate ?? DEFAULT_VILLA.contingencyRate,
+      opexContingencyRate: oldA.opexContingencyRate ?? 0,
       opex: {
         housekeeping: oldOpexA.housekeeping ?? DEFAULT_VILLA.opex.housekeeping,
         maintenance: oldOpexA.maintenance ?? DEFAULT_VILLA.opex.maintenance,
@@ -560,10 +599,17 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
         insurance: oldOpexA.insurance ?? DEFAULT_VILLA.opex.insurance,
         propertyTax: oldOpexA.propertyTax ?? DEFAULT_VILLA.opex.propertyTax,
         marketing: oldOpexA.marketing ?? DEFAULT_VILLA.opex.marketing,
-        managementFee: oldOpexA.managementFee ?? DEFAULT_VILLA.opex.managementFee,
+        // @deprecated — field retained for Firestore backward-compat; engine ignores this field
+        managementFee: 0,
         consumables: oldOpexA.consumables ?? DEFAULT_VILLA.opex.consumables,
         accounting: oldOpexA.accounting ?? DEFAULT_VILLA.opex.accounting,
+        ffeReserveFloor: oldOpexA.ffeReserveFloor ?? DEFAULT_VILLA.opex.ffeReserveFloor,
       },
+      bedroomsPerStandard: 1,
+      bedroomsPerDouble:   2,
+      bedroomsInMain:      4,
+      lockableSubUnits:    3,
+      bedroomsPerSubUnit:  1,
     });
   }
 
@@ -586,6 +632,7 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
       architectFees: oldB.architectFees ?? DEFAULT_SUITE.architectFees,
       civilEngineerFees: oldB.civilEngineerFees ?? DEFAULT_SUITE.civilEngineerFees,
       contingencyRate: oldB.contingencyRate ?? DEFAULT_SUITE.contingencyRate,
+      opexContingencyRate: oldB.opexContingencyRate ?? 0,
       opex: {
         housekeeping: oldOpexB.housekeeping ?? DEFAULT_SUITE.opex.housekeeping,
         maintenance: oldOpexB.maintenance ?? DEFAULT_SUITE.opex.maintenance,
@@ -593,10 +640,17 @@ function migrateToPortfolio(raw: any): ModelAssumptions {
         insurance: oldOpexB.insurance ?? DEFAULT_SUITE.opex.insurance,
         propertyTax: oldOpexB.propertyTax ?? DEFAULT_SUITE.opex.propertyTax,
         marketing: oldOpexB.marketing ?? DEFAULT_SUITE.opex.marketing,
-        managementFee: oldOpexB.managementFee ?? DEFAULT_SUITE.opex.managementFee,
+        // @deprecated — field retained for Firestore backward-compat; engine ignores this field
+        managementFee: 0,
         consumables: oldOpexB.consumables ?? DEFAULT_SUITE.opex.consumables,
         accounting: oldOpexB.accounting ?? DEFAULT_SUITE.opex.accounting,
+        ffeReserveFloor: oldOpexB.ffeReserveFloor ?? DEFAULT_SUITE.opex.ffeReserveFloor,
       },
+      bedroomsPerStandard: 1,
+      bedroomsPerDouble:   2,
+      bedroomsInMain:      4,
+      lockableSubUnits:    3,
+      bedroomsPerSubUnit:  1,
     });
   }
 
@@ -813,6 +867,23 @@ interface ModelStore {
   addOpexLine: (tplId: string) => void;
   removeOpexLine: (tplId: string, lineId: string) => void;
   updateOpexLine: (tplId: string, lineId: string, key: 'name' | 'value', value: string | number) => void;
+  // Portfolio OPEX — shared staff roles
+  addPortfolioStaffRole: (role: StaffRole) => void;
+  updatePortfolioStaffRole: (index: number, role: StaffRole) => void;
+  removePortfolioStaffRole: (index: number) => void;
+  // Portfolio OPEX — shared services
+  addPortfolioService: (line: SharedServiceLine) => void;
+  updatePortfolioService: (index: number, line: SharedServiceLine) => void;
+  removePortfolioService: (index: number) => void;
+  // Portfolio OPEX — shared overhead
+  addPortfolioOverhead: (line: SharedServiceLine) => void;
+  updatePortfolioOverhead: (index: number, line: SharedServiceLine) => void;
+  removePortfolioOverhead: (index: number) => void;
+  // Portfolio OPEX — scalar fields
+  updatePortfolioOpexScalar: (
+    key: keyof Omit<PortfolioOpex, 'staffRoles' | 'sharedServices' | 'sharedOverhead'>,
+    value: number | boolean
+  ) => void;
   // Extra one-off CAPEX lines (fold into capex totals and export)
   addCapexLine: (tplId: string) => void;
   removeCapexLine: (tplId: string, lineId: string) => void;
@@ -1031,22 +1102,22 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     if (!trimmed) return;
     // Fire-and-forget — saveConfig surfaces failures via requestAlert.
     void get().saveConfig(trimmed, opts);
-    set({ saveModalOpen: false, editsSinceLastSave: 0 });
+    set({ saveModalOpen: false, editsSinceLastSave: 0, referenceAutoLoadAttempted: true });
   },
 
   acceptUpdateExisting: () => {
     const { lastSavedConfigId } = get();
     if (!lastSavedConfigId) return;
     void get().updateConfig(lastSavedConfigId);
-    set({ saveModalOpen: false, editsSinceLastSave: 0 });
+    set({ saveModalOpen: false, editsSinceLastSave: 0, referenceAutoLoadAttempted: true });
   },
 
   dismissSaveModal: (disablePermanently?: boolean) => {
     if (disablePermanently) {
       saveSavePromptDisabled(true);
-      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true, savePromptDisabled: true });
+      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true, savePromptDisabled: true, referenceAutoLoadAttempted: true });
     } else {
-      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true });
+      set({ saveModalOpen: false, editsSinceLastSave: 0, savePromptDismissed: true, referenceAutoLoadAttempted: true });
     }
   },
 
@@ -1139,7 +1210,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Also mark older entries for same (scope, scopeId, path) as superseded already — unchanged.
     // The new revertEntry becomes the latest non-superseded entry for this field.
     const newHistory = [...history, revertEntry].slice(-HISTORY_MAX);
-    set({ history: newHistory, activeConfigId: null });
+    set({ history: newHistory, activeConfigId: null, referenceAutoLoadAttempted: true });
     saveHistoryToStorage(newHistory);
     get().recompute();
   },
@@ -1290,6 +1361,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         savedAssumptions as Record<string, unknown>
       ) as unknown as ModelAssumptions;
     }
+    assumptions = ensurePortfolioOpex(assumptions);
 
     const projects = savedProjects ?? DEFAULT_PROJECTS.map((p) => ({ ...p }));
 
@@ -1686,6 +1758,107 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     get().recompute();
   },
 
+  // ── Portfolio OPEX actions ──
+
+  addPortfolioStaffRole: (role: StaffRole) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, staffRoles: [...po.staffRoles, role] } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updatePortfolioStaffRole: (index: number, role: StaffRole) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const staffRoles = po.staffRoles.map((r, i) => (i === index ? role : r));
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, staffRoles } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removePortfolioStaffRole: (index: number) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const staffRoles = po.staffRoles.filter((_, i) => i !== index);
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, staffRoles } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  addPortfolioService: (line: SharedServiceLine) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedServices: [...po.sharedServices, line] } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updatePortfolioService: (index: number, line: SharedServiceLine) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const sharedServices = po.sharedServices.map((s, i) => (i === index ? line : s));
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedServices } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removePortfolioService: (index: number) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const sharedServices = po.sharedServices.filter((_, i) => i !== index);
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedServices } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  addPortfolioOverhead: (line: SharedServiceLine) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedOverhead: [...po.sharedOverhead, line] } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updatePortfolioOverhead: (index: number, line: SharedServiceLine) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const sharedOverhead = po.sharedOverhead.map((s, i) => (i === index ? line : s));
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedOverhead } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  removePortfolioOverhead: (index: number) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const sharedOverhead = po.sharedOverhead.filter((_, i) => i !== index);
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, sharedOverhead } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  updatePortfolioOpexScalar: (
+    key: keyof Omit<PortfolioOpex, 'staffRoles' | 'sharedServices' | 'sharedOverhead'>,
+    value: number | boolean
+  ) => {
+    const po = get().assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+    const updated = { ...get().assumptions, portfolioOpex: { ...po, [key]: value } };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
   // ── Villa Rooms ──
 
   addVillaRoom: (tplId: string) => {
@@ -1861,6 +2034,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       lastSavedConfigId: id,
       lastSavedConfigName: name,
       editsSinceLastSave: 0,
+      referenceAutoLoadAttempted: true,
     });
     saveToStorage(configs);
     saveLastSavedConfig({ id, name });
@@ -1985,7 +2159,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           .map(ensureRoomAreas),
       ];
       targetProjects = source.projects!;
-      targetAssumptions = mergedAssumptions;
+      targetAssumptions = ensurePortfolioOpex(mergedAssumptions);
     } else {
       const migrated = migrateToPortfolio(mergedAssumptions);
       targetTemplates = get().templates;

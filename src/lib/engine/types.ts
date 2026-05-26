@@ -6,14 +6,19 @@
 
 export interface PropertyOpex {
   housekeeping: number;
-  maintenance: number;
+  /** @deprecated — engine does not read this field; replaced by ffeReserveFloor + revenue % schedule. */
+  maintenance?: number;
   utilities: number;
   insurance: number;
   propertyTax: number;
   marketing: number;
-  managementFee: number;
+  /** @deprecated — removed from OpEx sum; retained for Firestore backward-compatibility. */
+  managementFee?: number;
   consumables: number;
   accounting: number;
+  /** FF&E Reserve floor per plot (EUR/year). Engine computes max(ffeReserveFloor, rate% × revenue).
+   *  Rates: 0% in Y1 of ops (2028, floor only), 2% (2029), 3% (2030), 4%+ thereafter. */
+  ffeReserveFloor?: number;
 }
 
 // Per-room-type area breakdown (m²)
@@ -21,6 +26,20 @@ export interface CustomSpace {
   id: string;
   name: string;
   area: number;
+}
+
+// User-defined extra OPEX line (annual running cost, EUR/yr)
+export interface CustomLine {
+  id: string;
+  name: string;
+  value: number;
+}
+
+// User-defined extra CAPEX line (one-off capital cost, EUR)
+export interface CustomCapexLine {
+  id: string;
+  name: string;
+  cost: number;
 }
 
 // One room inside a single villa (e.g. 4 bedrooms × 20m²). The combined
@@ -94,8 +113,19 @@ export interface PropertyConfig {
   architectFees: number;
   civilEngineerFees: number;
   contingencyRate: number; // % of construction + FF&E
+  opexContingencyRate?: number; // % buffer on controllable OPEX only (0 = no buffer)
   // OPEX parameters
   opex: PropertyOpex;
+  // User-defined extra annual OPEX lines (fold into P&L opex)
+  extraOpexLines?: CustomLine[];
+  // User-defined extra one-off CAPEX lines (fold into capex totals and export)
+  extraCapexLines?: CustomCapexLine[];
+  // Keys & Bedrooms topology (display layer only — does not affect CAPEX/OPEX/revenue)
+  bedroomsPerStandard?: number; // default 1
+  bedroomsPerDouble?:   number; // default 2
+  bedroomsInMain?:      number; // default 4
+  lockableSubUnits?:    number; // default 3
+  bedroomsPerSubUnit?:  number; // default 1
 }
 
 // Helper: derive display type from unit mix
@@ -130,8 +160,19 @@ export interface PropertyTemplate {
   architectFees: number;
   civilEngineerFees: number;
   contingencyRate: number;
+  opexContingencyRate?: number; // % buffer on controllable OPEX only (0 = no buffer)
   // OPEX parameters
   opex: PropertyOpex;
+  // User-defined extra annual OPEX lines (fold into P&L opex)
+  extraOpexLines?: CustomLine[];
+  // User-defined extra one-off CAPEX lines (fold into capex totals and export)
+  extraCapexLines?: CustomCapexLine[];
+  // Keys & Bedrooms topology (display layer only — does not affect CAPEX/OPEX/revenue)
+  bedroomsPerStandard?: number; // default 1
+  bedroomsPerDouble?:   number; // default 2
+  bedroomsInMain?:      number; // default 4
+  lockableSubUnits?:    number; // default 3
+  bedroomsPerSubUnit?:  number; // default 1
 }
 
 export interface ProjectAllocation {
@@ -195,11 +236,20 @@ export interface WorkingCapitalParams {
   internalCashBuffer: number;
 }
 
+export interface DSRAParams {
+  enabled: boolean;
+  targetDSCR: number;          // coverage threshold that triggers drawdown (default 1.25)
+  sweep2028Pct: number;        // fraction 0–1 of 2028 post-tax NCF swept (default 1.0)
+  replenishmentPriority: number; // fraction 0–1 of post-DS surplus used to replenish (default 1.0)
+  partnerRepaymentThreshold: number; // consecutive stable years before partner repayment (default 2)
+}
+
 // ── Financing Parameters ──
 
 export interface CommercialLoanParams {
   loanCoverageRate: number;
   interestRate: number;
+  // Currently inert in engine getDS closures — actual grace boundary is PROJECT_CONSTANTS.GRACE_END_YEAR
   gracePeriodYears: number;
   repaymentTermYears: number;
   workingCapitalFacility: number;
@@ -228,6 +278,7 @@ export interface RRFParams {
   rrfInterestRate: number;
   commercialShareRate: number;
   commercialInterestRate: number;
+  // Currently inert in engine getDS closures — actual grace boundary is PROJECT_CONSTANTS.GRACE_END_YEAR
   gracePeriodYears: number;
   repaymentTermYears: number;
   // Legacy fields kept for backward-compat with stored Firestore data.
@@ -246,6 +297,7 @@ export interface TepixLoanFundParams {
   interestSubsidy: number;
   subsidyDurationYears: number;
   totalTermYears: number;
+  // Currently inert in engine getDS closures — actual grace boundary is PROJECT_CONSTANTS.GRACE_END_YEAR
   gracePeriodYears: number;
   landCapOnFundContribution: number;
 }
@@ -255,6 +307,7 @@ export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan';
 export interface TaxAssumptions {
   corporateIncomeTaxRate: number;
   netVATRate: number;
+  otaCommissionRate: number;
 }
 
 // ── OpCo / PropCo Split ──
@@ -278,6 +331,27 @@ export interface OpCoFeeParams {
   /** Bucket 2B: 10% of GOP above hurdle */
   incentiveFeeRate: number;
   ownerPriorityReturnRate: number;
+  /**
+   * Shareholder floor — minimum fraction of residual NCF (after DS) that must
+   * remain for equity distributions BEFORE any incentive fee is paid.
+   * e.g. 0.50 → incentive fee ≤ 50% of residual; shareholders always keep ≥ 50%.
+   * Only applied in bank view when OpCo split is enabled.
+   * Default: 0.50.
+   */
+  shareholderMinResidualShare?: number;
+  /**
+   * Annual cap on total OpCo fee income (base + incentive combined).
+   * This is the fee PropCo pays to OpCo — NOT the founder's personal draw.
+   * e.g. 180_000 → PropCo pays OpCo at most €180K/yr regardless of revenue.
+   * Optional so old saved scenarios deserialise cleanly (treated as Infinity).
+   */
+  opcoAnnualFeeCap?: number;
+  /** Tiered junior rate applied to post-DS residual up to threshold. Default 0.10. */
+  juniorTier1Rate?: number;
+  /** Tiered junior rate applied to post-DS residual above threshold. Default 0.15. */
+  juniorTier2Rate?: number;
+  /** Residual breakpoint (€) between Tier 1 and Tier 2. Default 500_000. */
+  juniorResidualThreshold?: number;
 }
 
 // Bank-view structural floor for the OpCo management fee. Under the
@@ -290,6 +364,46 @@ export interface OpCoFeeParams {
 //
 // Internal view = legacy / admin (per-villa managementFee in OpEx).
 // Bank view     = floor at the portfolio level + subordinated overage.
+
+// ── Portfolio OPEX (undistributed shared overhead) ──
+
+export interface StaffRole {
+  name: string;
+  monthlyGross: number;
+  monthsPaid: number;       // 14 for year-round (Greek rule); seasonalMonths for seasonal
+  burdenMultiplier: number; // default 1.32 (employer EFKA + severance accrual)
+  allowances: number;       // annual food/transport allowance €
+  yearRound: boolean;
+  seasonalMonths?: number;  // used only if yearRound === false
+  headcount?: number;       // used only if yearRound === false, default 1
+}
+
+export interface SharedServiceLine {
+  name: string;
+  sizingBasis: string;  // read-only display label
+  annualCost: number;
+}
+
+export interface PortfolioOpex {
+  staffRoles: StaffRole[];
+  sharedServices: SharedServiceLine[];
+  sharedOverhead: SharedServiceLine[];
+  preOpeningTotal: number;
+  preOpeningAmortYears: number;
+  preOpeningStartYear: number;
+  includePreOpeningInStabilised: boolean;
+  inflationHook: number; // 0.0 — engine-inert hook for future escalator
+}
+
+export interface PortfolioOpexOutput {
+  staffTotal: number;
+  servicesTotal: number;
+  overheadTotal: number;
+  preOpeningAmort: number;
+  total: number;
+  yearRoundFixed: number; // staffTotal + overheadTotal — bank "fixed cost spine"
+  variable: number;       // servicesTotal
+}
 
 // ── Model Input ──
 
@@ -304,6 +418,8 @@ export interface ModelAssumptions {
   tepixLoan: TepixLoanFundParams;
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
+  /** Annual developer management fee during construction (2026–2027). Capitalized as CAPEX soft cost. */
+  developerConstructionFeePerYear?: number;
   financingPath: FinancingPath;
   opCoFee: OpCoFeeParams;
   // Minimum annual management fee paid SENIOR to debt service in bank view
@@ -313,6 +429,7 @@ export interface ModelAssumptions {
   // view ignores it. See cash-waterfall block in `computePnLYear` (model.ts).
   opCoSeniorFloor: number;
   workingCapital: WorkingCapitalParams;
+  portfolioOpex?: PortfolioOpex;
   // Multiple applied to EBITDA at the exit year to produce a terminal asset
   // value for IRR calculations. e.g. 10 means terminal value = 10 × exit EBITDA.
   // Floored at 4× in the UI but otherwise uncapped — sponsor can model an
@@ -332,6 +449,14 @@ export interface ModelAssumptions {
   // Greek/EU commercial real estate loans typically carry 1.20–1.30. Surfaced
   // on the Coverage sheet of the BP export with a Pass/Fail row.
   dscrCovenantThreshold: number;
+  dsra?: DSRAParams;
+  /** FF&E Reserve rate schedule. Engine applies max(floor, rate × revenue/unit) per year.
+   *  Year 2028 (opening): floor only (rate 0). Years 2029+: ramp by schedule below. */
+  ffeSchedule?: {
+    rate2029: number;       // first operational year — default 0.02
+    rate2030: number;       // second operational year — default 0.03
+    rateStabilised: number; // stabilised (2031+) — default 0.04
+  };
   // Toggle between two cash-waterfall structures inside `computePnLYear`.
   //  - 'internal' (default): legacy/admin view. OpCo paid in full; DSCR /
   //    NCF / CFADS / taxableProfit reflect EBITDA *after* the full OpCo fee
@@ -380,6 +505,8 @@ export interface PropertyPnLLine {
   revenuePerUnit: number;
   totalRevenue: number;
   opexPerUnit: number;
+  /** FF&E Reserve component within opexPerUnit — max(floor, rate% × revenue/unit). */
+  ffeReservePerUnit: number;
   totalOpex: number;
 }
 
@@ -404,12 +531,21 @@ export interface AnnualPnL {
   opCoBrandFee: number;
   opCoIncentiveFee: number;
   opCoTotalFee: number;
+  // Gross (pre-cap) total fee — populated when opcoAnnualFeeCap is set.
+  // Used for IRR add-back so the pre-split IRR correctly adds back the
+  // uncapped fee, not the capped amount. Equals opCoTotalFee when no cap binds.
+  opCoTotalFeeRaw?: number;
   // Bank view only: senior portion of the OpCo fee paid inside OpEx
   // (= `opCoSeniorFloor`). Junior tranche = opCoTotalFee − opCoSeniorPaid.
   // Zero in internal view (no floor concept there).
   opCoSeniorPaid: number;
+  // Junior tranche of OpCo fee paid out of post-DS residual (tiered formula).
+  // Zero when OpCo split is disabled or residual is insufficient.
+  opCoJuniorPaid: number;
   // PropCo EBITDA — net of OpCo fees. All downstream PropCo metrics
   // (DSCR, ICR, NCF, IRR, yield) flow from this.
+  grossRevenue: number;       // totalRevenue / (1 - otaCommissionRate) — guest-facing
+  otaCommissions: number;     // grossRevenue × otaCommissionRate (negative — outflow)
   ebitda: number;
   ebitdaMargin: number;
   debtService: number;
@@ -451,6 +587,14 @@ export interface AnnualPnL {
   // Fully-loaded DSCR: EBITDA / (term-DS + WC interest). Same numerator as
   // headline DSCR; larger denominator. Equals headline DSCR when WC inactive.
   dscrLoaded: number;
+  // ── Portfolio-level (undistributed) OPEX — optional; zero/absent for pre-operational years ──
+  portfolioOpex?: PortfolioOpexOutput;
+  // ── DSRA (Debt Service Reserve Account) ──
+  dsraDraw?: number;          // amount drawn from DSRA balance this year (≥0)
+  dsraReplenishment?: number; // amount replenished into DSRA this year (≥0)
+  dsraBalance?: number;       // DSRA end-of-period balance
+  effectiveDSCR?: number;     // (CFADS + dsraDraw) / DS — equals dscr when DSRA disabled
+  partnerRepayment?: number;  // subordinated partner advance repaid this year (≥0)
 }
 
 export interface WorkingCapitalQuarter {
@@ -475,7 +619,8 @@ export interface ScenarioOutput {
   plcr: number;                       // Project Life Coverage Ratio
   icrStabilised: number;              // EBITDA / interest, stabilised year
   minDSCRLoanLife: number;            // min DSCR across operational years (≥2029)
-  dscrCovenantHeadroom: number;       // (minDSCR - 1.25) / 1.25
+  avgDSCRLoanLife: number;            // average DSCR across operational years (≥2029)
+  dscrCovenantHeadroom: number;       // (avgDSCR - 1.25) / 1.25
   peakDebtOutstanding: number;        // max(termLoanBalance + wcPeakBalance)
   gracePeriodInterestTotal: number;   // sum of interest paid 2026+2027+2028
   netLeverage: number;                // loan / stabilised EBITDA
@@ -521,6 +666,10 @@ export interface ScenarioOutput {
   // sponsor would rationally elect to sell the real estate rather than the
   // operating hotel. Computed on TERMINAL ASSET value (gross), not equity.
   propertyExitDominates: boolean;
+  // ── DSRA scenario-level summary ──
+  dsraTarget?: number;         // DSRA_target = max worst-year shortfall
+  dsraSweep2028?: number;      // sweep from 2028 NCF
+  dsraPartnerAdvance?: number; // partner_advance = max(0, dsraTarget - dsraSweep2028)
 }
 
 // Stable identifier for each comparison row, locale-independent. Add cases
@@ -532,7 +681,9 @@ export type FinancingMetricKey =
   | 'annualDebtService'
   | 'stabilisedDSCR'
   | 'supplementaryLoan'
-  | 'equitySavingVsCommercial';
+  | 'equitySavingVsCommercial'
+  | 'dsraTarget'
+  | 'effectiveDSCRStabilised';
 
 export interface FinancingComparison {
   // Locale-independent identifier — use this for any conditional logic.
@@ -587,6 +738,7 @@ export interface ModelOutput {
     // The cap value used (8_000_000 per HDB program rules). 0 on
     // non-tepix paths. Surfaced for UI tooltips.
     tepixLoanCap: number;
+    grantAmount: number;
   };
   dscrByYear: {
     year: number;
@@ -595,6 +747,12 @@ export interface ModelOutput {
     downside: number;
     grant: number;
     tepixLoan: number;
+    // Effective DSCR (incl. DSRA drawdown) per path — populated when dsra.enabled
+    effectiveRealistic?: number;
+    effectiveUpside?: number;
+    effectiveDownside?: number;
+    effectiveGrant?: number;
+    effectiveTepixLoan?: number;
   }[];
   collateral: {
     builtSurface: number;

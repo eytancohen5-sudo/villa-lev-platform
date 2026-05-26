@@ -6,12 +6,73 @@
 // Editable via assumptions. 10× ≈ 10% implied cap rate.
 export const DEFAULT_EXIT_EBITDA_MULTIPLE = 10;
 
+export const PROJECT_CONSTANTS = {
+  /** First year of the modeled horizon. Phase: land acquisition. */
+  HORIZON_START_YEAR: 2026,
+  /**
+   * Deprecated: grace boundary is now computed per path as
+   * HORIZON_START_YEAR + gracePeriodYears (ADR-0009). This alias
+   * (= HORIZON_START_YEAR + 2) is kept for any residual call sites
+   * outside getDS. Do not use for new code.
+   */
+  GRACE_END_YEAR: 2028,
+  /**
+   * Opening year — partial season at year1RampFactor.
+   * OPENING_YEAR = GRACE_END_YEAR (construction completes end of 2028, villa opens).
+   * Used as the base for ancillary growth accumulation.
+   */
+  OPENING_YEAR: 2028,
+  /** First full ramp year (post-opening, year2RampFactor applies). */
+  FIRST_OPERATIONAL_YEAR: 2029,
+  /** Stabilised year — DSCR, EBITDA, and LCR metrics anchor here. */
+  STABILISED_YEAR: 2031,
+  /** Last year of the modeled horizon (11-year projection: 2026–2036). */
+  HORIZON_END_YEAR: 2036,
+  /**
+   * Earliest permitted exit year — clamp lower bound for the exit-year slider.
+   * NOTE: same numeric value as NIGHTS_GROWTH_BASE_YEAR today but represents a
+   * different business concept. Change independently if the exit policy shifts.
+   */
+  MIN_EXIT_YEAR: 2030,
+  /**
+   * Base year for nights-growth accumulation in computeNights.
+   * Growth compounds from this year forward.
+   * NOTE: same numeric value as MIN_EXIT_YEAR today but represents a different
+   * concept. Change independently if the construction ramp shifts.
+   */
+  NIGHTS_GROWTH_BASE_YEAR: 2030,
+  /**
+   * TEPIX III program ceiling per business (HDB program rules).
+   * Source: tepix/milestones.yaml meta.program.loan_amount_range_eur.max
+   * Update this constant and milestones.yaml together.
+   */
+  TEPIX_LOAN_CAP_EUR: 8_000_000,
+  /**
+   * First-tranche capital deployment: land acquisition + permit prep.
+   * Drives the phase-1 loan drawdown in computeDebtService and the drawdown
+   * bar in pitch/page.tsx.
+   * SYNC: model.ts computeDebtService uses this same value.
+   */
+  PHASE1_LAND_PERMITS: 1_350_000,
+  /**
+   * Collateral valuation tiers (€/m²) — three appraisal scenarios.
+   * NOTE: en.ts strings embedding '€7,650/m²', '€9,000/m²', '€11,000/m²'
+   * mirror these values. Update en.ts whenever these change.
+   */
+  COLLATERAL_TIERS: {
+    stress: 7_650,
+    market: 9_000,
+    optimistic: 11_000,
+  },
+} as const;
+
 import {
   ModelAssumptions,
   PropertyConfig,
   PropertyTemplate,
   ProjectAllocation,
   RoomAreaBreakdown,
+  PortfolioOpex,
   computeTotalArea,
 } from './types';
 
@@ -118,6 +179,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 44000,
     civilEngineerFees: 35000,
     contingencyRate: 0.10,
+    opexContingencyRate: 0,
     opex: {
       housekeeping: 15000,
       maintenance: 21000,
@@ -125,10 +187,14 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       insurance: 2500,
       propertyTax: 4000,
       marketing: 4000,
-      managementFee: 20000,
+      managementFee: 0,
       consumables: 5000,
       accounting: 7000,
+      ffeReserveFloor: 20000,
     },
+    extraOpexLines: [],
+    extraCapexLines: [],
+    bedroomsInMain: 4, lockableSubUnits: 3, bedroomsPerSubUnit: 1,
   },
   {
     id: 'tpl-boutique-suite',
@@ -146,6 +212,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 32000,
     civilEngineerFees: 25000,
     contingencyRate: 0.10,
+    opexContingencyRate: 0,
     opex: {
       housekeeping: 13000,
       maintenance: 15000,
@@ -153,10 +220,14 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       insurance: 2500,
       propertyTax: 4000,
       marketing: 4000,
-      managementFee: 20000,
+      managementFee: 0,
       consumables: 5000,
       accounting: 7000,
+      ffeReserveFloor: 30000,
     },
+    extraOpexLines: [],
+    extraCapexLines: [],
+    bedroomsPerStandard: 1, bedroomsPerDouble: 2,
   },
   {
     id: 'tpl-luxury-villa',
@@ -174,6 +245,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 65000,
     civilEngineerFees: 45000,
     contingencyRate: 0.10,
+    opexContingencyRate: 0,
     opex: {
       housekeeping: 22000,
       maintenance: 37500,
@@ -181,10 +253,14 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       insurance: 4000,
       propertyTax: 6000,
       marketing: 6000,
-      managementFee: 30000,
+      managementFee: 0,
       consumables: 8000,
       accounting: 10000,
+      ffeReserveFloor: 20000,
     },
+    extraOpexLines: [],
+    extraCapexLines: [],
+    bedroomsInMain: 4, lockableSubUnits: 3, bedroomsPerSubUnit: 1,
   },
   {
     id: 'tpl-compact-studio',
@@ -202,6 +278,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 20000,
     civilEngineerFees: 18000,
     contingencyRate: 0.10,
+    opexContingencyRate: 0,
     opex: {
       housekeeping: 8000,
       maintenance: 7875,
@@ -209,10 +286,14 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       insurance: 1500,
       propertyTax: 2500,
       marketing: 3000,
-      managementFee: 12000,
+      managementFee: 0,
       consumables: 3000,
       accounting: 5000,
+      ffeReserveFloor: 15000,
     },
+    extraOpexLines: [],
+    extraCapexLines: [],
+    bedroomsPerStandard: 1,
   },
   {
     id: 'tpl-mixed-resort',
@@ -230,6 +311,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 52000,
     civilEngineerFees: 38000,
     contingencyRate: 0.10,
+    opexContingencyRate: 0,
     opex: {
       housekeeping: 20000,
       maintenance: 26460,
@@ -237,18 +319,22 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
       insurance: 3500,
       propertyTax: 5000,
       marketing: 5000,
-      managementFee: 25000,
+      managementFee: 0,
       consumables: 7000,
       accounting: 9000,
+      ffeReserveFloor: 15000,
     },
+    extraOpexLines: [],
+    extraCapexLines: [],
+    bedroomsInMain: 4, lockableSubUnits: 3, bedroomsPerSubUnit: 1, bedroomsPerStandard: 1, bedroomsPerDouble: 2,
   },
 ];
 
 // ── Default Project Allocations ──
 
 export const DEFAULT_PROJECTS: ProjectAllocation[] = [
-  { id: 'proj-1', templateId: 'tpl-twin-villa', name: 'Twin Villas', count: 2 },
-  { id: 'proj-2', templateId: 'tpl-boutique-suite', name: 'Boutique Suites', count: 1 },
+  { id: 'proj-1', templateId: 'tpl-twin-villa', name: '11 Suite-Villas', count: 2 },
+  { id: 'proj-2', templateId: 'tpl-boutique-suite', name: 'Boutique & Wellness', count: 1 },
 ];
 
 // Helper: resolve projects → portfolio (PropertyConfig[])
@@ -284,7 +370,15 @@ export function resolvePortfolio(
         architectFees: tpl.architectFees,
         civilEngineerFees: tpl.civilEngineerFees,
         contingencyRate: tpl.contingencyRate,
+        opexContingencyRate: tpl.opexContingencyRate ?? 0,
         opex: { ...tpl.opex },
+        extraOpexLines: tpl.extraOpexLines ?? [],
+        extraCapexLines: tpl.extraCapexLines ?? [],
+        bedroomsPerStandard: tpl.bedroomsPerStandard,
+        bedroomsPerDouble:   tpl.bedroomsPerDouble,
+        bedroomsInMain:      tpl.bedroomsInMain,
+        lockableSubUnits:    tpl.lockableSubUnits,
+        bedroomsPerSubUnit:  tpl.bedroomsPerSubUnit,
       } as PropertyConfig;
     })
     .filter((p): p is PropertyConfig => p !== null);
@@ -307,6 +401,7 @@ export const DEFAULT_VILLA: PropertyConfig = {
   architectFees: 44000,
   civilEngineerFees: 35000,
   contingencyRate: 0.10,
+  opexContingencyRate: 0,
   opex: {
     housekeeping: 15000,
     maintenance: 21000,
@@ -314,10 +409,12 @@ export const DEFAULT_VILLA: PropertyConfig = {
     insurance: 2500,
     propertyTax: 4000,
     marketing: 4000,
-    managementFee: 20000,
+    managementFee: 0,
     consumables: 5000,
     accounting: 7000,
+    ffeReserveFloor: 20000,
   },
+  bedroomsInMain: 4, lockableSubUnits: 3, bedroomsPerSubUnit: 1,
 };
 
 export const DEFAULT_SUITE: PropertyConfig = {
@@ -336,6 +433,7 @@ export const DEFAULT_SUITE: PropertyConfig = {
   architectFees: 32000,
   civilEngineerFees: 25000,
   contingencyRate: 0.10,
+  opexContingencyRate: 0,
   opex: {
     housekeeping: 13000,
     maintenance: 15000,
@@ -343,12 +441,25 @@ export const DEFAULT_SUITE: PropertyConfig = {
     insurance: 2500,
     propertyTax: 4000,
     marketing: 4000,
-    managementFee: 20000,
+    managementFee: 0,
     consumables: 5000,
     accounting: 7000,
+    ffeReserveFloor: 15000,
   },
+  bedroomsPerStandard: 1, bedroomsPerDouble: 2,
 };
 
+// ── FALLBACK ONLY ──────────────────────────────────────────────────────────
+// BASE_CASE is the cold-start initial state before any Firestore scenario
+// or localStorage override is applied. It is NOT the live operating config.
+// The modelStore deep-merges localStorage (ASSUMPTIONS_STORAGE_KEY) over
+// this object on every page load; published Firestore scenarios supersede it
+// entirely. Do NOT report these values as "current assumptions" without first
+// checking:
+//   1. Firestore `scenarios` collection (project villa-lev-admin)
+//   2. localStorage (ASSUMPTIONS_STORAGE_KEY)
+//   3. BP xlsx (VillaLevGroup_BP_v6_2026-05-21.xlsx) for document work
+// ──────────────────────────────────────────────────────────────────────────
 export const BASE_CASE: ModelAssumptions = {
   general: {
     year1RampFactor: 0.75,
@@ -442,10 +553,12 @@ export const BASE_CASE: ModelAssumptions = {
 
   tax: {
     corporateIncomeTaxRate: 0.22,
-    netVATRate: 0.07,
+    netVATRate: 0.08,
+    otaCommissionRate: 0.175,
   },
 
   acquisitionLegalPerPlot: 50000,
+  developerConstructionFeePerYear: 75_000,
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
   // Default exit at the end of the modeled horizon (2036 = Y10 of operations).
@@ -454,6 +567,21 @@ export const BASE_CASE: ModelAssumptions = {
   // Standard Greek/EU commercial real-estate covenant. Editable in the BP
   // export; drives the Pass/Fail flag on the Coverage sheet.
   dscrCovenantThreshold: 1.25,
+  dsra: {
+    enabled: false,
+    targetDSCR: 1.25,
+    sweep2028Pct: 1.0,
+    replenishmentPriority: 1.0,
+    partnerRepaymentThreshold: 2,
+  },
+
+  // FF&E Reserve rate schedule.
+  // Engine computes max(ffeReserveFloor, rate × revenuePerUnit) per year.
+  ffeSchedule: {
+    rate2029: 0.02,       // 2% of revenue — first operational year
+    rate2030: 0.03,       // 3% of revenue — second operational year
+    rateStabilised: 0.04, // 4% of revenue — stabilised year (2031+), capped
+  },
 
   // Engine view mode. 'internal' = legacy OpCo-senior waterfall (admin
   // sees this by default — today's dashboard numbers). 'bank' = OpCo
@@ -467,18 +595,28 @@ export const BASE_CASE: ModelAssumptions = {
   // how a separated owner-and-manager structure shifts equity returns.
   opCoFee: {
     enabled: false,
-    baseMgmtFeeRate: 0.05,   // Bucket 2A: was baseFeeRate: 0.03 + brandFeeRate: 0.02
-    incentiveFeeRate: 0.10,
+    baseMgmtFeeRate: 0.05,      // Bucket 2A: was baseFeeRate: 0.03 + brandFeeRate: 0.02
+    incentiveFeeRate: 0.10,     // Bucket 2B: 10% of GOP above hurdle
     ownerPriorityReturnRate: 0.08,
+    // Shareholder floor: incentive fee ≤ 50% of residual NCF after DS.
+    // Guarantees equity holders always keep ≥ 50% of distributable cash.
+    shareholderMinResidualShare: 0.50,
+    // Annual cap on total OpCo fee income (base + incentive combined).
+    // PropCo pays OpCo at most €180K/yr regardless of revenue or GOP.
+    // Renegotiable with shareholders; does NOT affect founder's personal draw.
+    opcoAnnualFeeCap: 180_000,
+    juniorTier1Rate: 0.10,
+    juniorTier2Rate: 0.15,
+    juniorResidualThreshold: 500_000,
   },
 
-  // Minimum annual management fee paid senior (in OpEx, hits DSCR). OpCo
-  // fees billed above this floor are subordinated to debt service in bank
-  // view. Internal view ignores this and continues to use the per-villa
-  // `managementFee` lines. At BASE_CASE 4 villas × ~€25K = ~€100K of per-villa
-  // fees in internal view collapses to a single €24K floor in bank view,
-  // which lifts EBITDA by ~€76K and DSCR by ~0.09–0.15× depending on year.
-  opCoSeniorFloor: 24_000,
+  // Minimum annual management fee per project, paid SENIOR to debt service
+  // in bank view (lives inside OpEx, hits DSCR). Multiplied by the number of
+  // plots in model.ts → €25K × 3 plots = €75K/yr total @ current portfolio.
+  // Matches the construction-phase minimum (developerConstructionFeePerYear)
+  // so Eytan's floor is consistent across construction and operations.
+  // OpCo fees above this floor are subordinated (junior) to debt service.
+  opCoSeniorFloor: 25_000,
 
   workingCapital: {
     active: true,
@@ -491,6 +629,75 @@ export const BASE_CASE: ModelAssumptions = {
     dsraConversionEnabled: false,
     dsraLockAmount: 124000,
     internalCashBuffer: 100000,
+  },
+  portfolioOpex: {
+    staffRoles: [
+      {
+        name: 'Operations Manager',
+        monthlyGross: 3000,
+        monthsPaid: 14,
+        burdenMultiplier: 1.32,
+        allowances: 0,
+        yearRound: true,
+      },
+      {
+        name: 'Reservations & Marketing',
+        monthlyGross: 2500,
+        monthsPaid: 14,
+        burdenMultiplier: 1.32,
+        allowances: 0,
+        yearRound: true,
+      },
+      {
+        name: 'Head of Housekeeping',
+        monthlyGross: 2156,
+        monthsPaid: 13,
+        burdenMultiplier: 1.32,
+        allowances: 3600,
+        yearRound: true,
+      },
+      {
+        name: 'Housekeeping Seasonal 6mo×2FTE',
+        monthlyGross: 1136,
+        monthsPaid: 6,
+        burdenMultiplier: 1.32,
+        allowances: 3600,
+        yearRound: false,
+        seasonalMonths: 6,
+        headcount: 2,
+      },
+      {
+        name: 'Housekeeping Seasonal 4mo×3FTE',
+        monthlyGross: 750,
+        monthsPaid: 4,
+        burdenMultiplier: 1.32,
+        allowances: 3600,
+        yearRound: false,
+        seasonalMonths: 4,
+        headcount: 3,
+      },
+    ],
+    sharedServices: [
+      { name: 'Pool R&M', sizingBasis: '17 pools × €1,200 materials/service', annualCost: 20000 },
+      { name: 'Landscape & Gardening', sizingBasis: 'Antiparos local rates', annualCost: 12000 },
+      { name: 'Maintenance Contractor Pool', sizingBasis: 'Call-out basis', annualCost: 15000 },
+    ],
+    sharedOverhead: [
+      { name: 'Accounting & Bookkeeping', sizingBasis: '1 OpCo + 4 PropCos + HoldCo', annualCost: 30000 },
+      { name: 'Audit Fees', sizingBasis: '5 Greek entities', annualCost: 10000 },
+      { name: 'Legal & Professional / GDPR DPO Retainer', sizingBasis: 'Recurring counsel', annualCost: 15000 },
+      { name: 'ΓΕΜΗ Filings & Corporate Compliance', sizingBasis: '5 entities', annualCost: 3000 },
+      { name: 'Hotel Licensing & Permits', sizingBasis: 'EOT, fire, environmental, health certs', annualCost: 9000 },
+      { name: 'Hellenic Chamber of Hotels', sizingBasis: 'Annual dues', annualCost: 1000 },
+      { name: 'Insurance Umbrella & Liability', sizingBasis: 'D&O, BI, key-person, cyber, events', annualCost: 35000 },
+      { name: 'Banking & Payment Processing', sizingBasis: '50% direct × revenue × 3.2% blended', annualCost: 30000 },
+      { name: 'IT / PMS / Channel Manager / CRM', sizingBasis: 'Per-key SaaS + portfolio licences', annualCost: 25000 },
+    ],
+    preOpeningTotal: 275000,
+    preOpeningAmortYears: 5,
+    preOpeningStartYear: 2028,
+    includePreOpeningInStabilised: true,
+    inflationHook: 0.0,
   },
 };
 
@@ -506,3 +713,40 @@ export const DOWNSIDE_FACTORS = {
 // Self-liquidating threshold: trough quarter must close ≤ this amount or the
 // engine flags a violation on AnnualPnL.wcSelfLiquidatingViolation.
 export const WC_TROUGH_THRESHOLD = 50000;
+
+// ── Portfolio OPEX defaults (exported separately for use in engine tests and store) ──
+export const DEFAULT_PORTFOLIO_OPEX: PortfolioOpex = BASE_CASE.portfolioOpex!;
+
+// Ensure a ModelAssumptions object has valid portfolioOpex populated.
+// Called in both init() and loadConfig() to backfill schema fields added after a save.
+export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumptions {
+  const d = DEFAULT_PORTFOLIO_OPEX;
+  if (
+    assumptions.portfolioOpex &&
+    Array.isArray(assumptions.portfolioOpex.staffRoles) &&
+    assumptions.portfolioOpex.staffRoles.length > 0 &&
+    Array.isArray(assumptions.portfolioOpex.sharedServices) &&
+    Array.isArray(assumptions.portfolioOpex.sharedOverhead)
+  ) {
+    return assumptions;
+  }
+  return {
+    ...assumptions,
+    portfolioOpex: {
+      ...d,
+      ...(assumptions.portfolioOpex ?? {}),
+      staffRoles:
+        assumptions.portfolioOpex?.staffRoles?.length
+          ? assumptions.portfolioOpex.staffRoles
+          : d.staffRoles,
+      sharedServices:
+        assumptions.portfolioOpex?.sharedServices?.length
+          ? assumptions.portfolioOpex.sharedServices
+          : d.sharedServices,
+      sharedOverhead:
+        assumptions.portfolioOpex?.sharedOverhead?.length
+          ? assumptions.portfolioOpex.sharedOverhead
+          : d.sharedOverhead,
+    },
+  };
+}

@@ -9,6 +9,7 @@ import {
   CapexPropertyLine,
   AnnualPnL,
   PropertyPnLLine,
+  PortfolioOpexOutput,
   ScenarioOutput,
   RevenueAssumptions,
   FinancingComparison,
@@ -17,8 +18,21 @@ import {
   getPropertyDisplayType,
   computeTotalArea,
 } from './types';
-import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS, DEFAULT_EXIT_EBITDA_MULTIPLE } from './defaults';
+import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS, DEFAULT_EXIT_EBITDA_MULTIPLE, DEFAULT_PORTFOLIO_OPEX, PROJECT_CONSTANTS } from './defaults';
 import { computeWorkingCapital } from './workingCapital';
+
+const {
+  HORIZON_START_YEAR,
+  OPENING_YEAR,
+  FIRST_OPERATIONAL_YEAR,
+  STABILISED_YEAR,
+  HORIZON_END_YEAR,
+  MIN_EXIT_YEAR,
+  NIGHTS_GROWTH_BASE_YEAR,
+  TEPIX_LOAN_CAP_EUR,
+  COLLATERAL_TIERS,
+  PHASE1_LAND_PERMITS,
+} = PROJECT_CONSTANTS;
 
 // ────────────────────────────────────────────
 // Numeric helpers — IRR / NPV / amortisation
@@ -155,8 +169,14 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
   });
 
   const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
+  const devMgmtFee = (a.developerConstructionFeePerYear ?? 0) * 2;
+  const extraCapexTotal = a.portfolio.reduce(
+    (sum, p) => sum + (p.extraCapexLines ?? []).reduce((s, l) => s + (l.cost || 0), 0) * p.count,
+    0
+  );
+  // custom capex lines increase portfolioTotal and therefore tepixLoan; confirm with operator before adding lines to live scenario pre-M02
   const portfolioTotal =
-    properties.reduce((sum, p) => sum + p.total, 0) + acqLegal;
+    properties.reduce((sum, p) => sum + p.total, 0) + acqLegal + devMgmtFee + extraCapexTotal;
 
   const categoryDefs = [
     {
@@ -194,7 +214,24 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
       name: `Acquisition legal & due diligence (x${totalPlots} plots)`,
       getPerUnit: () => a.acquisitionLegalPerPlot,
     },
+    {
+      name: 'Developer management fee (construction, 2 yrs)',
+      getPerUnit: () => (totalPlots > 0 ? devMgmtFee / totalPlots : 0),
+    },
   ];
+
+  // Custom CAPEX lines: one categoryDef entry per unique (property, line) pair,
+  // keyed by `${prop.id}::${line.id}` so the Excel export can look them up without
+  // relying on name-matching (which is collision-prone).
+  for (const p of a.portfolio) {
+    for (const line of p.extraCapexLines ?? []) {
+      const key = `${p.id}::${line.id}`;
+      categoryDefs.push({
+        name: key,
+        getPerUnit: (prop: PropertyConfig) => (prop.id === p.id ? line.cost || 0 : 0),
+      });
+    }
+  }
 
   const categories = categoryDefs.map((cat) => {
     const perProperty = a.portfolio.map((prop) => {
@@ -286,10 +323,11 @@ function computeDebtService(
       effectiveInterestRate: a.commercialLoan.interestRate,
       repaymentTermYears: a.commercialLoan.repaymentTermYears,
       getDS: (year: number) => {
-        if (year === 2026) return a.commercialLoan.interest2026;
-        if (year === 2027) return a.commercialLoan.interest2027;
-        if (year === 2028) return a.commercialLoan.interest2028;
-        if (year >= 2029) return annualDS;
+        const graceEnd = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
+        if (year === HORIZON_START_YEAR) return a.commercialLoan.interest2026;
+        if (year === HORIZON_START_YEAR + 1) return a.commercialLoan.interest2027;
+        if (year === graceEnd) return a.commercialLoan.interest2028;
+        if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
         return 0;
       },
     };
@@ -301,7 +339,7 @@ function computeDebtService(
     const nonPlotEligible = totalCost - totalLand - acqLegal;
     const grantAmt = nonPlotEligible * a.grant.grantRate;
 
-    const phase1 = 1350000;
+    const phase1 = PHASE1_LAND_PERMITS;
     const phase1Loan = phase1 * a.commercialLoan.loanCoverageRate;
     const phase1Equity = phase1 - phase1Loan;
 
@@ -326,10 +364,11 @@ function computeDebtService(
       effectiveInterestRate: a.commercialLoan.interestRate,
       repaymentTermYears: a.commercialLoan.repaymentTermYears,
       getDS: (year: number) => {
-        if (year === 2026) return a.grant.interest2026 ?? 50625;
-        if (year === 2027) return a.grant.interest2027 ?? 110544;
-        if (year === 2028) return a.grant.interest2028 ?? 114109;
-        if (year >= 2029) return annualDS;
+        const graceEnd = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
+        if (year === HORIZON_START_YEAR) return a.grant.interest2026 ?? 50625;
+        if (year === HORIZON_START_YEAR + 1) return a.grant.interest2027 ?? 110544;
+        if (year === graceEnd) return a.grant.interest2028 ?? 114109;
+        if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
         return 0;
       },
     };
@@ -365,10 +404,11 @@ function computeDebtService(
       effectiveInterestRate: rrfBlendedRate,
       repaymentTermYears: a.rrf.repaymentTermYears,
       getDS: (year: number) => {
-        if (year === 2026) return a.commercialLoan.interest2026;
-        if (year === 2027) return a.commercialLoan.interest2027;
-        if (year === 2028) return a.commercialLoan.interest2028;
-        if (year >= 2029) return computedDS || annualDS;
+        const graceEnd = HORIZON_START_YEAR + (a.rrf?.gracePeriodYears ?? 2);
+        if (year === HORIZON_START_YEAR) return a.commercialLoan.interest2026;
+        if (year === HORIZON_START_YEAR + 1) return a.commercialLoan.interest2027;
+        if (year === graceEnd) return a.commercialLoan.interest2028;
+        if (year >= FIRST_OPERATIONAL_YEAR) return computedDS || annualDS;
         return 0;
       },
     };
@@ -397,9 +437,8 @@ function computeDebtService(
     // extra non-land cost becomes sponsor equity. Surface tepixCapBindingBy
     // so the dashboard / investor page can call out the equity gap created
     // by the cap rather than silently understating financing capacity.
-    const TEPIX_LOAN_CAP = 8_000_000;
-    const tepixCapBindingBy = Math.max(0, uncappedPrimaryLoan - TEPIX_LOAN_CAP);
-    const primaryLoan = Math.min(uncappedPrimaryLoan, TEPIX_LOAN_CAP);
+    const tepixCapBindingBy = Math.max(0, uncappedPrimaryLoan - TEPIX_LOAN_CAP_EUR);
+    const primaryLoan = Math.min(uncappedPrimaryLoan, TEPIX_LOAN_CAP_EUR);
 
     // When the cap binds, preserve the program's land-cap ratio (HDB
     // requires a fixed fraction of the loan to fund land vs. non-land).
@@ -456,15 +495,24 @@ function computeDebtService(
       landFundedByTepix,
       landFundedByCommercial: landGap,
       tepixCapBindingBy,
-      tepixLoanCap: TEPIX_LOAN_CAP,
+      tepixLoanCap: TEPIX_LOAN_CAP_EUR,
       getDS: (year: number) => {
-        if (year === 2026 || year === 2027) {
+        if (year <= HORIZON_START_YEAR + (tp.subsidyDurationYears ?? 2) - 1) {
           const subsidisedRate = Math.max(0, tp.bankInterestRate - tp.interestSubsidy);
           const tepixInterest = bankPortion * subsidisedRate;
           const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
           return tepixInterest + suppInterest;
         }
-        if (year >= 2028) return combinedDS;
+        const tepixGraceEnd = HORIZON_START_YEAR + (tp.gracePeriodYears ?? 2);
+        if (year === tepixGraceEnd) {
+          // Opening/grace year. Primary TEPIX tranche starts full
+          // amortisation (program-defined), but the supplementary commercial
+          // loan follows the commercial-path convention: interest-only in the
+          // grace year, full amortisation from the following year (Finding J).
+          const suppInterest = suppLoanAmount * a.commercialLoan.interestRate;
+          return primaryAnnualDS + suppInterest;
+        }
+        if (year > tepixGraceEnd) return combinedDS;
         return 0;
       },
     };
@@ -491,51 +539,93 @@ function computeNights(
   growthPerYear: number,
   cap: number
 ): number {
-  if (year <= 2027) return 0;
-  if (year <= 2029) return baseNights;
-  return Math.min(cap, baseNights + Math.max(0, year - 2030) * growthPerYear);
+  if (year <= HORIZON_START_YEAR + 1) return 0;
+  if (year <= FIRST_OPERATIONAL_YEAR) return baseNights;
+  return Math.min(cap, baseNights + Math.max(0, year - NIGHTS_GROWTH_BASE_YEAR) * growthPerYear);
 }
 
 function computeRampFactor(year: number, a: ModelAssumptions): number {
-  if (year === 2028) return a.general.year1RampFactor;
-  if (year === 2029) return a.general.year2RampFactor;
-  if (year >= 2030) return 1;
+  if (year === OPENING_YEAR) return a.general.year1RampFactor;
+  if (year === FIRST_OPERATIONAL_YEAR) return a.general.year2RampFactor;
+  if (year >= MIN_EXIT_YEAR) return 1;
   return 0;
 }
 
+// Returns controllable OpEx only (housekeeping, utilities, insurance, property tax,
+// marketing, consumables, accounting, extra lines) with the opexContingencyRate
+// multiplier applied. FF&E Reserve is excluded — it is computed separately in the
+// propertyBreakdown map as max(ffeReserveFloor, rate% × revenuePerUnit).
+// managementFee is intentionally excluded: it is accounted for in OpCo and must
+// not appear twice (deprecated field; always 0 in current templates).
 function computeOpexForProperty(
   year: number,
   prop: PropertyConfig
 ): number {
-  if (year <= 2027) return 0;
+  if (year <= HORIZON_START_YEAR + 1) return 0;
 
-  const constructionCost = areaOf(prop) * prop.constructionCostPerM2;
-
-  let maintenanceRate: number;
-  if (year <= 2029) maintenanceRate = 0.005;
-  else if (year === 2030) maintenanceRate = 0.01;
-  else maintenanceRate = 0.015;
-
-  const maintenance = constructionCost * maintenanceRate;
-
-  const baseOpexNoMaintenance =
+  const controllableOpex =
     prop.opex.housekeeping +
     prop.opex.utilities +
     prop.opex.insurance +
     prop.opex.propertyTax +
     prop.opex.marketing +
-    prop.opex.managementFee +
     prop.opex.consumables +
-    prop.opex.accounting;
+    prop.opex.accounting +
+    (prop.extraOpexLines ?? []).reduce((s, l) => s + (l.value || 0), 0);
 
-  return baseOpexNoMaintenance + maintenance;
+  // Contingency applies only to controllable OPEX
+  return controllableOpex * (1 + (prop.opexContingencyRate ?? 0));
+}
+
+// Compute portfolio-level (undistributed) OPEX for a given year.
+// Returns a zero object for pre-construction years.
+// NOTE: opexContingencyRate must NEVER be applied here — that multiplier is
+// per-template only. This is a separate code path.
+export function computePortfolioOpex(year: number, assumptions: ModelAssumptions): PortfolioOpexOutput {
+  const ZERO: PortfolioOpexOutput = {
+    staffTotal: 0, servicesTotal: 0, overheadTotal: 0,
+    preOpeningAmort: 0, total: 0, yearRoundFixed: 0, variable: 0,
+  };
+  // No portfolio OPEX during pre-construction years
+  if (year <= HORIZON_START_YEAR + 1) return ZERO;
+
+  // TODO: apply inflationHook escalator when activated
+  const po = assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+
+  const staffTotal = po.staffRoles.reduce((sum, role) => {
+    if (role.yearRound) {
+      return sum + role.monthlyGross * role.monthsPaid * role.burdenMultiplier + role.allowances;
+    }
+    const months = role.seasonalMonths ?? 0;
+    const count = role.headcount ?? 1;
+    return sum + role.monthlyGross * months * role.burdenMultiplier * count + role.allowances * count;
+  }, 0);
+
+  const servicesTotal = po.sharedServices.reduce((sum, s) => sum + s.annualCost, 0);
+  const overheadTotal = po.sharedOverhead.reduce((sum, s) => sum + s.annualCost, 0);
+
+  const preOpeningAmort =
+    year >= po.preOpeningStartYear && year < po.preOpeningStartYear + po.preOpeningAmortYears
+      ? po.preOpeningTotal / po.preOpeningAmortYears
+      : 0;
+
+  const total = staffTotal + servicesTotal + overheadTotal + preOpeningAmort;
+  return {
+    staffTotal,
+    servicesTotal,
+    overheadTotal,
+    preOpeningAmort,
+    total,
+    yearRoundFixed: staffTotal + overheadTotal,
+    variable: servicesTotal,
+  };
 }
 
 function getPhaseLabel(year: number): string {
-  if (year === 2026) return 'Acquisition';
-  if (year === 2027) return 'Construction';
-  if (year === 2028) return 'Opening 75%';
-  if (year === 2029) return 'Y2 88%';
+  if (year === HORIZON_START_YEAR) return 'Acquisition';
+  if (year === HORIZON_START_YEAR + 1) return 'Construction';
+  if (year === OPENING_YEAR) return 'Opening 75%';
+  if (year === FIRST_OPERATIONAL_YEAR) return 'Y2 88%';
   return 'Stabilised';
 }
 
@@ -546,7 +636,7 @@ function computeScenario(
   debtResult: DebtServiceResult,
   downside?: { occupancyFactor: number; adrFactor: number; events: number }
 ): ScenarioOutput {
-  const years = Array.from({ length: 11 }, (_, i) => 2026 + i);
+  const years = Array.from({ length: HORIZON_END_YEAR - HORIZON_START_YEAR + 1 }, (_, i) => HORIZON_START_YEAR + i);
 
   // Per-year P&L compute, parameterised by the year's WC interest expense.
   // Run twice: once with zero WC interest to derive cumulative cash for the
@@ -555,18 +645,15 @@ function computeScenario(
   // single-iteration approximation is well within rounding noise.
   const opCo = a.opCoFee;
   const opCoEnabled = !!opCo?.enabled;
-  const opCoPriorityReturn = opCoEnabled
-    ? (debtResult.equityRequired ?? 0) * (opCo.ownerPriorityReturnRate ?? 0)
-    : 0;
 
-  const graceEndYear = 2028;
+  const graceEndYear = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
   const preAmortSchedule = buildAmortSchedule(
     debtResult.loanAmount,
     debtResult.effectiveInterestRate,
     debtResult.annualDS,
     debtResult.getDS,
-    2026,
-    2036,
+    HORIZON_START_YEAR,
+    HORIZON_END_YEAR,
     graceEndYear
   );
 
@@ -612,7 +699,7 @@ function computeScenario(
     // Revenue & OPEX per property using unit mix
     const propertyBreakdown: PropertyPnLLine[] = a.portfolio.map((prop) => {
       let revenuePerUnit = 0;
-      if (year > 2027) {
+      if (year > HORIZON_START_YEAR + 1) {
         // Villa revenue: villaUnits x nights x ADR
         const villaRev = prop.villaUnits * effVillaNights * effVillaADR;
         // Suite revenue: each room type x nights x ADR
@@ -622,7 +709,26 @@ function computeScenario(
         revenuePerUnit = (villaRev + suiteRev) * ramp;
       }
 
-      const opexPerUnit = computeOpexForProperty(year, prop);
+      // Controllable OpEx (no FF&E Reserve, no managementFee)
+      const controllableOpexPerUnit = computeOpexForProperty(year, prop);
+
+      // FF&E Reserve: max(ffeReserveFloor, rate% × revenuePerUnit).
+      // Rate schedule driven by a.ffeSchedule (editable); defaults to 2/3/4%.
+      // Opening year (2028): floor only (rate=0). Pre-opening: zero.
+      const ffeReserveFloor = prop.opex.ffeReserveFloor ?? 0;
+      const ffe = a.ffeSchedule;
+      const ffeReserveRatePct =
+        year < OPENING_YEAR ? 0 :
+        year === OPENING_YEAR ? 0 :
+        year === FIRST_OPERATIONAL_YEAR ? (ffe?.rate2029 ?? 0.02) :
+        year === FIRST_OPERATIONAL_YEAR + 1 ? (ffe?.rate2030 ?? 0.03) :
+        (ffe?.rateStabilised ?? 0.04);
+      // Floor fires in any operational year (>= OPENING_YEAR); zero before.
+      const ffeReservePerUnit = year < OPENING_YEAR
+        ? 0
+        : Math.max(ffeReserveFloor, ffeReserveRatePct * revenuePerUnit);
+
+      const opexPerUnit = controllableOpexPerUnit + ffeReservePerUnit;
 
       return {
         id: prop.id,
@@ -635,29 +741,36 @@ function computeScenario(
         revenuePerUnit,
         totalRevenue: revenuePerUnit * prop.count,
         opexPerUnit,
-        totalOpex: year <= 2027 ? 0 : opexPerUnit * prop.count,
+        ffeReservePerUnit,
+        totalOpex: year <= HORIZON_START_YEAR + 1 ? 0 : opexPerUnit * prop.count,
       };
     });
 
     const revenueEvents =
-      year <= 2027 ? 0 : effEvents * rev.netProfitPerEvent * ramp;
-    const ancillaryYearOffset = year - 2028;
+      year <= HORIZON_START_YEAR + 1 ? 0 : effEvents * rev.netProfitPerEvent * ramp;
+    const ancillaryYearOffset = year - OPENING_YEAR;
     const ancillaryGrowthExponent = Math.min(
       Math.max(0, ancillaryYearOffset),
       Math.max(0, rev.ancillaryGrowthYears)
     );
     const revenueAncillary =
-      year < 2028
+      year < OPENING_YEAR
         ? 0
         : rev.ancillaryBaseProfit *
           Math.pow(1 + rev.ancillaryGrowthRate, ancillaryGrowthExponent);
     const revenueAncillaryCapped =
-      year >= 2028 &&
+      year >= OPENING_YEAR &&
       rev.ancillaryGrowthRate > 0 &&
       ancillaryYearOffset >= rev.ancillaryGrowthYears;
 
     const roomRevenue = propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0);
     const totalRevenue = roomRevenue + revenueEvents + revenueAncillary;
+
+    const otaRate = a.tax.otaCommissionRate ?? 0;
+    const grossRevenue = otaRate > 0 && year > HORIZON_START_YEAR + 1
+      ? totalRevenue / (1 - otaRate)
+      : totalRevenue;
+    const otaCommissions = grossRevenue - totalRevenue; // positive number (will be negated in output)
 
     const propertyOpexAll = propertyBreakdown.reduce(
       (sum, p) => sum + p.totalOpex,
@@ -672,158 +785,122 @@ function computeScenario(
     //                  paid SENIOR to debt service. Anything OpCo bills
     //                  above that floor is JUNIOR (paid out of residual
     //                  cash after DS — see waterfall block below).
-    const viewMode = a.viewMode ?? 'internal';
-    const isBankView = viewMode === 'bank';
-
-    // Per-villa managementFee aggregated across the portfolio. Only non-zero
-    // during operational years (computeOpexForProperty returns 0 pre-2028,
-    // which zeroes the entire propertyBreakdown[].totalOpex line).
+    // Per-villa managementFee aggregated across the portfolio. Always 0 in the
+    // current model (managementFee is deprecated and set to 0 in all templates).
+    // Retained for the OpEx swap logic below; safe to sum because managementFee
+    // is now optional and defaults to 0.
     const perVillaMgmtFeeTotal =
-      year <= 2027
+      year <= HORIZON_START_YEAR + 1
         ? 0
         : a.portfolio.reduce(
-            (sum, prop) => sum + prop.opex.managementFee * prop.count,
+            (sum, prop) => sum + (prop.opex.managementFee ?? 0) * prop.count,
             0,
           );
 
     // Senior management fee paid inside OpEx (bank view only; zero pre-ops).
-    // The floor is PER VILLA, not portfolio-level: each villa carries its own
-    // €24K minimum operator fee. Per Eytan 2026-05-22 — the structure mirrors
-    // the per-villa managementFee line item this is replacing, so portfolio-
-    // total senior payment ≈ today's aggregate (~€96K at 4 villas vs ~€100K).
+    // The floor is PER PROJECT (plot): €25K × number of projects = €75K total
+    // at 3 plots. Mirrors the construction-phase minimum (€75K/yr CAPEX) so
+    // Eytan's minimum compensation is consistent across both phases.
     const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
     const seniorMgmtFee =
-      isBankView && year > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
+      year > HORIZON_START_YEAR + 1 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
 
     // OpEx that flows into EBITDA pre-OpCo.
     //   internal: legacy — keep per-villa managementFee in propertyOpex.
     //   bank:     remove per-villa managementFee, add the senior floor.
-    const propertyOpex = isBankView
-      ? propertyOpexAll - perVillaMgmtFeeTotal + seniorMgmtFee
-      : propertyOpexAll;
+    const propertyOpex = propertyOpexAll - perVillaMgmtFeeTotal + seniorMgmtFee;
 
-    // Decision A1: WC interest sits inside OPEX, reducing EBITDA.
-    const totalOpex = propertyOpex + wcInterestExpense;
+    // Portfolio OPEX (undistributed shared overhead — staff, services, overhead, pre-opening amort).
+    // NOTE: opexContingencyRate does NOT apply to portfolio OPEX — separate code path.
+    const portfolioOpexResult = computePortfolioOpex(year, a);
+
+    // WC interest is a real cash cost but must NOT reduce ebitdaPreOpCo, which
+    // is the DSCR numerator. It is excluded from totalOpex here and instead
+    // deducted explicitly from ncf and cfads downstream (Finding A fix).
+    const totalOpex = propertyOpex + portfolioOpexResult.total;
 
     // EBITDA pre-OpCo (= GOP) before any *junior* management-company fees
     // are taken. In bank view, EBITDA pre-OpCo is already net of the senior
     // floor — that's the point: the floor crosses DSCR; the overage does not.
+    // WC interest is NOT in ebitdaPreOpCo — it belongs in the DSCR denominator
+    // only (via dscrLoaded) and is deducted below when computing ncf/cfads.
     const ebitdaPreOpCo = totalRevenue - totalOpex;
-
-    // OpCo fees: Bucket 2A on total revenue, Bucket 2B on GOP above hurdle.
-    // baseMgmtFeeRate (5% gross revenue) replaces the old baseFeeRate +
-    // brandFeeRate split. The fallback handles Firestore-stored scenarios that
-    // still carry the old field shape (missing baseMgmtFeeRate).
-    // These are the *calculated* (gross / theoretical) fees. The actually-paid
-    // amount may be lower under bank-view subordination — see waterfall block.
-    const opCoBaseFee = opCoEnabled
-      ? totalRevenue * (opCo.baseMgmtFeeRate ?? ((opCo.baseFeeRate ?? 0) + (opCo.brandFeeRate ?? 0)))
-      : 0;
-    /** @deprecated Merged into opCoBaseFee (Bucket 2A). Kept at zero to avoid removing from AnnualPnL. */
-    const opCoBrandFee = 0;
-    const opCoIncentiveBase = ebitdaPreOpCo - opCoBaseFee - opCoBrandFee - opCoPriorityReturn;
-    const opCoIncentiveFee = opCoEnabled
-      ? Math.max(0, opCoIncentiveBase) * opCo.incentiveFeeRate
-      : 0;
-    const opCoTotalFee = opCoBaseFee + opCoBrandFee + opCoIncentiveFee;
 
     const ds = debtResult.getDS(year);
 
+    // ── Unified tiered junior formula ─────────────────────────────────────
+    // Legacy params (baseMgmtFeeRate, incentiveFeeRate, opcoAnnualFeeCap,
+    // shareholderMinResidualShare) are inert — kept on OpCoFeeParams for
+    // Firestore backward-compat only.
+    const tier1Rate  = opCo.juniorTier1Rate        ?? 0.10;
+    const tier2Rate  = opCo.juniorTier2Rate        ?? 0.15;
+    const threshold  = opCo.juniorResidualThreshold ?? 500_000;
+    const residualAfterDS = Math.max(0, ebitdaPreOpCo - ds);
+    const tier1Amount     = opCoEnabled ? tier1Rate * Math.min(residualAfterDS, threshold)     : 0;
+    const tier2Amount     = opCoEnabled ? tier2Rate * Math.max(0, residualAfterDS - threshold) : 0;
+    const opCoJuniorPaid  = tier1Amount + tier2Amount;
+
+    // Legacy AnnualPnL fields repurposed for new semantics (field names unchanged
+    // so existing consumers keep working without type changes):
+    //   opCoBaseFee      ← senior floor (was "base management fee")
+    //   opCoBrandFee     ← 0, retired
+    //   opCoIncentiveFee ← junior paid (was "incentive fee")
+    //   opCoTotalFeeRaw  ← juniorPaid ONLY — this is the IRR add-back basis.
+    //                      Senior floor is in OpEx and must NOT be added back.
+    //   opCoTotalFee     ← seniorFloor + juniorPaid (total OpCo cost)
+    const opCoBaseFee      = seniorMgmtFee;
+    const opCoBrandFee     = 0;
+    const opCoIncentiveFee = opCoJuniorPaid;
+    const opCoTotalFeeRaw  = opCoJuniorPaid;
+    const opCoTotalFee     = seniorMgmtFee + opCoJuniorPaid;
+
     const amortYear = preAmortSchedule.get(year);
     const termLoanInterestForTax = amortYear?.interest ?? 0;
-    const vat = year <= 2027 ? 0 : -(totalRevenue * a.tax.netVATRate);
+    const vat = year <= HORIZON_START_YEAR + 1 ? 0 : -(grossRevenue * a.tax.netVATRate);
 
-    // ─── Cash waterfall — two structures, branched by viewMode ────────────
+    // ── Unified waterfall (both views) ────────────────────────────────────
+    // Senior floor is already in OpEx (seniorMgmtFee → propertyOpex → totalOpex
+    // → ebitdaPreOpCo). Junior fee is subordinated to DS and paid only from
+    // post-DS residual. DSCR uses ebitdaPreOpCo / DS in both views — junior
+    // is never in the DSCR numerator.
     //
-    // 'internal' (default — admin / today's numbers):
-    //   Per-villa managementFee already in propertyOpex. OpCo (if enabled)
-    //   paid in FULL out of EBITDA (senior to debt service).
-    //     ebitda          = ebitdaPreOpCo - opCoTotalFee
-    //     dscr            = ebitda / ds                   (post-fee EBITDA)
-    //     ncf             = ebitda - ds
-    //     cfads           = ebitda + cit                  (CIT stored negative)
-    //     taxableProfit   = max(0, ebitda - interest)
-    //   Legacy behavior — preserves the admin dashboard's DSCR/IRR/yield.
+    // NOTE (Finding A): wcInterestExpense is excluded from totalOpex / ebitdaPreOpCo
+    // so it does NOT affect the DSCR numerator. It is a real cash cost and is
+    // deducted explicitly from ncf, taxableProfit, and cfads below.
+    // dscrLoaded carries it in the denominator: ebitdaPreOpCo / (ds + wcInterest).
     //
-    // 'bank' (investor / pitch / View-As-Banker / admin "Bank view" toggle):
-    //   Per-villa managementFee REMOVED from propertyOpex (above); replaced
-    //   by `opCoSeniorFloor` paid SENIOR (inside OpEx, already in
-    //   ebitdaPreOpCo). Any OpCo billing ABOVE the floor is JUNIOR — paid
-    //   only out of residual cash after DS, so it can never crowd out the
-    //   bank.
-    //     juniorRequested  = max(0, opCoTotalFee - seniorMgmtFee)
-    //     opCoJuniorPaid   = min(juniorRequested, max(0, ebitdaPreOpCo - ds))
-    //     opCoActuallyPaid = seniorMgmtFee + opCoJuniorPaid   (senior+junior)
-    //     ebitda           = ebitdaPreOpCo - opCoJuniorPaid   (senior already out)
-    //     dscr             = ebitdaPreOpCo / ds               (junior subordinated)
-    //     ncf              = ebitdaPreOpCo - ds - opCoJuniorPaid
-    //     cfads            = ebitdaPreOpCo + cit
-    //     taxableProfit    = max(0, ebitdaPreOpCo - opCoJuniorPaid - interest)
-    //   When OpCo is disabled, junior tranche = 0 and the bank view still
-    //   applies the senior floor — that's the typical case today.
-    //   Junior shortfall is forfeit for the year (no accrual / carryover).
+    // CIT: OpCo fees to a related entity are deductible at the PropCo level
+    // under Greek CIT. Senior floor is implicit in ebitdaPreOpCo; only the
+    // junior tranche is subtracted from the taxable base here.
     //
-    // CIT comment (applies to both branches): OpCo fees to a related entity
-    // are deductible at the PropCo level under Greek CIT. Both branches
-    // expense the actually-paid amount; in bank view the senior floor is
-    // already implicit in `ebitdaPreOpCo` so we only subtract the junior.
+    // Junior shortfall is forfeit for the year (no accrual / carryover).
 
-    let ebitda: number;
-    let opCoActuallyPaid: number;
-    let opCoSeniorPaid: number;
-    let ncf: number;
-    let dscr: number;
-    let dscrLoaded: number;
-    let taxableProfit: number;
-
-    if (isBankView) {
-      opCoSeniorPaid = seniorMgmtFee;
-      // Junior overage above the senior floor — only billed when OpCo
-      // toggle is on. When disabled, the bank view still applies the floor
-      // structurally but bills zero overage.
-      const juniorRequested = opCoEnabled
-        ? Math.max(0, opCoTotalFee - seniorMgmtFee)
-        : 0;
-      const residualAfterDS = Math.max(0, ebitdaPreOpCo - ds);
-      const opCoJuniorPaid = Math.min(juniorRequested, residualAfterDS);
-      opCoActuallyPaid = opCoSeniorPaid + opCoJuniorPaid;
-      ebitda = ebitdaPreOpCo - opCoJuniorPaid;
-      ncf = ebitdaPreOpCo - ds - opCoJuniorPaid;
-      dscr = ds > 0 ? ebitdaPreOpCo / ds : 0;
-      dscrLoaded = ds + wcInterestExpense > 0
-        ? ebitdaPreOpCo / (ds + wcInterestExpense)
-        : 0;
-      taxableProfit = Math.max(
-        0,
-        ebitdaPreOpCo - opCoJuniorPaid - termLoanInterestForTax,
-      );
-    } else {
-      // 'internal' — legacy OpCo-senior. OpCo paid in full out of EBITDA.
-      // No senior floor concept here; per-villa managementFee already in OpEx.
-      opCoSeniorPaid = 0;
-      opCoActuallyPaid = opCoTotalFee;
-      ebitda = ebitdaPreOpCo - opCoTotalFee;
-      ncf = ebitda - ds;
-      dscr = ds > 0 ? ebitda / ds : 0;
-      dscrLoaded = ds + wcInterestExpense > 0
-        ? ebitda / (ds + wcInterestExpense)
-        : 0;
-      taxableProfit = Math.max(0, ebitda - termLoanInterestForTax);
-    }
+    // ── Unified waterfall (both views) ────────────────────────────────────
+    const opCoSeniorPaid   = seniorMgmtFee;
+    const ebitda           = ebitdaPreOpCo - opCoJuniorPaid;
+    const ncf              = ebitdaPreOpCo - ds - opCoJuniorPaid - wcInterestExpense;
+    const dscr             = ds > 0 ? ebitdaPreOpCo / ds : 0;
+    const dscrLoaded       = ds + wcInterestExpense > 0
+      ? ebitdaPreOpCo / (ds + wcInterestExpense) : 0;
+    const taxableProfit    = Math.max(
+      0,
+      ebitdaPreOpCo - opCoJuniorPaid - wcInterestExpense - termLoanInterestForTax,
+    );
 
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
 
-    const cit = year <= 2027 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
+    const cit = year <= HORIZON_START_YEAR + 1 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     // CFADS for LLCR/PLCR + project IRR. CIT stored negative; adding it
-    // subtracts the tax bill. 'bank' uses pre-fee EBITDA (junior OpCo
-    // subordinated to DS); 'internal' uses post-fee EBITDA (OpCo senior).
+    // subtracts the tax bill. Uses pre-junior-fee EBITDA so CFADS represents
+    // the asset's unlevered cash flow before the owner/manager split.
+    // WC interest deducted — real cash cost (Finding A).
     // VAT excluded — balance-sheet pass-through, not an income-statement item.
-    const cfads = isBankView ? ebitdaPreOpCo + cit : ebitda + cit;
+    const cfads = ebitdaPreOpCo - wcInterestExpense + cit;
 
     const profitAfterTax = ncf + cit;
     const ncfPostVAT = ncf + vat + cit;
     const yieldOnInitialEquity =
-      debtResult.equityRequired > 0 && year >= 2028
+      debtResult.equityRequired > 0 && year >= OPENING_YEAR
         ? ncfPostVAT / debtResult.equityRequired
         : 0;
 
@@ -836,20 +913,19 @@ function computeScenario(
       revenueEvents,
       revenueAncillary,
       revenueAncillaryCapped,
+      grossRevenue,
+      otaCommissions: -otaCommissions,  // negative — it's a cost
       totalRevenue,
       totalOpex,
+      portfolioOpex: portfolioOpexResult,
       ebitdaPreOpCo,
       opCoBaseFee,
       opCoBrandFee,
       opCoIncentiveFee,
-      // Reported total is the actually-paid amount (post subordination cap),
-      // not the gross calculated fee. In bank view this equals
-      // `opCoSeniorPaid + opCoJuniorPaid` (senior floor + capped overage);
-      // in internal view it equals `opCoTotalFee` (no cap, no floor split).
-      // The per-line base/brand/incentive breakdown above stays at the gross
-      // calculated values for informational/breakdown display.
-      opCoTotalFee: opCoActuallyPaid,
+      opCoTotalFee,
+      opCoTotalFeeRaw,
       opCoSeniorPaid,
+      opCoJuniorPaid,
       ebitda,
       ebitdaMargin,
       debtService: ds,
@@ -882,8 +958,8 @@ function computeScenario(
   const wcSchedule = computeWorkingCapital(
     a.workingCapital,
     a.commercialLoan.interestRate,
-    2026,
-    2036,
+    HORIZON_START_YEAR,
+    HORIZON_END_YEAR,
     !!downside,
     baselineCumByYear
   );
@@ -921,7 +997,96 @@ function computeScenario(
     };
   });
 
-  const stabilisedYear = pnl.find((p) => p.year === 2031) ?? null;
+  // ── Pass 3: DSRA ──────────────────────────────────────────────────────────
+  // Always runs — no user toggle. When every year's CFADS ≥ target×DS,
+  // dsraTarget = 0 and all reserve fields are naturally zero (no-op).
+  const dsraParams = a.dsra;
+  const targetDSCR = dsraParams?.targetDSCR ?? 1.25;
+  const sweep2028Pct = dsraParams?.sweep2028Pct ?? 1.0;
+  const replenishmentPriority = dsraParams?.replenishmentPriority ?? 1.0;
+  const partnerRepaymentThreshold = dsraParams?.partnerRepaymentThreshold ?? 2;
+
+  // Step 3.2 — Worst-year shortfall → DSRA target size
+  const operationalRows = pnl.filter(row => row.year >= FIRST_OPERATIONAL_YEAR);
+  const shortfalls = operationalRows.map(row => {
+    const ds = row.debtService ?? 0;
+    const cfads = row.cfads ?? 0;
+    return Math.max(0, targetDSCR * ds - cfads);
+  });
+  const dsraTarget = shortfalls.length > 0 ? Math.max(0, ...shortfalls) : 0;
+
+  // Step 3.3 — 2028 sweep: capped at dsraTarget (excess stays distributable)
+  const row2028 = pnl.find(row => row.year === OPENING_YEAR);
+  const ncf2028 = row2028?.netCashFlowPostVAT ?? row2028?.netCashFlow ?? 0;
+  const dsraSweep2028 = Math.min(sweep2028Pct * Math.max(0, ncf2028), dsraTarget);
+
+  // Step 3.4 — Partner advance fills the gap
+  const dsraPartnerAdvance = Math.max(0, dsraTarget - dsraSweep2028);
+
+  // Step 3.5 — Pre-operational rows: zeros, effectiveDSCR = dscr
+  for (const row of pnl.filter(r => r.year < FIRST_OPERATIONAL_YEAR)) {
+    row.dsraDraw = 0;
+    row.dsraReplenishment = 0;
+    row.dsraBalance = 0;
+    row.effectiveDSCR = row.dscr ?? 0;
+    row.partnerRepayment = 0;
+  }
+
+  // Step 3.6 — Year-by-year forward pass
+  // When dsraTarget = 0, balance = 0 → drawdown = 0 → effectiveDSCR = dscr (no-op).
+  let balance = dsraTarget;
+  let partnerBalance = dsraPartnerAdvance;
+  let consecutiveStableYears = 0;
+
+  for (const row of operationalRows) {
+    const ds = row.debtService ?? 0;
+    const cfads = row.cfads ?? 0;
+    const targetDS = targetDSCR * ds;
+
+    // Drawdown: fills shortfall from reserve (does NOT enter cfads, NCF, or IRR)
+    const drawdown = ds > 0
+      ? Math.min(balance, Math.max(0, targetDS - cfads))
+      : 0;
+
+    // Surplus: cash above target DS
+    const surplus = ds > 0 ? Math.max(0, cfads - targetDS) : 0;
+
+    // Replenishment: top up reserve before partner repayment
+    const deficitToFill = Math.max(0, dsraTarget - (balance - drawdown));
+    const replenishment = Math.min(deficitToFill, replenishmentPriority * surplus);
+
+    balance = balance - drawdown + replenishment;
+
+    // Effective DSCR: drawdown supplements the numerator only
+    const effectiveDSCR = ds > 0 ? (cfads + drawdown) / ds : (row.dscr ?? 0);
+
+    if (balance >= dsraTarget && effectiveDSCR >= targetDSCR) {
+      consecutiveStableYears += 1;
+    } else {
+      consecutiveStableYears = 0;
+    }
+
+    // Partner repayment: only after DSRA is full AND N consecutive stable years
+    let partnerRepayment = 0;
+    if (
+      partnerBalance > 0 &&
+      balance >= dsraTarget &&
+      consecutiveStableYears >= partnerRepaymentThreshold
+    ) {
+      const availableForPartner = Math.max(0, surplus - replenishment);
+      partnerRepayment = Math.min(partnerBalance, availableForPartner);
+      partnerBalance -= partnerRepayment;
+    }
+
+    row.dsraDraw = drawdown;
+    row.dsraReplenishment = replenishment;
+    row.dsraBalance = balance;
+    row.effectiveDSCR = effectiveDSCR;
+    row.partnerRepayment = partnerRepayment;
+  }
+  // ── End Pass 3: DSRA ──────────────────────────────────────────────────────
+
+  const stabilisedYear = pnl.find((p) => p.year === STABILISED_YEAR) ?? null;
 
   // ── Scenario-level bank metrics ────────────────────────────
   const stab = stabilisedYear;
@@ -932,7 +1097,7 @@ function computeScenario(
     debtResult.grantAmount;
 
   const gracePeriodInterestTotal =
-    debtResult.getDS(2026) + debtResult.getDS(2027) + debtResult.getDS(2028);
+    debtResult.getDS(HORIZON_START_YEAR) + debtResult.getDS(HORIZON_START_YEAR + 1) + debtResult.getDS(graceEndYear);
 
   const dscrWindowStart = graceEndYear + 1;
   const operationalDscrs = pnl
@@ -941,10 +1106,14 @@ function computeScenario(
   const minDSCRLoanLife = operationalDscrs.length
     ? Math.min(...operationalDscrs)
     : 0;
+  const avgDSCRLoanLife = operationalDscrs.length
+    ? operationalDscrs.reduce((s, v) => s + v, 0) / operationalDscrs.length
+    : 0;
   const covenantThreshold = a.dscrCovenantThreshold || 1.25;
+  // Covenant tested against average (not minimum) — ramp years skew min unduly
   const dscrCovenantHeadroom =
-    minDSCRLoanLife > 0
-      ? (minDSCRLoanLife - covenantThreshold) / covenantThreshold
+    avgDSCRLoanLife > 0
+      ? (avgDSCRLoanLife - covenantThreshold) / covenantThreshold
       : 0;
 
   const peakDebtOutstanding = Math.max(
@@ -960,8 +1129,8 @@ function computeScenario(
   // Terminal values via EBITDA multiple exit on EBITDA AT THE EXIT YEAR.
   // exitYear clamps to [2030, 2036] (modeled horizon). Defaults to 2036.
   const exitMultiple = a.exitEbitdaMultiple ?? DEFAULT_EXIT_EBITDA_MULTIPLE;
-  const exitYearRaw = a.exitYear ?? 2036;
-  const exitYear = Math.max(2030, Math.min(2036, exitYearRaw));
+  const exitYearRaw = a.exitYear ?? HORIZON_END_YEAR;
+  const exitYear = Math.max(MIN_EXIT_YEAR, Math.min(HORIZON_END_YEAR, exitYearRaw));
   const exitPnL = pnl.find((p) => p.year === exitYear) ?? stab ?? finalYear;
   const exitEbitda = exitPnL?.ebitda ?? 0;
   const terminalAssetValue = exitEbitda > 0 ? exitEbitda * exitMultiple : 0;
@@ -1017,7 +1186,7 @@ function computeScenario(
   );
   const equityCFsPreOpCo: number[] = [-debtResult.equityRequired];
   truncatedPnL.forEach((p, i) => {
-    const addBack = p.opCoTotalFee;
+    const addBack = p.opCoTotalFeeRaw ?? p.opCoTotalFee;
     const cf =
       i === truncatedPnL.length - 1
         ? p.netCashFlowPostVAT + addBack + terminalEquityValuePreOpCo
@@ -1047,7 +1216,7 @@ function computeScenario(
     (sum, p) => sum + areaOf(p) * p.count,
     0,
   );
-  const exitValuationPerM2 = a.exitValuationPerM2 ?? 9000;
+  const exitValuationPerM2 = a.exitValuationPerM2 ?? COLLATERAL_TIERS.market;
   const terminalAssetValuePropertySale = builtSurfaceScenario * exitValuationPerM2;
   const terminalEquityValuePropertySale = Math.max(
     0,
@@ -1100,11 +1269,13 @@ function computeScenario(
 
   // ROIC stabilised: NOPAT proxy / total CapEx. EBITDA + CIT ≈ post-tax
   // operating cash; treats D&A as ignored (cash proxy).
-  const roic =
-    totalCapex > 0 && stab ? (stab.ebitda + stab.citPayable) / totalCapex : 0;
+  // Unified formula: ebitda is post-junior-fee in both views, which is the
+  // appropriate asset-level return basis (senior floor is in OpEx either way).
+  const roicEbitda = stab ? stab.ebitda : 0;
+  const roic = totalCapex > 0 && stab ? (roicEbitda + stab.citPayable) / totalCapex : 0;
 
   // LLCR / PLCR — NPV(CFADS) / debt outstanding at financial close (2029).
-  const lcrStartYear = 2029;
+  const lcrStartYear = FIRST_OPERATIONAL_YEAR;
   const lcrDebt = amortSchedule.get(lcrStartYear)?.opening ?? debtResult.loanAmount;
   const stabilisedCFADS = stab?.cfads ?? 0;
   const computeLCR = (periods: number): number => {
@@ -1123,7 +1294,7 @@ function computeScenario(
 
   // Equity payback: first year cumulative yield ≥ 100%; null if never.
   const paybackHit = pnl.find((p) => p.cumulativeYieldOnInitialEquity >= 1);
-  const equityPaybackYears = paybackHit ? paybackHit.year - 2026 : null;
+  const equityPaybackYears = paybackHit ? paybackHit.year - HORIZON_START_YEAR : null;
 
   const yieldStabilised = stab?.yieldOnInitialEquity ?? 0;
   const cumulativeYieldFinal = finalYear?.cumulativeYieldOnInitialEquity ?? 0;
@@ -1139,6 +1310,7 @@ function computeScenario(
     plcr,
     icrStabilised,
     minDSCRLoanLife,
+    avgDSCRLoanLife,
     dscrCovenantHeadroom,
     peakDebtOutstanding,
     gracePeriodInterestTotal,
@@ -1165,6 +1337,10 @@ function computeScenario(
     projectIRRPropertySale,
     totalMOICPropertySale,
     propertyExitDominates,
+    // DSRA scenario-level summary
+    dsraTarget,
+    dsraSweep2028,
+    dsraPartnerAdvance,
   };
 }
 
@@ -1215,7 +1391,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   let breakevenFactor = 1;
   if (realisticStab && realisticStab.ebitda > 0) {
     const ancillary2031Exponent = Math.min(
-      3,
+      STABILISED_YEAR - OPENING_YEAR,
       Math.max(0, a.revenueRealistic.ancillaryGrowthYears)
     );
     const ancillary2031 =
@@ -1225,7 +1401,10 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     const targetOccLinkedRev =
       activeDebt.annualDS + realisticStab.totalOpex - ancillary2031;
     if (occLinkedRev > 0 && targetOccLinkedRev > 0) {
-      breakevenFactor = Math.sqrt(targetOccLinkedRev / occLinkedRev);
+      // Linear break-even factor: revenue shortfall / current revenue.
+      // Replaced Math.sqrt (non-standard, made break-even appear more optimistic).
+      // Higher value = more conservative = correct direction for bank presentations.
+      breakevenFactor = targetOccLinkedRev / occLinkedRev;
     }
   }
   const beOccFactor = 1 - breakevenFactor;
@@ -1296,6 +1475,12 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     downside: commercialDownside.pnl[i].dscr,
     grant: grantScenario.pnl[i].dscr,
     tepixLoan: tepixLoanRealistic.pnl[i].dscr,
+    // Effective DSCR (incl. DSRA drawdown) — always computed; equals dscr when no reserve needed
+    effectiveRealistic: commercialRealistic.pnl[i].effectiveDSCR,
+    effectiveUpside: commercialUpside.pnl[i].effectiveDSCR,
+    effectiveDownside: commercialDownside.pnl[i].effectiveDSCR,
+    effectiveGrant: grantScenario.pnl[i].effectiveDSCR,
+    effectiveTepixLoan: tepixLoanRealistic.pnl[i].effectiveDSCR,
   }));
 
   // Financing comparison
@@ -1334,7 +1519,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     },
     {
       key: 'stabilisedDSCR',
-      metric: 'DSCR — Realistic (2031)',
+      metric: `DSCR — Realistic (${STABILISED_YEAR})`,
       commercial: commercialRealistic.stabilisedYear?.dscr ?? 0,
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
       grant: grantScenario.stabilisedYear?.dscr ?? 0,
@@ -1357,6 +1542,27 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       tepixLoan:
         commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
     },
+    // DSRA rows — appended when at least one path needs a reserve
+    ...([commercialRealistic, rrfRealistic, grantScenario, tepixLoanRealistic].some(
+      s => (s.dsraTarget ?? 0) > 0
+    ) ? [
+      {
+        key: 'dsraTarget' as const,
+        metric: 'DSRA reserve (total)',
+        commercial: commercialRealistic.dsraTarget ?? 0,
+        rrf: rrfRealistic.dsraTarget ?? 0,
+        grant: grantScenario.dsraTarget ?? 0,
+        tepixLoan: tepixLoanRealistic.dsraTarget ?? 0,
+      },
+      {
+        key: 'effectiveDSCRStabilised' as const,
+        metric: `Effective DSCR — incl. DSRA (${STABILISED_YEAR})`,
+        commercial: commercialRealistic.stabilisedYear?.effectiveDSCR ?? commercialRealistic.stabilisedYear?.dscr ?? 0,
+        rrf: rrfRealistic.stabilisedYear?.effectiveDSCR ?? rrfRealistic.stabilisedYear?.dscr ?? 0,
+        grant: grantScenario.stabilisedYear?.effectiveDSCR ?? grantScenario.stabilisedYear?.dscr ?? 0,
+        tepixLoan: tepixLoanRealistic.stabilisedYear?.effectiveDSCR ?? tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
+      },
+    ] : []),
   ];
 
   // Collateral
@@ -1368,22 +1574,22 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   const collateral = {
     builtSurface,
     stress: {
-      valuationPerM2: 7650,
-      value: builtSurface * 7650,
-      ltv: loan / (builtSurface * 7650),
-      coverage: (builtSurface * 7650) / loan,
+      valuationPerM2: COLLATERAL_TIERS.stress,
+      value: builtSurface * COLLATERAL_TIERS.stress,
+      ltv: loan / (builtSurface * COLLATERAL_TIERS.stress),
+      coverage: (builtSurface * COLLATERAL_TIERS.stress) / loan,
     },
     market: {
-      valuationPerM2: 9000,
-      value: builtSurface * 9000,
-      ltv: loan / (builtSurface * 9000),
-      coverage: (builtSurface * 9000) / loan,
+      valuationPerM2: COLLATERAL_TIERS.market,
+      value: builtSurface * COLLATERAL_TIERS.market,
+      ltv: loan / (builtSurface * COLLATERAL_TIERS.market),
+      coverage: (builtSurface * COLLATERAL_TIERS.market) / loan,
     },
     optimistic: {
-      valuationPerM2: 11000,
-      value: builtSurface * 11000,
-      ltv: loan / (builtSurface * 11000),
-      coverage: (builtSurface * 11000) / loan,
+      valuationPerM2: COLLATERAL_TIERS.optimistic,
+      value: builtSurface * COLLATERAL_TIERS.optimistic,
+      ltv: loan / (builtSurface * COLLATERAL_TIERS.optimistic),
+      coverage: (builtSurface * COLLATERAL_TIERS.optimistic) / loan,
     },
   };
 
@@ -1432,6 +1638,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     // apply (non-tepix path) or doesn't bind (uncapped primary loan ≤ 8M).
     tepixCapBindingBy: activeDebt.tepixCapBindingBy ?? 0,
     tepixLoanCap: activeDebt.tepixLoanCap ?? 0,
+    grantAmount: activeDebt.grantAmount,
   };
 
   const computeTimeMs = performance.now() - startTime;

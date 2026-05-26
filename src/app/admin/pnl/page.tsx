@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -22,18 +23,37 @@ type RowDef = {
   color?: "negative" | "dynamic";
   indent?: boolean;
   anchorId?: string;
-  // For multiple-format rows: threshold above which the cell is coloured
-  // positive (green). DSCR uses 1.25×; ICR conventionally uses 2×.
+  /** Threshold above which a multiple cell is coloured positive */
   goodAt?: number;
+  /** Section separator — shaded label row with optional expand toggle */
+  separator?: boolean;
+  /** Section key this separator controls */
+  sectionKey?: string;
+  /** Detail row — hidden when its section is collapsed */
+  detail?: boolean;
+  /** Which section this detail row belongs to */
+  section?: string;
 };
+
+// Chevron that rotates when the section is open
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="10" height="10" viewBox="0 0 10 10" fill="none"
+      xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+      className={`transition-transform duration-150 ${open ? "rotate-90" : ""}`}
+    >
+      <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 export default function PnLPage() {
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
+  // Hooks must be unconditional — placed before early return.
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const grantApproved = assumptions.financingPath === "grant";
-  // Bucket 1B deferred advisory fee: grant × 10%, spread over 3 years
-  // starting from the year after grant approval (loanDisbursementYear).
-  // Paid from operating cash — NOT from grant proceeds (EU GBER compliance).
   const totalAdvisoryFee = grantApproved ? DEFAULT_GRANT_AMOUNT * DEFAULT_GRANT_PROCUREMENT_FEE_PCT : 0;
   const advisoryAnnual = totalAdvisoryFee > 0 ? totalAdvisoryFee / 3 : 0;
   const advisoryStartYear = DEFAULT_GRANT_APPROVAL_YEAR + 1;
@@ -42,95 +62,117 @@ export default function PnLPage() {
 
   if (!model) return <PageSkeleton variant="table" />;
 
-  const pnl = model.scenarios[activeScenario].pnl;
-  const scenarioLabel = activeScenario.charAt(0).toUpperCase() + activeScenario.slice(1);
+  const toggle = (key: string) =>
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  const isExpanded = (key: string) => !!expanded[key];
+  const anyExpanded = Object.values(expanded).some(Boolean);
 
-  // Get property breakdown from first operational year to know the portfolio shape
+  const pnl = model.scenarios[activeScenario].pnl;
+  const scenarioLabel =
+    activeScenario === 'upside' ? t('scenario.upside') :
+    activeScenario === 'downside' ? t('scenario.downside') :
+    activeScenario === 'breakeven' ? t('scenario.breakeven') :
+    t('scenario.realistic');
+
   const sampleYear = pnl.find((p) => p.propertyBreakdown.length > 0);
   const portfolioShape = sampleYear?.propertyBreakdown ?? [];
 
-  // Build rows dynamically based on portfolio
-  // Order: revenue lines → Total Revenue → opex lines → Total OPEX → EBITDA →
-  // EBITDA margin → Debt Service → NCF (pre-tax) → VAT → CIT → NCF post-tax →
-  // Cumulative NCF → DSCR
-  const rows: RowDef[] = [];
-
-  // Revenue rows — one per property in portfolio
-  for (const prop of portfolioShape) {
-    const propId = prop.id;
-    if (prop.count > 1) {
-      rows.push({
-        label: `${prop.name} (×${prop.count})`,
-        getValue: (p) => {
-          const pb = p.propertyBreakdown.find((b) => b.id === propId);
-          return pb ? pb.totalRevenue : 0;
-        },
-        format: "currency",
-        indent: true,
-      });
-    } else {
-      rows.push({
-        label: prop.name,
-        getValue: (p) => {
-          const pb = p.propertyBreakdown.find((b) => b.id === propId);
-          return pb ? pb.revenuePerUnit : 0;
-        },
-        format: "currency",
-        indent: true,
-      });
-    }
-  }
-
   const ancillaryEverCapped = pnl.some((p) => p.revenueAncillaryCapped);
 
+  const rows: RowDef[] = [];
+
+  // ── Revenue ──────────────────────────────────────────────────────────────
+  rows.push({ label: "Revenue", getValue: () => 0, format: "currency", separator: true, sectionKey: "revenue" });
+
+  for (const prop of portfolioShape) {
+    const propId = prop.id;
+    rows.push({
+      label: prop.count > 1 ? `${prop.name} (×${prop.count})` : prop.name,
+      getValue: (p) => {
+        const pb = p.propertyBreakdown.find((b) => b.id === propId);
+        return pb ? (prop.count > 1 ? pb.totalRevenue : pb.revenuePerUnit) : 0;
+      },
+      format: "currency",
+      indent: true,
+      detail: true,
+      section: "revenue",
+    });
+  }
+
   rows.push(
-    { label: t('pnl.events'), getValue: (p) => p.revenueEvents, format: "currency", indent: true },
     {
       label: ancillaryEverCapped ? t('pnl.ancillaryCapped') : t('pnl.ancillary'),
       getValue: (p) => p.revenueAncillary,
       format: "currency",
       indent: true,
+      detail: true,
+      section: "revenue",
     },
-    { label: t('pnl.totalRevenue'), getValue: (p) => p.totalRevenue, format: "currency", bold: true, anchorId: "pnl-row-totalRevenue" },
+    { label: t('pnl.events'), getValue: (p) => p.revenueEvents, format: "currency", indent: true, detail: true, section: "revenue" },
+    { label: t('pnl.grossRevenue'),      getValue: (p) => p.grossRevenue,    format: "currency", bold: true, anchorId: "pnl-row-grossRevenue" },
+    { label: t('pnl.otaCommissions'),    getValue: (p) => p.otaCommissions,  format: "currency", color: "negative", indent: true },
+    { label: t('pnl.netRevenuePostOTA'), getValue: (p) => p.totalRevenue,    format: "currency", bold: true, anchorId: "pnl-row-totalRevenue" },
   );
 
-  // OPEX rows — one per property (label matches the revenue side)
+  // ── Operating costs ───────────────────────────────────────────────────────
+  rows.push({ label: "Operating costs", getValue: () => 0, format: "currency", separator: true, sectionKey: "opex" });
+
   for (const prop of portfolioShape) {
     const propId = prop.id;
-    const label = prop.count > 1 ? `${prop.name} (×${prop.count})` : prop.name;
     rows.push({
-      label,
+      label: prop.count > 1 ? `${prop.name} (×${prop.count})` : prop.name,
       getValue: (p) => {
         const pb = p.propertyBreakdown.find((b) => b.id === propId);
         return pb ? pb.totalOpex : 0;
       },
       format: "currency",
       indent: true,
+      color: "negative",
+      detail: true,
+      section: "opex",
     });
   }
 
   rows.push(
-    { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", indent: true },
+    { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
+    { label: t('pnl.portfolioStaff'),      getValue: (p) => p.portfolioOpex?.staffTotal    ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
+    { label: t('pnl.portfolioServices'),   getValue: (p) => p.portfolioOpex?.servicesTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
+    { label: t('pnl.portfolioOverhead'),   getValue: (p) => p.portfolioOpex?.overheadTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
+    { label: t('pnl.portfolioPreOpening'), getValue: (p) => p.portfolioOpex?.preOpeningAmort ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
+    { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
     { label: t('term.ebitda'), getValue: (p) => p.ebitda, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
-    { label: t('pnl.debtService'), getValue: (p) => p.debtService, format: "currency", color: "negative", anchorId: "pnl-row-debtService" },
-    { label: t('pnl.termLoanInterest'), getValue: (p) => p.termLoanInterest, format: "currency", color: "negative", indent: true },
-    { label: t('pnl.termLoanPrincipal'), getValue: (p) => p.termLoanPrincipal, format: "currency", color: "negative", indent: true },
-    { label: t('pnl.termLoanBalance'), getValue: (p) => p.termLoanBalance, format: "currency", indent: true },
-    { label: t('term.ncfFull'), getValue: (p) => p.netCashFlow, format: "currency", bold: true, color: "dynamic" },
-    { label: t('term.vatPayable'), getValue: (p) => p.vatPayable, format: "currency", color: "negative" },
-    { label: t('term.citPayable'), getValue: (p) => p.citPayable, format: "currency", color: "negative" },
-    { label: t('pnl.profitAfterTax'), getValue: (p) => p.profitAfterTax, format: "currency", bold: true, color: "dynamic" },
-    { label: t('pnl.ncfPostVAT'), getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
-    // Founder-comp deductions — subtracted from NCF before distributing to
-    // equity. Informational on the P&L (do not feed EBITDA/DSCR shown to bank).
+  );
+
+  // ── Debt service ──────────────────────────────────────────────────────────
+  rows.push({ label: "Debt service", getValue: () => 0, format: "currency", separator: true, sectionKey: "debtService" });
+  rows.push(
+    { label: t('pnl.termLoanInterest'),  getValue: (p) => p.termLoanInterest,  format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.termLoanPrincipal'), getValue: (p) => p.termLoanPrincipal, format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.termLoanBalance'),   getValue: (p) => p.termLoanBalance,   format: "currency", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.dsraDraw'),         getValue: (p: AnnualPnL) => p.dsraDraw ?? 0,         format: "currency", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.dsraBalance'),      getValue: (p: AnnualPnL) => p.dsraBalance ?? 0,      format: "currency", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.partnerRepayment'), getValue: (p: AnnualPnL) => p.partnerRepayment ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
+    { label: t('pnl.debtService'),       getValue: (p) => p.debtService,       format: "currency", color: "negative", anchorId: "pnl-row-debtService" },
+    { label: t('term.ncfFull'),          getValue: (p) => p.netCashFlow,       format: "currency", bold: true, color: "dynamic" },
+  );
+
+  // ── Tax & distributions ───────────────────────────────────────────────────
+  rows.push({ label: "Tax & distributions", getValue: () => 0, format: "currency", separator: true, sectionKey: "tax" });
+  rows.push(
+    { label: t('term.vatPayable'),     getValue: (p) => p.vatPayable,     format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('term.citPayable'),     getValue: (p) => p.citPayable,     format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('pnl.profitAfterTax'), getValue: (p) => p.profitAfterTax, format: "currency", bold: true, color: "dynamic", detail: true, section: "tax" },
+    { label: t('pnl.ncfPostVAT'),     getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
     {
       label: `Founder ManCo fee (${(DEFAULT_FOUNDER_MANCO_FEE_RATE * 100).toFixed(0)}% × revenue)`,
       getValue: (p) => -(p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE),
       format: "currency",
       color: "negative",
       indent: true,
+      detail: true,
+      section: "tax",
     },
     {
       label: 'Deferred advisory fee (Bucket 1B, 3-yr from disbursement)',
@@ -138,6 +180,8 @@ export default function PnLPage() {
       format: "currency",
       color: "negative",
       indent: true,
+      detail: true,
+      section: "tax",
     },
     {
       label: 'Distributable to equity',
@@ -150,29 +194,65 @@ export default function PnLPage() {
       bold: true,
       color: "dynamic",
     },
-    { label: t('pnl.cfads'), getValue: (p) => p.cfads, format: "currency", color: "dynamic" },
-    { label: t('pnl.yieldOnEquity'), getValue: (p) => p.yieldOnInitialEquity, format: "percent", color: "dynamic", anchorId: "pnl-row-yieldOnEquity" },
-    { label: t('pnl.totalYieldOnEquity'), getValue: (p) => p.cumulativeYieldOnInitialEquity, format: "percent", bold: true, color: "dynamic" },
-    { label: t('pnl.cumulativeNCF'), getValue: (p) => p.cumulativeNCF, format: "currency", color: "dynamic" },
-    { label: t('term.dscr'), getValue: (p) => p.dscr, format: "multiple", anchorId: "pnl-row-dscr", goodAt: 1.25 },
-    { label: t('term.dscrLoaded'), getValue: (p) => p.dscrLoaded, format: "multiple", goodAt: 1.25 },
-    { label: t('pnl.icr'), getValue: (p) => p.interestCoverageRatio, format: "multiple", goodAt: 2.0 },
-    { label: t('pnl.wcAvg'), getValue: (p) => p.wcAvgBalance, format: "currency" },
-    { label: t('pnl.wcPeak'), getValue: (p) => p.wcPeakBalance, format: "currency" },
-    { label: t('pnl.wcNetContribution'), getValue: (p) => p.wcNetContribution, format: "currency", color: "dynamic" },
   );
+
+  // ── Returns & ratios ──────────────────────────────────────────────────────
+  rows.push({ label: "Returns & ratios", getValue: () => 0, format: "currency", separator: true, sectionKey: "returns" });
+  rows.push(
+    { label: t('pnl.cfads'),              getValue: (p) => p.cfads,                        format: "currency", color: "dynamic", detail: true, section: "returns" },
+    { label: t('pnl.yieldOnEquity'),      getValue: (p) => p.yieldOnInitialEquity,          format: "percent",  color: "dynamic", anchorId: "pnl-row-yieldOnEquity", detail: true, section: "returns" },
+    { label: t('pnl.totalYieldOnEquity'), getValue: (p) => p.cumulativeYieldOnInitialEquity,format: "percent",  bold: true, color: "dynamic", detail: true, section: "returns" },
+    { label: t('pnl.cumulativeNCF'),      getValue: (p) => p.cumulativeNCF,                 format: "currency", color: "dynamic" },
+    { label: t('term.dscr'),              getValue: (p) => p.dscr,                          format: "multiple", anchorId: "pnl-row-dscr", goodAt: 1.25, bold: true },
+    { label: t('pnl.effectiveDSCR'),      getValue: (p: AnnualPnL) => p.effectiveDSCR ?? p.dscr ?? 0, format: "multiple", bold: true, goodAt: assumptions?.dsra?.targetDSCR ?? 1.25, detail: true, section: "returns" },
+    { label: t('term.dscrLoaded'),        getValue: (p) => p.dscrLoaded,                    format: "multiple", goodAt: 1.25, detail: true, section: "returns" },
+    { label: t('pnl.icr'),               getValue: (p) => p.interestCoverageRatio,          format: "multiple", goodAt: 2.0,  detail: true, section: "returns" },
+  );
+
+  // ── Working capital ───────────────────────────────────────────────────────
+  rows.push({ label: "Working capital", getValue: () => 0, format: "currency", separator: true, sectionKey: "wc" });
+  rows.push(
+    { label: t('pnl.wcAvg'),            getValue: (p) => p.wcAvgBalance,      format: "currency", detail: true, section: "wc" },
+    { label: t('pnl.wcPeak'),           getValue: (p) => p.wcPeakBalance,     format: "currency", detail: true, section: "wc" },
+    { label: t('pnl.wcNetContribution'),getValue: (p) => p.wcNetContribution, format: "currency", color: "dynamic", detail: true, section: "wc" },
+  );
+
+  const expandAll = () => {
+    const keys = rows.filter((r) => r.sectionKey).map((r) => r.sectionKey as string);
+    setExpanded(Object.fromEntries(keys.map((k) => [k, true])));
+  };
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+      <div className="flex items-baseline justify-between gap-4 flex-wrap sticky top-[49px] z-10 bg-surface-primary pt-4 pb-4 mb-2 border-b border-surface-tertiary">
         <div>
-          <h1 className="font-display text-2xl text-text-primary">{t('pnl.title')}</h1>
-          <p className="text-sm text-text-secondary mt-1">{scenarioLabel} &middot; {t('pnl.subtitle')}</p>
+          <h1 className="font-display text-2xl text-text-primary border-l-[3px] border-brand-400 pl-3">{t('pnl.title')}</h1>
+          <p className="text-sm text-text-secondary mt-1">{t('pnl.pageIntro')}</p>
+          <p className="text-sm text-text-secondary mt-1">
+            {scenarioLabel} &middot; {t('pnl.subtitle')}
+          </p>
         </div>
-        <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+        <div className="flex items-center gap-3">
+          {!anyExpanded ? (
+            <button
+              onClick={expandAll}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-brand-500 text-brand-600 hover:bg-brand-50 transition-colors"
+            >
+              {t('pnl.expandAll')}
+            </button>
+          ) : (
+            <button
+              onClick={() => setExpanded({})}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-surface-tertiary text-text-secondary hover:bg-surface-secondary/60 transition-colors"
+            >
+              {t('pnl.collapseAll')}
+            </button>
+          )}
+          <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+        </div>
       </div>
 
-      <div id="pnl-table" className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden scroll-mt-24">
+      <div id="pnl-table" className="bg-white rounded-xl border border-surface-tertiary overflow-hidden scroll-mt-24">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -181,9 +261,6 @@ export default function PnLPage() {
                   {t('pnl.item')}
                 </th>
                 {pnl.map((p) => {
-                  // Per-phase color band on the year header — helps the eye
-                  // group dev / Y1-Y2 ramp / stabilised columns when scanning
-                  // 11 years horizontally.
                   const phaseTone =
                     p.year <= 2027
                       ? 'border-t-4 border-earth-terracotta/60'
@@ -220,7 +297,38 @@ export default function PnLPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((row, ri) => {
+              {rows.filter((r) => !r.detail || isExpanded(r.section ?? "")).map((row, ri) => {
+                // Section separator
+                if (row.separator) {
+                  const hasToggle = !!row.sectionKey;
+                  const open = hasToggle && isExpanded(row.sectionKey!);
+                  return (
+                    <tr key={ri} className="bg-surface-secondary/60">
+                      <td colSpan={pnl.length + 1} className="py-0 sticky left-0">
+                        {hasToggle ? (
+                          <button
+                            onClick={() => toggle(row.sectionKey!)}
+                            className="w-full flex items-center justify-between py-2 pl-5 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-semibold hover:bg-surface-secondary/80 transition-colors group"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Chevron open={open} />
+                              {row.label}
+                            </span>
+                            <span className={`normal-case tracking-normal text-[10px] font-medium transition-colors ${open ? "text-brand-500" : "text-text-tertiary/60 group-hover:text-brand-400"}`}>
+                              {open ? "collapse" : "expand"}
+                            </span>
+                          </button>
+                        ) : (
+                          <div className="py-2 pl-5 pr-4 text-[10px] uppercase tracking-wider text-text-tertiary font-semibold">
+                            {row.label}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                }
+
+                // Data row
                 const isSection = row.bold;
                 return (
                   <tr
@@ -273,6 +381,12 @@ export default function PnLPage() {
           </table>
         </div>
       </div>
+
+      {(model.scenarios[activeScenario]?.dsraTarget ?? 0) > 0 && (
+        <p className="text-[11px] text-text-tertiary mt-3 px-1 leading-relaxed">
+          {t('dsra.pnlCaption')}
+        </p>
+      )}
 
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={PNL_TOUR} />
     </div>

@@ -20,7 +20,7 @@
 import { describe, expect, it } from "vitest";
 
 import { computeModel } from "@/lib/engine/model";
-import { BASE_CASE, DOWNSIDE_FACTORS } from "@/lib/engine/defaults";
+import { BASE_CASE, DOWNSIDE_FACTORS, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import type { ModelAssumptions } from "@/lib/engine/types";
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -127,8 +127,8 @@ describe("computeModel — sanity invariants (not snapshots)", () => {
     // logic introduced a regression.
     const out = computeModel(withFinancingPath(BASE_CASE, "tepix-loan"));
     expect(out.keyMetrics.tepixCapBindingBy).toBe(0);
-    expect(out.keyMetrics.tepixLoanCap).toBe(8_000_000);
-    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(8_000_000);
+    expect(out.keyMetrics.tepixLoanCap).toBe(PROJECT_CONSTANTS.TEPIX_LOAN_CAP_EUR);
+    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(PROJECT_CONSTANTS.TEPIX_LOAN_CAP_EUR);
   });
 
   it("TEPIX III cap binds and absorbs excess into equity when scope > €8M loan", () => {
@@ -157,9 +157,9 @@ describe("computeModel — sanity invariants (not snapshots)", () => {
       portfolio: triplePortfolio,
     };
     const out = computeModel(scaledUp);
-    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(8_000_000);
+    expect(out.keyMetrics.primaryLoan).toBeLessThanOrEqual(PROJECT_CONSTANTS.TEPIX_LOAN_CAP_EUR);
     expect(out.keyMetrics.tepixCapBindingBy).toBeGreaterThan(0);
-    expect(out.keyMetrics.tepixLoanCap).toBe(8_000_000);
+    expect(out.keyMetrics.tepixLoanCap).toBe(PROJECT_CONSTANTS.TEPIX_LOAN_CAP_EUR);
     // Equity ask grows when the cap binds — the excess flows into a
     // combination of supplementary commercial debt and sponsor equity.
     // Loose lower bound: equity must be MEANINGFULLY larger than the

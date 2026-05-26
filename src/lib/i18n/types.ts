@@ -150,11 +150,15 @@ export interface TranslationDictionary {
   'pnl.ancillary': string;
   'pnl.ancillaryCapped': string;
   'pnl.profitAfterTax': string;
+  'pnl.ffeReserve': string;
   'pnl.wcInterest': string;
   'pnl.wcAvg': string;
   'pnl.wcPeak': string;
   'pnl.wcNetContribution': string;
   'pnl.wcSection': string;
+  'pnl.grossRevenue': string;
+  'pnl.otaCommissions': string;
+  'pnl.netRevenuePostOTA': string;
   'pnl.totalRevenue': string;
   'pnl.opexA': string;
   'pnl.opexB': string;
@@ -172,6 +176,11 @@ export interface TranslationDictionary {
   'pnl.cit': string;
   'pnl.ebitdaMargin': string;
   'pnl.cfads': string;
+  // Portfolio OPEX P&L rows
+  'pnl.portfolioStaff': string;
+  'pnl.portfolioServices': string;
+  'pnl.portfolioOverhead': string;
+  'pnl.portfolioPreOpening': string;
 
   // Dashboard — bank metrics
   'dash.section.dealSnapshot': string;
@@ -337,6 +346,8 @@ export interface TranslationDictionary {
   'be.bufferSub': string;
   'be.adr': string;
   'be.adrSub': string;
+  'be.adrVillaLabel': string;
+  'be.adrSuiteLabel': string;
   'be.adrBuffer': string;
   'be.adrBufferSub': string;
   'be.scenarioTitle': string;
@@ -400,6 +411,38 @@ export interface TranslationDictionary {
   'as.general': string;
   'as.revenue': string;
   'as.opexTab': string;
+  'as.portfolioOpexTab': string;
+  // Portfolio OPEX tab content
+  'as.portfolioOpex.tabIntro': string;
+  'as.portfolioOpex.totalBadge': string;
+  'as.portfolioOpex.yearRoundFixed': string;
+  'as.portfolioOpex.variable': string;
+  'as.portfolioOpex.staffSection': string;
+  'as.portfolioOpex.servicesSection': string;
+  'as.portfolioOpex.overheadSection': string;
+  'as.portfolioOpex.preOpeningSection': string;
+  'as.portfolioOpex.addRole': string;
+  'as.portfolioOpex.addService': string;
+  'as.portfolioOpex.addOverhead': string;
+  'as.portfolioOpex.roleYearRound': string;
+  'as.portfolioOpex.roleSeasonal': string;
+  'as.portfolioOpex.preOpeningTotal': string;
+  'as.portfolioOpex.preOpeningAmortYears': string;
+  'as.portfolioOpex.preOpeningStartYear': string;
+  'as.portfolioOpex.annualAmort': string;
+  'as.portfolioOpex.migrationBanner': string;
+  'as.portfolioOpex.migrationDismiss': string;
+  'as.portfolioOpex.sizingBasis': string;
+  'as.portfolioOpex.bankingTooltip': string;
+  'as.portfolioOpex.insuranceTooltip': string;
+  'as.portfolioOpex.colRole': string;
+  'as.portfolioOpex.colMonthlyGross': string;
+  'as.portfolioOpex.colMonths': string;
+  'as.portfolioOpex.colBurden': string;
+  'as.portfolioOpex.colAllowances': string;
+  'as.portfolioOpex.colNetMonthly': string;
+  'as.portfolioOpex.colNetMonthlyTooltip': string;
+  'as.portfolioOpex.colAnnual': string;
   'as.capexTab': string;
   'as.selectPath': string;
   'as.activeParams': string;
@@ -532,6 +575,40 @@ export interface TranslationDictionary {
   'inv.collateralAsset': string;
   'inv.loan': string;
 
+  // ── Investor sensitivity tab ──
+  'inv.sens.title': string;
+  'inv.sens.subtitle': string;
+  'inv.sens.slidersHeading': string;
+  'inv.sens.kpiHeading': string;
+  'inv.sens.occupancy': string;
+  'inv.sens.occupancySub': string;
+  'inv.sens.adr': string;
+  'inv.sens.adrSub': string;
+  'inv.sens.suiteAdr': string;
+  'inv.sens.suiteAdrSub': string;
+  'inv.sens.exitYear': string;
+  'inv.sens.exitYearSub': string;
+  'inv.sens.exitMultiple': string;
+  'inv.sens.exitMultipleSub': string;
+  'inv.sens.perM2': string;
+  'inv.sens.perM2Sub': string;
+  'inv.sens.baseValue': string;
+  'inv.sens.irrLabel': string;
+  'inv.sens.irrSub': string;
+  'inv.sens.moicLabel': string;
+  'inv.sens.moicSub': string;
+  'inv.sens.yieldLabel': string;
+  'inv.sens.yieldSub': string;
+  'inv.sens.paybackLabel': string;
+  'inv.sens.paybackSub': string;
+  'inv.sens.underwaterLabel': string;
+  'inv.sens.underwaterSub': string;
+  'inv.sens.underwaterYes': string;
+  'inv.sens.underwaterNo': string;
+  'inv.sens.resetAll': string;
+  'inv.sens.covenantLegend': string;
+  'inv.sens.paybackUnit': string;
+
   // ── Common ──
   'common.year': string;
   'common.notes': string;
@@ -573,6 +650,7 @@ export interface TranslationDictionary {
 
   // ── Lexicon ──
   'nav.lexicon': string;
+  'nav.team': string;
   'lex.exit': string;
   'lex.title': string;
   'lex.subtitle': string;
@@ -839,6 +917,7 @@ export interface TranslationDictionary {
   'bar.exportExcelShort': string;
   'bar.exportBankDocx': string;
   'bar.toAdmin': string;
+  'bar.signIn': string;
   'admin.bar.adjust': string;
   'admin.bar.loanParams': string;
   'admin.bar.exitYear': string;
@@ -848,8 +927,17 @@ export interface TranslationDictionary {
   'admin.bar.viewPresentation': string;
   'admin.bar.bankerView': string;
   'admin.bar.bankerViewArrow': string;
+  'admin.bar.exitYearRange': string;
+  'admin.nav.collapse': string;
   'admin.banner.stalePart1': string;
   'admin.banner.stalePart2': string;
+  'admin.actions.heading': string;
+  'admin.actions.tour.title': string;
+  'admin.actions.tour.sub': string;
+  'admin.actions.presentation.title': string;
+  'admin.actions.presentation.sub': string;
+  'admin.actions.model.title': string;
+  'admin.actions.model.sub': string;
 
   // ── BankControlBar (2026-05-23) ──
   'bank.bar.commercial': string;
@@ -895,6 +983,17 @@ export interface TranslationDictionary {
   'bank.about.stdDblSuites': string;
   'bank.about.fullPresentation': string;
   'bank.about.presentationFile': string;
+  'presentation.viewer.title': string;
+  'presentation.viewer.download': string;
+  'presentation.viewer.loading': string;
+  'presentation.viewer.placeholder': string;
+  'bank.actions.heading': string;
+  'bank.actions.tour.title': string;
+  'bank.actions.tour.sub': string;
+  'bank.actions.presentation.title': string;
+  'bank.actions.presentation.sub': string;
+  'bank.actions.model.title': string;
+  'bank.actions.model.sub': string;
   'bank.section.termsheet': string;
   'bank.termsheet.securityValue': string;
   'bank.termsheet.securitySub': string;
@@ -932,6 +1031,7 @@ export interface TranslationDictionary {
   'bank.dscrTable.stabilised': string;
   'bank.dscrTable.avgLoanLife': string;
   'bank.dscrTable.covenant': string;
+  'bank.dscrTable.minLoanLife': string;
   'bank.dscrSummary.footnote': string;
   'bank.dscrSummary.footnoteRamp': string;
   'bank.dscrSummary.footnoteSee': string;
@@ -1029,6 +1129,52 @@ export interface TranslationDictionary {
   'dc.title': string;
   'dc.covenantLabel': string;
   'dc.comfortLabel': string;
+  'dc.grantLineName': string;
+
+  // ── DSRA — assumptions tab ──
+  'as.dsra': string;
+  'as.dsraEnabled': string;
+  'as.dsraEnabledNote': string;
+  'as.dsraTargetDSCR': string;
+  'as.dsraSweepPct': string;
+  'as.dsraSweepNote': string;
+  'as.dsraReplenishPriority': string;
+  'as.dsraRepayThreshold': string;
+  'as.dsraRepayThresholdNote': string;
+  'as.wcDsraNote': string;
+  // ── DSRA — P&L Timeline rows ──
+  'pnl.dsraDraw': string;
+  'pnl.dsraBalance': string;
+  'pnl.effectiveDSCR': string;
+  'pnl.partnerRepayment': string;
+  // ── DSRA — Debt Coverage tile ──
+  'dsra.sectionTitle': string;
+  'dsra.sectionSub': string;
+  'dsra.target': string;
+  'dsra.targetSub': string;
+  'dsra.sweep': string;
+  'dsra.sweepSub': string;
+  'dsra.partnerAdvance': string;
+  'dsra.partnerAdvanceSub': string;
+  // ── DSRA — Financing Paths deal term ──
+  'dsra.dealTermLabel': string;
+  'dsra.dealTermSub': string;
+  // ── DSRA — Dashboard ──
+  'dsra.dashKpiLabel': string;
+  'dsra.dashKpiSub': string;
+  // ── DSRA — Page captions ──
+  'dsra.assumptionsCaption': string;
+  'dsra.debtCoverageCaption': string;
+  'dsra.financingCaption': string;
+  'dsra.pnlCaption': string;
+  // ── DSRA chart ──
+  'dsra.chartTitle': string;
+  'dsra.chartSub': string;
+  'dsra.legend.balance': string;
+  'dsra.legend.draw': string;
+  'dsra.legend.replenish': string;
+  'dsra.noActivity': string;
+  'dsra.bankSub': string;
 
   // ── Cap Table page ──
   'ct.title': string;
@@ -1105,6 +1251,7 @@ export interface TranslationDictionary {
   'auth.error.tooManyRequests': string;
   'auth.error.cancelled': string;
   'auth.error.popupBlocked': string;
+  'auth.error.unauthorizedDomain': string;
   'auth.error.unknown': string;
 
   // ── Team page ──
@@ -1120,6 +1267,8 @@ export interface TranslationDictionary {
   'team.sendBtn': string;
   'team.sending': string;
   'team.inviteCreated': string;
+  'team.copyBtn': string;
+  'team.copiedBtn': string;
   'team.peopleWithAccess': string;
   'team.loadingUsers': string;
   'team.noUsers': string;
@@ -1201,6 +1350,59 @@ export interface TranslationDictionary {
   'tpl.opexLineName': string;
   'tpl.capexLineName': string;
 
+  // ── Keys & Bedrooms topology (template card) ──
+  'tpl.bedroomsPerStandard':    string;
+  'tpl.bedroomsPerDouble':      string;
+  'tpl.bedroomsInMain':         string;
+  'tpl.lockableSubUnits':       string;
+  'tpl.bedroomsPerSubUnit':     string;
+  'tpl.totalBedroomsPerPlot':   string;
+  'tpl.totalBedroomsPerVilla':  string;
+  'tpl.keysAtMaxSplit':         string;
+  'tpl.totalUnitsPerPlot':      string;
+  'tpl.mixedUse':               string;
+
+  // ── Assumptions portfolio overview ──
+  'as.portfolioOverview.keysMaxSplit': string;
+  'as.portfolioOverview.bedrooms':     string;
+  'as.portfolioOverview.projects':     string;
+  'as.portfolioOverview.builtSurface': string;
+  'as.portfolioOverview.totalCapex':   string;
+
+  // ── Dashboard about section ──
+  'dash.about.title':              string;
+  'dash.about.colPlot':            string;
+  'dash.about.colCount':           string;
+  'dash.about.colType':            string;
+  'dash.about.colKeysPerPlot':     string;
+  'dash.about.colBedrooms':        string;
+  'dash.about.colGia':             string;
+  'dash.about.typeLuxuryVilla':    string;
+  'dash.about.typeSuiteVillas':    string;
+  'dash.about.totalRow':           string;
+  'dash.about.totalKeysLabel':     string;
+  'dash.about.totalBedroomsLabel': string;
+  'dash.about.keysWhole':          string;
+  'dash.about.keysMaxSplit':       string;
+  'dash.about.aboutVillaLevGroup': string;
+  'dash.about.isDeveloping':       string;
+  'dash.about.plotsIn':            string;
+  'dash.about.villaDesc':          string;
+  'dash.about.suiteDesc':          string;
+  'dash.about.inventoryIntro':     string;
+  'dash.about.bedroomsAcross':     string;
+  'dash.about.rentableKeys':       string;
+  'dash.about.anchorPrefix':       string;
+  'dash.about.anchorSuffix':       string;
+
+  // ── Bank page keys & bedrooms additions ──
+  'bank.about.colBedrooms':          string;
+  'bank.about.colKeysPerPlot':       string;
+  'bank.about.villaUnitMixWhole':    string;
+  'bank.about.villaUnitMixMaxSplit': string;
+  'bank.about.totalKeysLabel':       string;
+  'bank.about.totalBedroomsLabel':   string;
+
   // ── /admin/presentation ──
   'presentation.exportDocx': string;
   'presentation.print': string;
@@ -1239,6 +1441,9 @@ export interface TranslationDictionary {
   'presentation.kpi.totalMoic': string;
   'presentation.kpi.stabilisedDscr': string;
   'presentation.kpi.assetCoverage': string;
+  'presentation.kpi.grantAmount': string;
+  // Grant strategy (§11, shown only when Grant path is active)
+  'presentation.s11.grantStrategy': string;
   // Exec summary prose keys
   'presentation.s1.theProject': string;
   'presentation.s1.whatWeBuilt': string;
@@ -1249,10 +1454,284 @@ export interface TranslationDictionary {
   'presentation.s2.p2': string;
   'presentation.s2.p3': string;
   'presentation.s2.p4': string;
+  'presentation.s2.p5': string;
   'presentation.s2.callout': string;
+  // Project section
+  'presentation.s3.intro': string;
+  'presentation.s3.splitUnit': string;
+  // Track record section
+  'presentation.s4.intro': string;
   // Conclusion
   'presentation.s11.closingProse': string;
   'presentation.s11.callout': string;
   // OPEX overlay badge
   'presentation.opexContingencyBadge': string;
+  // New keys for Word-doc aligned rewrite (2026-05-25)
+  'presentation.kpi.ownerEquity': string;
+  'presentation.cover.tagline': string;
+  'presentation.s1.loanRequestCol': string;
+  'presentation.s1.collateralCol': string;
+  'presentation.s1.phaseTable.header': string;
+  'presentation.s1.phaseTable.phase1': string;
+  'presentation.s1.phaseTable.phase2': string;
+  'presentation.s1.phaseTable.wc': string;
+  'presentation.s1.operationalTarget': string;
+  'presentation.s2.intro': string;
+  'presentation.s2.resultsTable.header': string;
+  'presentation.s2.season2026.header': string;
+  'presentation.s2.conservative.header': string;
+  'presentation.s2.marketRankings.header': string;
+  'presentation.s3.airportTable.header': string;
+  'presentation.s3.tailwinds.header': string;
+  'presentation.s3.hotelAdr.header': string;
+  'presentation.s3.airdna.header': string;
+  'presentation.s4.propA.desc': string;
+  'presentation.s4.propB.desc': string;
+  'presentation.s4.suiteTable.header': string;
+  'presentation.s4.events.note': string;
+  'presentation.s5.intro': string;
+  'presentation.s5.rampTable.header': string;
+  'presentation.s5.opexTable.header': string;
+  'presentation.s6.breakeven.header': string;
+  'presentation.s6.risks.header': string;
+  'presentation.s6.stressNote': string;
+  'presentation.s6.dsraNote': string;
+  'presentation.s7.financing.header': string;
+  'presentation.s7.collateral.header': string;
+  'presentation.s7.dsNote': string;
+  'presentation.s7.timeline.header': string;
+  'presentation.s8.corporate.header': string;
+  'presentation.s8.eytan.bio': string;
+  'presentation.s8.team.header': string;
+  'presentation.s8.alignment.header': string;
+  'presentation.s9.intro': string;
+  'presentation.s9.grantImpact.header': string;
+  'presentation.s9.comparison.header': string;
+  'presentation.s9.pathNote': string;
+  'presentation.s10.keyPoints.header': string;
+  'presentation.s10.portfolioAtGlance.header': string;
+  'presentation.s10.closingLine': string;
+
+  // Cover additional tiles
+  'presentation.kpi.portfolioValue': string;
+  'presentation.kpi.ltvAtCompletion': string;
+
+  // §4 Word-doc-aligned intro + CAPEX table
+  'presentation.s4.plotIntro': string;
+  'presentation.s4.capex.header': string;
+
+  // §5 scenario tables
+  'presentation.s5.realisticTable.header': string;
+  'presentation.s5.upsideTable.header': string;
+  'presentation.s5.downsideTable.header': string;
+
+  // §9 instruments table
+  'presentation.s9.instruments.header': string;
+
+  // ── Bank sensitivity tab (2026-05-25) ──
+  'bank.tabs.overview': string;
+  'bank.tabs.sensitivity': string;
+  'bank.sens.title': string;
+  'bank.sens.subtitle': string;
+  'bank.sens.slidersHeading': string;
+  'bank.sens.kpiHeading': string;
+  'bank.sens.occupancy': string;
+  'bank.sens.occupancySub': string;
+  'bank.sens.adr': string;
+  'bank.sens.adrSub': string;
+  'bank.sens.interestRate': string;
+  'bank.sens.interestRateSub': string;
+  'bank.sens.tenor': string;
+  'bank.sens.tenorSub': string;
+  'bank.sens.ltvOrigin': string;
+  'bank.sens.ltvOriginSub': string;
+  'bank.sens.opex': string;
+  'bank.sens.opexSub': string;
+  'bank.sens.baseValue': string;
+  'bank.sens.dscrLabel': string;
+  'bank.sens.dscrSub': string;
+  'bank.sens.ltvLabel': string;
+  'bank.sens.ltvSub': string;
+  'bank.sens.icrLabel': string;
+  'bank.sens.icrSub': string;
+  'bank.sens.noiLabel': string;
+  'bank.sens.noiSub': string;
+  'bank.sens.pathNote': string;
+  'bank.sens.resetAll': string;
+  'bank.sens.opexStress': string;
+  'bank.sens.opexStressSub': string;
+  'bank.sens.opexStressTooltip': string;
+  'bank.sens.opexStressExtended': string;
+  'bank.sens.occupancyExtended': string;
+  'bank.cta.stressTest': string;
+  'bank.stress.advancedToggle': string;
+
+  // ── Financing comparison table row keys (2026-05-25) ──
+  'finComp.totalLoanDrawn': string;
+  'finComp.grantReceived': string;
+  'finComp.equityRequired': string;
+  'finComp.annualDebtService': string;
+  'finComp.stabilisedDSCR': string;
+  'finComp.supplementaryLoan': string;
+  'finComp.equitySavingVsCommercial': string;
+
+  // ── Bank fee disclosure (2026-05-25) ──
+  'bank.dscr.mgmtFeeNote': string;
+  'bank.termsheet.opCostLabel': string;
+  'bank.termsheet.opCostValue': string;
+  'bank.termsheet.opCostSub': string;
+
+  // ── App location (2026-05-25) ──
+  'app.location': string;
+
+  // ── Bank tour badge (2026-05-25) ──
+  'bank.tourDuration': string;
+
+  // ── Stress link (2026-05-25) ──
+  'bank.stressLink': string;
+
+  // ── Admin dashboard i18n (2026-05-25) ──
+  'admin.about.heading': string;
+  'admin.about.colPlot': string;
+  'admin.about.colCount': string;
+  'admin.about.colType': string;
+  'admin.about.colUnits': string;
+  'admin.about.colGia': string;
+  'admin.about.total': string;
+  'admin.about.luxuryVilla': string;
+  'admin.about.hotelRooms': string;
+  'admin.about.villaSuffix': string;
+  'admin.about.stdDbl': string;
+  'dash.activateGrantPath': string;
+  'dash.colScenario': string;
+  'dash.colCashYield': string;
+  'dash.fullReturnsLink': string;
+  'dash.section.exitAnalysis': string;
+  'dash.exitAnalysisSub': string;
+  'dash.exit.preferredExit': string;
+  'dash.exit.exitValue': string;
+  'dash.exit.netToEquity': string;
+  'dash.exit.exitIRR': string;
+  'dash.exit.propertySale': string;
+  'dash.exit.hotelSale': string;
+  'dash.exit.deepDive': string;
+  'dash.exit.description': string;
+  'dash.section.stressMargin': string;
+  'dash.stressMarginSub': string;
+  'dash.hideDetail': string;
+  'dash.showDetail': string;
+  'dash.stress.colAssumption': string;
+  'dash.stress.colBpConservative': string;
+  'dash.stress.colBpRealistic': string;
+  'dash.stress.colLiveVilla': string;
+  'dash.stress.colVerdict': string;
+  'dash.stress.verdictBelow': string;
+  'dash.stress.verdictPar': string;
+  'dash.stress.verdictAbove': string;
+  'dash.stress.row.nights': string;
+  'dash.stress.row.nightsSub': string;
+  'dash.stress.row.adr': string;
+  'dash.stress.row.adrSub': string;
+  'dash.stress.row.accommodation': string;
+  'dash.stress.row.accommodationSub': string;
+  'dash.stress.row.ancillary': string;
+  'dash.stress.row.ancillarySub': string;
+  'dash.stress.row.events': string;
+  'dash.stress.row.eventsSub': string;
+  'dash.stress.row.portfolioTotal': string;
+  'dash.stress.row.portfolioTotalSub': string;
+  'dash.stress.row.perVillaConservatism': string;
+  'dash.stress.row.portfolioFraming': string;
+  'dash.stress.row.pureUpside': string;
+  'dash.stress.row.liveNote2026': string;
+  'dash.stress.row.liveNote2025': string;
+  'dash.stress.footnote1': string;
+  'dash.stress.footnote2': string;
+  // ── Stress table sub-labels (2026-05-25) ──
+  'dash.stress.row.nightsUnit': string;
+  'dash.stress.row.nightsNote': string;
+  'dash.stress.row.nightsLiveNote': string;
+  'dash.stress.row.adrUnit': string;
+  'dash.stress.row.adrNote': string;
+  'dash.stress.row.accommodationUnit': string;
+  'dash.stress.row.accommodationNote': string;
+  'dash.stress.row.accommodationLiveNote': string;
+  'dash.stress.row.ancillaryUnit': string;
+  'dash.stress.row.ancillaryNote': string;
+  'dash.stress.row.eventsUnit': string;
+  'dash.stress.row.eventsLiveNote': string;
+  'dash.stress.row.portfolioTotalUnit': string;
+  'dash.stress.row.portfolioMultiple': string;
+
+  // ── Cap Table additional i18n (2026-05-25) ──
+  'ct.chipCovered': string;
+  'ct.chipOver': string;
+  'ct.chipGap': string;
+  'ct.overCommittedNote': string;
+  'ct.autoFillNote': string;
+  'ct.recon.label': string;
+  'ct.recon.projDist': string;
+  'ct.recon.stakeholderDist': string;
+  'ct.recon.diff': string;
+  'ct.recon.waterfall': string;
+  'ct.recon.converged': string;
+  'ct.recon.diverged': string;
+  'ct.founder.devEquityNote': string;
+  'ct.founder.pariPassuNote': string;
+  'ct.founder.layerBNote': string;
+  'ct.founder.layerBInactive': string;
+  'ct.founder.layerCNote': string;
+  'ct.founder.exitNote': string;
+  'ct.founder.floorNote': string;
+  'ct.equityPoolModel': string;
+  'ct.requiredFromInvestors': string;
+  'ct.committed': string;
+  'ct.investorMOIC': string;
+  'ct.investorIRR': string;
+  'ct.layerB.heading': string;
+  'ct.layerB.grantAmount': string;
+  'ct.layerB.successFeePct': string;
+  'ct.layerB.cashDeferred': string;
+  'ct.layerB.equityDiv': string;
+  'ct.layerB.grantBonus': string;
+  'ct.opFeeManCo': string;
+  'ct.opFeeCashSuccess': string;
+  'ct.opFeeNote': string;
+  'ct.advisoryNote': string;
+  'ct.redactedShowFor': string;
+  'ct.redactedOthersNote': string;
+  'ct.othersAggregated': string;
+  'ct.redactedLabel': string;
+  'ct.totalCash': string;
+  'ct.detail.year': string;
+  'ct.detail.devEquity': string;
+  'ct.detail.pariPassu': string;
+  'ct.detail.grantBonus': string;
+  'ct.detail.perfRatchet': string;
+  'ct.detail.distribution': string;
+  'ct.detail.total': string;
+  'ct.detail.cashIn': string;
+  'ct.detail.isFounder': string;
+  'ct.detail.poolShare': string;
+  'ct.capBindingNote': string;
+  // ── Cap binding detail labels (2026-05-25) ──
+  'ct.capBinding75Detail': string;
+  'ct.capEarned33Detail': string;
+  'ct.capNoBinding': string;
+  'ct.opFeeAdvisoryNote': string;
+  // ── Bank unit labels (2026-05-25) ──
+  'bank.about.unitStd': string;
+  'bank.about.unitDbl': string;
+
+  // ── Bank coverage group heading (2026-05-25) ──
+  'bank.coverage.groupHeading': string;
+
+  // ── BankStressTest output strip (P2-07) ──
+  'bank.stress.output.dscr': string;
+  'bank.stress.output.ebitda': string;
+  'bank.stress.output.ltv': string;
+
+  // ── Exit Analysis two-row table (P2-08) ──
+  'dash.exit.route': string;
+  'dash.exit.preferred': string;
 }
