@@ -364,7 +364,7 @@ function computeDebtService(
       effectiveInterestRate: a.commercialLoan.interestRate,
       repaymentTermYears: a.commercialLoan.repaymentTermYears,
       getDS: (year: number) => {
-        const graceEnd = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
+        const graceEnd = HORIZON_START_YEAR + (a.grant.gracePeriodYears ?? a.commercialLoan.gracePeriodYears ?? 2);
         if (year === HORIZON_START_YEAR) return a.grant.interest2026 ?? 50625;
         if (year === HORIZON_START_YEAR + 1) return a.grant.interest2027 ?? 110544;
         if (year === graceEnd) return a.grant.interest2028 ?? 114109;
@@ -593,19 +593,29 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
   const po = assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
 
   const staffTotal = po.staffRoles.reduce((sum, role) => {
-    if (role.yearRound) {
-      return sum + role.monthlyGross * role.monthsPaid * role.burdenMultiplier + role.allowances;
-    }
-    const months = role.seasonalMonths ?? 0;
     const count = role.headcount ?? 1;
-    return sum + role.monthlyGross * months * role.burdenMultiplier * count + role.allowances * count;
+    // baseMonths: calendar months actually worked (12 for year-round, N for seasonal)
+    const baseMonths = role.yearRound
+      ? role.monthsPaid
+      : (role.seasonalMonths ?? role.monthsPaid);
+    // Greek statutory holiday bonus: (contractMonths / 12) × 2
+    //   Christmas allowance (1 month) + Easter allowance (½) + Annual-leave allowance (½) = 2
+    //   All roles — year-round or seasonal — receive this pro-rata by law.
+    //   Formula is deterministic from contractMonths; ignores any stored bonusMonths field.
+    const bonusM = baseMonths * (2 / 12);
+    const effectiveMonths = baseMonths + bonusM; // = baseMonths × (14/12)
+    return sum + role.monthlyGross * effectiveMonths * role.burdenMultiplier * count + role.allowances * count;
   }, 0);
 
-  // Pool R&M is driven by poolCount × poolCostPerUnit; the annualCost on the line
-  // is overridden at compute time so the stored value never drifts from the inputs.
+  // Pool R&M uses top-level poolCount × poolCostPerUnit (annualCost on the line is ignored).
+  // Other service lines: if unitCount + costPerUnit are set, use unitCount × costPerUnit;
+  // otherwise fall through to annualCost.
   const poolRMCost = (po.poolCount ?? 17) * (po.poolCostPerUnit ?? 1500);
-  const servicesTotal = po.sharedServices.reduce((sum, s) =>
-    sum + (s.name === 'Pool R&M' ? poolRMCost : s.annualCost), 0);
+  const servicesTotal = po.sharedServices.reduce((sum, s) => {
+    if (s.name === 'Pool R&M') return sum + poolRMCost;
+    if (s.unitCount !== undefined && s.costPerUnit !== undefined) return sum + s.unitCount * s.costPerUnit;
+    return sum + s.annualCost;
+  }, 0);
   const overheadTotal = po.sharedOverhead.reduce((sum, s) => sum + s.annualCost, 0);
 
   const preOpeningAmort =
@@ -806,8 +816,14 @@ function computeScenario(
     // at 3 plots. Mirrors the construction-phase minimum (€75K/yr CAPEX) so
     // Eytan's minimum compensation is consistent across both phases.
     const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
-    const seniorMgmtFee =
+    const seniorMgmtFeeBase =
       year > HORIZON_START_YEAR + 1 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
+    const deferralActive = a.opCoSeniorDefer2029 === true && a.viewMode !== 'bank';
+    const seniorMgmtFee =
+      deferralActive && year === FIRST_OPERATIONAL_YEAR ? 0
+      : deferralActive && year === FIRST_OPERATIONAL_YEAR + 1
+        ? seniorMgmtFeeBase + (a.opCoSeniorFloor ?? 0) * totalVillaCount
+        : seniorMgmtFeeBase;
 
     // OpEx that flows into EBITDA pre-OpCo.
     //   internal: legacy — keep per-villa managementFee in propertyOpex.

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   formatCurrency,
@@ -59,7 +58,6 @@ export default function DebtCoveragePage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(DEBT_COVERAGE_TOUR.storageKey);
-  const [seniorDeferActive, setSeniorDeferActive] = useState(false);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -120,19 +118,6 @@ export default function DebtCoveragePage() {
     activeScenario === 'breakeven' ? t('scenario.breakeven') :
     t('scenario.realistic');
 
-  // Senior fee deferral sensitivity (ephemeral display-only — does not touch engine)
-  const pnl2029 = activePnL.find((p) => p.year === 2029)
-  const pnl2030 = activePnL.find((p) => p.year === 2030)
-  const deferredFee = pnl2029?.opCoSeniorPaid ?? 0
-  const adj2029DSCR =
-    seniorDeferActive && pnl2029 && pnl2029.debtService > 0
-      ? (pnl2029.ebitdaPreOpCo + deferredFee) / pnl2029.debtService
-      : null
-  const adj2030DSCR =
-    seniorDeferActive && pnl2030 && pnl2030.debtService > 0
-      ? (pnl2030.ebitdaPreOpCo - deferredFee) / pnl2030.debtService
-      : null
-
   // DSCR trajectory chart data
   const dscrTrajectoryData = model.dscrByYear
     .filter((d) => d.year >= 2028)
@@ -160,62 +145,6 @@ export default function DebtCoveragePage() {
         <div className="flex items-center gap-2">
           <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
         </div>
-      </div>
-
-      {/* Senior fee deferral sensitivity — admin only, ephemeral */}
-      <div className="mb-4 rounded-xl border border-dashed border-amber-500/30 bg-amber-500/5 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-            {t('dc.seniorDeferCard')}
-          </span>
-          {seniorDeferActive && (
-            <StatusChip label={t('dc.seniorDeferBadge')} ok={false} />
-          )}
-        </div>
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded border-surface-tertiary accent-amber-500"
-            checked={seniorDeferActive}
-            onChange={(e) => setSeniorDeferActive(e.target.checked)}
-          />
-          <div>
-            <div className="text-sm font-medium text-text-primary">
-              {t('dc.seniorDeferCheckbox')}
-            </div>
-            <div className="text-xs text-text-tertiary mt-0.5">
-              {t('dc.seniorDeferSub')}
-            </div>
-          </div>
-        </label>
-
-        {seniorDeferActive && adj2029DSCR !== null && adj2030DSCR !== null && (
-          <div className="mt-3 rounded-lg bg-surface-secondary/60 p-3">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs text-text-tertiary">
-                  <th className="text-left font-medium pb-1">{t('dc.seniorDeferYear')}</th>
-                  <th className="text-right font-medium pb-1">{t('dc.seniorDeferAdjDscr')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="text-text-primary">2029</td>
-                  <td className="text-right font-mono font-semibold text-amber-600">
-                    {adj2029DSCR.toFixed(2)}×
-                  </td>
-                </tr>
-                <tr>
-                  <td className="text-text-primary">2030</td>
-                  <td className="text-right font-mono font-semibold text-text-secondary">
-                    {adj2030DSCR.toFixed(2)}×
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-            <p className="mt-2 text-xs text-text-tertiary">{t('dc.seniorDeferNote')}</p>
-          </div>
-        )}
       </div>
 
       {/* Section 1 — DSCR Trajectory Chart */}

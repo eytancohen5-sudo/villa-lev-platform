@@ -261,6 +261,7 @@ export interface CommercialLoanParams {
 export interface GrantParams {
   enabled: boolean;
   grantRate: number;
+  gracePeriodYears: number;
   nonPlotEligibleCosts?: number;
   grantAmount?: number;
   remainingLoan?: number;
@@ -370,18 +371,26 @@ export interface OpCoFeeParams {
 export interface StaffRole {
   name: string;
   monthlyGross: number;
-  monthsPaid: number;       // 14 for year-round (Greek rule); seasonalMonths for seasonal
+  monthsPaid: number;       // calendar months in the contract (12 for year-round, N for seasonal)
+  bonusMonths?: number;     // statutory bonus equivalent months (Christmas + Easter + holiday pro-rata).
+                            //   Year-round Greek law: 2 (Christmas 1 + Easter ½ + Holiday ½)
+                            //   Seasonal pro-rata: contractMonths / 12 × 2
+                            //   Engine fallback when field is absent: 0 (backward-compat with saved data)
   burdenMultiplier: number; // default 1.32 (employer EFKA + severance accrual)
-  allowances: number;       // annual food/transport allowance €
+  allowances: number;       // annual food/transport allowance €, per person
   yearRound: boolean;
-  seasonalMonths?: number;  // used only if yearRound === false
-  headcount?: number;       // used only if yearRound === false, default 1
+  seasonalMonths?: number;  // calendar months for seasonal roles (mirrors monthsPaid for seasonal)
+  headcount?: number;       // number of workers in this role, default 1 (applies to all role types)
 }
 
 export interface SharedServiceLine {
   name: string;
-  sizingBasis: string;  // read-only display label
+  sizingBasis: string;   // read-only display label
   annualCost: number;
+  // Optional per-unit pricing — when both are set the engine uses unitCount × costPerUnit
+  // instead of annualCost. Pool R&M is the exception: it uses PortfolioOpex.poolCount/poolCostPerUnit.
+  unitCount?: number;    // number of units (e.g. pools) driving the cost
+  costPerUnit?: number;  // €/unit/year
 }
 
 export interface PortfolioOpex {
@@ -423,6 +432,18 @@ export interface ModelAssumptions {
   acquisitionLegalPerPlot: number;
   /** Annual developer management fee during construction (2026–2027). Capitalized as CAPEX soft cost. */
   developerConstructionFeePerYear?: number;
+  /**
+   * Year in which both cash portions of the grant success fee (Aggelakakis + Eytan)
+   * are paid from operating cash flow (post-debt-service, no DSCR impact).
+   * Default: DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR (2030).
+   */
+  grantSuccessFeePaymentYear?: number;
+  /** Total grant success fee as % of grant (Aggelakakis + Eytan combined). Default 10%. */
+  grantProcurementFeePct?: number;
+  /** Aggelakakis's share of the grant as % of grant amount. Default 5%. */
+  consultantSharePct?: number;
+  /** Fraction of each party's fee paid as cash in grantSuccessFeePaymentYear; remainder = equity at exit. Default 50%. */
+  feeCashSplitPct?: number;
   financingPath: FinancingPath;
   opCoFee: OpCoFeeParams;
   // Minimum annual management fee paid SENIOR to debt service in bank view
@@ -470,6 +491,10 @@ export interface ModelAssumptions {
   // Default is 'internal' to preserve historical numbers on /admin/*.
   // Investor / pitch routes and the View-As-Banker impersonation override
   // this to 'bank' at the call site, not via the global defaults.
+  /** Admin sensitivity: defer the OpCo senior floor fee from 2029 to 2030.
+   *  When true (admin/internal view only): 2029 fee = 0, 2030 fee = 2×base.
+   *  Ignored in bank view. Optional — absent/false = no deferral. */
+  opCoSeniorDefer2029?: boolean;
   viewMode?: 'internal' | 'bank';
 }
 
