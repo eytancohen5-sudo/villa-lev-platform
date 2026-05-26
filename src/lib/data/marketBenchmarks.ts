@@ -2080,6 +2080,14 @@ export function comparableCount(
   return filterPerHotel(arr, filter).length;
 }
 
+// Greek non-Villa count — the set that drives the market ADR in the
+// conservatism strip and matches the drawer's default view (Greek + no Villa).
+export function greekNonVillaCount(
+  arr: PerHotelComparable[] = MARKET_2025_PER_HOTEL,
+): number {
+  return filterPerHotel(arr, "Greek").filter((r) => r.tier !== "Villa").length;
+}
+
 // Distinct-hotel count (used for "23 Greek + 18 international" copy verification).
 export function distinctHotelCount(
   arr: PerHotelComparable[] = MARKET_2025_PER_HOTEL,

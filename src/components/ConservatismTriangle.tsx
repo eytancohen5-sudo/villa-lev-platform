@@ -22,7 +22,7 @@
 import { useState } from "react";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
-import { MARKET_2025_BACKSTOP, MARKET_2025_PER_HOTEL, comparableCount } from "@/lib/data/marketBenchmarks";
+import { MARKET_2025_BACKSTOP, greekNonVillaCount } from "@/lib/data/marketBenchmarks";
 import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
 
 // 50/50 HIGH/MED blend, matching how MARKET_2025_BACKSTOP feeds the headline.
@@ -135,9 +135,8 @@ export function ConservatismTriangle({
   const marketStandard = blend("basicRoom"); // 914 net (curated 8-hotel Paros/Antiparos, ÷1.13 VAT)
   const marketPremium = blend("premiumSuite"); // 1322.5 net
 
-  // Total row count matching what the drawer shows when "All" is selected,
-  // so the CTA button label matches the drawer header.
-  const totalComparables = comparableCount(MARKET_2025_PER_HOTEL, "All");
+  // Greek non-Villa count — matches the drawer's default view and the ADR basis.
+  const totalComparables = greekNonVillaCount();
 
   return (
     <section id={id} className="scroll-mt-24 mb-6">

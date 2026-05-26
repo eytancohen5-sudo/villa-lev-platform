@@ -14,8 +14,7 @@ import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   computeMarketPositionWithFallback,
-  comparableCount,
-  MARKET_2025_PER_HOTEL,
+  greekNonVillaCount,
   type CoverageStatus,
   type MarketRowWithFallback,
 } from "@/lib/data/marketBenchmarks";
@@ -932,7 +931,7 @@ export function LiveTrackRecord({
             >
               <span>{lr.marketSeeComparables.replace(
                 "{n}",
-                String(comparableCount(MARKET_2025_PER_HOTEL, "All")),
+                String(greekNonVillaCount()),
               ).replace(" →", "")}</span>
               <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
