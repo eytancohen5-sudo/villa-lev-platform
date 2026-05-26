@@ -442,6 +442,10 @@ export interface TranslationDictionary {
   'as.portfolioOpex.colAllowances': string;
   'as.portfolioOpex.colNetMonthly': string;
   'as.portfolioOpex.colNetMonthlyTooltip': string;
+  'as.portfolioOpex.poolCount': string;
+  'as.portfolioOpex.poolsAt': string;
+  'as.portfolioOpex.poolCostPerUnit': string;
+  'as.portfolioOpex.poolPerPoolYear': string;
   'as.portfolioOpex.colAnnual': string;
   'as.capexTab': string;
   'as.selectPath': string;
@@ -889,7 +893,6 @@ export interface TranslationDictionary {
   'dash.founder.earned': string;
   'dash.founder.manCoFee': string;
   'dash.founder.cumulative': string;
-  'dash.founder.deferredAdvisoryFee': string;
   'dash.founder.feesNote': string;
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──
@@ -1695,9 +1698,7 @@ export interface TranslationDictionary {
   'ct.layerB.equityDiv': string;
   'ct.layerB.grantBonus': string;
   'ct.opFeeManCo': string;
-  'ct.opFeeCashSuccess': string;
   'ct.opFeeNote': string;
-  'ct.advisoryNote': string;
   'ct.redactedShowFor': string;
   'ct.redactedOthersNote': string;
   'ct.othersAggregated': string;
@@ -1718,7 +1719,6 @@ export interface TranslationDictionary {
   'ct.capBinding75Detail': string;
   'ct.capEarned33Detail': string;
   'ct.capNoBinding': string;
-  'ct.opFeeAdvisoryNote': string;
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd': string;
   'bank.about.unitDbl': string;

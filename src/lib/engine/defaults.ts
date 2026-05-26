@@ -678,7 +678,7 @@ export const BASE_CASE: ModelAssumptions = {
       },
     ],
     sharedServices: [
-      { name: 'Pool R&M', sizingBasis: '17 pools × €1,200 materials/service', annualCost: 20000 },
+      { name: 'Pool R&M', sizingBasis: '17 pools × €1,500/pool (materials + annual service; labour in-house)', annualCost: 25500 },
       { name: 'Landscape & Gardening', sizingBasis: 'Antiparos local rates', annualCost: 12000 },
       { name: 'Maintenance Contractor Pool', sizingBasis: 'Call-out basis', annualCost: 15000 },
     ],
@@ -697,6 +697,8 @@ export const BASE_CASE: ModelAssumptions = {
     preOpeningAmortYears: 5,
     preOpeningStartYear: 2028,
     includePreOpeningInStabilised: true,
+    poolCount: 17,
+    poolCostPerUnit: 1500,
     inflationHook: 0.0,
   },
 };
@@ -721,32 +723,19 @@ export const DEFAULT_PORTFOLIO_OPEX: PortfolioOpex = BASE_CASE.portfolioOpex!;
 // Called in both init() and loadConfig() to backfill schema fields added after a save.
 export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumptions {
   const d = DEFAULT_PORTFOLIO_OPEX;
-  if (
-    assumptions.portfolioOpex &&
-    Array.isArray(assumptions.portfolioOpex.staffRoles) &&
-    assumptions.portfolioOpex.staffRoles.length > 0 &&
-    Array.isArray(assumptions.portfolioOpex.sharedServices) &&
-    Array.isArray(assumptions.portfolioOpex.sharedOverhead)
-  ) {
-    return assumptions;
-  }
+  const po = assumptions.portfolioOpex;
+  // Always merge defaults first, then overlay saved arrays so new scalar fields
+  // (poolCount, poolCostPerUnit, etc.) are backfilled on every load.
   return {
     ...assumptions,
     portfolioOpex: {
       ...d,
-      ...(assumptions.portfolioOpex ?? {}),
-      staffRoles:
-        assumptions.portfolioOpex?.staffRoles?.length
-          ? assumptions.portfolioOpex.staffRoles
-          : d.staffRoles,
-      sharedServices:
-        assumptions.portfolioOpex?.sharedServices?.length
-          ? assumptions.portfolioOpex.sharedServices
-          : d.sharedServices,
-      sharedOverhead:
-        assumptions.portfolioOpex?.sharedOverhead?.length
-          ? assumptions.portfolioOpex.sharedOverhead
-          : d.sharedOverhead,
+      ...(po ?? {}),
+      staffRoles:   po?.staffRoles?.length   ? po.staffRoles   : d.staffRoles,
+      sharedServices: po?.sharedServices?.length ? po.sharedServices : d.sharedServices,
+      sharedOverhead: po?.sharedOverhead?.length ? po.sharedOverhead : d.sharedOverhead,
+      poolCount:      po?.poolCount      ?? d.poolCount,
+      poolCostPerUnit: po?.poolCostPerUnit ?? d.poolCostPerUnit,
     },
   };
 }

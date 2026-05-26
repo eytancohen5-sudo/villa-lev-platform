@@ -601,7 +601,11 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
     return sum + role.monthlyGross * months * role.burdenMultiplier * count + role.allowances * count;
   }, 0);
 
-  const servicesTotal = po.sharedServices.reduce((sum, s) => sum + s.annualCost, 0);
+  // Pool R&M is driven by poolCount × poolCostPerUnit; the annualCost on the line
+  // is overridden at compute time so the stored value never drifts from the inputs.
+  const poolRMCost = (po.poolCount ?? 17) * (po.poolCostPerUnit ?? 1500);
+  const servicesTotal = po.sharedServices.reduce((sum, s) =>
+    sum + (s.name === 'Pool R&M' ? poolRMCost : s.annualCost), 0);
   const overheadTotal = po.sharedOverhead.reduce((sum, s) => sum + s.annualCost, 0);
 
   const preOpeningAmort =

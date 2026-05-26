@@ -142,6 +142,8 @@ export function applySliders(
     const m = 1 + sliders.opexStressFactor;
     clone.portfolioOpex = {
       ...clone.portfolioOpex,
+      // Pool R&M is driven by poolCostPerUnit in the engine (not annualCost), so stress both.
+      poolCostPerUnit: (clone.portfolioOpex.poolCostPerUnit ?? 1500) * m,
       sharedServices: clone.portfolioOpex.sharedServices.map((s) => ({ ...s, annualCost: s.annualCost * m })),
       sharedOverhead:  clone.portfolioOpex.sharedOverhead.map((s)  => ({ ...s, annualCost: s.annualCost * m })),
       staffRoles:      clone.portfolioOpex.staffRoles.map((r)      => ({ ...r, monthlyGross: r.monthlyGross * m, allowances: r.allowances * m })),

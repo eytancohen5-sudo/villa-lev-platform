@@ -496,6 +496,14 @@ export const fr: TranslationDictionary = {
   // TODO: translate
   'as.portfolioOpex.colNetMonthlyTooltip': 'Estimated employee take-home: gross minus EFKA (13.87%) and simplified Greek income-tax brackets. Not a payroll calculation.',
   // TODO: translate
+  'as.portfolioOpex.poolCount': 'Pools',
+  // TODO: translate
+  'as.portfolioOpex.poolsAt': 'pools ×',
+  // TODO: translate
+  'as.portfolioOpex.poolCostPerUnit': '€/pool/yr',
+  // TODO: translate
+  'as.portfolioOpex.poolPerPoolYear': '(materials + service)',
+  // TODO: translate
   'as.portfolioOpex.colAnnual': 'Annual (burdened)',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Sélectionnez la structure de financement active. L\'ensemble du modèle est recalculé en fonction de la structure choisie.',
@@ -880,8 +888,7 @@ export const fr: TranslationDictionary = {
   'dash.founder.earned': 'gagné',
   'dash.founder.manCoFee': 'ManCo fee fondateur (5% × revenu)',
   'dash.founder.cumulative': 'cumulé',
-  'dash.founder.deferredAdvisoryFee': 'Honoraires consultatifs différés (Bucket 1B, 3 ans à partir du déblocage)',
-  'dash.founder.feesNote': 'Tous deux déduits du NCF avant distributions aux fonds propres.',
+  'dash.founder.feesNote': 'Déduit du NCF avant distributions aux fonds propres.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──
   'opco.splitOn': 'Split ON',
@@ -1325,9 +1332,7 @@ export const fr: TranslationDictionary = {
   'ct.layerB.equityDiv':        '50% equity ÷ equity pool',
   'ct.layerB.grantBonus':       '= Grant bonus',
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
-  'ct.opFeeCashSuccess':        'Cash success fee (Bucket 1B, 3-yr)',
-  'ct.opFeeNote':               'Both subtracted from NCF post-tax post-DS before splitting between founder and investors.',
-  'ct.advisoryNote':            'Advisory:',
+  'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
   'ct.redactedShowFor':         'Show full detail for:',
   'ct.redactedOthersNote':      'Other stakeholders shown as aggregated "Other investors" line.',
   'ct.othersAggregated':        'Other investors (aggregated)',
@@ -1348,7 +1353,6 @@ export const fr: TranslationDictionary = {
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
   'ct.capEarned33Detail':       '33% earned cap reached',
   'ct.capNoBinding':            'No cap binding',
-  'ct.opFeeAdvisoryNote':       '50% of 10% fee — equity half captured in Layer B',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',
   'bank.about.unitDbl':         'dbl',

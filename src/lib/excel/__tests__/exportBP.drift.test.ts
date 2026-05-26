@@ -65,7 +65,7 @@ async function loadWorkbook(blob: Blob): Promise<ExcelJS.Workbook> {
  *  The bank-view formula has 7 Assumptions column refs; internal has 8 (incl. $T$). */
 function countOpexColumnRefs(formula: string): number {
   // Count Assumptions!$<COL>$<ROW> references inside the first parenthesised
-  // group (= the base opex before the maintenance-capex addition).
+  // group (= the controllable OPEX base, before FF&E Reserve addition).
   const firstGroup = formula.match(/^\=\((\([^)]+\))/)?.[1] ?? formula;
   return (firstGroup.match(/Assumptions!\$[A-Z]+\$/g) ?? []).length;
 }
@@ -118,7 +118,11 @@ describe("L1 — engine metrics that feed the validation table", () => {
    * constants in BASE_CASE (opCoSeniorFloor=25 000/villa vs the per-property
    * management-fee rate from the template), so EBITDA must differ.
    */
-  it("bank-view and internal-view produce different stabilised EBITDA", () => {
+  it("unified formula: bank-view and internal-view produce identical stabilised EBITDA", () => {
+    // Post-unification (2026-05-25): the dual-branch waterfall was replaced with a
+    // single unified formula. seniorFloor is now in OpEx for BOTH views, and DSCR
+    // uses ebitdaPreOpCo/DS in BOTH views. viewMode no longer bifurcates the P&L.
+    // This test documents the new invariant (replaces the old "must differ" assertion).
     const bank = computeModel({ ...BASE_CASE, viewMode: "bank" });
     const internal = computeModel({ ...BASE_CASE, viewMode: "internal" });
 
@@ -131,7 +135,7 @@ describe("L1 — engine metrics that feed the validation table", () => {
 
     expect(bankEbitda).toBeDefined();
     expect(internalEbitda).toBeDefined();
-    expect(bankEbitda).not.toEqual(internalEbitda);
+    expect(bankEbitda).toEqual(internalEbitda);
   });
 });
 
@@ -277,76 +281,80 @@ describe("L3 — OPEX formula integrity", () => {
    *
    * Column mapping: PCOL.opexMgmtFee = 18 → Assumptions col = col(2+18) = T.
    */
-  it("bank-view: per-property OPEX formula excludes management-fee column ($T$)", async () => {
+  /**
+   * Column-position guard: the managementFee Assumptions column ($T$, PCOL 18)
+   * must be present and zero for all properties. managementFee was removed from
+   * the OpEx sum (2026-05-25) but the column is retained to prevent column-index
+   * shifts that would break $W$ (opexContingency) and $X$ (extraOpex) references.
+   *
+   * Per-property OPEX cells are now engine-seeded (no live formula) because
+   * maintenance = max(maintenanceFloor, rate% × revenue) is revenue-circular in Excel.
+   */
+  it("bank-view: Assumptions sheet retains managementFee column ($T$) at value 0", async () => {
     const a = { ...BASE_CASE, viewMode: "bank" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
     const wb = await loadWorkbook(blob);
-    const pnl = wb.getWorksheet("OPEX & P&L")!;
+    const assumptions = wb.getWorksheet("Assumptions")!;
 
-    // Find the first per-property OPEX row. Property rows have labels like
-    // "  Twin Villas" (leading spaces, NOT trimmed) AND a formula in year cols.
-    let firstPropRow = -1;
-    pnl.eachRow((row, rn) => {
-      if (firstPropRow !== -1) return;
-      const rawLabel = String(row.getCell("A").value ?? ""); // keep leading spaces
-      if (rawLabel.startsWith("  ") && rn > 5) {
-        const yearCell = row.getCell("G"); // G ≈ year 2030
-        const v = yearCell.value;
-        if (v && typeof v === "object" && "formula" in v) {
-          firstPropRow = rn;
-        }
+    // Find the property header row (col B = "Property", col C = "Plots"), then
+    // read the data rows immediately after. This avoids conflating writeInput rows
+    // (which also have strings in B and small numbers in C) with property rows.
+    let headerRow = -1;
+    assumptions.eachRow((row, rn) => {
+      if (headerRow !== -1) return;
+      if (String(row.getCell("B").value ?? "") === "Property" &&
+          String(row.getCell("C").value ?? "") === "Plots") {
+        headerRow = rn;
       }
     });
+    expect(headerRow).toBeGreaterThan(0);
 
-    expect(firstPropRow).toBeGreaterThan(0);
+    // Data rows follow the header until a row with no value in col B.
+    const propRows: number[] = [];
+    for (let rn = headerRow + 1; rn <= headerRow + 20; rn++) {
+      const name = assumptions.getRow(rn).getCell("B").value;
+      if (!name) break;
+      propRows.push(rn);
+    }
+    expect(propRows.length).toBeGreaterThan(0);
 
-    const formula = String(
-      (pnl.getRow(firstPropRow).getCell("G").value as ExcelJS.CellFormulaValue)
-        .formula ?? ""
-    );
-
-    // Must NOT include the management-fee column reference
-    expect(formula).not.toMatch(/Assumptions!\$T\$/);
-    // Must still include at least 6 other OPEX column references
-    const refs = formula.match(/Assumptions!\$[A-Z]+\$/g) ?? [];
-    expect(refs.length).toBeGreaterThanOrEqual(6);
+    // Column T = PCOL.opexMgmtFee (index 18, col(2+18) = col(20) = T) — must be 0.
+    for (const rn of propRows) {
+      const val = assumptions.getRow(rn).getCell("T").value;
+      expect(val).toBe(0);
+    }
   });
 
-  /**
-   * Internal-view: the same formula MUST include the management-fee column.
-   * This is the complementary assertion — it proves the bank-view exclusion
-   * above isn't just because column $T$ was renamed or moved.
-   */
-  it("internal-view: per-property OPEX formula includes management-fee column ($T$)", async () => {
+  it("internal-view: Assumptions sheet retains managementFee column ($T$) at value 0", async () => {
     const a = { ...BASE_CASE, viewMode: "internal" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
     const wb = await loadWorkbook(blob);
-    const pnl = wb.getWorksheet("OPEX & P&L")!;
+    const assumptions = wb.getWorksheet("Assumptions")!;
 
-    let firstPropRow = -1;
-    pnl.eachRow((row, rn) => {
-      if (firstPropRow !== -1) return;
-      const rawLabel = String(row.getCell("A").value ?? ""); // keep leading spaces
-      if (rawLabel.startsWith("  ") && rn > 5) {
-        const yearCell = row.getCell("G");
-        const v = yearCell.value;
-        if (v && typeof v === "object" && "formula" in v) {
-          firstPropRow = rn;
-        }
+    let headerRow = -1;
+    assumptions.eachRow((row, rn) => {
+      if (headerRow !== -1) return;
+      if (String(row.getCell("B").value ?? "") === "Property" &&
+          String(row.getCell("C").value ?? "") === "Plots") {
+        headerRow = rn;
       }
     });
+    expect(headerRow).toBeGreaterThan(0);
 
-    expect(firstPropRow).toBeGreaterThan(0);
+    const propRows: number[] = [];
+    for (let rn = headerRow + 1; rn <= headerRow + 20; rn++) {
+      const name = assumptions.getRow(rn).getCell("B").value;
+      if (!name) break;
+      propRows.push(rn);
+    }
+    expect(propRows.length).toBeGreaterThan(0);
 
-    const formula = String(
-      (pnl.getRow(firstPropRow).getCell("G").value as ExcelJS.CellFormulaValue)
-        .formula ?? ""
-    );
-
-    // Internal view: management-fee column ($T$) must be present
-    expect(formula).toMatch(/Assumptions!\$T\$/);
+    for (const rn of propRows) {
+      const val = assumptions.getRow(rn).getCell("T").value;
+      expect(val).toBe(0);
+    }
   });
 
   /**
@@ -384,87 +392,66 @@ describe("L3 — OPEX formula integrity", () => {
   });
 
   /**
-   * Regression guard: per-property OPEX formula must reference the OPEX
-   * contingency-rate column ($W$) and the extra-opex column ($X$) so that
-   * non-zero opexContingencyRate or non-empty extraOpexLines in the live
-   * Firestore scenario don't cause post-recalc EBITDA drift.
+   * Regression guard: per-property OPEX rows must be engine-seeded with
+   * non-zero values in operational years and zero in pre-operational years.
    *
-   * Column mapping (PCOL 0-based offset + 2 = Excel col index):
+   * Background: maintenance was converted to max(maintenanceFloor, rate% × revenue)
+   * which is revenue-circular in Excel, so per-property OPEX cells are now pure
+   * engine-seeded values (no live formula). This test replaces the former formula-
+   * structure checks ($W$/$X$ column references) which no longer apply.
+   *
+   * Column mapping (for reference — Assumptions sheet column positions preserved):
+   *   PCOL.opexMgmtFee     = 18 → col(20) = T  (deprecated field, always 0)
    *   PCOL.opexContingency = 21 → col(23) = W
    *   PCOL.extraOpex       = 22 → col(24) = X
-   *
-   * Fixed 2026-05-25: engine was multiplying controllable OPEX by
-   * (1 + opexContingencyRate) and adding extraOpexLines, but the Excel
-   * formula referenced neither → workbook EBITDA inflated by the missing
-   * amounts when live scenario had non-zero values.
    */
-  it("internal-view: per-property OPEX formula references opexContingency ($W$) and extraOpex ($X$)", async () => {
+  it("internal-view: per-property OPEX rows are engine-seeded (non-zero in operational years)", async () => {
     const a = { ...BASE_CASE, viewMode: "internal" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
     const wb = await loadWorkbook(blob);
     const pnl = wb.getWorksheet("OPEX & P&L")!;
 
-    let firstPropRow = -1;
+    // Find the "OPEX (per property × plots)" section header, then the first property row after it.
+    // Revenue rows also use "  ${prop.name}" labels earlier in the sheet — anchor on the section.
+    let opexSectionRow = -1;
     pnl.eachRow((row, rn) => {
-      if (firstPropRow !== -1) return;
-      const rawLabel = String(row.getCell("A").value ?? "");
-      if (rawLabel.startsWith("  ") && rn > 5) {
-        const yearCell = row.getCell("G");
-        const v = yearCell.value;
-        if (v && typeof v === "object" && "formula" in v) {
-          firstPropRow = rn;
-        }
-      }
+      if (opexSectionRow !== -1) return;
+      if (String(row.getCell("A").value ?? "").startsWith("OPEX (per property")) opexSectionRow = rn;
     });
+    expect(opexSectionRow).toBeGreaterThan(0);
+    const firstPropRow = opexSectionRow + 1;
 
-    expect(firstPropRow).toBeGreaterThan(0);
+    // Column G = year 2031 (stabilised) — must be a plain number > 0 (engine-seeded, no formula)
+    const stabilisedCell = pnl.getRow(firstPropRow).getCell("G").value;
+    expect(typeof stabilisedCell).toBe("number");
+    expect(stabilisedCell as number).toBeGreaterThan(0);
 
-    const formula = String(
-      (pnl.getRow(firstPropRow).getCell("G").value as ExcelJS.CellFormulaValue)
-        .formula ?? ""
-    );
-
-    // Must reference the OPEX contingency rate column ($W$)
-    expect(formula).toMatch(/Assumptions!\$W\$/);
-    // Must reference the extra-opex column ($X$)
-    expect(formula).toMatch(/Assumptions!\$X\$/);
-    // Must still include the management-fee column in internal view
-    expect(formula).toMatch(/Assumptions!\$T\$/);
+    // Column B = year 2026 (pre-operational) — must be 0
+    const preOpCell = pnl.getRow(firstPropRow).getCell("B").value;
+    expect(preOpCell).toBe(0);
   });
 
-  it("bank-view: per-property OPEX formula references opexContingency ($W$) and extraOpex ($X$)", async () => {
+  it("bank-view: per-property OPEX rows are engine-seeded (non-zero in operational years)", async () => {
     const a = { ...BASE_CASE, viewMode: "bank" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
     const wb = await loadWorkbook(blob);
     const pnl = wb.getWorksheet("OPEX & P&L")!;
 
-    let firstPropRow = -1;
+    let opexSectionRow = -1;
     pnl.eachRow((row, rn) => {
-      if (firstPropRow !== -1) return;
-      const rawLabel = String(row.getCell("A").value ?? "");
-      if (rawLabel.startsWith("  ") && rn > 5) {
-        const yearCell = row.getCell("G");
-        const v = yearCell.value;
-        if (v && typeof v === "object" && "formula" in v) {
-          firstPropRow = rn;
-        }
-      }
+      if (opexSectionRow !== -1) return;
+      if (String(row.getCell("A").value ?? "").startsWith("OPEX (per property")) opexSectionRow = rn;
     });
+    expect(opexSectionRow).toBeGreaterThan(0);
+    const firstPropRow = opexSectionRow + 1;
 
-    expect(firstPropRow).toBeGreaterThan(0);
+    const stabilisedCell = pnl.getRow(firstPropRow).getCell("G").value;
+    expect(typeof stabilisedCell).toBe("number");
+    expect(stabilisedCell as number).toBeGreaterThan(0);
 
-    const formula = String(
-      (pnl.getRow(firstPropRow).getCell("G").value as ExcelJS.CellFormulaValue)
-        .formula ?? ""
-    );
-
-    // Must reference the OPEX contingency rate column ($W$)
-    expect(formula).toMatch(/Assumptions!\$W\$/);
-    // Must reference the extra-opex column ($X$)
-    expect(formula).toMatch(/Assumptions!\$X\$/);
-    // Must NOT include management-fee column in bank view
-    expect(formula).not.toMatch(/Assumptions!\$T\$/);
+    const preOpCell = pnl.getRow(firstPropRow).getCell("B").value;
+    expect(preOpCell).toBe(0);
   });
 });

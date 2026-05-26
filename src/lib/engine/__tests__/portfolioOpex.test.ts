@@ -5,19 +5,22 @@
 // Seed arithmetic (from DEFAULT_PORTFOLIO_OPEX / BASE_CASE, year=2031):
 //
 //   Staff roles:
-//   1. Ops Manager (yearRound):          3000 × 14 × 1.32 + 0       = 55,440.00
-//   2. Res & Marketing (yearRound):      2500 × 14 × 1.32 + 0       = 46,200.00
-//   3. Head HK (yearRound):              2156 × 13 × 1.32 + 3600    = 40,603.84
+//   1. Ops Manager (yearRound):          3000 × 14 × 1.32 + 0         = 55,440.00
+//   2. Res & Marketing (yearRound):      2500 × 14 × 1.32 + 0         = 46,200.00
+//   3. Head HK (yearRound):              2156 × 13 × 1.32 + 3600      = 40,603.84
 //   4. HK Seasonal 6mo×2FTE (!yr):       1136 × 6 × 1.32 × 2 + 3600×2 = 25,178.88
 //   5. HK Seasonal 4mo×3FTE (!yr):       750  × 4 × 1.32 × 3 + 3600×3 = 22,680.00
 //   staffTotal ≈ 190,102.72
 //
-//   Shared services: 20,000 + 12,000 + 15,000 = 47,000
+//   Shared services:
+//     Pool R&M: poolCount(17) × poolCostPerUnit(1500) = 25,500  (engine ignores annualCost for Pool R&M)
+//     Landscape: 12,000  |  Maintenance: 15,000
+//     servicesTotal = 52,500
 //   Shared overhead: 30,000 + 10,000 + 15,000 + 3,000 + 9,000 + 1,000
 //                    + 35,000 + 30,000 + 25,000 = 158,000
 //   Pre-opening amort (2028–2032): 275,000 / 5 = 55,000
 //
-//   EXPECTED TOTAL = 190,102.72 + 47,000 + 158,000 + 55,000 = 450,102.72
+//   EXPECTED TOTAL = 190,102.72 + 52,500 + 158,000 + 55,000 = 455,602.72
 
 import { describe, it, expect } from 'vitest';
 import { computeModel, computePortfolioOpex } from '@/lib/engine/model';
@@ -46,11 +49,11 @@ describe('computePortfolioOpex — seed defaults', () => {
   it('returns correct stabilised portfolio OPEX total from seed defaults', () => {
     // See file-header arithmetic comment for breakdown.
     // staffTotal  ≈ 190,102.72
-    // services    =  47,000.00
+    // services    =  52,500.00  (Pool R&M = 17 × €1,500; Landscape 12K; Maintenance 15K)
     // overhead    = 158,000.00
     // preOpening  =  55,000.00  (2031 is within 2028-2032 amort window)
-    // EXPECTED    ≈ 450,102.72
-    const EXPECTED_TOTAL = 190102.72 + 47000 + 158000 + 55000; // 450,102.72
+    // EXPECTED    ≈ 455,602.72
+    const EXPECTED_TOTAL = 190102.72 + 52500 + 158000 + 55000; // 455,602.72
     const result = computePortfolioOpexForTest(2031, BASE_CASE);
     // Allow ±100 tolerance for floating-point accumulation
     expect(result.total).toBeCloseTo(EXPECTED_TOTAL, -2);

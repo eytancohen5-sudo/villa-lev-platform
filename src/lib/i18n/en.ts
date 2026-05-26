@@ -277,7 +277,7 @@ export const en: TranslationDictionary = {
   'ct.founderTag': 'Founder',
   'ct.autoTag': 'Auto',
   'ct.footnoteWaterfall': 'How the waterfall works: the founder\'s economic share is determined at exit by the three layers above; investors split the remainder pro-rata to their cash. The performance ratchet uses MOIC floors to prevent quick-exit gaming. Caps protect investors (≥ {minShare} of distributions guaranteed).',
-  'ct.footnoteFees': 'Operating fees (separate from equity): the founder\'s ManCo receives 5% of gross revenue (brand + management combined) and a 10% grant success fee at grant approval (half cash to consultant, half re-invested as the Layer B equity bonus).',
+  'ct.footnoteFees': 'Operating fees (separate from equity): the founder\'s ManCo receives 5% of gross revenue (brand + management combined). Developer construction fee is capitalized as a CAPEX soft cost and financed within the project loan.',
   'ct.footnoteTip': 'Tip: click a row to expand its year-by-year detail. Change a contribution amount to recompute the waterfall. Switch Path / Scenario / Exit in the top bar to stress-test.',
   'ct.exportDocx': 'Word',
 
@@ -656,6 +656,10 @@ export const en: TranslationDictionary = {
   'as.portfolioOpex.colAllowances': 'Allowances',
   'as.portfolioOpex.colNetMonthly': 'Net/mo (approx)',
   'as.portfolioOpex.colNetMonthlyTooltip': 'Estimated employee take-home: gross minus EFKA (13.87%) and simplified Greek income-tax brackets. Not a payroll calculation.',
+  'as.portfolioOpex.poolCount': 'Pools',
+  'as.portfolioOpex.poolsAt': 'pools ×',
+  'as.portfolioOpex.poolCostPerUnit': '€/pool/yr',
+  'as.portfolioOpex.poolPerPoolYear': '(materials + service)',
   'as.portfolioOpex.colAnnual': 'Annual (burdened)',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Select the active financing structure. The entire model recalculates based on the selected path.',
@@ -1046,8 +1050,7 @@ export const en: TranslationDictionary = {
   'dash.founder.earned': 'earned',
   'dash.founder.manCoFee': 'Founder ManCo fee (5% × revenue)',
   'dash.founder.cumulative': 'cumulative',
-  'dash.founder.deferredAdvisoryFee': 'Deferred advisory fee (Bucket 1B, 3-yr from disbursement)',
-  'dash.founder.feesNote': 'Both subtracted from NCF before equity distributions.',
+  'dash.founder.feesNote': 'Subtracted from NCF before equity distributions.',
 
   // ── OpCo / PropCo split chrome (audit 2026-05-21 fix #4) ──
   'opco.splitOn': 'Split ON',
@@ -1684,9 +1687,7 @@ export const en: TranslationDictionary = {
   'ct.layerB.equityDiv':        '50% equity ÷ equity pool',
   'ct.layerB.grantBonus':       '= Grant bonus',
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
-  'ct.opFeeCashSuccess':        'Cash success fee (Bucket 1B, 3-yr)',
-  'ct.opFeeNote':               'Both subtracted from NCF post-tax post-DS before splitting between founder and investors.',
-  'ct.advisoryNote':            'Advisory:',
+  'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
   'ct.redactedShowFor':         'Show full detail for:',
   'ct.redactedOthersNote':      'Other stakeholders shown as aggregated "Other investors" line.',
   'ct.othersAggregated':        'Other investors (aggregated)',
@@ -1707,7 +1708,6 @@ export const en: TranslationDictionary = {
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
   'ct.capEarned33Detail':       '33% earned cap reached',
   'ct.capNoBinding':            'No cap binding',
-  'ct.opFeeAdvisoryNote':       '50% of 10% fee — equity half captured in Layer B',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',
   'bank.about.unitDbl':         'dbl',

@@ -392,7 +392,10 @@ export interface PortfolioOpex {
   preOpeningAmortYears: number;
   preOpeningStartYear: number;
   includePreOpeningInStabilised: boolean;
-  inflationHook: number; // 0.0 — engine-inert hook for future escalator
+  // Pool configuration — drives Pool R&M annualCost automatically
+  poolCount: number;        // default 17; user-editable
+  poolCostPerUnit: number;  // €/pool/year materials+service, labour in-house; default 1500
+  inflationHook: number;    // 0.0 — engine-inert hook for future escalator
 }
 
 export interface PortfolioOpexOutput {

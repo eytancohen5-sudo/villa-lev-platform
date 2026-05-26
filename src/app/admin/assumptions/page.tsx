@@ -1349,7 +1349,7 @@ export default function AssumptionsPage() {
       </div>
 
       {/* Tabs */}
-      <div id="assumptions-tabs" className="flex gap-1 mb-6 bg-surface-secondary rounded-lg p-1">
+      <div id="assumptions-tabs" className="flex gap-1 mb-6 bg-surface-secondary rounded-lg p-1 overflow-x-auto scrollbar-none">
         {(
           [
             { id: "portfolio", label: "Portfolio" },
@@ -2005,25 +2005,56 @@ export default function AssumptionsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {po.sharedServices.map((line, idx) => (
-                      <tr key={idx} className="border-b border-surface-secondary/40">
-                        <td className="py-1.5 pr-2">
-                          <input
-                            type="text"
-                            value={line.name}
-                            onChange={(e) => updatePortfolioService(idx, { ...line, name: e.target.value })}
-                            className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
-                          />
-                        </td>
-                        <td className="py-1.5 pr-2 text-xs text-text-tertiary">{line.sizingBasis ?? ''}</td>
-                        <td className="py-1.5">
-                          <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
-                        </td>
-                        <td className="py-1.5 pl-1">
-                          <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {po.sharedServices.map((line, idx) => {
+                      const isPool = line.name === 'Pool R&M';
+                      const poolTotal = (po.poolCount ?? 17) * (po.poolCostPerUnit ?? 1500);
+                      return (
+                        <tr key={idx} className="border-b border-surface-secondary/40">
+                          <td className="py-1.5 pr-2">
+                            <input
+                              type="text"
+                              value={line.name}
+                              onChange={(e) => updatePortfolioService(idx, { ...line, name: e.target.value })}
+                              className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                            />
+                          </td>
+                          <td className="py-1.5 pr-2 text-xs text-text-tertiary">
+                            {isPool ? (
+                              <span className="flex items-center gap-1.5">
+                                <EditableCell
+                                  value={po.poolCount ?? 17}
+                                  format="number"
+                                  label={t('as.portfolioOpex.poolCount')}
+                                  onChange={(v) => updatePortfolioOpexScalar('poolCount', v)}
+                                />
+                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
+                                <EditableCell
+                                  value={po.poolCostPerUnit ?? 1500}
+                                  format="currency"
+                                  label={t('as.portfolioOpex.poolCostPerUnit')}
+                                  onChange={(v) => updatePortfolioOpexScalar('poolCostPerUnit', v)}
+                                />
+                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
+                              </span>
+                            ) : (
+                              line.sizingBasis ?? ''
+                            )}
+                          </td>
+                          <td className="py-1.5">
+                            {isPool ? (
+                              <span className="text-right font-mono text-xs text-text-secondary block">
+                                {formatCurrency(poolTotal, false, locale)}
+                              </span>
+                            ) : (
+                              <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
+                            )}
+                          </td>
+                          <td className="py-1.5 pl-1">
+                            <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
                 <button
