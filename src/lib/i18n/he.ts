@@ -348,6 +348,7 @@ export const he: TranslationDictionary = {
   'dash.wcSparkLabel': 'יתרה רבעונית, 2026–2036',
   'dash.wcQuarterly': 'יתרה רבעונית',
   'dash.wcPeak': 'שיא Y2',
+  'dash.wcCombinedPeak': 'שיא (ΦΠΑ + הון)',
   'dash.wcAvg': 'ממוצע מיוצב',
   'dash.wcTrough': 'שפל ספט\' (גרוע ביותר)',
   'dash.wcInterestAnnual': 'ריבית, מיוצב',

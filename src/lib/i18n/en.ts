@@ -352,6 +352,7 @@ export const en: TranslationDictionary = {
   'dash.wcSparkLabel': 'Quarterly drawn balance, 2026–2036',
   'dash.wcQuarterly': 'Quarterly balance',
   'dash.wcPeak': 'Y2 peak draw',
+  'dash.wcCombinedPeak': 'Peak draw (VAT + WC)',
   'dash.wcAvg': 'Stabilised avg',
   'dash.wcTrough': 'Sep trough (worst)',
   'dash.wcInterestAnnual': 'Interest, stabilised',

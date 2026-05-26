@@ -163,6 +163,7 @@ export const fr = {
   'dash.wcSparkLabel': 'Solde tiré trimestriel, 2026–2036',
   'dash.wcQuarterly': 'Solde trimestriel',
   'dash.wcPeak': 'Pic Y2',
+  'dash.wcCombinedPeak': 'Pic (TVA + FDR)',
   'dash.wcAvg': 'Moyenne stabilisée',
   'dash.wcTrough': 'Creux sept. (pire)',
   'dash.wcInterestAnnual': 'Intérêts, stabilisé',

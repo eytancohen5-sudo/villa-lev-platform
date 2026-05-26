@@ -356,6 +356,7 @@ export const el: TranslationDictionary = {
   'dash.wcSparkLabel': 'Τριμηνιαίο αναληφθέν υπόλοιπο, 2026–2036',
   'dash.wcQuarterly': 'Τριμηνιαίο υπόλοιπο',
   'dash.wcPeak': 'Αιχμή Y2',
+  'dash.wcCombinedPeak': 'Αιχμή (ΦΠΑ + Κεφ.)',
   'dash.wcAvg': 'Μέσος όρος (σταθεροπ.)',
   'dash.wcTrough': 'Ελάχιστο Σεπ. (χειρότερο)',
   'dash.wcInterestAnnual': 'Τόκοι, σταθεροπ.',

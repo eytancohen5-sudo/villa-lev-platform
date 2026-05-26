@@ -583,6 +583,7 @@ export interface TranslationDictionary {
   'dash.wcSparkLabel': string;
   'dash.wcQuarterly': string;
   'dash.wcPeak': string;
+  'dash.wcCombinedPeak': string;
   'dash.wcAvg': string;
   'dash.wcTrough': string;
   'dash.wcInterestAnnual': string;

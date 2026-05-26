@@ -103,13 +103,17 @@ export default function DebtCoveragePage() {
     .filter((q) => q.year >= 2026)
     .map((q) => {
       const key = `${q.year}Q${q.quarter}`;
+      const vatBridge = VAT_BRIDGE_QS[key] ?? 0;
+      const opWc = Math.round(q.closingBalance);
       return {
         label: key,
-        opWc: Math.round(q.closingBalance),
-        vatBridge: VAT_BRIDGE_QS[key] ?? 0,
+        opWc,
+        vatBridge,
+        total: vatBridge + opWc,
       };
     });
   const WC_FACILITY_SIZE = assumptions.workingCapital.facilitySize;
+  const wcPeakCombined = Math.max(...wcSparkData.map(d => d.total));
 
   const icrTone =
     icrStabilised >= 3 ? "positive" : icrStabilised >= 2 ? undefined : "warning";
@@ -345,8 +349,9 @@ export default function DebtCoveragePage() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
               <div className="lg:col-span-5 grid grid-cols-2 gap-x-6 gap-y-4">
                 <MiniStat
-                  label={t("dash.wcPeak")}
-                  value={formatCurrency(wcY2Peak, true, locale)}
+                  label={t("dash.wcCombinedPeak")}
+                  value={formatCurrency(wcPeakCombined, true, locale)}
+                  tone={wcPeakCombined > WC_FACILITY_SIZE ? "warning" : undefined}
                 />
                 <MiniStat
                   label={t("dash.wcAvg")}
@@ -376,16 +381,16 @@ export default function DebtCoveragePage() {
                 <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary mb-1">
                   {t("dash.wcSparkLabel")}
                 </div>
-                <ResponsiveContainer width="100%" height={160}>
-                  <AreaChart data={wcSparkData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <ResponsiveContainer width="100%" height={170}>
+                  <AreaChart data={wcSparkData} margin={{ top: 10, right: 70, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="wcVatGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3B5FA0" stopOpacity={0.45} />
-                        <stop offset="100%" stopColor="#3B5FA0" stopOpacity={0.05} />
+                        <stop offset="0%" stopColor="#3B5FA0" stopOpacity={0.55} />
+                        <stop offset="100%" stopColor="#3B5FA0" stopOpacity={0.12} />
                       </linearGradient>
                       <linearGradient id="wcOpGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#8B6914" stopOpacity={0.55} />
-                        <stop offset="100%" stopColor="#8B6914" stopOpacity={0.05} />
+                        <stop offset="0%" stopColor="#8B6914" stopOpacity={0.65} />
+                        <stop offset="100%" stopColor="#8B6914" stopOpacity={0.15} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" vertical={false} />
@@ -399,43 +404,66 @@ export default function DebtCoveragePage() {
                       tick={{ fontSize: 10 }}
                       tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`}
                       width={50}
-                      domain={[0, Math.ceil(WC_FACILITY_SIZE * 1.1 / 50_000) * 50_000]}
+                      domain={[0, Math.ceil(Math.max(WC_FACILITY_SIZE, wcPeakCombined) * 1.12 / 50_000) * 50_000]}
                     />
                     <Tooltip
                       formatter={(value, name) => [
                         formatCurrency(Number(value), true, locale),
-                        name === 'vatBridge' ? t('bank.wc.dual.vatBridgeLabel') : t('bank.wc.dual.opWcLabel'),
+                        name === 'vatBridge'
+                          ? t('bank.wc.dual.vatBridgeLabel')
+                          : name === 'opWc'
+                            ? t('bank.wc.dual.opWcLabel')
+                            : 'Total draw',
                       ]}
-                      labelFormatter={(label) => `${t("dash.wcQuarterly")} ${label}`}
-                      contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                      labelFormatter={(label, payload) => {
+                        const total = Array.isArray(payload)
+                          ? (payload as Array<{ value?: number }>).reduce((s, e) => s + (e.value ?? 0), 0)
+                          : 0;
+                        return `${t("dash.wcQuarterly")} ${label}  ·  Total ${formatCurrency(total, true, locale)}`;
+                      }}
+                      contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 11 }}
                     />
+                    {/* Covenant ceiling */}
                     <ReferenceLine
                       y={WC_FACILITY_SIZE}
                       stroke="#DC2626"
                       strokeDasharray="4 3"
                       strokeWidth={1.2}
-                      label={{ value: `€${(WC_FACILITY_SIZE / 1000).toFixed(0)}K covenant`, position: 'insideTopRight', fontSize: 9, fill: '#DC2626' }}
+                      label={{ value: `€${(WC_FACILITY_SIZE / 1000).toFixed(0)}K limit`, position: 'right', fontSize: 9, fill: '#DC2626' }}
                     />
+                    {/* Peak combined draw annotation */}
+                    {wcPeakCombined > 0 && (
+                      <ReferenceLine
+                        y={wcPeakCombined}
+                        stroke="#6B7280"
+                        strokeDasharray="2 3"
+                        strokeWidth={1}
+                        label={{ value: `Peak €${(wcPeakCombined / 1000).toFixed(0)}K`, position: 'right', fontSize: 9, fill: '#6B7280' }}
+                      />
+                    )}
+                    {/* Stacked: VAT bridge (bottom) + operational WC (top) — combined height = total facility draw */}
                     <Area
-                      type="monotone"
+                      stackId="wc"
+                      type="stepAfter"
                       dataKey="vatBridge"
                       stroke="#3B5FA0"
-                      strokeWidth={1.6}
+                      strokeWidth={1.5}
                       fill="url(#wcVatGrad)"
                       name="vatBridge"
                     />
                     <Area
-                      type="monotone"
+                      stackId="wc"
+                      type="stepAfter"
                       dataKey="opWc"
                       stroke="#8B6914"
-                      strokeWidth={1.6}
+                      strokeWidth={1.5}
                       fill="url(#wcOpGrad)"
                       name="opWc"
                     />
                     <Legend
                       iconType="square"
                       iconSize={8}
-                      wrapperStyle={{ fontSize: 9, paddingTop: 4 }}
+                      wrapperStyle={{ fontSize: 9, paddingTop: 2 }}
                       formatter={(value) =>
                         value === 'vatBridge'
                           ? t('bank.wc.dual.vatBridgeLabel')
