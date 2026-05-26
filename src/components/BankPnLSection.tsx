@@ -28,14 +28,6 @@ type RowDef = {
   tone?: 'vat';
 };
 
-// Static year-end VAT receivable position (memo — not in NCF)
-// Negative = cash tied up awaiting AADE refund; positive = refund received (2029)
-const VAT_YEAR_END: Record<number, number> = {
-  2026: -364_278,
-  2027: -455_346,
-  2028: -273_208,
-  2029:  273_208,
-};
 
 // Default expanded state for first visit (bank view)
 // cfads and finance sections start expanded; all others collapsed
@@ -300,7 +292,7 @@ export function BankPnLSection() {
   rows.push({ label: t('pnl.vatMemoSection'), getValue: () => "", format: "raw", separator: true });
   rows.push({
     label: t('pnl.vatReceivable'),
-    getValue: (p) => VAT_YEAR_END[p.year] ?? 0,
+    getValue: (p) => model.capex.constructionVatByYear?.[p.year] ?? 0,
     format: "currency",
     tone: 'vat',
   });

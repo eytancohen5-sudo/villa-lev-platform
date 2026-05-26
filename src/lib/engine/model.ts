@@ -299,6 +299,35 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     depreciationByCategory[cat.name] = cat.grandTotal * cat.depreciationRate;
   }
 
+  // ── Construction VAT cashflow (ADR-0015) ────────────────────────────────
+  // VAT-liable categories at 24% Greek rate (Art. 93, Law 2859/2000).
+  // Exempt: Land acquisition, Licenses & permits, Developer management fee.
+  // Pools/wellness and Acquisition legal & DD are VAT-liable (construction services).
+  // Custom extra-capex lines (name contains '::') are excluded — VAT treatment unknown.
+  const VAT_EXEMPT_CATEGORIES = new Set([
+    'Land acquisition',
+    'Licenses & permits',
+    'Developer management fee (construction, 2 yrs)',
+  ]);
+  const VAT_RATE = 0.24;
+  const VAT_DRAW_SCHEDULE: Record<number, number> = { 2026: 0.20, 2027: 0.50, 2028: 0.30 };
+  const REFUND_YEAR = 2029; // conservative: pool the full refund in 2029 (~4-month lag after 2028 completion)
+
+  const vatLiableTotal = categories
+    .filter(cat => !VAT_EXEMPT_CATEGORIES.has(cat.name) && !cat.name.includes('::'))
+    .reduce((sum, cat) => sum + cat.grandTotal, 0);
+
+  const constructionVatByYear: Record<number, number> = {};
+  let totalVatOutflow = 0;
+  for (const [yearStr, drawPct] of Object.entries(VAT_DRAW_SCHEDULE)) {
+    const year = Number(yearStr);
+    const vatOutflow = -(drawPct * vatLiableTotal * VAT_RATE);
+    constructionVatByYear[year] = vatOutflow;
+    totalVatOutflow += vatOutflow;
+  }
+  // Refund in 2029: positive inflow equal to the sum of all prior outflows
+  constructionVatByYear[REFUND_YEAR] = -totalVatOutflow;
+
   return {
     properties,
     acquisitionLegal: acqLegal,
@@ -307,6 +336,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     categories,
     annualDepreciationTotal,
     depreciationByCategory,
+    constructionVatByYear,
   };
 }
 
@@ -755,7 +785,7 @@ function getPhaseLabel(year: number): string {
   if (year === HORIZON_START_YEAR) return 'Acquisition';
   if (year === HORIZON_START_YEAR + 1) return 'Construction';
   if (year === OPENING_YEAR) return 'Opening 75%';
-  if (year === FIRST_OPERATIONAL_YEAR) return 'Y2 88%';
+  if (year === FIRST_OPERATIONAL_YEAR) return 'Y2 90%';
   return 'Stabilised';
 }
 
@@ -1137,7 +1167,8 @@ function computeScenario(
     const termLoanBalance = amort?.closing ?? 0;
     const interestCoverageRatio =
       termLoanInterest > 0 ? yearPnL.ebitda / termLoanInterest : 0;
-    if (yearPnL.netCashFlowPostVAT >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD) {
+    // Distributions unlock when DSCR ≥ 1.0 (project covers debt service from EBITDA).
+    if ((yearPnL.dscr ?? 0) >= 1.0) {
       distributionThresholdCrossed = true;
     }
     const distributionGated = !distributionThresholdCrossed;
@@ -1292,7 +1323,8 @@ function computeScenario(
     {
       let thresholdCrossed = false;
       for (const row of pnl) {
-        if (row.netCashFlowPostVAT >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD) {
+        // Distributions unlock when DSCR ≥ 1.0 (project covers debt service from EBITDA).
+        if ((row.dscr ?? 0) >= 1.0) {
           thresholdCrossed = true;
         }
         row.distributionGated = !thresholdCrossed;
@@ -1414,10 +1446,10 @@ function computeScenario(
     ? operationalDscrs.reduce((s, v) => s + v, 0) / operationalDscrs.length
     : 0;
   const covenantThreshold = a.dscrCovenantThreshold || 1.25;
-  // Covenant tested against average (not minimum) — ramp years skew min unduly
+  // Covenant tested against minimum (banking standard — minimum annual DSCR over loan life)
   const dscrCovenantHeadroom =
-    avgDSCRLoanLife > 0
-      ? (avgDSCRLoanLife - covenantThreshold) / covenantThreshold
+    minDSCRLoanLife > 0
+      ? (minDSCRLoanLife - covenantThreshold) / covenantThreshold
       : 0;
 
   const peakDebtOutstanding = Math.max(

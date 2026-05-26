@@ -584,6 +584,13 @@ export interface CapexBreakdown {
   annualDepreciationTotal: number;
   /** Per-category depreciation breakdown for audit. Keys match category names. */
   depreciationByCategory: Record<string, number>;
+  /**
+   * Construction VAT cashflow by year (ADR-0015).
+   * Negative = VAT paid on construction invoices (cash outflow).
+   * Positive = AADE refund received (cash inflow). 24% Greek rate.
+   * Draw schedule: 20% in 2026, 50% in 2027, 30% in 2028; refund pooled in 2029.
+   */
+  constructionVatByYear: Record<number, number>;
 }
 
 export interface PropertyPnLLine {
@@ -707,6 +714,9 @@ export interface WorkingCapitalQuarter {
   repayments: number;
   closingBalance: number;
   interestAccrual: number;
+  /** Closing balance of VAT-bridge sub-facility (construction VAT receivable
+   *  funded via the revolving line; interest included in interestAccrual). */
+  vatBridgeBalance?: number;
 }
 
 export interface ScenarioOutput {
