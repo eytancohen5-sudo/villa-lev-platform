@@ -1212,7 +1212,7 @@ export const en: TranslationDictionary = {
   'pnl.opcoFeeBreakdown': 'OpCo fee breakdown',
   'pnl.opcoBaseFee': 'Senior floor',
   'pnl.opcoBrandFee': 'OpCo brand fee',
-  'pnl.opcoIncentiveFee': 'Junior fee',
+  'pnl.opcoIncentiveFee': 'OpCo incentive fee',
   'pnl.opcoTotalFees': 'Total OpCo fees',
   'pnl.netOfMgmtFees': '(net of mgmt fees)',
   'pnl.postDsResidual': 'Post-DS Residual',

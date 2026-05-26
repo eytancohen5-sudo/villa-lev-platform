@@ -1229,7 +1229,7 @@ export const el: TranslationDictionary = {
   'pnl.opcoFeeBreakdown': 'Ανάλυση αμοιβών OpCo',
   'pnl.opcoBaseFee': 'Κατώτατη Βάση',
   'pnl.opcoBrandFee': 'Αμοιβή brand OpCo',
-  'pnl.opcoIncentiveFee': 'Junior αμοιβή',
+  'pnl.opcoIncentiveFee': 'Αμοιβή κινήτρου OpCo',
   'pnl.opcoTotalFees': 'Σύνολο αμοιβών OpCo',
   'pnl.netOfMgmtFees': '(μετά αφαίρεση αμοιβών διαχείρισης)',
   'pnl.postDsResidual': 'Υπόλοιπο μετά DS',

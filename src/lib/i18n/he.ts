@@ -1221,7 +1221,7 @@ export const he: TranslationDictionary = {
   'pnl.opcoFeeBreakdown': 'פירוט עמלות OpCo',
   'pnl.opcoBaseFee': 'רצפה בכירה',
   'pnl.opcoBrandFee': 'עמלת מותג OpCo',
-  'pnl.opcoIncentiveFee': 'עמלה זוטרה',
+  'pnl.opcoIncentiveFee': 'עמלת תמריץ OpCo',
   'pnl.opcoTotalFees': 'סך עמלות OpCo',
   'pnl.netOfMgmtFees': '(נטו לאחר דמי ניהול)',
   'pnl.postDsResidual': 'יתרה לאחר DS',
