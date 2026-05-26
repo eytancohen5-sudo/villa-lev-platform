@@ -139,26 +139,65 @@ function areaOf(prop: PropertyConfig): number {
 // CAPEX
 // ────────────────────────────────────────────
 
-function computeCapexPerUnit(prop: PropertyConfig): number {
+function computeCapexPerUnit(
+  prop: PropertyConfig,
+  a: ModelAssumptions,
+  /** When true, acquisition legal is kept at portfolio level — do NOT fold it into perUnit. */
+  useLegacyAcqLegal: boolean
+): number {
   const area = areaOf(prop);
   const construction = area * prop.constructionCostPerM2;
+
+  // Pool / wellness
+  let poolCost = 0;
+  if (prop.wellnessFlatCost != null) {
+    poolCost = prop.wellnessFlatCost;
+  } else if (prop.poolSlots && prop.poolSlots.length > 0) {
+    const ratePerM2 = a.poolConstructionCostPerM2 ?? 1_000;
+    poolCost = prop.poolSlots.reduce(
+      (s, slot) => s + slot.qty * slot.widthM * slot.lengthM * ratePerM2,
+      0
+    );
+  }
+
+  const landscaping = prop.landscapingCost ?? 0;
+  const softCosts =
+    prop.licensesPermitsCost != null
+      ? prop.licensesPermitsCost
+      : (prop.legalFees ?? 0) + (prop.architectFees ?? 0) + (prop.civilEngineerFees ?? 0);
+  const constructionDirector = prop.constructionDirectorCost ?? 0;
   const contingency = (construction + prop.ffeCost) * prop.contingencyRate;
+
+  // Acquisition legal per unit: rate × landCost (new), or zero when legacy
+  // portfolio-level accounting is active (old portfolios without acquisitionLegalRate).
+  const acqLegalPerUnit = useLegacyAcqLegal
+    ? 0
+    : prop.landCost * (prop.acquisitionLegalRate ?? 0);
+
   return (
     prop.landCost +
     construction +
+    landscaping +
+    poolCost +
     prop.ffeCost +
-    prop.legalFees +
-    prop.architectFees +
-    prop.civilEngineerFees +
-    contingency
+    softCosts +
+    constructionDirector +
+    contingency +
+    acqLegalPerUnit
   );
 }
 
 function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const totalPlots = a.portfolio.reduce((sum, p) => sum + p.count, 0);
 
+  // Acquisition legal accounting mode:
+  // - New portfolios: every property has acquisitionLegalRate → fold into perUnit (useLegacyAcqLegal = false)
+  // - Old/legacy portfolios: no property has acquisitionLegalRate → keep flat per-plot at portfolio level
+  const useLegacyAcqLegal = a.portfolio.every((p) => p.acquisitionLegalRate == null);
+  const acqLegal = useLegacyAcqLegal ? a.acquisitionLegalPerPlot * totalPlots : 0;
+
   const properties: CapexPropertyLine[] = a.portfolio.map((prop) => {
-    const perUnit = computeCapexPerUnit(prop);
+    const perUnit = computeCapexPerUnit(prop, a, useLegacyAcqLegal);
     return {
       id: prop.id,
       name: prop.name,
@@ -167,8 +206,6 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
       total: perUnit * prop.count,
     };
   });
-
-  const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
   const devMgmtFee = (a.developerConstructionFeePerYear ?? 0) * 2;
   const extraCapexTotal = a.portfolio.reduce(
     (sum, p) => sum + (p.extraCapexLines ?? []).reduce((s, l) => s + (l.cost || 0), 0) * p.count,
@@ -178,45 +215,45 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const portfolioTotal =
     properties.reduce((sum, p) => sum + p.total, 0) + acqLegal + devMgmtFee + extraCapexTotal;
 
-  const categoryDefs = [
+  const categoryDefs: { name: string; getPerUnit: (p: PropertyConfig) => number }[] = [
+    { name: 'Land acquisition',             getPerUnit: (p: PropertyConfig) => p.landCost },
+    { name: 'Building & excavation',        getPerUnit: (p: PropertyConfig) => areaOf(p) * p.constructionCostPerM2 },
+    { name: 'Landscaping / stone fence',    getPerUnit: (p: PropertyConfig) => p.landscapingCost ?? 0 },
     {
-      name: 'Land acquisition',
-      getPerUnit: (p: PropertyConfig) => p.landCost,
+      name: 'Pools / wellness',
+      getPerUnit: (p: PropertyConfig) => {
+        if (p.wellnessFlatCost != null) return p.wellnessFlatCost;
+        if (p.poolSlots && p.poolSlots.length > 0) {
+          const rate = a.poolConstructionCostPerM2 ?? 1_000;
+          return p.poolSlots.reduce((s, slot) => s + slot.qty * slot.widthM * slot.lengthM * rate, 0);
+        }
+        return 0;
+      },
     },
+    { name: 'FF&E',                         getPerUnit: (p: PropertyConfig) => p.ffeCost },
     {
-      name: 'Construction',
+      name: 'Licenses & permits',
       getPerUnit: (p: PropertyConfig) =>
-        areaOf(p) * p.constructionCostPerM2,
+        p.licensesPermitsCost != null
+          ? p.licensesPermitsCost
+          : (p.legalFees ?? 0) + (p.architectFees ?? 0) + (p.civilEngineerFees ?? 0),
     },
+    { name: 'Construction director',        getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
     {
-      name: 'FF&E',
-      getPerUnit: (p: PropertyConfig) => p.ffeCost,
-    },
-    {
-      name: 'Legal & notary',
-      getPerUnit: (p: PropertyConfig) => p.legalFees,
-    },
-    {
-      name: 'Architect + interior design',
-      getPerUnit: (p: PropertyConfig) => p.architectFees,
-    },
-    {
-      name: 'Civil engineer',
-      getPerUnit: (p: PropertyConfig) => p.civilEngineerFees,
-    },
-    {
-      name: 'Contingency (10% of construction + FF&E)',
+      name: 'Contingency (10% of building + FF&E)',
       getPerUnit: (p: PropertyConfig) =>
-        (areaOf(p) * p.constructionCostPerM2 + p.ffeCost) *
-        p.contingencyRate,
+        (areaOf(p) * p.constructionCostPerM2 + p.ffeCost) * p.contingencyRate,
     },
     {
-      name: `Acquisition legal & due diligence (x${totalPlots} plots)`,
-      getPerUnit: () => a.acquisitionLegalPerPlot,
+      name: 'Acquisition legal & DD',
+      getPerUnit: (p: PropertyConfig) =>
+        p.acquisitionLegalRate != null
+          ? p.landCost * p.acquisitionLegalRate
+          : (useLegacyAcqLegal ? (a.acquisitionLegalPerPlot ?? 0) : 0),
     },
     {
       name: 'Developer management fee (construction, 2 yrs)',
-      getPerUnit: () => (totalPlots > 0 ? devMgmtFee / totalPlots : 0),
+      getPerUnit: () => totalPlots > 0 ? devMgmtFee / totalPlots : 0,
     },
   ];
 
@@ -335,7 +372,10 @@ function computeDebtService(
 
   if (path === 'grant') {
     const totalLand = computeTotalLand(a);
-    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
+    const useLegacyAcqLegalGrant = a.portfolio.every((p) => p.acquisitionLegalRate == null);
+    const acqLegal = useLegacyAcqLegalGrant
+      ? a.acquisitionLegalPerPlot * totalPlots
+      : a.portfolio.reduce((sum, p) => sum + (p.landCost * (p.acquisitionLegalRate ?? 0)) * p.count, 0);
     const nonPlotEligible = totalCost - totalLand - acqLegal;
     const grantAmt = nonPlotEligible * a.grant.grantRate;
 
@@ -419,7 +459,12 @@ function computeDebtService(
     const landCapRatio = tp.landCapOnFundContribution;
 
     const totalLand = computeTotalLand(a);
-    const acqLegal = a.acquisitionLegalPerPlot * totalPlots;
+    // When properties carry acquisitionLegalRate, acq legal is folded into portfolioTotal as perUnit.
+    // Compute the effective acqLegal total consistently with computeCapex.
+    const useLegacyAcqLegalDS = a.portfolio.every((p) => p.acquisitionLegalRate == null);
+    const acqLegal = useLegacyAcqLegalDS
+      ? a.acquisitionLegalPerPlot * totalPlots
+      : a.portfolio.reduce((sum, p) => sum + (p.landCost * (p.acquisitionLegalRate ?? 0)) * p.count, 0);
     const nonLandCost = totalCost - totalLand - acqLegal;
 
     // ── Unconstrained sizing (what TEPIX would lend if no program ceiling) ──
@@ -780,9 +825,21 @@ function computeScenario(
     const roomRevenue = propertyBreakdown.reduce((sum, p) => sum + p.totalRevenue, 0);
     const totalRevenue = roomRevenue + revenueEvents + revenueAncillary;
 
-    const otaRate = a.tax.otaCommissionRate ?? 0;
-    const grossRevenue = otaRate > 0 && year > HORIZON_START_YEAR + 1
-      ? totalRevenue / (1 - otaRate)
+    // Effective OTA rate = commissionRate(year) × otaShare(year).
+    // otaShare(year) = max(0, otaShare_year1 − yearsSinceOpening × declinePerYear)
+    //   — auto-derived from two scalars unless a per-year override exists.
+    // Side-effect: grossRevenue feeds into VAT — a lower otaShare shrinks grossRevenue
+    // and therefore reduces VAT payable (correct: direct-channel has no OTA gross-up).
+    const commissionRate =
+      a.tax.otaCommissionRateByYear?.[year] ?? a.tax.otaCommissionRate ?? 0;
+    const otaShareBase    = a.tax.otaShare ?? 1.0;
+    const otaShareDecline = a.tax.otaShareDeclinePerYear ?? 0;
+    const yearsSinceOpening = Math.max(0, year - OPENING_YEAR);
+    const otaShareAuto = Math.max(0, otaShareBase - yearsSinceOpening * otaShareDecline);
+    const otaShare = a.tax.otaShareByYear?.[year] ?? otaShareAuto;
+    const effectiveOtaRate = commissionRate * otaShare;
+    const grossRevenue = effectiveOtaRate > 0 && year > HORIZON_START_YEAR + 1
+      ? totalRevenue / (1 - effectiveOtaRate)
       : totalRevenue;
     const otaCommissions = grossRevenue - totalRevenue; // positive number (will be negated in output)
 
@@ -818,12 +875,7 @@ function computeScenario(
     const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
     const seniorMgmtFeeBase =
       year > HORIZON_START_YEAR + 1 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
-    const deferralActive = a.opCoSeniorDefer2029 === true && a.viewMode !== 'bank';
-    const seniorMgmtFee =
-      deferralActive && year === FIRST_OPERATIONAL_YEAR ? 0
-      : deferralActive && year === FIRST_OPERATIONAL_YEAR + 1
-        ? seniorMgmtFeeBase + (a.opCoSeniorFloor ?? 0) * totalVillaCount
-        : seniorMgmtFeeBase;
+    const seniorMgmtFee = seniorMgmtFeeBase;
 
     // OpEx that flows into EBITDA pre-OpCo.
     //   internal: legacy — keep per-villa managementFee in propertyOpex.
@@ -989,6 +1041,7 @@ function computeScenario(
   // Pass 2: final P&L with WC interest threaded into OPEX, amort merged in.
   let cumulativeNCF = 0;
   let cumulativeYieldOnInitialEquity = 0;
+  let distributionThresholdCrossed = false;
   const pnl: AnnualPnL[] = years.map((year) => {
     const wcAnnual = wcSchedule.annual.get(year);
     const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
@@ -1001,6 +1054,10 @@ function computeScenario(
     const termLoanBalance = amort?.closing ?? 0;
     const interestCoverageRatio =
       termLoanInterest > 0 ? yearPnL.ebitda / termLoanInterest : 0;
+    if (yearPnL.netCashFlowPostVAT >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD) {
+      distributionThresholdCrossed = true;
+    }
+    const distributionGated = !distributionThresholdCrossed;
     return {
       ...yearPnL,
       cumulativeNCF,
@@ -1014,6 +1071,7 @@ function computeScenario(
       wcTroughBalance: wcAnnual?.troughBalance ?? 0,
       wcNetContribution: wcAnnual?.netContribution ?? 0,
       wcSelfLiquidatingViolation: wcAnnual?.selfLiquidatingViolation ?? false,
+      distributionGated,
     };
   });
 

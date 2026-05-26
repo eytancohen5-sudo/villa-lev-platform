@@ -64,6 +64,12 @@ export const PROJECT_CONSTANTS = {
     market: 9_000,
     optimistic: 11_000,
   },
+  /**
+   * Minimum single-year NCF (netCashFlowPostVAT) required before equity
+   * distributions are permitted. ADR-0014 condition 1. Once crossed in any
+   * year, the distribution gate latches open permanently.
+   */
+  DISTRIBUTION_RESERVE_THRESHOLD: 400_000,
 } as const;
 
 import {
@@ -179,6 +185,14 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 44000,
     civilEngineerFees: 35000,
     contingencyRate: 0.10,
+    landscapingCost: 300_000,
+    licensesPermitsCost: 250_000,
+    constructionDirectorCost: 60_000,
+    acquisitionLegalRate: 0.0734,
+    poolSlots: [
+      { id: 'ps-a-1', qty: 8, widthM: 3, lengthM: 10 },
+      { id: 'ps-a-2', qty: 1, widthM: 5, lengthM: 20 },
+    ],
     opexContingencyRate: 0,
     opex: {
       housekeeping: 15000,
@@ -212,6 +226,13 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 32000,
     civilEngineerFees: 25000,
     contingencyRate: 0.10,
+    landscapingCost: 20_000,
+    licensesPermitsCost: 80_000,
+    // Shared construction director across the 3 small plots (B1+B2+C) costs
+    // €60K total — €20K allocated to each plot.
+    constructionDirectorCost: 20_000,
+    acquisitionLegalRate: 0.0734,
+    wellnessFlatCost: 65_000,
     opexContingencyRate: 0,
     opex: {
       housekeeping: 13000,
@@ -245,6 +266,15 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     architectFees: 65000,
     civilEngineerFees: 45000,
     contingencyRate: 0.10,
+    landscapingCost: 20_000,
+    licensesPermitsCost: 80_000,
+    // Shared construction director across the 3 small plots (B1+B2+C) costs
+    // €60K total — €20K allocated to each plot.
+    constructionDirectorCost: 20_000,
+    acquisitionLegalRate: 0.0734,
+    poolSlots: [
+      { id: 'ps-b-1', qty: 1, widthM: 5, lengthM: 10 },
+    ],
     opexContingencyRate: 0,
     opex: {
       housekeeping: 22000,
@@ -371,6 +401,12 @@ export function resolvePortfolio(
         civilEngineerFees: tpl.civilEngineerFees,
         contingencyRate: tpl.contingencyRate,
         opexContingencyRate: tpl.opexContingencyRate ?? 0,
+        landscapingCost: tpl.landscapingCost,
+        licensesPermitsCost: tpl.licensesPermitsCost,
+        constructionDirectorCost: tpl.constructionDirectorCost,
+        poolSlots: tpl.poolSlots ? tpl.poolSlots.map((s) => ({ ...s })) : undefined,
+        wellnessFlatCost: tpl.wellnessFlatCost,
+        acquisitionLegalRate: tpl.acquisitionLegalRate,
         opex: { ...tpl.opex },
         extraOpexLines: tpl.extraOpexLines ?? [],
         extraCapexLines: tpl.extraCapexLines ?? [],
@@ -515,6 +551,7 @@ export const BASE_CASE: ModelAssumptions = {
   grant: {
     enabled: false,
     grantRate: 0.60,
+    gracePeriodYears: 2,
     // Same 0.853 scaling applied to grant-path grace interest for parity.
     interest2026: 43200,
     interest2027: 94300,
@@ -555,9 +592,12 @@ export const BASE_CASE: ModelAssumptions = {
     corporateIncomeTaxRate: 0.22,
     netVATRate: 0.08,
     otaCommissionRate: 0.175,
+    otaShare: 1.0,             // 1.0 = 100% via OTA in opening year (backward-compat default)
+    otaShareDeclinePerYear: 0, // 0 = no automatic channel shift. Per-year maps intentionally absent.
   },
 
   acquisitionLegalPerPlot: 50000,
+  poolConstructionCostPerM2: 1_000,
   developerConstructionFeePerYear: 75_000,
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
@@ -635,31 +675,38 @@ export const BASE_CASE: ModelAssumptions = {
       {
         name: 'Operations Manager',
         monthlyGross: 3000,
-        monthsPaid: 14,
+        monthsPaid: 12,          // 12 calendar months
+        bonusMonths: 2,          // Christmas (1) + Easter (½) + holiday (½) = 2 → 14 effective
         burdenMultiplier: 1.32,
         allowances: 0,
         yearRound: true,
+        headcount: 1,
       },
       {
         name: 'Reservations & Marketing',
         monthlyGross: 2500,
-        monthsPaid: 14,
+        monthsPaid: 12,
+        bonusMonths: 2,
         burdenMultiplier: 1.32,
         allowances: 0,
         yearRound: true,
+        headcount: 1,
       },
       {
         name: 'Head of Housekeeping',
         monthlyGross: 2156,
-        monthsPaid: 13,
+        monthsPaid: 12,
+        bonusMonths: 2,          // Christmas (1) + Easter (½) + holiday (½) = 2 — same entitlement as all year-round staff
         burdenMultiplier: 1.32,
         allowances: 3600,
         yearRound: true,
+        headcount: 1,
       },
       {
-        name: 'Housekeeping Seasonal 6mo×2FTE',
+        name: 'Housekeeping Seasonal 6mo',
         monthlyGross: 1136,
         monthsPaid: 6,
+        bonusMonths: 1,          // pro-rata: 6/12 × 2 = 1.0
         burdenMultiplier: 1.32,
         allowances: 3600,
         yearRound: false,
@@ -667,20 +714,31 @@ export const BASE_CASE: ModelAssumptions = {
         headcount: 2,
       },
       {
-        name: 'Housekeeping Seasonal 4mo×3FTE',
+        name: 'Housekeeping Seasonal 4mo',
         monthlyGross: 750,
         monthsPaid: 4,
+        bonusMonths: 0.6667,     // pro-rata: 4/12 × 2 = 0.6667
         burdenMultiplier: 1.32,
         allowances: 3600,
         yearRound: false,
         seasonalMonths: 4,
         headcount: 3,
       },
+      {
+        name: 'Pool Technician',
+        monthlyGross: 2100,
+        monthsPaid: 12,
+        bonusMonths: 2,
+        burdenMultiplier: 1.32,
+        allowances: 1200,
+        yearRound: true,
+        headcount: 1,
+      },
     ],
     sharedServices: [
-      { name: 'Pool R&M', sizingBasis: '17 pools × €1,500/pool (materials + annual service; labour in-house)', annualCost: 25500 },
+      { name: 'Pool R&M', sizingBasis: '17 pools × €1,500/pool (materials + annual service; labour → Pool Technician hire)', annualCost: 25500 },
       { name: 'Landscape & Gardening', sizingBasis: 'Antiparos local rates', annualCost: 12000 },
-      { name: 'Maintenance Contractor Pool', sizingBasis: 'Call-out basis', annualCost: 15000 },
+      { name: 'Maintenance Contractor Pool', sizingBasis: '17 pools × €882/pool/yr call-out budget', annualCost: 14994, unitCount: 17, costPerUnit: 882 },
     ],
     sharedOverhead: [
       { name: 'Accounting & Bookkeeping', sizingBasis: '1 OpCo + 4 PropCos + HoldCo', annualCost: 30000 },
@@ -726,12 +784,24 @@ export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumpt
   const po = assumptions.portfolioOpex;
   // Always merge defaults first, then overlay saved arrays so new scalar fields
   // (poolCount, poolCostPerUnit, etc.) are backfilled on every load.
+  // Seed any default staff roles that are missing from saved state by name.
+  const savedRoles = po?.staffRoles?.length ? po.staffRoles : d.staffRoles;
+  // Migrate old hardcoded-FTE names to clean names (headcount field carries the count).
+  const renamedRoles = savedRoles.map((r) => {
+    if (r.name === 'Housekeeping Seasonal 6mo×2FTE') return { ...r, name: 'Housekeeping Seasonal 6mo' };
+    if (r.name === 'Housekeeping Seasonal 4mo×3FTE') return { ...r, name: 'Housekeeping Seasonal 4mo' };
+    return r;
+  });
+  const mergedRoles = renamedRoles.some((r) => r.name === 'Pool Technician')
+    ? renamedRoles
+    : [...renamedRoles, d.staffRoles.find((r) => r.name === 'Pool Technician')!];
+
   return {
     ...assumptions,
     portfolioOpex: {
       ...d,
       ...(po ?? {}),
-      staffRoles:   po?.staffRoles?.length   ? po.staffRoles   : d.staffRoles,
+      staffRoles:   mergedRoles,
       sharedServices: po?.sharedServices?.length ? po.sharedServices : d.sharedServices,
       sharedOverhead: po?.sharedOverhead?.length ? po.sharedOverhead : d.sharedOverhead,
       poolCount:      po?.poolCount      ?? d.poolCount,

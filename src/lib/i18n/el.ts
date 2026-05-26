@@ -745,17 +745,20 @@ export const el: TranslationDictionary = {
   'field.citRate': 'Συντελεστής φόρου εισοδήματος νομικών προσώπων',
   'field.vatRate': 'Καθαρός συντελεστής ΦΠΑ (πραγματικός)',
   'as.otaDistribution': 'OTA Distribution', // TODO: translate
-  'as.otaDistribution.note': 'Effective rate = commission × (1 − direct share). Direct share 0 = 100% OTA; 1 = 100% direct.', // TODO: translate
+  'as.otaDistribution.note': 'Effective rate = commission × OTA share. OTA share 1 = 100% via OTA; 0 = 100% direct.', // TODO: translate
   'as.otaDistribution.yearHeader': 'Year', // TODO: translate
   'as.otaDistribution.commissionHeader': 'OTA Commission', // TODO: translate
-  'as.otaDistribution.directHeader': 'Direct Share', // TODO: translate
+  'as.otaDistribution.otaShareHeader': 'OTA Share', // TODO: translate
   'as.otaDistribution.effectiveHeader': 'Effective Rate', // TODO: translate
   'field.otaCommissionRate': 'OTA platform commission (scalar fallback)', // TODO: translate
-  'field.otaDirectShare': 'Direct booking share (scalar fallback)', // TODO: translate
+  'field.otaShare': 'OTA share — opening year', // TODO: translate
+  'field.otaShareDecline': 'Direct channel growth (per year)', // TODO: translate
   'field.villaADR': 'ΜΗΤ βίλας — μεικτό καθαρό (€/διαν.)',
   'field.villaNights': 'Διανυκτερεύσεις βίλας / έτος (βάση, ωρίμανση)',
   'field.stdSuiteADR': 'ΜΗΤ σουίτας standard (€/διαν.)',
   'field.dblSuiteADR': 'ΜΗΤ σουίτας double (€/διαν.)',
+  'field.grossADR': 'Ακαθάριστο ΜΗΤ', // TODO: translate
+  'field.grossADR.note': 'Καθαρό ÷ (1 − προμήθεια OTA) — τιμή ράφι στο Airbnb / Booking.com', // TODO: translate
   'field.suiteNights': 'Διανυκτερεύσεις σουίτας / έτος (βάση, ωρίμανση)',
   'field.eventsPerYear': 'Εκδηλώσεις ανά έτος',
   'field.profitPerEvent': 'Καθαρό κέρδος ανά εκδήλωση (€)',
@@ -1227,6 +1230,7 @@ export const el: TranslationDictionary = {
   'pnl.icrInterestCoverage': 'ICR (κάλυψη τόκων)',
   'pnl.equityReturnSection': 'Απόδοση κεφαλαίου',
   'pnl.ncfToEquity': 'Καθαρές Ταμειακές Ροές προς Κεφάλαιο',
+  'pnl.distributableToEquity': 'Διανεμητέο στους μετόχους',
   'pnl.yearByYear': 'Ετήσια Ανάλυση',
   'pnl.expandHint': 'Κάντε κλικ σε οποιαδήποτε κεφαλίδα για επέκταση.',
   'pnl.expandAll': 'Ανάπτυξη όλων',
@@ -1268,14 +1272,7 @@ export const el: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
-  'dc.seniorDeferCard': 'Ανάλυση ευαισθησίας',
-  'dc.seniorDeferCheckbox': 'Αναβολή senior αμοιβής OpCo 2029',
-  'dc.seniorDeferSub': 'Εμφανίζει προσαρμοσμένο ΔΚΕΧ για το 2029 (αναβολή) και 2030 (επιστροφή). Δεν επηρεάζει το αποθηκευμένο μοντέλο ή την τραπεζική προβολή.',
-  'dc.seniorDeferBadge': 'Αναβολή ενεργή',
-  'dc.seniorDeferYear': 'Έτος',
-  'dc.seniorDeferAdjDscr': 'Προσ. ΔΚΕΧ',
-  'dc.seniorDeferNote': 'Ο καθαρός LLCR παραμένει αμετάβλητος — το 2030 φέρει την αναβληθείσα αμοιβή.',
-  'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
+  'financing.pageIntro': 'All four financing structures compared side-by-side.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
   'as.pageIntro': 'The model\'s cockpit: edit any blue value across six tabs and every chart, KPI, and table recalculates instantly.', // TODO: translate
@@ -1331,7 +1328,7 @@ export const el: TranslationDictionary = {
   'memo.s6b1r': '  Ελληνικό εύρος αγοράς για αυτή την ποιότητα εξασφαλίσεων και LTV: 4,0–5,0%. Στο 4,0%, εξοικονόμηση ~€20χιλ./έτος. Ακόμα και στο 5,0%, το DSCR παραμένει πάνω από το σύμφωνο.',
   'memo.s6b2': 'LTV κατά την ολοκλήρωση: 56,8%.',
   'memo.s6b2r': '  Μέγιστο τράπεζας: 75%. Με κούρεμα πίεσης 15%, το LTV παραμένει εντός ορίων. Το περιουσιακό στοιχείο καλύπτει δάνειο 1,73× στην αγορά.',
-  'memo.s7b1': 'Ταμείο Δανείων TEPIX III: 90% LTV, επιτόκιο 5,0% με κρατική εγγύηση.',
+  'memo.s7b1': 'Κρατικό Ταμείο Δανείων: 90% LTV, επιτόκιο 5,0%.',
   'memo.s7b1r': '  DSCR 1,34× (+24% πάνω από σύμφωνο 1,25×)· ICR 6,96×· EBITDA €826χιλ. (77% περιθώριο) — ίδιες υποκείμενες λειτουργίες.',
   'memo.s7b2': 'Επιχορήγηση Αναπτυξιακού Νόμου: 60% επιλέξιμων CapEx ≈ €5,8εκ., μη επιστρεπτέα.',
   'memo.s7b2r': '  Μειώνει δάνειο από €7,9εκ. σε ~€4,1εκ. Σταθεροποιημένο DSCR υπό grant: 3,46× έναντι 2,00× εμπορικό — βελτίωση 73%.',
@@ -1347,7 +1344,7 @@ export const el: TranslationDictionary = {
   'memo.s9b2r': '  Σε πίεση €7.650/τ.μ., αξία χαρτοφυλακίου €11,9εκ. — κάλυψη 1,47×. Βάσει 40+ συγκρίσιμων Πάρου/Αντιπάρου.',
   'memo.s9b3': 'OPEX σταθερό από Έτος 4.',
   'memo.s9b3r': '  Δεν μοντελοποιείται πληθωριστική αύξηση OPEX. Ανοδική πορεία εσόδων κατά την έξοδο (~€103χιλ./έτος) είναι ~4× ο κίνδυνος πληθωρισμού OPEX.',
-  'memo.s9b4': 'Όροι TEPIX III ως κατώτατο όριο.',
+  'memo.s9b4': 'Κρατικοί όροι δανείου ως κατώτατο όριο.',
   'memo.s9b4r': '  Η επιδότηση επιτοκίου 5% για νησιωτικές περιοχές μοντελοποιείται ως δεδομένη. Οποιαδήποτε βελτίωση του προγράμματος είναι αμοντελοποίητο ανοδικό δυναμικό.',
   'memo.tCol1': 'Μέτρο',
   'memo.tCol2': 'Συντηρητικό',
@@ -1791,4 +1788,25 @@ export const el: TranslationDictionary = {
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'Διαδρομή Εξόδου',
   'dash.exit.preferred': 'Προτιμώμενη',
+
+  // ── CAPEX pool & wellness (2026-05-26) ──
+  'capex.poolConfig':              'Pool & Wellness Configuration',
+  'capex.poolConfigIntro':         'Pool construction costs — computed from slot dimensions × shared €/m² rate.',
+  'field.landscapingCost':         'Landscaping / stone fence',
+  'field.licensesPermits':         'Licenses & permits',
+  'field.constructionDirector':    'Construction director',
+  'field.poolCostPerM2':           'Pool construction cost (€/m²)',
+  'field.poolSlotQty':             'Count',
+  'field.poolSlotWidth':           'Width (m)',
+  'field.poolSlotLength':          'Length (m)',
+  'field.wellnessFlat':            'Wellness flat cost',
+  'field.addPoolSlot':             'Add pool slot',
+  'field.switchToSlots':           'Switch to pool slots',
+  'field.switchToFlat':            'Use flat amount',
+  'field.acqLegalBreakdown':       '1.5% δικηγόρος · 1% μεσίτης · 3.09% φόρος μεταβίβασης · 1% συμβολαιογράφος · 0.5% κτηματολόγιο · 0.25% λοιπά',
+
+  // ── Distribution Covenant (ADR-0014) ──────────────────────────────────────
+  'covenant.distributionGated': 'Διανομές σε αναστολή έως €400χιλ. ετήσιο NCF',
+  'covenant.distributionGatedTooltip': 'Δεν επιτρέπονται διανομές στους μετόχους έως ότου ένα λειτουργικό έτος παράγει καθαρές ταμειακές ροές ≥€400.000 (ADR-0014). Μόλις επιτευχθεί το κατώφλι, επιτρέπονται διανομές από εκείνο το έτος και εφεξής.',
+  'covenant.distributionUnlocked': 'Η συνθήκη αποθεματικού πληρούται — επιτρέπονται διανομές',
 };

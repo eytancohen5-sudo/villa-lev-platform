@@ -35,6 +35,8 @@ type RowDef = {
   detail?: boolean;
   /** Which section this detail row belongs to */
   section?: string;
+  /** Marks the equity distribution row for locale-safe gating indicator */
+  isDistributionRow?: boolean;
 };
 
 // Chevron that rotates when the section is open
@@ -206,8 +208,10 @@ export default function PnLPage() {
       section: "tax",
     }] : []),
     {
-      label: 'Distributable to equity',
+      label: t('pnl.distributableToEquity'),
+      isDistributionRow: true,
       getValue: (p) => {
+        if (p.distributionGated) return 0;
         const manCo = p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE;
         const grantFee = (grantApproved && p.year === grantPaymentYear) ? grantFeeTotalCash : 0;
         return Math.max(0, p.netCashFlowPostVAT - manCo - grantFee);
@@ -373,6 +377,7 @@ export default function PnLPage() {
                               : row.format === "multiple"
                                 ? formatMultiple(val)
                                 : formatCurrency(val, true, locale);
+                      const isDistributionRow = row.isDistributionRow === true;
                       return (
                         <td
                           key={p.year}
@@ -392,7 +397,18 @@ export default function PnLPage() {
                                   : ""
                           }`}
                         >
-                          {display}
+                          {isDistributionRow && p.distributionGated
+                            ? (
+                              <span className="flex items-center justify-end gap-1 text-text-tertiary" title={t('covenant.distributionGatedTooltip')}>
+                                <svg width="10" height="12" viewBox="0 0 10 12" fill="none" aria-hidden="true" className="shrink-0">
+                                  <rect x="1.5" y="5" width="7" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.2"/>
+                                  <path d="M3.2 5V3.5a1.8 1.8 0 113.6 0V5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                                </svg>
+                                <span className="font-mono">—</span>
+                              </span>
+                            )
+                            : display
+                          }
                         </td>
                       );
                     })}

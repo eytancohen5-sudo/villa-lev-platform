@@ -392,6 +392,7 @@ export function BankPnLSection() {
                     const val     = row.getValue(p);
                     const display = fmt(val, row);
                     const numVal  = typeof val === "number" ? val : 0;
+                    const isNcfToEquityRow = row.label === t('pnl.ncfToEquity');
 
                     let colorClass = "";
                     if (row.dscrRow) {
@@ -399,12 +400,15 @@ export function BankPnLSection() {
                     } else if (row.outflow && numVal !== 0) {
                       colorClass = "text-text-secondary";
                     } else if (row.format === "currency" && row.bold) {
-                      colorClass = numVal >= 0 ? "text-positive" : "text-warning";
+                      colorClass = (isNcfToEquityRow && p.distributionGated)
+                        ? "text-warning"
+                        : numVal >= 0 ? "text-positive" : "text-warning";
                     }
 
                     return (
                       <td
                         key={p.year}
+                        title={isNcfToEquityRow && p.distributionGated ? t('covenant.distributionGatedTooltip') : undefined}
                         className={`text-right py-2 px-2 font-mono ${colorClass}`}
                       >
                         {display}

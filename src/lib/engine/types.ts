@@ -42,6 +42,14 @@ export interface CustomCapexLine {
   cost: number;
 }
 
+// Civil-engineer pool slot (civil-engineer restructure 2026-05)
+export interface PoolSlot {
+  id: string;
+  qty: number;
+  widthM: number;
+  lengthM: number;
+}
+
 // One room inside a single villa (e.g. 4 bedrooms × 20m²). The combined
 // per-villa area is then multiplied by the template's villaUnits count.
 export interface VillaRoom {
@@ -109,11 +117,22 @@ export interface PropertyConfig {
   constructionArea: number; // m² — computed from roomAreas, kept for backward compat
   constructionCostPerM2: number;
   ffeCost: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   legalFees: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   architectFees: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   civilEngineerFees: number;
   contingencyRate: number; // % of construction + FF&E
   opexContingencyRate?: number; // % buffer on controllable OPEX only (0 = no buffer)
+  // Civil-engineer restructure 2026-05
+  landscapingCost?: number;
+  licensesPermitsCost?: number;
+  constructionDirectorCost?: number;
+  poolSlots?: PoolSlot[];
+  poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
+  wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
+  acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -156,11 +175,22 @@ export interface PropertyTemplate {
   constructionArea: number; // computed from roomAreas — kept for display
   constructionCostPerM2: number;
   ffeCost: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   legalFees: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   architectFees: number;
+  /** @deprecated — use licensesPermitsCost; kept for saved-scenario backward compat */
   civilEngineerFees: number;
   contingencyRate: number;
   opexContingencyRate?: number; // % buffer on controllable OPEX only (0 = no buffer)
+  // Civil-engineer restructure 2026-05
+  landscapingCost?: number;
+  licensesPermitsCost?: number;
+  constructionDirectorCost?: number;
+  poolSlots?: PoolSlot[];
+  poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
+  wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
+  acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -308,7 +338,31 @@ export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan';
 export interface TaxAssumptions {
   corporateIncomeTaxRate: number;
   netVATRate: number;
+  /** Scalar fallback OTA platform commission (e.g. 0.175). Used for any year not in otaCommissionRateByYear. */
   otaCommissionRate: number;
+  /**
+   * Per-year OTA platform commission override. Keys are calendar years (e.g. 2028).
+   * Do NOT add defaults here in BASE_CASE — deepMerge handles these maps correctly
+   * only when BASE_CASE omits them. Adding a default ByYear map would break merge behaviour.
+   */
+  otaCommissionRateByYear?: Record<number, number>;
+  /**
+   * OTA booking share in the opening year (1.0 = 100% OTA, 0 = 100% direct).
+   * Default 1.0 (all OTA — backward-compat). effectiveOtaRate = otaCommissionRate × otaShare(year).
+   */
+  otaShare?: number;
+  /**
+   * Annual decline in OTA share as the direct channel matures (e.g. 0.05 = −5%/yr).
+   * otaShare(year) = max(0, otaShare − (year − OPENING_YEAR) × otaShareDeclinePerYear).
+   * Default 0 (no decline — backward-compat).
+   */
+  otaShareDeclinePerYear?: number;
+  /**
+   * Per-year OTA booking share manual override. Keys are calendar years.
+   * Overrides the decline-rate formula for that specific year.
+   * Same deepMerge caution as otaCommissionRateByYear.
+   */
+  otaShareByYear?: Record<number, number>;
 }
 
 // ── OpCo / PropCo Split ──
@@ -430,6 +484,7 @@ export interface ModelAssumptions {
   tepixLoan: TepixLoanFundParams;
   tax: TaxAssumptions;
   acquisitionLegalPerPlot: number;
+  poolConstructionCostPerM2?: number;   // shared pool build rate €/sqm, default 1000
   /** Annual developer management fee during construction (2026–2027). Capitalized as CAPEX soft cost. */
   developerConstructionFeePerYear?: number;
   /**
@@ -491,10 +546,6 @@ export interface ModelAssumptions {
   // Default is 'internal' to preserve historical numbers on /admin/*.
   // Investor / pitch routes and the View-As-Banker impersonation override
   // this to 'bank' at the call site, not via the global defaults.
-  /** Admin sensitivity: defer the OpCo senior floor fee from 2029 to 2030.
-   *  When true (admin/internal view only): 2029 fee = 0, 2030 fee = 2×base.
-   *  Ignored in bank view. Optional — absent/false = no deferral. */
-  opCoSeniorDefer2029?: boolean;
   viewMode?: 'internal' | 'bank';
 }
 
@@ -573,7 +624,7 @@ export interface AnnualPnL {
   // PropCo EBITDA — net of OpCo fees. All downstream PropCo metrics
   // (DSCR, ICR, NCF, IRR, yield) flow from this.
   grossRevenue: number;       // totalRevenue / (1 - otaCommissionRate) — guest-facing
-  otaCommissions: number;     // grossRevenue × otaCommissionRate (negative — outflow)
+  otaCommissions: number;     // grossRevenue × effectiveOtaRate (= commissionRate × (1−directShare)) — positive value, negated in P&L output
   ebitda: number;
   ebitdaMargin: number;
   debtService: number;
@@ -623,6 +674,8 @@ export interface AnnualPnL {
   dsraBalance?: number;       // DSRA end-of-period balance
   effectiveDSCR?: number;     // (CFADS + dsraDraw) / DS — equals dscr when DSRA disabled
   partnerRepayment?: number;  // subordinated partner advance repaid this year (≥0)
+  /** True when netCashFlowPostVAT has not yet crossed DISTRIBUTION_RESERVE_THRESHOLD in any prior year. ADR-0014. */
+  distributionGated?: boolean;
 }
 
 export interface WorkingCapitalQuarter {

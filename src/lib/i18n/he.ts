@@ -737,17 +737,20 @@ export const he: TranslationDictionary = {
   'field.citRate': 'שיעור מס חברות',
   'field.vatRate': 'שיעור מע"מ נטו (אפקטיבי)',
   'as.otaDistribution': 'OTA Distribution', // TODO: translate
-  'as.otaDistribution.note': 'Effective rate = commission × (1 − direct share). Direct share 0 = 100% OTA; 1 = 100% direct.', // TODO: translate
+  'as.otaDistribution.note': 'Effective rate = commission × OTA share. OTA share 1 = 100% via OTA; 0 = 100% direct.', // TODO: translate
   'as.otaDistribution.yearHeader': 'Year', // TODO: translate
   'as.otaDistribution.commissionHeader': 'OTA Commission', // TODO: translate
-  'as.otaDistribution.directHeader': 'Direct Share', // TODO: translate
+  'as.otaDistribution.otaShareHeader': 'OTA Share', // TODO: translate
   'as.otaDistribution.effectiveHeader': 'Effective Rate', // TODO: translate
   'field.otaCommissionRate': 'OTA platform commission (scalar fallback)', // TODO: translate
-  'field.otaDirectShare': 'Direct booking share (scalar fallback)', // TODO: translate
+  'field.otaShare': 'OTA share — opening year', // TODO: translate
+  'field.otaShareDecline': 'Direct channel growth (per year)', // TODO: translate
   'field.villaADR': 'ADR וילה — נטו משולב (€/לילה)',
   'field.villaNights': 'לילות וילה / שנה (בסיס, בשלות)',
   'field.stdSuiteADR': 'ADR סוויטה סטנדרט (€/לילה)',
   'field.dblSuiteADR': 'ADR סוויטה כפולה (€/לילה)',
+  'field.grossADR': 'ADR ברוטו', // TODO: translate
+  'field.grossADR.note': 'נטו ÷ (1 − עמלת OTA) — מחיר מדף באירבנב / בוקינג', // TODO: translate
   'field.suiteNights': 'לילות סוויטה / שנה (בסיס, בשלות)',
   'field.eventsPerYear': 'אירועים לשנה',
   'field.profitPerEvent': 'רווח נקי לאירוע (€)',
@@ -1219,6 +1222,7 @@ export const he: TranslationDictionary = {
   'pnl.icrInterestCoverage': 'ICR (כיסוי ריבית)',
   'pnl.equityReturnSection': 'תשואה על הון עצמי',
   'pnl.ncfToEquity': 'תזרים מזומנים נטו להון עצמי',
+  'pnl.distributableToEquity': 'ניתן לחלוקה לבעלי מניות',
   'pnl.yearByYear': 'שנה אחר שנה',
   'pnl.expandHint': 'לחץ על כותרת כל קטע להרחבת שורות הפרטים.',
   'pnl.expandAll': 'הרחב הכל',
@@ -1260,14 +1264,7 @@ export const he: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
-  'dc.seniorDeferCard': 'ניתוח רגישות',
-  'dc.seniorDeferCheckbox': 'דחיית עמלת OpCo הסיניור לשנת 2029',
-  'dc.seniorDeferSub': 'מציג DSCR מותאם ל-2029 (דחייה) ו-2030 (השלמה). אינו משפיע על המודל השמור או תצוגת הבנק.',
-  'dc.seniorDeferBadge': 'דחייה פעילה',
-  'dc.seniorDeferYear': 'שנה',
-  'dc.seniorDeferAdjDscr': 'DSCR מותאם',
-  'dc.seniorDeferNote': 'LLCR נטו ללא שינוי — 2030 נושא את העמלה הנדחית.',
-  'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
+  'financing.pageIntro': 'All four financing structures compared side-by-side.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
   'as.pageIntro': 'The model\'s cockpit: edit any blue value across six tabs and every chart, KPI, and table recalculates instantly.', // TODO: translate
@@ -1323,7 +1320,7 @@ export const he: TranslationDictionary = {
   'memo.s6b1r': '  טווח השוק היווני לאיכות בטחונות ו-LTV זה: 4.0–5.0%. ב-4.0%, החיסכון הוא ~€20K/שנה. אפילו ב-5.0%, DSCR נשאר מעל אמות המידה.',
   'memo.s6b2': 'LTV בהשלמה: 56.8%.',
   'memo.s6b2r': '  מקסימום בנק: 75%. בקיצוץ לחץ 15%, LTV עדיין בגבולות. הנכס מכסה הלוואה 1.73× בשוק.',
-  'memo.s7b1': 'קרן הלוואות TEPIX III: 90% LTV, ריבית 5.0% מגובת מדינה.',
+  'memo.s7b1': 'קרן הלוואות מגובת מדינה: 90% LTV, ריבית 5.0%.',
   'memo.s7b1r': '  DSCR 1.34× (+24% מעל אמות מידה 1.25×); ICR 6.96×; EBITDA €826K (77% מרווח) — אותן פעולות בסיסיות.',
   'memo.s7b2': 'מענק חוק פיתוח: 60% מה-CapEx הזכאי ≈ €5.8M, לא להחזר.',
   'memo.s7b2r': '  מצמצם הלוואה מ-€7.9M ל-~€4.1M. DSCR מייצב תחת מסלול מענק: 3.46× מול 2.00× מסחרי — שיפור 73%.',
@@ -1339,7 +1336,7 @@ export const he: TranslationDictionary = {
   'memo.s9b2r': '  בלחץ €7,650/מ"ר, שווי תיק €11.9M — כיסוי 1.47×. מבוסס על 40+ מקביל בפארוס/אנטיפארוס.',
   'memo.s9b3': 'OPEX קבוע מאז שנה 4.',
   'memo.s9b3r': '  לא ממוממל עלייה אינפלציונית ב-OPEX. פוטנציאל הכנסות ביציאה (~€103K/שנה) הוא ~4× סיכון אינפלציית OPEX.',
-  'memo.s9b4': 'תנאי TEPIX III כרצפה.',
+  'memo.s9b4': 'תנאי הלוואה מגובי מדינה כרצפה.',
   'memo.s9b4r': '  סבסוד ריבית 5% לאזורי איים ממוממל כנתון. כל שיפור בתוכנית הוא פוטנציאל עלייה לא-ממוממל.',
   'memo.tCol1': 'מדד',
   'memo.tCol2': 'שמרני',
@@ -1793,4 +1790,25 @@ export const he: TranslationDictionary = {
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'מסלול יציאה',
   'dash.exit.preferred': 'מועדף',
+
+  // ── CAPEX pool & wellness (2026-05-26) ──
+  'capex.poolConfig':              'Pool & Wellness Configuration',
+  'capex.poolConfigIntro':         'Pool construction costs — computed from slot dimensions × shared €/m² rate.',
+  'field.landscapingCost':         'Landscaping / stone fence',
+  'field.licensesPermits':         'Licenses & permits',
+  'field.constructionDirector':    'Construction director',
+  'field.poolCostPerM2':           'Pool construction cost (€/m²)',
+  'field.poolSlotQty':             'Count',
+  'field.poolSlotWidth':           'Width (m)',
+  'field.poolSlotLength':          'Length (m)',
+  'field.wellnessFlat':            'Wellness flat cost',
+  'field.addPoolSlot':             'Add pool slot',
+  'field.switchToSlots':           'Switch to pool slots',
+  'field.switchToFlat':            'Use flat amount',
+  'field.acqLegalBreakdown':       '1.5% עורך דין · 1% תיווך · 3.09% מס רכישה · 1% נוטריון · 0.5% רישום · 0.25% שונות',
+
+  // ── Distribution Covenant (ADR-0014) ──────────────────────────────────────
+  'covenant.distributionGated': 'חלוקות מושעות עד €400 אלף NCF שנתי',
+  'covenant.distributionGatedTooltip': 'אין חלוקות לבעלי מניות עד שתזרים מזומנים נטו בשנה תפעולית אחת יגיע ל-€400,000 לפחות (ADR-0014). ברגע שיושג הסף, יותרו חלוקות מאותה שנה ואילך.',
+  'covenant.distributionUnlocked': 'אמת מידה הרזרבה הושגה — חלוקות מותרות',
 };

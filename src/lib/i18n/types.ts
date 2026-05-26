@@ -390,6 +390,8 @@ export interface TranslationDictionary {
   'capex.totalCapex': string;
   'capex.totalProjectCost': string;
   'capex.propAEach': string;
+  'capex.poolConfig': string;
+  'capex.poolConfigIntro': string;
 
   // ── Scenarios ──
   'sc.title': string;
@@ -492,14 +494,17 @@ export interface TranslationDictionary {
   'as.otaDistribution.note': string;
   'as.otaDistribution.yearHeader': string;
   'as.otaDistribution.commissionHeader': string;
-  'as.otaDistribution.directHeader': string;
+  'as.otaDistribution.otaShareHeader': string;
   'as.otaDistribution.effectiveHeader': string;
   'field.otaCommissionRate': string;
-  'field.otaDirectShare': string;
+  'field.otaShare': string;
+  'field.otaShareDecline': string;
   'field.villaADR': string;
   'field.villaNights': string;
   'field.stdSuiteADR': string;
   'field.dblSuiteADR': string;
+  'field.grossADR': string;
+  'field.grossADR.note': string;
   'field.suiteNights': string;
   'field.eventsPerYear': string;
   'field.profitPerEvent': string;
@@ -525,6 +530,18 @@ export interface TranslationDictionary {
   'field.contingencyRate': string;
   'field.opexContingencyRate': string;
   'field.acqLegalPerPlot': string;
+  'field.landscapingCost': string;
+  'field.licensesPermits': string;
+  'field.constructionDirector': string;
+  'field.poolCostPerM2': string;
+  'field.poolSlotQty': string;
+  'field.poolSlotWidth': string;
+  'field.poolSlotLength': string;
+  'field.wellnessFlat': string;
+  'field.addPoolSlot': string;
+  'field.switchToSlots': string;
+  'field.switchToFlat': string;
+  'field.acqLegalBreakdown': string;
   'field.numPropA': string;
   'field.tepixCoverage': string;
   'field.tepixHdbShare': string;
@@ -1082,6 +1099,7 @@ export interface TranslationDictionary {
   'pnl.icrInterestCoverage': string;
   'pnl.equityReturnSection': string;
   'pnl.ncfToEquity': string;
+  'pnl.distributableToEquity': string;
   'pnl.yearByYear': string;
   'pnl.expandHint': string;
   'pnl.expandAll': string;
@@ -1238,13 +1256,6 @@ export interface TranslationDictionary {
   'team.pageIntro': string;
   'returns.pageIntro': string;
   'dc.pageIntro': string;
-  'dc.seniorDeferCard': string;
-  'dc.seniorDeferCheckbox': string;
-  'dc.seniorDeferSub': string;
-  'dc.seniorDeferBadge': string;
-  'dc.seniorDeferYear': string;
-  'dc.seniorDeferAdjDscr': string;
-  'dc.seniorDeferNote': string;
   'financing.pageIntro': string;
   'ct.pageIntro': string;
   'lex.pageIntro': string;
@@ -1768,4 +1779,9 @@ export interface TranslationDictionary {
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route': string;
   'dash.exit.preferred': string;
+
+  // ── Distribution Covenant (ADR-0014) ──────────────────────────────────────
+  'covenant.distributionGated': string;
+  'covenant.distributionGatedTooltip': string;
+  'covenant.distributionUnlocked': string;
 }

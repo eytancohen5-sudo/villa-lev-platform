@@ -541,10 +541,21 @@ export const fr: TranslationDictionary = {
   'field.nightsCap': 'Plafond de nuitées (max nuitées/an)',
   'field.citRate': 'Taux d\'impôt sur les sociétés',
   'field.vatRate': 'Taux de TVA net (effectif)',
+  'as.otaDistribution': 'OTA Distribution', // TODO: translate
+  'as.otaDistribution.note': 'Effective rate = commission × OTA share. OTA share 1 = 100% via OTA; 0 = 100% direct.', // TODO: translate
+  'as.otaDistribution.yearHeader': 'Année', // TODO: translate
+  'as.otaDistribution.commissionHeader': 'Commission OTA', // TODO: translate
+  'as.otaDistribution.otaShareHeader': 'Part OTA', // TODO: translate
+  'as.otaDistribution.effectiveHeader': 'Taux effectif', // TODO: translate
+  'field.otaCommissionRate': 'OTA platform commission (scalar fallback)', // TODO: translate
+  'field.otaShare': 'OTA share — opening year', // TODO: translate
+  'field.otaShareDecline': 'Direct channel growth (per year)', // TODO: translate
   'field.villaADR': 'TJM villa — net mixte (€/nuit)',
   'field.villaNights': 'Nuitées villa / an (base, maturité)',
   'field.stdSuiteADR': 'TJM suite standard (€/nuit)',
   'field.dblSuiteADR': 'TJM suite double (€/nuit)',
+  'field.grossADR': 'TJM brut', // TODO: translate
+  'field.grossADR.note': 'Net ÷ (1 − commission OTA) — tarif affiché sur Airbnb / Booking.com', // TODO: translate
   'field.suiteNights': 'Nuitées suite / an (base, maturité)',
   'field.eventsPerYear': 'Événements par an',
   'field.profitPerEvent': 'Bénéfice net par événement (€)',
@@ -927,6 +938,7 @@ export const fr: TranslationDictionary = {
   'pnl.dsraBalance': 'DSRA Balance (EoP)',
   'pnl.effectiveDSCR': 'Effective DSCR (incl. DSRA)',
   'pnl.partnerRepayment': 'Partner Advance Repayment',
+  'pnl.distributableToEquity': 'Distribuable aux actionnaires',
   // ── DSRA tile ──
   'dsra.sectionTitle': 'Debt Service Reserve Account',
   'dsra.sectionSub': 'Auto-sized to bridge years below DSCR target',
@@ -1016,14 +1028,7 @@ export const fr: TranslationDictionary = {
   'team.pageIntro': 'Invite collaborators by email, assign roles, and see who has already accessed the model.', // TODO: translate
   'returns.pageIntro': 'Equity yield, MOIC, payback years, and IRR — sponsor-side economics at the active exit year and financing path.', // TODO: translate
   'dc.pageIntro': 'Year-by-year DSCR trajectory and all coverage ratios a credit committee underwrites against.', // TODO: translate
-  'dc.seniorDeferCard': 'Sensitivity', // TODO: translate
-  'dc.seniorDeferCheckbox': 'Defer 2029 OpCo senior fee', // TODO: translate
-  'dc.seniorDeferSub': 'Shows adjusted DSCR for 2029 (fee deferred) and 2030 (catch-up). Does not affect saved model or bank view.', // TODO: translate
-  'dc.seniorDeferBadge': 'Deferral active', // TODO: translate
-  'dc.seniorDeferYear': 'Year', // TODO: translate
-  'dc.seniorDeferAdjDscr': 'Adj. DSCR', // TODO: translate
-  'dc.seniorDeferNote': 'Net LLCR unchanged — 2030 bears the deferred fee.', // TODO: translate
-  'financing.pageIntro': 'All four financing structures compared side-by-side: Commercial, RRF, Development Law Grant, and TEPIX III.', // TODO: translate
+  'financing.pageIntro': 'All four financing structures compared side-by-side.', // TODO: translate
   'ct.pageIntro': 'Equity distribution at the active exit year — three-layer founder waterfall, investor stakes, MOIC, and IRR per stakeholder.', // TODO: translate
   'lex.pageIntro': 'Every formula the model runs — CAPEX, revenue, EBITDA, PMT, DSCR, break-even, collateral, and all four financing paths.', // TODO: translate
   'as.pageIntro': 'The model\'s cockpit: edit any blue value across six tabs and every chart, KPI, and table recalculates instantly.', // TODO: translate
@@ -1389,4 +1394,9 @@ export const fr: TranslationDictionary = {
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'Voie de Sortie',
   'dash.exit.preferred': 'Préféré',
+
+  // ── Distribution Covenant (ADR-0014) ──────────────────────────────────────
+  'covenant.distributionGated': 'Distributions suspendues jusqu\'à NCF annuel de €400k',
+  'covenant.distributionGatedTooltip': 'Aucune distribution aux actionnaires jusqu\'à ce qu\'une année opérationnelle génère un flux de trésorerie net ≥€400 000 (ADR-0014). Une fois ce seuil franchi, les distributions sont autorisées à partir de cette année.',
+  'covenant.distributionUnlocked': 'Covenant de réserve satisfait — distributions autorisées',
 };
