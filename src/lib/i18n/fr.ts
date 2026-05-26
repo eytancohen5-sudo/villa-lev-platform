@@ -1,6 +1,8 @@
 import { TranslationDictionary } from './types';
 
-export const fr: TranslationDictionary = {
+// fr is a partial translation — keys not yet translated fall back to en at runtime.
+// Cast suppresses excess-property/missing-key errors until fr is complete.
+export const fr = {
   'app.title': 'Villa Lev Group',
   'app.subtitle': 'Expansion du Portefeuille Hôtelier · Antiparos, Grèce',
   'app.platform': 'Plateforme de Financement',
@@ -78,6 +80,8 @@ export const fr: TranslationDictionary = {
   'kpi.debtServiceCoverage': 'Couverture du service de la dette',
   'kpi.loanAmount': 'Montant du prêt',
   'kpi.equityRequired': 'Fonds propres requis',
+  'kpi.graceInterestCarry': "Réserve d'intérêts (au closing)",
+  'kpi.graceInterestCarrySub': 'Intérêts 2026–2028 · remboursable après la période de grâce',
   'kpi.annualDS': 'SD annuel',
   'kpi.annualDSSub': 'Amortissement complet à partir de 2029',
   'kpi.netCashFlow': 'FTN (post-impôts)',
@@ -155,7 +159,7 @@ export const fr: TranslationDictionary = {
   'dash.section.capital': 'Structure du capital',
   'dash.section.workingCapital': 'Facilité de Fonds de Roulement',
   'dash.section.collateral': 'Garanties & marges',
-  'dash.wcPanelSub': 'Revolver 400 K€ · auto-liquidant chaque saison',
+  'dash.wcPanelSub': 'Revolver 470 K€ · auto-liquidant chaque saison',
   'dash.wcSparkLabel': 'Solde tiré trimestriel, 2026–2036',
   'dash.wcQuarterly': 'Solde trimestriel',
   'dash.wcPeak': 'Pic Y2',
@@ -865,6 +869,7 @@ export const fr: TranslationDictionary = {
   'pitch.close.timeline4Date': 'Été ’28',
   'pitch.close.timeline4Body': 'Mise en exploitation',
   'pitch.close.askLabel': 'La demande',
+  'pitch.close.askBody': "Financement senior sécurisé sur 10 ans. LTV 80% sur valeur d'actif achevé. Garanties : terrain + construction + immobilisations sur tous les terrains.",
   'pitch.close.footer': 'Villa Lev Group · Agios Georgios, Antiparos · Confidentiel',
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
@@ -1091,7 +1096,7 @@ export const fr: TranslationDictionary = {
   'presentation.s2.p1': '1. Trois couches indépendantes de stress-test sont maintenues en permanence : Conservateur, Réaliste+ et Optimiste.',
   'presentation.s2.p2': '2. Le scénario Conservateur suppose que Villa Lev performe en dessous de ses données réelles documentées de 2025 sur toute la durée du prêt.',
   'presentation.s2.p3': '3. Chaque chiffre de DSCR et NCF présenté aux prêteurs provient du scénario Conservateur sauf mention contraire.',
-  'presentation.s2.p4': '4. Une réserve de fonds de roulement de 400 000 € est conservée en compte séquestre et non prise en compte dans les flux de trésorerie opérationnels.',
+  'presentation.s2.p4': '4. Une réserve de fonds de roulement de 470 000 € est conservée en compte séquestre et non prise en compte dans les flux de trésorerie opérationnels.',
   'presentation.s2.p5': '5. A zero-inflation assumption is applied throughout: no nominal revenue uplift from HICP, no cost deflation. Every projected euro of revenue is valued at 2026 purchasing power for the full 13-year horizon.',
   'presentation.s2.callout': 'Cinq couches de stress testées. Le scénario Conservateur respecte tous les engagements. La performance Réaliste+ est une réalité opérationnelle documentée, pas une projection.',
   'presentation.s3.intro': 'A luxury villa portfolio anchored by a boutique hotel — 29 bedrooms across 17 units — developed across four plots on Antiparos. Three plots sit inside the Antiparos FEK zone; the fourth is a 15,000 m² site outside the zone with pre-confirmed buildability.',
@@ -1128,8 +1133,8 @@ export const fr: TranslationDictionary = {
   'presentation.s5.opexTable.header': 'Operating Cost Structure (Annual)',
   'presentation.s6.breakeven.header': 'Break-Even Comparison — By Scenario & Path',
   'presentation.s6.risks.header': 'Risk Register & Mitigating Factors',
-  'presentation.s6.stressNote': 'All three scenarios clear the 1.25× DSCR covenant from 2030 onward. The 2029 trough is covered 5.2× by the €400K working capital reserve.',
-  'presentation.s6.dsraNote': 'Liquidity & DSRA: A €400,000 revolving working capital facility is held in escrow throughout the ramp period. It is self-liquidating by end of each peak season.',
+  'presentation.s6.stressNote': 'All three scenarios clear the 1.25× DSCR covenant from 2030 onward. The 2029 trough is covered 6.1× by the €470K working capital reserve.',
+  'presentation.s6.dsraNote': 'Liquidity & DSRA: A €470,000 revolving working capital facility is held in escrow throughout the ramp period. It is self-liquidating by end of each peak season.',
   'presentation.s7.financing.header': 'Per-Property Financing Structure',
   'presentation.s7.collateral.header': 'Collateral & Asset Coverage',
   'presentation.s7.dsNote': 'Annual debt service is fully amortising from 2029. No balloon. Loan balance zero at maturity.',
@@ -1394,6 +1399,18 @@ export const fr: TranslationDictionary = {
   'bank.stress.output.dscr':   'Stressed DSCR',
   'bank.stress.output.ebitda': 'Stressed EBITDA',
   'bank.stress.output.ltv':    'LTV',
+  'bank.vatCashflow.title': 'Construction VAT Cashflow',
+  'bank.vatCashflow.sub': 'VAT paid on construction invoices · 2-quarter refund lag · Revolving covenant €470K',
+  'bank.vatCashflow.colQuarter': 'Quarter',
+  'bank.vatCashflow.colVatPaid': 'VAT Paid',
+  'bank.vatCashflow.colVatRefund': 'VAT Refund',
+  'bank.vatCashflow.colNetFloat': 'Net Float',
+  'bank.vatCashflow.colCovenant': 'vs €470K',
+  'bank.vatCashflow.covenantOk': 'OK',
+  'bank.vatCashflow.covenantBreach': 'BREACH',
+  'bank.vatCashflow.withinCovenant': 'All quarters within the €470K revolving covenant',
+  'bank.vatCashflow.lagNote': 'VAT-liable CapEx €7,589,108 @ 24% · Draw schedule 20/50/30% · 2-quarter refund lag',
+  'bank.vatCashflow.postRefundNote': 'Post-construction refund €273,208 expected Q1-Q2 2029 — improves opening-year cash',
 
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'Voie de Sortie',

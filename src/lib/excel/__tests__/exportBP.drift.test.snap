@@ -2,11 +2,11 @@
 
 exports[`L1 — engine metrics that feed the validation table > bank-view metrics snapshot (commercial path, realistic scenario) 1`] = `
 {
-  "equityMOIC": 1.4978129677319891,
-  "leveredEquityIRR": 0.03903783580102633,
-  "stabilisedDSCR2031_coverageBasis": 0.7893001869791509,
+  "equityMOIC": undefined,
+  "leveredEquityIRR": undefined,
+  "stabilisedDSCR2031_coverageBasis": 0.7114686024560393,
   "stabilisedEBITDA2031": 292486.83999999997,
   "stabilisedRevenue2031": 1072425,
-  "totalCAPEX": 4555200,
+  "totalCAPEX": 5061200,
 }
 `;

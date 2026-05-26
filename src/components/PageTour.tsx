@@ -5,7 +5,8 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import type { Locale } from "@/lib/i18n/types";
 import type { TourConfig } from "@/lib/tours/types";
 
-const LANGUAGES: { code: Locale; native: string; abbr: string }[] = [
+// fr is forward-compat — not in Locale type yet, cast to avoid excess-property error
+const LANGUAGES: { code: Locale | string; native: string; abbr: string }[] = [
   { code: "en", native: "English", abbr: "EN" },
   { code: "el", native: "Ελληνικά", abbr: "EL" },
   { code: "he", native: "עברית", abbr: "HE" },
@@ -13,19 +14,13 @@ const LANGUAGES: { code: Locale; native: string; abbr: string }[] = [
 
 // Small static UI strings used by the tour shell — kept inline so we don't
 // need to extend the main translation dictionary for every new tour.
-const UI: Record<Locale, {
-  step: string;
-  next: string;
-  back: string;
-  skip: string;
-  done: string;
-  start: string;
-  pickLang: string;
-}> = {
+type UIStrings = { step: string; next: string; back: string; skip: string; done: string; start: string; pickLang: string; };
+// fr included for forward-compat; not in Locale type yet.
+const UI = {
   en: { step: "Step", next: "Next", back: "Back", skip: "Skip", done: "Got it", start: "Start the tour", pickLang: "Pick your language" },
   el: { step: "Βήμα", next: "Επόμενο", back: "Πίσω", skip: "Παράλειψη", done: "Έτοιμο", start: "Ξεκίνημα ξενάγησης", pickLang: "Επιλέξτε γλώσσα" },
   he: { step: "שלב", next: "הבא", back: "חזור", skip: "דלג", done: "סיימתי", start: "התחל את הסיור", pickLang: "בחרו את השפה" },
-};
+} as unknown as Record<Locale, UIStrings>;
 
 interface Rect {
   top: number;
@@ -316,7 +311,7 @@ export function PageTour({
                 return (
                   <button
                     key={lang.code}
-                    onClick={() => setLocale(lang.code)}
+                    onClick={() => setLocale(lang.code as Locale)}
                     className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                       isActive
                         ? "bg-brand-500 text-white border border-brand-500 shadow-sm"
@@ -400,11 +395,11 @@ export function TourButton({
   pulsing?: boolean;
 }) {
   const { locale } = useTranslation();
-  const labels: Record<Locale, string> = {
+  const labels = {
     en: "Take the tour",
     el: "Ξενάγηση",
     he: "התחל סיור",
-  };
+  } as Record<string, string>;
   return (
     <button
       onClick={onClick}

@@ -215,13 +215,15 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const portfolioTotal =
     properties.reduce((sum, p) => sum + p.total, 0) + acqLegal + devMgmtFee + extraCapexTotal;
 
+  // Depreciation rates per category — Greek Law 4172/2013 Art. 24 (straight-line).
+  // Land and non-depreciable intangibles get 0. Custom extra capex lines default to 0.
   const categoryDefs: { name: string; depreciationRate: number; getPerUnit: (p: PropertyConfig) => number }[] = [
     { name: 'Land acquisition',             depreciationRate: 0,    getPerUnit: (p: PropertyConfig) => p.landCost },
-    { name: 'Building & excavation',        depreciationRate: 0.04, getPerUnit: (p: PropertyConfig) => areaOf(p) * p.constructionCostPerM2 },
+    { name: 'Building & excavation',        depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => areaOf(p) * p.constructionCostPerM2 },
     { name: 'Landscaping / stone fence',    depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.landscapingCost ?? 0 },
     {
       name: 'Pools / wellness',
-      depreciationRate: 0.04, // structure, conservative
+      depreciationRate: 0.05, // 20-year life — same as building
       getPerUnit: (p: PropertyConfig) => {
         if (p.wellnessFlatCost != null) return p.wellnessFlatCost;
         if (p.poolSlots && p.poolSlots.length > 0) {
@@ -240,17 +242,16 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
           ? p.licensesPermitsCost
           : (p.legalFees ?? 0) + (p.architectFees ?? 0) + (p.civilEngineerFees ?? 0),
     },
-    { name: 'Construction director',        depreciationRate: 0.04, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
-    { name: 'Interior designer',            depreciationRate: 0.04, getPerUnit: (p: PropertyConfig) => p.interiorDesignerCost ?? 0 },
+    { name: 'Construction director',        depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
     {
       name: 'Contingency (10% of building + FF&E)',
-      depreciationRate: 0.04, // building rate, conservative
+      depreciationRate: 0.05, // same rate as building (20-year life)
       getPerUnit: (p: PropertyConfig) =>
         (areaOf(p) * p.constructionCostPerM2 + p.ffeCost) * p.contingencyRate,
     },
     {
       name: 'Acquisition legal & DD',
-      depreciationRate: 0,
+      depreciationRate: 0, // non-depreciable transaction cost
       getPerUnit: (p: PropertyConfig) =>
         p.acquisitionLegalRate != null
           ? p.landCost * p.acquisitionLegalRate
@@ -258,7 +259,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     },
     {
       name: 'Developer management fee (construction, 2 yrs)',
-      depreciationRate: 0, // already in preOpeningAmort
+      depreciationRate: 0, // non-depreciable service cost
       getPerUnit: () => totalPlots > 0 ? devMgmtFee / totalPlots : 0,
     },
   ];
@@ -271,7 +272,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
       const key = `${p.id}::${line.id}`;
       categoryDefs.push({
         name: key,
-        depreciationRate: 0, // conservative — unknown nature for custom lines
+        depreciationRate: 0, // custom lines: no depreciation rate assigned
         getPerUnit: (prop: PropertyConfig) => (prop.id === p.id ? line.cost || 0 : 0),
       });
     }
@@ -286,14 +287,13 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
     return { name: cat.name, depreciationRate: cat.depreciationRate, perProperty, grandTotal };
   });
 
-  // Annual straight-line depreciation total (Greek Law 4172/2013 Art. 24).
-  // Starts at asset commissioning (OPENING_YEAR = 2028), not at first full ops.
+  // Annual straight-line depreciation total (Art. 24, Law 4172/2013).
+  // Starts at OPENING_YEAR (asset commissioning). Land and non-depreciable
+  // items have depreciationRate = 0 and contribute nothing.
   const annualDepreciationTotal = categories.reduce(
     (sum, cat) => sum + cat.grandTotal * cat.depreciationRate,
-    0
+    0,
   );
-
-  // Per-category depreciation breakdown for audit / UI display.
   const depreciationByCategory: Record<string, number> = {};
   for (const cat of categories) {
     depreciationByCategory[cat.name] = cat.grandTotal * cat.depreciationRate;
@@ -351,10 +351,13 @@ interface DebtServiceResult {
   // The cap value applied (constant; surfaced for UI tooltips). Only set on
   // the tepix-loan path.
   tepixLoanCap?: number;
-  // Sum of interest payable during the grace period for THIS path.
-  // Injected at close as a ring-fenced reserve; not structural equity.
+  // ── Grace-period interest reserve ──
+  // Sum of getDS() for each grace year. Ring-fenced equity injected at
+  // financial close to pre-fund all pre-operational interest — NOT structural
+  // equity (equityRequired stays CapEx × (1−LTV)). Used as IRR denominator
+  // add-on only. 0 when gracePeriodYears === 0.
   graceInterestCarry: number;
-  // Calendar year marking the end of the grace period for this path.
+  // Calendar year in which the grace period ends (HORIZON_START_YEAR + gracePeriodYears).
   graceEndYear: number;
 }
 
@@ -378,7 +381,6 @@ function computeDebtService(
       a.commercialLoan.repaymentTermYears,
       loanAmount
     );
-
     const commGracePeriodYears = a.commercialLoan.gracePeriodYears ?? 2;
     const commGraceEndYear = HORIZON_START_YEAR + commGracePeriodYears;
     const commGetDS = (year: number) => {
@@ -388,12 +390,12 @@ function computeDebtService(
       if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
       return 0;
     };
-    const commGraceInterestCarry = commGracePeriodYears === 0
-      ? 0
-      : commGetDS(HORIZON_START_YEAR) +
-        commGetDS(HORIZON_START_YEAR + 1) +
-        commGetDS(commGraceEndYear);
-
+    const commGraceInterestCarry =
+      commGracePeriodYears === 0
+        ? 0
+        : commGetDS(HORIZON_START_YEAR) +
+          commGetDS(HORIZON_START_YEAR + 1) +
+          commGetDS(commGraceEndYear);
     return {
       annualDS,
       loanAmount,
@@ -432,8 +434,8 @@ function computeDebtService(
       a.commercialLoan.repaymentTermYears,
       remainingLoan
     );
-
-    const grantGracePeriodYears = a.grant.gracePeriodYears ?? a.commercialLoan.gracePeriodYears ?? 2;
+    const grantGracePeriodYears =
+      a.grant.gracePeriodYears ?? a.commercialLoan.gracePeriodYears ?? 2;
     const grantGraceEndYear = HORIZON_START_YEAR + grantGracePeriodYears;
     const grantGetDS = (year: number) => {
       if (year === HORIZON_START_YEAR) return a.grant.interest2026 ?? 50625;
@@ -442,12 +444,12 @@ function computeDebtService(
       if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
       return 0;
     };
-    const grantGraceInterestCarry = grantGracePeriodYears === 0
-      ? 0
-      : grantGetDS(HORIZON_START_YEAR) +
-        grantGetDS(HORIZON_START_YEAR + 1) +
-        grantGetDS(grantGraceEndYear);
-
+    const grantGraceInterestCarry =
+      grantGracePeriodYears === 0
+        ? 0
+        : grantGetDS(HORIZON_START_YEAR) +
+          grantGetDS(HORIZON_START_YEAR + 1) +
+          grantGetDS(grantGraceEndYear);
     return {
       annualDS,
       loanAmount: remainingLoan,
@@ -492,12 +494,12 @@ function computeDebtService(
       if (year >= FIRST_OPERATIONAL_YEAR) return computedDS || annualDS;
       return 0;
     };
-    const rrfGraceInterestCarry = rrfGracePeriodYears === 0
-      ? 0
-      : rrfGetDS(HORIZON_START_YEAR) +
-        rrfGetDS(HORIZON_START_YEAR + 1) +
-        rrfGetDS(rrfGraceEndYear);
-
+    const rrfGraceInterestCarry =
+      rrfGracePeriodYears === 0
+        ? 0
+        : rrfGetDS(HORIZON_START_YEAR) +
+          rrfGetDS(HORIZON_START_YEAR + 1) +
+          rrfGetDS(rrfGraceEndYear);
     return {
       annualDS: computedDS || annualDS,
       loanAmount: totalLoan,
@@ -604,12 +606,12 @@ function computeDebtService(
       if (year > tepixGraceEndYear) return combinedDS;
       return 0;
     };
-    const tepixGraceInterestCarry = tepixGracePeriodYears === 0
-      ? 0
-      : tepixGetDS(HORIZON_START_YEAR) +
-        tepixGetDS(HORIZON_START_YEAR + 1) +
-        tepixGetDS(tepixGraceEndYear);
-
+    const tepixGraceInterestCarry =
+      tepixGracePeriodYears === 0
+        ? 0
+        : tepixGetDS(HORIZON_START_YEAR) +
+          tepixGetDS(HORIZON_START_YEAR + 1) +
+          tepixGetDS(tepixGraceEndYear);
     return {
       annualDS: combinedDS,
       loanAmount: totalLoanDrawn,
@@ -762,7 +764,8 @@ function computeScenario(
   a: ModelAssumptions,
   rev: RevenueAssumptions,
   debtResult: DebtServiceResult,
-  downside?: { occupancyFactor: number; adrFactor: number; events: number }
+  downside?: { occupancyFactor: number; adrFactor: number; events: number },
+  capex?: CapexBreakdown
 ): ScenarioOutput {
   const years = Array.from({ length: HORIZON_END_YEAR - HORIZON_START_YEAR + 1 }, (_, i) => HORIZON_START_YEAR + i);
 
@@ -774,7 +777,7 @@ function computeScenario(
   const opCo = a.opCoFee;
   const opCoEnabled = !!opCo?.enabled;
 
-  const graceEndYear = debtResult.graceEndYear;
+  const graceEndYear = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
   const preAmortSchedule = buildAmortSchedule(
     debtResult.loanAmount,
     debtResult.effectiveInterestRate,
@@ -785,9 +788,10 @@ function computeScenario(
     graceEndYear
   );
 
-  // annualDepreciation: straight-line deduction for CIT per Art. 24 Law 4172/2013.
-  // Starts at OPENING_YEAR (2028, asset commissioning). Zero in construction years.
-  const annualDepreciation = capex.annualDepreciationTotal;
+  // Annual straight-line depreciation deductible for CIT (Art. 24, Law 4172/2013).
+  // Available as a closure variable inside computePnLYear.
+  // Falls back to zero when capex is not provided (e.g. isolated unit tests).
+  const annualDepreciation = capex?.annualDepreciationTotal ?? 0;
 
   const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
     'cumulativeNCF' | 'cumulativeYieldOnInitialEquity' |
@@ -1003,6 +1007,7 @@ function computeScenario(
     const termLoanInterestForTax = amortYear?.interest ?? 0;
     const vat = year <= HORIZON_START_YEAR + 1 ? 0 : -(grossRevenue * a.tax.netVATRate);
     // Depreciation deductible from CIT base from OPENING_YEAR onward (asset commissioning).
+    // Greek Law 4172/2013 Art. 24 — straight-line. Before commissioning: zero.
     const yearAnnualDepreciation = year >= OPENING_YEAR ? annualDepreciation : 0;
 
     // ── Unified waterfall (both views) ────────────────────────────────────
@@ -1019,6 +1024,8 @@ function computeScenario(
     // CIT: OpCo fees to a related entity are deductible at the PropCo level
     // under Greek CIT. Senior floor is implicit in ebitdaPreOpCo; only the
     // junior tranche is subtracted from the taxable base here.
+    // Depreciation (Art. 24) is deducted from the CIT base but does NOT
+    // reduce EBITDA or NCF — it is a non-cash deduction (tax shield only).
     //
     // Junior shortfall is forfeit for the year (no accrual / carryover).
 
@@ -1031,7 +1038,7 @@ function computeScenario(
       ? ebitdaPreOpCo / (ds + wcInterestExpense) : 0;
     const taxableProfit    = Math.max(
       0,
-      ebitdaPreOpCo - opCoJuniorPaid - wcInterestExpense - termLoanInterestForTax,
+      ebitdaPreOpCo - yearAnnualDepreciation - opCoJuniorPaid - wcInterestExpense - termLoanInterestForTax,
     );
 
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
@@ -1066,6 +1073,7 @@ function computeScenario(
       totalOpex,
       portfolioOpex: portfolioOpexResult,
       ebitdaPreOpCo,
+      annualDepreciation: yearAnnualDepreciation,
       opCoBaseFee,
       opCoBrandFee,
       opCoIncentiveFee,
@@ -1157,6 +1165,10 @@ function computeScenario(
   // reducing CIT payable and improving post-tax NCF. The pool tracks vintages
   // so expired balances are written off conservatively.
   //
+  // Operational-year losses: depreciation (Art. 24) may cause EBITDA − interest
+  // to go negative in early operational years. Those losses are also pushed into
+  // the vintage pool (no cash refund from the state — floor CIT at zero).
+  //
   // Kill-switch: if corporateLossCarryForwardYears <= 0, skip entirely and
   // set the three diagnostic fields to 0 on every row.
 
@@ -1174,7 +1186,7 @@ function computeScenario(
     // Vintage pool: each entry tracks a loss that arose in a specific year.
     // Article 27 cap: vintage expires after carryForwardYears years.
     type Vintage = { year: number; remaining: number };
-    const vintages: Vintage[] = [];
+    let vintages: Vintage[] = [];
 
     // Pre-opening years are those before OPENING_YEAR (construction phase).
     // OPENING_YEAR = 2028 per PROJECT_CONSTANTS.
@@ -1201,43 +1213,60 @@ function computeScenario(
         row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
       } else {
         // C. Operational years: absorb pool against taxable profit, recalculate CIT.
-        //    Mirror the taxable-profit formula from computePnLYear.
-        const rawTaxable = Math.max(
-          0,
-          row.ebitdaPreOpCo - row.opCoJuniorPaid - row.wcInterestExpense - row.termLoanInterest,
-        );
+        //    rawTaxableBeforePool can be negative if depreciation + interest > EBITDA.
+        //    Greek CIT: no cash refund for operational losses. Floor CIT at zero.
+        //    Push operational-year losses into the vintage pool.
+        const rawTaxableBeforePool =
+          (row.ebitdaPreOpCo ?? 0)
+          - (row.annualDepreciation ?? 0)
+          - (row.opCoJuniorPaid ?? 0)
+          - (row.wcInterestExpense ?? 0)
+          - (row.termLoanInterest ?? 0);
 
-        // Absorb vintages oldest-first.
-        let totalUtilised = 0;
-        let headroom = rawTaxable;
-        for (const vintage of vintages.slice().sort((a, b) => a.year - b.year)) {
-          if (headroom <= 0) break;
-          const absorb = Math.min(vintage.remaining, headroom);
-          // Find and mutate the actual vintage object in the array.
-          const idx = vintages.findIndex((v) => v.year === vintage.year);
-          if (idx >= 0) vintages[idx].remaining -= absorb;
-          totalUtilised += absorb;
-          headroom -= absorb;
+        if (rawTaxableBeforePool < 0) {
+          // Depreciation + interest exceeds EBITDA — operational loss this year.
+          // No cash refund from the state. Push loss to carryforward pool.
+          if (carryForwardYears > 0) {
+            vintages.push({ year: row.year, remaining: -rawTaxableBeforePool });
+          }
+          row.taxLossGenerated = -rawTaxableBeforePool;
+          row.taxLossUtilised = 0;
+          row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
+          const newCIT = 0;
+          row.citPayable = newCIT;
+          row.annualDepreciation = row.annualDepreciation ?? 0; // already set, keep it
+          row.cfads = (row.ebitdaPreOpCo ?? 0) - (row.wcInterestExpense ?? 0) + newCIT;
+          row.profitAfterTax = (row.netCashFlow ?? 0) + newCIT;
+          row.netCashFlowPostVAT = (row.netCashFlow ?? 0) + (row.vatPayable ?? 0) + newCIT;
+        } else {
+          // rawTaxableBeforePool >= 0: drain pool (FIFO).
+          let headroom = rawTaxableBeforePool;
+          let totalUtilised = 0;
+          for (const vintage of vintages) {
+            if (vintage.year + carryForwardYears < row.year) continue; // expired
+            const absorb = Math.min(vintage.remaining, headroom);
+            vintage.remaining -= absorb;
+            totalUtilised += absorb;
+            headroom -= absorb;
+            if (headroom <= 0) break;
+          }
+          // Remove exhausted and expired vintages.
+          vintages = vintages.filter(
+            (v) => v.remaining > 0 && v.year + carryForwardYears >= row.year
+          );
+
+          const adjustedTaxable = rawTaxableBeforePool - totalUtilised;
+          const newCIT = -(adjustedTaxable * corporateIncomeTaxRate);
+
+          row.taxLossGenerated = 0;
+          row.taxLossUtilised = totalUtilised;
+          row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
+          row.citPayable = newCIT;
+          row.cfads = (row.ebitdaPreOpCo ?? 0) - (row.wcInterestExpense ?? 0) + newCIT;
+          row.profitAfterTax = (row.netCashFlow ?? 0) + newCIT;
+          row.netCashFlowPostVAT = (row.netCashFlow ?? 0) + (row.vatPayable ?? 0) + newCIT;
         }
-        // Remove exhausted vintages.
-        for (let i = vintages.length - 1; i >= 0; i--) {
-          if (vintages[i].remaining <= 0) vintages.splice(i, 1);
-        }
 
-        const adjustedTaxable = rawTaxable - totalUtilised;
-        const newCIT = -(adjustedTaxable * corporateIncomeTaxRate);
-
-        // Mutate the row in-place.
-        row.taxLossGenerated = 0;
-        row.taxLossUtilised = totalUtilised;
-        row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
-        row.citPayable = newCIT;
-        // CFADS = ebitdaPreOpCo − wcInterestExpense + CIT (CIT is negative outflow).
-        row.cfads = row.ebitdaPreOpCo - row.wcInterestExpense + newCIT;
-        // profitAfterTax = pre-tax NCF + CIT.
-        row.profitAfterTax = row.netCashFlow + newCIT;
-        // netCashFlowPostVAT = ncf + vatPayable + CIT.
-        row.netCashFlowPostVAT = row.netCashFlow + (row.vatPayable ?? 0) + newCIT;
         // yieldOnInitialEquity recalculated with updated netCashFlowPostVAT.
         row.yieldOnInitialEquity =
           debtResult.equityRequired > 0 && row.year >= OPENING_YEAR
@@ -1246,9 +1275,8 @@ function computeScenario(
       }
     }
 
-    // 3b. Reset cumulativeNCF and cumulativeYieldOnInitialEquity after all
-    //     in-place mutations are complete. This sweep MUST finish before the
-    //     equityPaybackYears find() call in Pass 3.
+    // Reset cumulativeNCF and cumulativeYieldOnInitialEquity after all
+    // in-place mutations are complete.
     {
       let cumNCF = 0;
       let cumYield = 0;
@@ -1260,7 +1288,7 @@ function computeScenario(
       }
     }
 
-    // Also reset the distributionGated gate with the updated netCashFlowPostVAT.
+    // Reset the distributionGated gate with the updated netCashFlowPostVAT.
     {
       let thresholdCrossed = false;
       for (const row of pnl) {
@@ -1422,16 +1450,14 @@ function computeScenario(
   const exitIndex = pnl.findIndex((p) => p.year === exitYear);
   const truncatedPnL = exitIndex >= 0 ? pnl.slice(0, exitIndex + 1) : pnl;
 
-  // Equity IRR: -(equityRequired + graceInterestCarry) at t=0.
-  // During grace years, debtService was pre-funded from the reserve injected
-  // at close — add it back to NCF so the IRR series does not double-count.
+  // Equity IRR: -(equityRequired + graceInterestCarry) at t=0 (total equity
+  // at financial close), NCF post-tax stream with grace-year interest added
+  // back (it was pre-funded from the reserve — don't double-count it).
   const totalEquityAtClose = debtResult.equityRequired + debtResult.graceInterestCarry;
   const equityCFs: number[] = [-totalEquityAtClose];
   truncatedPnL.forEach((p, i) => {
     const year = HORIZON_START_YEAR + i;
     const isGraceYear = year <= debtResult.graceEndYear;
-    // During the grace period, interest is pre-funded from the reserve.
-    // Add back debtService so the IRR series doesn't double-count it.
     const ncfForIRR = isGraceYear
       ? p.netCashFlowPostVAT + p.debtService
       : p.netCashFlowPostVAT;
@@ -1444,9 +1470,10 @@ function computeScenario(
   const equityIRRRaw = irr(equityCFs);
   const equityIRR = isFinite(equityIRRRaw) ? equityIRRRaw : 0;
 
-  // Total MOIC including exit lump sum. Denominator is totalEquityAtClose
-  // (structural equity + grace-period interest reserve) so it is consistent
-  // with the IRR series denominator.
+  // Total MOIC including exit lump sum. Distinct from cumulativeYieldFinal,
+  // which only sums operating distributions (= the "Operating Yield" widget).
+  // Numerator includes terminalEquityValue at exit; denominator is total
+  // equity at close (structural + grace reserve). Returns 0 if equity is 0.
   const operatingDistributions = truncatedPnL.reduce(
     (sum, p) => sum + p.netCashFlowPostVAT,
     0,
@@ -1469,13 +1496,11 @@ function computeScenario(
     0,
     terminalAssetValuePreOpCo - remainingDebt
   );
-  // Pre-split IRR also uses totalEquityAtClose as denominator for consistency.
   const equityCFsPreOpCo: number[] = [-totalEquityAtClose];
   truncatedPnL.forEach((p, i) => {
     const year = HORIZON_START_YEAR + i;
     const isGraceYear = year <= debtResult.graceEndYear;
     const addBack = p.opCoTotalFeeRaw ?? p.opCoTotalFee;
-    // Same grace-period add-back as main IRR series.
     const ncfBase = isGraceYear ? p.netCashFlowPostVAT + p.debtService : p.netCashFlowPostVAT;
     const cf =
       i === truncatedPnL.length - 1
@@ -1513,13 +1538,15 @@ function computeScenario(
     terminalAssetValuePropertySale - remainingDebt,
   );
 
-  // Equity IRR under the property-sale exit. Same grace-period add-back logic;
-  // only the terminal value differs.
+  // Equity IRR under the property-sale exit. Same grace-year add-back
+  // as the EBITDA-multiple path; only the terminal value differs.
   const equityCFsPropertySale: number[] = [-totalEquityAtClose];
   truncatedPnL.forEach((p, i) => {
     const year = HORIZON_START_YEAR + i;
     const isGraceYear = year <= debtResult.graceEndYear;
-    const ncfForIRR = isGraceYear ? p.netCashFlowPostVAT + p.debtService : p.netCashFlowPostVAT;
+    const ncfForIRR = isGraceYear
+      ? p.netCashFlowPostVAT + p.debtService
+      : p.netCashFlowPostVAT;
     const cf =
       i === truncatedPnL.length - 1
         ? ncfForIRR + terminalEquityValuePropertySale
@@ -1545,8 +1572,8 @@ function computeScenario(
     ? projectIRRPropertySaleRaw
     : 0;
 
-  // Total MOIC under the property-sale exit. Uses totalEquityAtClose for
-  // consistency with the main MOIC and IRR series.
+  // Total MOIC under the property-sale exit. Mirrors `totalMOIC` above with
+  // the property-sale terminal equity substituted in, using totalEquityAtClose.
   const totalMOICPropertySale =
     totalEquityAtClose > 0
       ? (operatingDistributions + terminalEquityValuePropertySale) /
@@ -1664,9 +1691,11 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     'Realistic',
     a,
     a.revenueRealistic,
-    activeDebt
+    activeDebt,
+    undefined,
+    capex
   );
-  const upside = computeScenario('Upside', a, a.revenueUpside, activeDebt);
+  const upside = computeScenario('Upside', a, a.revenueUpside, activeDebt, undefined, capex);
   const downside = computeScenario(
     'Downside',
     a,
@@ -1676,7 +1705,8 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       occupancyFactor: DOWNSIDE_FACTORS.occupancyReduction,
       adrFactor: DOWNSIDE_FACTORS.adrReduction,
       events: DOWNSIDE_FACTORS.eventsPerYear,
-    }
+    },
+    capex
   );
 
   // Break-even scenario
@@ -1713,14 +1743,17 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       events: Math.round(
         a.revenueRealistic.eventsPerYear * breakevenFactor
       ),
-    }
+    },
+    capex
   );
 
   const grantScenario = computeScenario(
     'Grant Path',
     a,
     a.revenueRealistic,
-    grantDebt
+    grantDebt,
+    undefined,
+    capex
   );
 
   // DSCR by year
@@ -1728,19 +1761,25 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     'comm',
     a,
     a.revenueRealistic,
-    commercialDebt
+    commercialDebt,
+    undefined,
+    capex
   );
   const rrfRealistic = computeScenario(
     'rrf',
     a,
     a.revenueRealistic,
-    rrfDebt
+    rrfDebt,
+    undefined,
+    capex
   );
   const commercialUpside = computeScenario(
     'commUp',
     a,
     a.revenueUpside,
-    commercialDebt
+    commercialDebt,
+    undefined,
+    capex
   );
   const commercialDownside = computeScenario(
     'commDn',
@@ -1751,14 +1790,17 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
       occupancyFactor: DOWNSIDE_FACTORS.occupancyReduction,
       adrFactor: DOWNSIDE_FACTORS.adrReduction,
       events: DOWNSIDE_FACTORS.eventsPerYear,
-    }
+    },
+    capex
   );
 
   const tepixLoanRealistic = computeScenario(
     'tepixLoan',
     a,
     a.revenueRealistic,
-    tepixLoanDebt
+    tepixLoanDebt,
+    undefined,
+    capex
   );
 
   const dscrByYear = realistic.pnl.map((p, i) => ({
@@ -1940,7 +1982,11 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     tepixCapBindingBy: activeDebt.tepixCapBindingBy ?? 0,
     tepixLoanCap: activeDebt.tepixLoanCap ?? 0,
     grantAmount: activeDebt.grantAmount,
+    // Ring-fenced interest reserve injected at close to pre-fund all
+    // grace-period interest. NOT structural equity (equityRequired stays
+    // CapEx × (1−LTV)). Used as IRR denominator add-on only.
     graceInterestCarry: activeDebt.graceInterestCarry,
+    // Number of years the reserve is held (graceEndYear − HORIZON_START_YEAR + 1).
     graceInterestHoldYears: activeDebt.graceEndYear - HORIZON_START_YEAR + 1,
   };
 

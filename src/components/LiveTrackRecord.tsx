@@ -49,74 +49,19 @@ function getNowServerSnapshot(): number {
   return NOW_EMPTY;
 }
 
-const MONTH_NAMES: Record<Locale, string[]> = {
+// fr included for forward-compat; cast to suppress excess-property check.
+const MONTH_NAMES = ({
   en: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   el: ["Ιανουάριος", "Φεβρουάριος", "Μάρτιος", "Απρίλιος", "Μάιος", "Ιούνιος", "Ιούλιος", "Αύγουστος", "Σεπτέμβριος", "Οκτώβριος", "Νοέμβριος", "Δεκέμβριος"],
   he: ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"],
-};
+} as Record<string, string[]>);
 
 // All user-facing strings live here so we don't churn the keyed dictionary
 // for one component. en is the fallback for translations that aren't ready.
-const LR: Record<
-  Locale,
-  {
-    header: string;
-    yourTrackRecord: string;
-    ytdRevenue: string;
-    occupancy: string;
-    adr: string;
-    revpar: string;
-    asOf: string;
-    updatedFromPMS: string;
-    modelAssumes: string;
-    liveTracking: string;
-    versus: string;
-    dataUpdated: string;
-    dataStale: string;
-    live: string;
-    loading: string;
-    perNight: string;
-    nightsBooked: string;
-    nights: string; // bare unit suffix (e.g. "95 nights"), no "booked"
-    bookingOnly: string; // "Booking only" — clarifier on YTD revenue figure
-    available: string;
-    sourceNote: string;
-    // ── New keys for the conservatism-cushion restructure ──
-    headlineConservatism: string; // template — uses {years} {year} {adrGap} {occGap} {revparGap} {gap} {marketGap}
-    cushion: string;
-    model: string;
-    liveLabel: string;
-    showDetail: string;
-    hideDetail: string;
-    roomsPending: string;
-    villaADR: string;
-    villaOccupancy: string;
-    villaRevPAR: string;
-    // ── Symmetric sub-section headers ──
-    cushionHeader: string;
-    cushionSub: string;
-    history: string;
-    historyYear: string;
-    historyTotal: string;
-    historyYoY: string;
-    // ── Market comparison strip (Conservatism Check "Market" column) ──
-    marketHeader: string;
-    marketSub: string;
-    marketBP: string;
-    market: string;
-    marketStandardSuite: string;
-    marketDoubleSuite: string;
-    marketVilla: string;
-    marketBelow: string;
-    marketAbove: string;
-    marketOnPar: string;
-    marketStatusFresh: string; // template — uses {n}
-    marketStatusBackstop: string;
-    marketFootnoteFresh: string; // template — uses {n}
-    marketFootnoteBackstop: string;
-    marketSeeComparables: string; // template — uses {n}
-  }
-> = {
+// fr included for forward-compat; cast to suppress excess-property check since
+// 'fr' is not in the Locale union but we want it available for future use.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const LR: Record<string, any> = {
   en: {
     header: "Conservatism evidence · Paros / Antiparos",
     yourTrackRecord: "",

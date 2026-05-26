@@ -18,30 +18,34 @@ const I18nContext = createContext<I18nContextValue>({
   t: (key) => key as string,
 });
 
+function applyLocale(locale: Locale) {
+  document.documentElement.lang = locale;
+  document.documentElement.dir = LOCALE_CONFIG[locale].dir;
+  // Keep URL param in sync so the current URL is always shareable.
+  const url = new URL(window.location.href);
+  url.searchParams.set('lang', locale);
+  window.history.replaceState(null, '', url.toString());
+}
+
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
 
   useEffect(() => {
-    const param = new URLSearchParams(window.location.search).get('lang') as Locale | null;
+    // URL param takes precedence over localStorage so shared links land in the right language.
+    const urlParam = new URLSearchParams(window.location.search).get('lang') as Locale | null;
     const saved = localStorage.getItem('villa-lev-locale') as Locale | null;
-    const initial = (param && dictionaries[param]) ? param : (saved && dictionaries[saved]) ? saved : 'en';
-    setLocaleState(initial);
-    localStorage.setItem('villa-lev-locale', initial);
-    document.documentElement.lang = initial;
-    document.documentElement.dir = LOCALE_CONFIG[initial].dir;
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', initial);
-    history.replaceState(null, '', url.toString());
+    const resolved: Locale = (urlParam && dictionaries[urlParam]) ? urlParam
+      : (saved && dictionaries[saved]) ? saved
+      : 'en';
+    setLocaleState(resolved);
+    localStorage.setItem('villa-lev-locale', resolved);
+    applyLocale(resolved);
   }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     localStorage.setItem('villa-lev-locale', newLocale);
-    document.documentElement.lang = newLocale;
-    document.documentElement.dir = LOCALE_CONFIG[newLocale].dir;
-    const url = new URL(window.location.href);
-    url.searchParams.set('lang', newLocale);
-    history.replaceState(null, '', url.toString());
+    applyLocale(newLocale);
   }, []);
 
   const t = useCallback(

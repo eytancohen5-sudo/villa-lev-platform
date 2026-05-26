@@ -561,7 +561,7 @@ export const BASE_CASE: ModelAssumptions = {
     interestRate: 0.04,
     gracePeriodYears: 2,
     repaymentTermYears: 13,
-    workingCapitalFacility: 400000,
+    workingCapitalFacility: 470000,
     // Phased grace-period interest scaled from prior 5% × 75% LTC calibration
     // by 0.853 = (4/5) × (4,939,200 / 4,630,500) — preserves drawdown shape.
     interest2026: 43200,
@@ -683,7 +683,7 @@ export const BASE_CASE: ModelAssumptions = {
 
   workingCapital: {
     active: true,
-    facilitySize: 400000,
+    facilitySize: 470000,
     spreadOverTermRate: 0.01,
     preOpeningTotalDraw: 200000,
     seasonalDrawPerCycle: 150000,

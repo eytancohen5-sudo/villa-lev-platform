@@ -138,6 +138,8 @@ export default function PnLPage() {
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
     { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
     { label: t('term.ebitdaMargin'), getValue: (p) => p.ebitdaMargin, format: "percent" },
+    { label: t('pnl.depreciation'), getValue: (p) => -(p.annualDepreciation ?? 0), format: "currency", color: "negative", indent: true, detail: true },
+    { label: t('pnl.ebit'), getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0), format: "currency", bold: true, detail: true },
   );
 
   // ── Debt service ──────────────────────────────────────────────────────────

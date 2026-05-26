@@ -135,7 +135,7 @@ const MOCK_ASSUMPTIONS = {
     interestRate: 0.044,
     gracePeriodYears: 3,
     repaymentTermYears: 12,
-    workingCapitalFacility: 400_000,
+    workingCapitalFacility: 470_000,
     interest2026: 0,
     interest2027: 0,
     interest2028: 0,

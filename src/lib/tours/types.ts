@@ -1,6 +1,9 @@
 import type { Locale } from "@/lib/i18n/types";
 
-export type LocalizedString = Record<Locale, string>;
+// Required for the three shipped locales; additional locale keys (e.g. 'fr')
+// are allowed so tour configs can be prepared for future locales without
+// triggering a type error.
+export type LocalizedString = Record<Locale, string> & Partial<Record<string, string>>;
 
 export interface TourStep {
   // CSS selector. Omit on the welcome step (no spotlight, centered card).

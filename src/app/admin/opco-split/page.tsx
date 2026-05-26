@@ -31,7 +31,8 @@ import {
 
 // ── Inline translation object ─────────────────────────────────────────
 // Used by subcomponents that don't have access to the useTranslation hook.
-const T: Record<Locale, Record<string, string>> = {
+// fr falls back to en — this page has not been localised to French yet.
+const _T = ({
   en: {
     pageTitle: 'OpCo / PropCo Split',
     pageSubtitleTemplate: '{scenario} · Compare an owner-only structure to one where a separate management company (OpCo) operates the assets and the asset owner (PropCo) holds the real estate.',
@@ -439,7 +440,11 @@ const T: Record<Locale, Record<string, string>> = {
     csGrantInactive: 'לא פעיל במסלול הנוכחי',
     csTotalCapex: 'סה״כ CapEx',
   },
-};
+});
+// fr falls back to en. Using unknown intermediate because the object
+// is only defined for three locales at declaration time.
+const T: Record<Locale, Record<string, string>> =
+  { ..._T, fr: _T.en } as unknown as Record<Locale, Record<string, string>>;
 
 function StatusChip({ label, ok }: { label: string; ok: boolean }) {
   return (

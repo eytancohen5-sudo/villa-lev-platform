@@ -101,6 +101,8 @@ export interface TranslationDictionary {
   'kpi.debtServiceCoverage': string;
   'kpi.loanAmount': string;
   'kpi.equityRequired': string;
+  'kpi.graceInterestCarry': string;
+  'kpi.graceInterestCarrySub': string;
   'kpi.annualDS': string;
   'kpi.annualDSSub': string;
   'kpi.netCashFlow': string;
@@ -226,9 +228,6 @@ export interface TranslationDictionary {
   'kpi.roicSub': string;
   'kpi.gracePeriodInterest': string;
   'kpi.gracePeriodInterestSub': string;
-  'kpi.graceInterestCarry': string;
-  'kpi.graceInterestCarrySub': string;
-  'kpi.graceInterestHoldYears': string;
   'kpi.netLeverage': string;
   'kpi.netLeverageSub': string;
   'kpi.peakDebt': string;
@@ -536,7 +535,6 @@ export interface TranslationDictionary {
   'field.landscapingCost': string;
   'field.licensesPermits': string;
   'field.constructionDirector': string;
-  'field.interiorDesignerCost': string;
   'field.poolCostPerM2': string;
   'field.poolSlotQty': string;
   'field.poolSlotWidth': string;
@@ -889,6 +887,7 @@ export interface TranslationDictionary {
   'pitch.close.timeline4Date': string;
   'pitch.close.timeline4Body': string;
   'pitch.close.askLabel': string;
+  'pitch.close.askBody': string;
   'pitch.close.footer': string;
 
   // ── Dashboard term sheet (audit 2026-05-21 fix #4) ──
@@ -1028,12 +1027,24 @@ export interface TranslationDictionary {
   'bank.actions.tour.sub': string;
   'bank.actions.presentation.title': string;
   'bank.actions.presentation.sub': string;
-  'bank.actions.presentation.comingSoon': string;
   'bank.actions.model.title': string;
   'bank.actions.model.sub': string;
   'bank.section.termsheet': string;
+  'bank.termsheet.securityLabel': string;
   'bank.termsheet.securityValue': string;
   'bank.termsheet.securitySub': string;
+  'bank.vatCashflow.title': string;
+  'bank.vatCashflow.sub': string;
+  'bank.vatCashflow.colQuarter': string;
+  'bank.vatCashflow.colVatPaid': string;
+  'bank.vatCashflow.colVatRefund': string;
+  'bank.vatCashflow.colNetFloat': string;
+  'bank.vatCashflow.colCovenant': string;
+  'bank.vatCashflow.covenantOk': string;
+  'bank.vatCashflow.covenantBreach': string;
+  'bank.vatCashflow.withinCovenant': string;
+  'bank.vatCashflow.lagNote': string;
+  'bank.vatCashflow.postRefundNote': string;
   'bank.wc.title': string;
   'bank.wc.revolving': string;
   'bank.wc.bpsSpread': string;
@@ -1049,8 +1060,6 @@ export interface TranslationDictionary {
   'bank.capex.footerEquity': string;
   'bank.capex.footerGrant': string;
   'bank.capex.footerTotal': string;
-  'bank.capex.expandRow': string;
-  'bank.capex.collapseRow': string;
   'bank.capitalStructure.netLeverage': string;
   'bank.capitalStructure.xEbitda': string;
   'bank.capitalStructure.peakDebt': string;
@@ -1611,7 +1620,6 @@ export interface TranslationDictionary {
   'finComp.totalLoanDrawn': string;
   'finComp.grantReceived': string;
   'finComp.equityRequired': string;
-  'finComp.graceInterestCarry': string;
   'finComp.annualDebtService': string;
   'finComp.stabilisedDSCR': string;
   'finComp.supplementaryLoan': string;
@@ -1797,4 +1805,9 @@ export interface TranslationDictionary {
   'term.taxLossGenerated': string;
   'term.taxLossUtilised': string;
   'term.taxLossPoolBalance': string;
+
+  // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
+  'pnl.depreciation': string;
+  'pnl.ebit': string;
+  'term.annualDepreciation': string;
 }

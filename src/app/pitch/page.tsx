@@ -6,9 +6,9 @@ import { useModelStore, type ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
+import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import type { FinancingPath } from "@/lib/engine/types";
 import type { Locale } from "@/lib/i18n/types";
-import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import {
   Bar,
   Line,
@@ -125,8 +125,8 @@ function ControlBar() {
             aria-label={`Active case: ${scenarioBadgeLabel}`}
             title={
               isRealisticBase
-                ? "Base case — the figures across this deck reflect the Conservative scenario."
-                : "Non-base case — figures across this deck reflect a non-Conservative scenario."
+                ? "Base case — the figures across this deck reflect the Realistic scenario."
+                : "Non-base case — figures across this deck reflect a non-Realistic scenario."
             }
           >
             <span
@@ -197,32 +197,14 @@ export default function PitchPage() {
   // the 2026 bar to avoid showing a stale projection as a confirmed datapoint.
   const { historicalYears, loading: snapshotLoading } = useSeasonSnapshot();
 
+  // BP per-villa assumptions in scope for the ConservatismTriangle on the
+  // Market Tailwind slide. Render is gated on `model` being ready so this is
+  // safe to read unconditionally here.
+  const rev = assumptions.revenueRealistic;
+
   // Pre-compute derived data (all hooks must run before any early return)
   const km = model?.keyMetrics;
   const scenario = model?.scenarios[activeScenario] ?? model?.scenarios.realistic;
-
-  // ── Live-model derivations (computed pre-guard so hooks never conditionally run) ──
-  const capexProps = model?.capex.properties ?? [];
-  const prop = (id: string, i: number) =>
-    capexProps.find(p => p.id === id) ?? capexProps[i];
-  const twinCapexPerUnit = prop('prop-a', 0)?.perUnit ?? 0;
-  const suitesCapex = prop('prop-b', 1)?.total ?? 0;
-
-  const phase1Amount = PROJECT_CONSTANTS.PHASE1_LAND_PERMITS;
-  const phase2Amount = (km?.totalCapex ?? 0) - phase1Amount;
-  const phase1Pct = km?.totalCapex
-    ? Math.round((phase1Amount / km.totalCapex) * 100)
-    : 22; // fallback to pre-wiring value until model loads
-  const phase2Pct = 100 - phase1Pct;
-
-  const activePath = assumptions?.financingPath ?? 'commercial';
-  const isTepixPath = activePath === 'tepix-loan';
-  const askInterestRate = isTepixPath
-    ? (assumptions?.tepixLoan?.bankInterestRate ?? 0)
-    : (assumptions?.commercialLoan?.interestRate ?? 0);
-  const askTermYears = isTepixPath
-    ? (assumptions?.tepixLoan?.totalTermYears ?? 0)
-    : (assumptions?.commercialLoan?.repaymentTermYears ?? 0) + PROJECT_CONSTANTS.GRACE_END_YEAR - PROJECT_CONSTANTS.HORIZON_START_YEAR;
   const villaLevHistory = useMemo(() => {
     if (snapshotLoading) return VILLA_LEV_HISTORY_SETTLED;
     const y2026 = historicalYears.find((y) => y.year === 2026);
@@ -256,8 +238,8 @@ export default function PitchPage() {
         .filter((d) => d.year >= 2028)
         .map((d) => ({
           year: d.year,
-          Conservative: Number(d.realistic.toFixed(2)),
-          'Realistic': Number(d.upside.toFixed(2)),
+          Realistic: Number(d.realistic.toFixed(2)),
+          Upside: Number(d.upside.toFixed(2)),
           Downside: Number(d.downside.toFixed(2)),
         })),
     [model]
@@ -480,6 +462,17 @@ export default function PitchPage() {
             </div>
           </div>
 
+          {/* BP-vs-market panel — Conservatism Triangle strip. Replaces the
+              prior 3-tier card grid (ADR 0003, 2026-05-22): Greek-only
+              headline, international comparables in the drawer drill-down,
+              villa intentionally absent (Villa Lev actuals are the truer
+              villa comparable). */}
+          <div className="mt-12 pt-10 border-t border-surface-tertiary">
+            <ConservatismTriangle
+              bpStandardADR={rev.suiteStandardADR}
+              bpPremiumADR={rev.suiteDoubleADR}
+            />
+          </div>
         </Slide>
 
         {/* ────────────────────────────── 4 · THE PROJECT ────────────────────────────── */}
@@ -492,19 +485,19 @@ export default function PitchPage() {
             <PropertyCard
               name={t("pitch.project.twinIName")}
               type={t("pitch.project.twinType")}
-              capex={formatCurrency(twinCapexPerUnit, true, locale)}
+              capex="€2.17M"
               detail={t("pitch.project.twinIDetail")}
             />
             <PropertyCard
               name={t("pitch.project.twinIIName")}
               type={t("pitch.project.twinType")}
-              capex={formatCurrency(twinCapexPerUnit, true, locale)}
+              capex="€2.17M"
               detail={t("pitch.project.twinIIDetail")}
             />
             <PropertyCard
               name={t("pitch.project.suitesName")}
               type={t("pitch.project.suitesType")}
-              capex={formatCurrency(suitesCapex, true, locale)}
+              capex="€1.68M"
               detail={t("pitch.project.suitesDetail")}
               accent
             />
@@ -547,13 +540,13 @@ export default function PitchPage() {
                 <div className="flex items-stretch h-20 rounded-lg overflow-visible relative">
                   <div
                     className="bg-earth-olive text-white flex flex-col items-center justify-center rounded-l-lg"
-                    style={{ width: `${phase1Pct}%` }}
+                    style={{ width: "22%" }}
                   >
                     <div className="text-[10px] uppercase tracking-wider opacity-80">
                       {t("pitch.capital.phase1")}
                     </div>
-                    <div className="font-display text-lg leading-tight">{formatCurrency(phase1Amount, true, locale)}</div>
-                    <div className="text-[10px] opacity-80">{phase1Pct}%</div>
+                    <div className="font-display text-lg leading-tight">€1.35M</div>
+                    <div className="text-[10px] opacity-80">22%</div>
                   </div>
                   <div className="relative flex-shrink-0 w-0 border-l-2 border-dashed border-earth-terracotta">
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] uppercase tracking-widest text-earth-terracotta font-medium whitespace-nowrap">
@@ -564,8 +557,8 @@ export default function PitchPage() {
                     <div className="text-[10px] uppercase tracking-wider opacity-80">
                       {t("pitch.capital.phase2")}
                     </div>
-                    <div className="font-display text-lg leading-tight">{formatCurrency(phase2Amount, true, locale)}</div>
-                    <div className="text-[10px] opacity-80">{phase2Pct}%</div>
+                    <div className="font-display text-lg leading-tight">€4.82M</div>
+                    <div className="text-[10px] opacity-80">78%</div>
                   </div>
                 </div>
                 <div className="flex justify-between text-[10px] text-text-tertiary mt-2 uppercase tracking-wider">
@@ -718,7 +711,7 @@ export default function PitchPage() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="Conservative"
+                  dataKey="Realistic"
                   name={t("pitch.dscr.realisticLegend")}
                   stroke="#8B6914"
                   strokeWidth={activeScenario === "realistic" ? 3 : 1.25}
@@ -727,7 +720,7 @@ export default function PitchPage() {
                 />
                 <Line
                   type="monotone"
-                  dataKey="Realistic"
+                  dataKey="Upside"
                   name={t("pitch.dscr.upsideLegend")}
                   stroke="#6B7A3D"
                   strokeWidth={activeScenario === "upside" ? 3 : 1.25}
@@ -882,7 +875,7 @@ export default function PitchPage() {
               sub={t("pitch.resilience.statBeNightsSub")}
             />
             <Stat
-              value={formatCurrency(scenario?.wcEffectiveFacility ?? assumptions?.workingCapital?.facilitySize ?? 400_000, true, locale)}
+              value={formatCurrency(470000, true, locale)}
               label={t("pitch.resilience.statRevolverLabel")}
               sub={t("pitch.resilience.statRevolverSub")}
             />
@@ -1066,14 +1059,7 @@ export default function PitchPage() {
                 {formatCurrency(km.loanAmount, true, locale)}
               </div>
               <div className="text-sm text-brand-100 leading-relaxed">
-                <span>
-                  {askTermYears}-year term
-                  {' · '}{PROJECT_CONSTANTS.GRACE_END_YEAR - PROJECT_CONSTANTS.HORIZON_START_YEAR}-year grace
-                  {' · '}{(askInterestRate * 100 % 1 === 0
-                    ? (askInterestRate * 100).toFixed(0)
-                    : (askInterestRate * 100).toFixed(1))}%
-                  {' · '}{formatCurrency(scenario?.wcEffectiveFacility ?? assumptions?.workingCapital?.facilitySize ?? 400_000, true, locale)} revolving WC
-                </span>
+                {t("pitch.close.askBody")}
               </div>
             </div>
           </div>

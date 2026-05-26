@@ -133,7 +133,6 @@ export interface PropertyConfig {
   poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
   wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
   acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
-  interiorDesignerCost?: number;   // flat amount
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -192,7 +191,6 @@ export interface PropertyTemplate {
   poolCostPerM2?: number;         // kept per-property for future use; engine uses ModelAssumptions.poolConstructionCostPerM2
   wellnessFlatCost?: number;       // for Property C — flat amount instead of pool slots
   acquisitionLegalRate?: number;   // decimal, e.g. 0.0734. If absent, falls back to legacy acquisitionLegalPerPlot
-  interiorDesignerCost?: number;   // flat amount
   // OPEX parameters
   opex: PropertyOpex;
   // User-defined extra annual OPEX lines (fold into P&L opex)
@@ -366,8 +364,8 @@ export interface TaxAssumptions {
    */
   otaShareByYear?: Record<number, number>;
   /**
-   * Years a CIT loss may be carried forward under Greek law (Article 27, Law 4172/2013).
-   * Defaults to 5. Set to 0 to disable the carryforward pool entirely.
+   * Number of years corporate tax losses can be carried forward.
+   * Greek law default: 5 years (Law 4172/2013 Art. 27).
    */
   corporateLossCarryForwardYears?: number;
 }
@@ -514,6 +512,8 @@ export interface ModelAssumptions {
   // managementFee lines with this floor + the junior overage; internal
   // view ignores it. See cash-waterfall block in `computePnLYear` (model.ts).
   opCoSeniorFloor: number;
+  /** When true, the 2029 senior OpCo fee is deferred to 2030. UI-only toggle. */
+  opCoSeniorDefer2029?: boolean;
   workingCapital: WorkingCapitalParams;
   portfolioOpex?: PortfolioOpex;
   // Multiple applied to EBITDA at the exit year to produce a terminal asset
@@ -575,9 +575,14 @@ export interface CapexBreakdown {
   totalPlots: number;
   categories: {
     name: string;
+    depreciationRate: number;
     perProperty: { id: string; perUnit: number; total: number }[];
     grandTotal: number;
   }[];
+  /** Annual straight-line depreciation (€) deductible for CIT. Law 4172/2013 Art. 24. */
+  annualDepreciationTotal: number;
+  /** Per-category depreciation breakdown for audit. Keys match category names. */
+  depreciationByCategory: Record<string, number>;
 }
 
 export interface PropertyPnLLine {
@@ -612,6 +617,8 @@ export interface AnnualPnL {
   // EBITDA before OpCo management fees — i.e. GOP available to be split
   // between owner and manager. Equals `ebitda` when OpCo fees are disabled.
   ebitdaPreOpCo: number;
+  /** Annual straight-line depreciation deductible for CIT (€). 0 before OPENING_YEAR. Law 4172/2013 Art. 24. */
+  annualDepreciation?: number;
   // OpCo fee breakdown for the year. All zero when OpCo split is disabled.
   opCoBaseFee: number;
   opCoBrandFee: number;
@@ -683,11 +690,11 @@ export interface AnnualPnL {
   partnerRepayment?: number;  // subordinated partner advance repaid this year (≥0)
   /** True when netCashFlowPostVAT has not yet crossed DISTRIBUTION_RESERVE_THRESHOLD in any prior year. ADR-0014. */
   distributionGated?: boolean;
-  /** Pre-opening loss added to the carryforward pool this year (positive number; 0 in operational years). */
+  /** Corporate tax loss generated this year (pre-CIT EBITDA minus DS when negative). Diagnostic field. */
   taxLossGenerated?: number;
-  /** Loss utilised from the pool to reduce taxable profit this year (positive number; 0 in pre-opening years). */
+  /** Amount of carried-forward tax loss utilised against taxable income this year. */
   taxLossUtilised?: number;
-  /** Cumulative unrelieved loss pool balance at end of this year (positive number; 0 when exhausted or expired). */
+  /** Running balance of unused carried-forward tax losses at end of period. */
   taxLossPoolBalance?: number;
 }
 
@@ -836,7 +843,8 @@ export interface ModelOutput {
     grantAmount: number;
     // Ring-fenced interest reserve injected at close to pre-fund all
     // grace-period interest. NOT structural equity (equityRequired stays
-    // as CapEx × (1−LTV)). Used as IRR denominator add-on only.
+    // CapEx × (1−LTV)). Used as IRR denominator add-on only. 0 when
+    // gracePeriodYears === 0.
     graceInterestCarry: number;
     // Number of years the reserve is held (graceEndYear − HORIZON_START_YEAR + 1).
     graceInterestHoldYears: number;

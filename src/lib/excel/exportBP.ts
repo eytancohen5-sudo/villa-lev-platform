@@ -1206,6 +1206,37 @@ export async function exportBusinessPlan(
   pr2 += 2;
   void ebitdaMarginRow;
 
+  // Depreciation (Art. 24, Law 4172/2013) — straight-line, starts OPENING_YEAR.
+  // Non-cash deduction from CIT base only; does not reduce EBITDA or NCF.
+  const depreciationRow = pr2;
+  PnL.getCell(`A${pr2}`).value = 'Depreciation (Art. 24, straight-line)';
+  PnL.getCell(`A${pr2}`).font = FONT.italic;
+  years.forEach((y, i) => {
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = -(py(y)?.annualDepreciation ?? 0);
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.inputFill;
+  });
+  pr2 += 1;
+
+  // EBIT = EBITDA − Depreciation (for CIT reference only).
+  const ebitRow = pr2;
+  PnL.getCell(`A${pr2}`).value = 'EBIT (after depreciation — CIT reference)';
+  PnL.getCell(`A${pr2}`).font = FONT.bold;
+  years.forEach((y, i) => {
+    const e = py(y);
+    const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+    c.value = {
+      formula: `=${col(2 + i)}${ebitdaRow}+${col(2 + i)}${depreciationRow}`,
+      result: (e?.ebitda ?? 0) - (e?.annualDepreciation ?? 0),
+    };
+    c.numFmt = FMT.euro;
+    c.fill = STYLE.totalFill;
+    c.font = FONT.bold;
+  });
+  pr2 += 1;
+  void ebitRow;
+
   // Debt service split into three rows for clarity (Issue 4):
   //   - Main-loan interest: interest-only during the 2026–2028 grace period,
   //     then interest portion of the amortising PMT from 2029 onward.
