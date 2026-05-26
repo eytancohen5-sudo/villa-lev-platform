@@ -3,8 +3,8 @@
 // ============================================================
 
 // Default EBITDA multiple for terminal-value calc in equity / project IRR.
-// Editable via assumptions. 10× ≈ 10% implied cap rate.
-export const DEFAULT_EXIT_EBITDA_MULTIPLE = 10;
+// Editable via assumptions. 15× ≈ 6.7% implied cap rate (luxury hospitality premium).
+export const DEFAULT_EXIT_EBITDA_MULTIPLE = 15;
 
 export const PROJECT_CONSTANTS = {
   /** First year of the modeled horizon. Phase: land acquisition. */
@@ -520,7 +520,7 @@ export const DEFAULT_SUITE: PropertyConfig = {
 export const BASE_CASE: ModelAssumptions = {
   general: {
     year1RampFactor: 0.75,
-    year2RampFactor: 0.88,
+    year2RampFactor: 0.90,
     nightsGrowthPerYear: 3,
     nightsCap: 110,
   },
@@ -561,7 +561,7 @@ export const BASE_CASE: ModelAssumptions = {
     interestRate: 0.04,
     gracePeriodYears: 2,
     repaymentTermYears: 13,
-    workingCapitalFacility: 470000,
+    workingCapitalFacility: 560000,
     // Phased grace-period interest scaled from prior 5% × 75% LTC calibration
     // by 0.853 = (4/5) × (4,939,200 / 4,630,500) — preserves drawdown shape.
     interest2026: 43200,
@@ -683,7 +683,7 @@ export const BASE_CASE: ModelAssumptions = {
 
   workingCapital: {
     active: true,
-    facilitySize: 470000,
+    facilitySize: 560000,
     spreadOverTermRate: 0.01,
     preOpeningTotalDraw: 200000,
     seasonalDrawPerCycle: 150000,

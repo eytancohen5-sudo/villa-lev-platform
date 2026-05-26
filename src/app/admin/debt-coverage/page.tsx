@@ -92,21 +92,15 @@ export default function DebtCoveragePage() {
   const worstTrough = activePnL
     .filter((p) => p.year >= 2028)
     .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
-  // Static quarterly VAT bridge balances (outstanding receivable funded by revolving line).
-  // Source: ConstructionVatCashflow ROWS netFloat (ADR-0015).
-  const VAT_BRIDGE_QS: Record<string, number> = {
-    '2026Q3': 182_139, '2026Q4': 364_278,
-    '2027Q1': 409_812, '2027Q2': 455_346, '2027Q3': 455_346, '2027Q4': 455_346,
-    '2028Q1': 364_277, '2028Q2': 273_208, '2028Q3': 273_208, '2028Q4': 273_208,
-  };
+  // VAT-bridge balances come directly from the engine (vatBridgeBalance per quarter,
+  // derived from the static VAT_BRIDGE_CLOSING schedule in workingCapital.ts).
   const wcSparkData = activeScenarioOutput.wcQuarters
     .filter((q) => q.year >= 2026)
     .map((q) => {
-      const key = `${q.year}Q${q.quarter}`;
-      const vatBridge = VAT_BRIDGE_QS[key] ?? 0;
+      const vatBridge = Math.round(q.vatBridgeBalance ?? 0);
       const opWc = Math.round(q.closingBalance);
       return {
-        label: key,
+        label: `${q.year}Q${q.quarter}`,
         opWc,
         vatBridge,
         total: vatBridge + opWc,

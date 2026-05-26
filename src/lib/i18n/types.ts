@@ -279,6 +279,7 @@ export interface TranslationDictionary {
   'triangle.deltaVsMarket': string;      // template — uses {pct}
   'triangle.defenceCopy': string;
   'triangle.seeComparables': string;     // template — uses {n}
+  'triangle.seeVillaMarket': string;
   'triangle.bpFloor': string;            // small caption: "BP is the floor"
   // Drawer
   'drawer.title': string;
@@ -302,6 +303,34 @@ export interface TranslationDictionary {
   'drawer.sourceFootnote': string;
   'drawer.empty': string;
   'drawer.countLabel': string;           // template — uses {n}
+  // Villa market drawer
+  'villaDrawer.title': string;
+  'villaDrawer.subtitle': string;
+  'villaDrawer.tabSale': string;
+  'villaDrawer.tabRental': string;
+  'villaDrawer.saleAvg': string;
+  'villaDrawer.engineTier': string;
+  'villaDrawer.conservative': string;
+  'villaDrawer.properties': string;
+  'villaDrawer.villas': string;
+  'villaDrawer.allPlots': string;
+  'villaDrawer.largePlots': string;
+  'villaDrawer.smallPlots': string;
+  'villaDrawer.mktPeakAvg': string;
+  'villaDrawer.inLineWithMarket': string;
+  'villaDrawer.colIsland': string;
+  'villaDrawer.colArea': string;
+  'villaDrawer.colHouseSqm': string;
+  'villaDrawer.colPlotSqm': string;
+  'villaDrawer.colBeds': string;
+  'villaDrawer.colPrice': string;
+  'villaDrawer.colPpm': string;
+  'villaDrawer.colVillaName': string;
+  'villaDrawer.colShoulder': string;
+  'villaDrawer.colPeak': string;
+  'villaDrawer.colPlatform': string;
+  'villaDrawer.saleFootnote': string;
+  'villaDrawer.rentalFootnote': string;
 
   'dash.drillDown': string;
   'dash.founderDrillDown': string;

@@ -55,6 +55,38 @@ const EMPTY_SCHEDULE: WorkingCapitalSchedule = {
   annual: new Map(),
 };
 
+// ── VAT-bridge sub-facility ──────────────────────────────────────────────────
+// During construction (Q3-2026 → Q4-2028) the project pays VAT on progress
+// invoices and draws the revolving line to fund that cash outflow while AADE
+// processes the refund. The outstanding balance (= VAT receivable still
+// pending refund) is tracked here as a second sub-balance alongside the
+// operational WC.
+//
+// All amounts are the CLOSING BALANCE of the VAT-bridge sub-facility at each
+// quarter end. The engine computes incremental draws/repayments from the
+// change in balance. Interest accrues on avg(opening, closing) like op WC, at
+// the same rate, and is folded into `interestAccrual` so it flows to the P&L
+// automatically.
+//
+// Construction VAT total: €7,589,108 (93.4% of professional services at 24%)
+// AADE refund lag: 2 quarters after payment quarter.
+// Peak outstanding: Q2-Q4 2027 = €455,346.
+// Final refund received: Q1-Q2 2029, balance fully closed by Q2-2029.
+const VAT_BRIDGE_CLOSING: Record<string, number> = {
+  '2026Q3': 182_139,
+  '2026Q4': 364_278,
+  '2027Q1': 409_812,
+  '2027Q2': 455_346,
+  '2027Q3': 455_346,
+  '2027Q4': 455_346,
+  '2028Q1': 364_277,
+  '2028Q2': 273_208,
+  '2028Q3': 273_208,
+  '2028Q4': 273_208,
+  '2029Q1': 136_604,
+  '2029Q2': 0,
+};
+
 export function computeWorkingCapital(
   params: WorkingCapitalParams,
   termRate: number,
@@ -90,6 +122,8 @@ export function computeWorkingCapital(
 
   const quarters: WorkingCapitalQuarter[] = [];
   let balance = 0;
+  // VAT-bridge sub-balance (tracked separately; never gated by cash surplus).
+  let vatBalance = 0;
 
   const QUARTERS: (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
   for (let y = startYear; y <= endYear; y++) {
@@ -127,7 +161,16 @@ export function computeWorkingCapital(
 
       const closing = opening + draws - repayments;
       const avgQ = (opening + closing) / 2;
-      const interestAccrual = avgQ * (rate / 4);
+
+      // VAT-bridge sub-facility: derive closing balance from static schedule.
+      // Keys not in the map default to 0 (before construction starts / after
+      // final AADE refund clears).
+      const vatOpening = vatBalance;
+      const vatClosing = VAT_BRIDGE_CLOSING[`${y}Q${q}`] ?? 0;
+      const vatAvgQ = (vatOpening + vatClosing) / 2;
+
+      // Combined interest: operational WC avg + VAT-bridge avg, at same rate.
+      const interestAccrual = (avgQ + vatAvgQ) * (rate / 4);
 
       quarters.push({
         year: y,
@@ -137,9 +180,11 @@ export function computeWorkingCapital(
         repayments,
         closingBalance: closing,
         interestAccrual,
+        vatBridgeBalance: vatClosing,
       });
 
       balance = closing;
+      vatBalance = vatClosing;
     }
   }
 

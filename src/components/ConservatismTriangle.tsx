@@ -24,6 +24,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency } from "@/lib/hooks/useModel";
 import { MARKET_2025_BACKSTOP, greekNonVillaCount } from "@/lib/data/marketBenchmarks";
 import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
+import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 
 // 50/50 HIGH/MED blend, matching how MARKET_2025_BACKSTOP feeds the headline.
 function blend(tier: "basicRoom" | "premiumSuite"): number {
@@ -131,6 +132,7 @@ export function ConservatismTriangle({
 }) {
   const { t, locale } = useTranslation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [villaDrawerOpen, setVillaDrawerOpen] = useState(false);
 
   const marketStandard = blend("basicRoom"); // 914 net (curated 8-hotel Paros/Antiparos, ÷1.13 VAT)
   const marketPremium = blend("premiumSuite"); // 1322.5 net
@@ -172,7 +174,7 @@ export function ConservatismTriangle({
         {t("triangle.defenceCopy")}
       </p>
 
-      <div className="mt-3 px-1">
+      <div className="mt-3 px-1 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
@@ -181,9 +183,18 @@ export function ConservatismTriangle({
           <span>{t("triangle.seeComparables").replace("{n}", String(totalComparables)).replace(" →", "")}</span>
           <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
         </button>
+        <button
+          type="button"
+          onClick={() => setVillaDrawerOpen(true)}
+          className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+        >
+          <span>{t("triangle.seeVillaMarket")}</span>
+          <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+        </button>
       </div>
 
       <MarketComparablesDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <VillaMarketDrawer open={villaDrawerOpen} onClose={() => setVillaDrawerOpen(false)} />
     </section>
   );
 }
