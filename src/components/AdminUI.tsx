@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 // NOTE: relies on .kpi-value and .kpi-value-compact CSS classes defined in globals.css
 
 export function SectionHeader({
@@ -54,6 +56,7 @@ export function KPICard({
   accent = false,
   tone,
   valueSize = "default",
+  footer,
 }: {
   label: string;
   value: string;
@@ -63,6 +66,7 @@ export function KPICard({
   accent?: boolean;
   tone?: "positive" | "warning" | "neutral";
   valueSize?: "default" | "compact";
+  footer?: React.ReactNode;
 }) {
   const bgClass = accent
     ? "bg-brand-50 border-brand-200"
@@ -89,6 +93,7 @@ export function KPICard({
           {threshold}
         </div>
       )}
+      {footer && <div className="mt-3">{footer}</div>}
     </div>
   );
 }
