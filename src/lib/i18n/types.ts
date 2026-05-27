@@ -1902,6 +1902,7 @@ export interface TranslationDictionary {
   'connections.loading': string;
   'connections.restricted': string;
   'connections.signInPrompt': string;
+  'connections.googleSignInCta': string;
 
   // ── Bank gate ──
   'bankGate.heading': string;

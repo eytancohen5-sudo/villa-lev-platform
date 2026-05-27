@@ -1928,6 +1928,7 @@ export const el: TranslationDictionary = {
   'connections.loading':           'Φόρτωση συνδέσεων…',
   'connections.restricted':        'Το αρχείο συνδέσεων είναι περιορισμένο σε διαχειριστές.',
   'connections.signInPrompt':      'Συνδεθείτε για να δείτε το αρχείο συνδέσεων.',
+  'connections.googleSignInCta':   'Σύνδεση με Google',
 
   // ── Bank gate ─────────────────────────────────────────────────────────────
   'bankGate.heading':         'Πριν συνεχίσετε',

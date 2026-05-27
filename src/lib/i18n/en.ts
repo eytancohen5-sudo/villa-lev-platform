@@ -1892,6 +1892,7 @@ export const en: TranslationDictionary = {
   'connections.loading':           'Loading connections…',
   'connections.restricted':        'The connections log is restricted to administrators.',
   'connections.signInPrompt':      'Sign in to view the connections log.',
+  'connections.googleSignInCta':   'Sign in with Google',
 
   // ── Bank gate ─────────────────────────────────────────────────────────────
   'bankGate.heading':         'Before you continue',

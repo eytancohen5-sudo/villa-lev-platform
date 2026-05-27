@@ -36,7 +36,7 @@ function formatRelative(ms: number): string {
 
 export default function ConnectionsPage() {
   const { t } = useTranslation();
-  const { user, isAdmin, loading } = useEffectiveAuth();
+  const { user, isAdmin, loading, signIn } = useEffectiveAuth();
   const { entries, loading: logLoading, error } = useConnectionsLog(isAdmin);
 
   // Stale-doc cleanup: delete any presence doc with lastHeartbeat older
@@ -91,7 +91,23 @@ export default function ConnectionsPage() {
         <h1 className="font-display text-2xl text-text-primary mb-2 border-s-[3px] border-brand-400 ps-3">
           {t("connections.title")}
         </h1>
-        <p className="text-sm text-text-secondary">{t("connections.restricted")}</p>
+        <p className="text-sm text-text-secondary mb-4">{t("connections.restricted")}</p>
+        {/* Anonymous session — offer Google sign-in to restore admin auth. */}
+        {user?.isAnonymous && (
+          <button
+            type="button"
+            onClick={() => void signIn()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-surface-tertiary bg-white text-sm font-medium text-text-primary hover:bg-surface-secondary transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+              <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
+              <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
+              <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
+              <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
+            </svg>
+            {t("connections.googleSignInCta")}
+          </button>
+        )}
       </div>
     );
   }

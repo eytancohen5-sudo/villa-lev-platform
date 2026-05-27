@@ -1930,6 +1930,7 @@ export const he: TranslationDictionary = {
   'connections.loading':           'טוען חיבורים…',
   'connections.restricted':        'יומן החיבורים מוגבל למנהלים.',
   'connections.signInPrompt':      'התחבר כדי לצפות ביומן החיבורים.',
+  'connections.googleSignInCta':   'התחבר עם Google',
 
   // ── Bank gate ─────────────────────────────────────────────────────────────
   'bankGate.heading':         'לפני שממשיכים',
