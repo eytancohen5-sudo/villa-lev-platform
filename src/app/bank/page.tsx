@@ -73,7 +73,6 @@ export default function BankPage() {
   const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
   const [xlsxLoading, setXlsxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
-  const [presentationFlipped, setPresentationFlipped] = useState(false);
   const [docxLoading, setDocxLoading] = useState(false);
 
   const handleDownloadXlsx = async () => {
@@ -368,75 +367,28 @@ export default function BankPage() {
               </div>
             </button>
 
-            {/* Bank Presentation — flip card */}
-            <div style={{ perspective: '800px' }}>
-              <div
-                style={{
-                  transformStyle: 'preserve-3d',
-                  transform: presentationFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                  transition: 'transform 0.55s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative',
-                  minHeight: '120px',
-                }}
-              >
-                {/* Front face — view presentation */}
-                <a
-                  href="/presentation"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ backfaceVisibility: 'hidden', WebkitBackfaceVisibility: 'hidden' }}
-                  className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all h-full"
-                  onClick={(e) => { e.preventDefault(); setPresentationFlipped(true); }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                      <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
-                        <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                        <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                        <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
-                      </svg>
-                    </div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">Word</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
-                    <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
-                  </div>
-                </a>
-                {/* Back face — download docx */}
-                <div
-                  style={{
-                    backfaceVisibility: 'hidden',
-                    WebkitBackfaceVisibility: 'hidden',
-                    transform: 'rotateY(180deg)',
-                    position: 'absolute',
-                    inset: 0,
-                  }}
-                  className="flex flex-col items-center justify-center gap-3 rounded-xl border border-brand-300 bg-gradient-to-br from-brand-50 to-brand-100 p-5"
-                >
-                  <button
-                    onClick={handleDownloadDocx}
-                    disabled={docxLoading}
-                    className="w-full flex flex-col items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <path d="M3 2h9l5 5v11H3V2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" className="text-brand-600"/>
-                      <path d="M12 2v5h5" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" className="text-brand-600"/>
-                      <path d="M10 10v5M7.5 12.5L10 15l2.5-2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-brand-500"/>
-                    </svg>
-                    <p className="text-sm font-bold text-brand-700 text-center leading-snug">
-                      {docxLoading ? t('bar.preparing') : t('bank.actions.presentation.download')}
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => setPresentationFlipped(false)}
-                    className="text-[11px] text-brand-500 hover:text-brand-700 underline underline-offset-2"
-                  >
-                    {t('common.back')}
-                  </button>
+            {/* Bank Presentation — PDF viewer */}
+            <a
+              href="/presentation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
+            >
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+                  <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
+                    <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                    <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                    <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
+                  </svg>
                 </div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">PDF</span>
               </div>
-            </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
+                <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
+              </div>
+            </a>
 
             {/* Download the Model */}
             <button

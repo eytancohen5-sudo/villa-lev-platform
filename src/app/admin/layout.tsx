@@ -253,7 +253,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
   useReferenceScenarioAutoLoad();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [exitYearRaw, setExitYearRaw] = useState('');
   const activeScenarioOutput = model?.scenarios[activeScenario];
@@ -355,7 +355,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-surface-tertiary space-y-1.5">
           <LanguageToggle />
           <Link
-            href="/bank"
+            href={`/bank?lang=${locale}`}
             className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-[11px] font-medium text-text-secondary bg-surface-secondary border border-surface-tertiary hover:bg-surface-tertiary hover:text-text-primary transition-colors"
             title={sidebarCollapsed ? t('admin.bar.bankerView') : undefined}
           >
