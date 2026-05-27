@@ -1954,6 +1954,16 @@ export interface TranslationDictionary {
   'ct.capBinding75Detail': string;
   'ct.capRatchet10Detail': string;
   'ct.capNoBinding': string;
+  // ── Founder governance / golden share (2026-05-27) ──
+  'ct.governance.title': string;
+  'ct.governance.badge': string;
+  'ct.governance.badgeLabel': string;
+  'ct.governance.description': string;
+  'ct.governance.right1': string;
+  'ct.governance.right2': string;
+  'ct.governance.right3': string;
+  'ct.governance.right4': string;
+  'ct.governance.condition': string;
 
   // ── Sponsor equity breakdown — three capacities ──────────────────────────
   'ct.roles.sectionTitle': string;

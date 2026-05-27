@@ -186,6 +186,8 @@ function makeCapTableResult(stakeholders: StakeholderResult[] = []): CapTableRes
       aggelakakisCash: 0,
       aggelakakisEquityAtExit: 0,
       aggelakakisEquityPct: 0,
+      aggelakakisPromotePct: 0,
+      aggelakakisExitPct: 0,
       eytan1BCash: 0,
       grantSuccessFeePaymentYear: 2030,
     },

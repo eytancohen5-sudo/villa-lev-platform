@@ -1428,6 +1428,16 @@ export const fr = {
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
   'ct.capRatchet10Detail':      'Plafond ratchet autonome 10% atteint',
   'ct.capNoBinding':            'No cap binding',
+  // ── Founder governance / golden share (2026-05-27) ──
+  'ct.governance.title':        'Droits de Gouvernance du Fondateur',
+  'ct.governance.badge':        'Part de Contrôle du Fondateur',
+  'ct.governance.badgeLabel':   'Action Dorée',
+  'ct.governance.description':  'Le sponsor détient une part de contrôle préservant certains droits décisionnels indépendamment du pourcentage de détention. Ces droits sont personnels et incessibles.',
+  'ct.governance.right1':       'Droit exclusif de nommer et révoquer le Directeur Général',
+  'ct.governance.right2':       'Droit de veto sur la cession de tout actif immobilier du portefeuille',
+  'ct.governance.right3':       'Droit de veto sur les émissions de capital, fusions et restructurations',
+  'ct.governance.right4':       'Voix prépondérante en cas de blocage du Conseil d\'administration',
+  'ct.governance.condition':    'Droits exercés dans le cadre du droit des sociétés grec (L.4072/2012) et du pacte d\'actionnaires. Ne s\'appliquent pas en cas de manquement grave et non corrigé du fondateur.',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',
   'bank.about.unitDbl':         'dbl',

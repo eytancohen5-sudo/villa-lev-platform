@@ -1965,6 +1965,16 @@ export const he: TranslationDictionary = {
   'ct.capBinding75Detail':      '75% תקרה כוללת מחייבת — שנצבר מופחת ל-{{pct}}',
   'ct.capRatchet10Detail':      'הושגה תקרת ratchet עצמאית 10%',
   'ct.capNoBinding':            'אין הגבלת תקרה',
+  // ── Founder governance / golden share (2026-05-27) ──
+  'ct.governance.title':        'זכויות ממשל של המייסד',
+  'ct.governance.badge':        'מניית שליטה של המייסד',
+  'ct.governance.badgeLabel':   'מניית זהב',
+  'ct.governance.description':  'לספונסר יש מניית שליטה השומרת על זכויות קבלת החלטות מסוימות ללא תלות בשיעור הבעלות. זכויות אלה הן אישיות ואינן ניתנות להעברה.',
+  'ct.governance.right1':       'זכות בלעדית למינוי ופיטורי המנהל הכללי',
+  'ct.governance.right2':       'זכות וטו על מכירת כל נכס מתיק הנדל"ן',
+  'ct.governance.right3':       'זכות וטו על הנפקות מניות חדשות, מיזוגים ושינויי מבנה הון',
+  'ct.governance.right4':       'קול מכריע במקרה של פיצול בדירקטוריון בנושאים אסטרטגיים',
+  'ct.governance.condition':    'הזכויות מופעלות בגדר חוק החברות היווני (N.4072/2012) והסכם בעלי המניות. הזכויות אינן חלות במקרה של הפרה מהותית ובלתי מתוקנת של המייסד.',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'סטנד.',
   'bank.about.unitDbl':         'כפול.',

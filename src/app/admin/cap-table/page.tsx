@@ -637,6 +637,38 @@ export default function CapTablePage() {
         ) : null;
       })()}
 
+      {/* ── Founder governance rights (Golden Share) ────────────────── */}
+      <section className="mb-6" aria-label={t('ct.governance.title')}>
+        <SectionHeader title={t('ct.governance.title')} />
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <div className="flex items-start gap-3 mb-3 flex-wrap">
+            <span className="text-sm font-semibold text-text-primary">{t('ct.governance.badge')}</span>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200">
+              {t('ct.governance.badgeLabel')}
+            </span>
+          </div>
+          <p className="text-sm text-text-secondary mb-4">{t('ct.governance.description')}</p>
+          <ul className="space-y-2 mb-4">
+            {([
+              t('ct.governance.right1'),
+              t('ct.governance.right2'),
+              t('ct.governance.right3'),
+              t('ct.governance.right4'),
+            ] as string[]).map((right, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm text-text-primary">
+                <span className="mt-0.5 shrink-0 w-5 h-5 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center text-[10px] font-bold leading-none">
+                  {i + 1}
+                </span>
+                {right}
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-text-tertiary italic border-t border-surface-secondary pt-3">
+            {t('ct.governance.condition')}
+          </p>
+        </div>
+      </section>
+
       {/* ── F: Waterfall detail (collapsible) ───────────────────────── */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

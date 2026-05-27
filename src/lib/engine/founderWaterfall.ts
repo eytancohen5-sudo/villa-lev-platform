@@ -202,11 +202,12 @@ export interface FounderStakeBreakdown {
   // earned cap (grant bonus is contractual; ratchet flexes).
   earnedPct: number;
   // Founder % applied to OPERATING cash distributions.
-  // = max(pariPassu, developerEquity) + earnedPct, capped at 75%.
+  // = operationalBase + grantBonusPct (no ratchet — ratchet is exit-only).
+  // ManCo fees (Bucket 2A) compensate for operational work during the hold period.
   founderOperatingPct: number;
   // Founder % applied to EXIT / sale proceeds.
-  // = max(pariPassu, developerEquity) + grantBonusPct, capped at 75%.
-  // The performance ratchet (Layer C) is the only component excluded from exit.
+  // = operationalBase + grantBonusPct + performanceRatchetPct, capped at 75%.
+  // Ratchet (Layer C) is an exit-only bonus — measurable and payable only at sale.
   founderExitPct: number;
   // True when the 55% grant exit cap fires (grantApproved + investor IRR < 30%).
   grantExitCapActive: boolean;
@@ -384,33 +385,42 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   // separate entitlements — they stack, not substitute.
   //   • pari-passu      = cash return proportional to cash invested
   //   • developerEquity = promote for sourcing, construction, collateral
-  // Both apply to operations AND exit; only the ratchet is exit-excluded.
+  // Both apply to operations AND exit. The ratchet (Layer C) is an EXIT-ONLY
+  // performance bonus — it is measurable only at the moment of sale.
+  // ManCo fees (Bucket 2A) compensate the founder for work during operations.
   // The carry reduces developerEquityPct at source; caps then fire on the
   // already-reduced values, which is investor-favourable.
   const developerEquityGross = input.developerEquityPct ?? 0;
   const developerEquity = developerEquityGross * (1 - carry);
   const operationalBase = pariPassu + developerEquity;  // additive
 
-  // ── Total cap (75%) on OPERATING rate — reduce earned if needed ─────
-  let operatingTotal = operationalBase + earned;
-  if (operatingTotal > TOTAL_FOUNDER_CAP + 1e-9) {
+  // ── Operating rate: pari-passu + devEquity + grantBonus (no ratchet) ──
+  // Annual distributions use this rate. Ratchet is reserved for exit.
+  const founderOperatingPct = Math.min(TOTAL_FOUNDER_CAP, operationalBase + grantBonus);
+
+  // ── Exit rate: pari-passu + devEquity + grantBonus + ratchet ──────────
+  // Ratchet is payable only when the property sells — tier is measured and
+  // settled at the same moment (exit). Total cap (75%) guards this rate.
+  let exitTotal = operationalBase + earned;
+  if (exitTotal > TOTAL_FOUNDER_CAP + 1e-9) {
     earned = Math.max(0, TOTAL_FOUNDER_CAP - operationalBase);
     if (earned < 0) earned = 0;
-    operatingTotal = operationalBase + earned;
-    if (operatingTotal > TOTAL_FOUNDER_CAP) operatingTotal = TOTAL_FOUNDER_CAP;
+    exitTotal = operationalBase + earned;
+    if (exitTotal > TOTAL_FOUNDER_CAP) exitTotal = TOTAL_FOUNDER_CAP;
     cap = 'total_75';
   }
+  let founderExitPct = exitTotal;
 
-  const founderOperatingPct = operatingTotal;
-  // Exit: developer equity + grant bonus apply, but NOT the ratchet.
-  // The ratchet is the only performance component excluded from sale proceeds.
-  let founderExitPct = Math.min(TOTAL_FOUNDER_CAP, operationalBase + grantBonus);
+  // ── 55% grant exit cap (ADR-0011) ─────────────────────────────────────
+  // Guard: `cap !== 'total_75'` — 75% hard cap takes precedence.
+  // The ratchet component in founderExitPct means this cap may fire on
+  // scenarios that previously sat just below 0.55.
   let grantExitCapActive = false;
   if (
     input.grantApproved &&
     input.investorIRR < GRANT_ROUTE_IRR_THRESHOLD &&
     founderExitPct > GRANT_ROUTE_EXIT_CAP_BELOW_THRESHOLD &&
-    cap === 'none'
+    cap !== 'total_75'
   ) {
     founderExitPct = GRANT_ROUTE_EXIT_CAP_BELOW_THRESHOLD;
     grantExitCapActive = true;
@@ -420,18 +430,19 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   // ── Aggelakakis promote display fields ────────────────────────────
   // Computed from gross promote layers (before carry reduction).
   // These are display-only — they do NOT reduce the pool.
-  //   aggelakakisPromotePct = carry × (devEqGross + grantBonusGross + ratchetGross)
-  //   aggelakakisExitPct    = carry × (devEqGross + grantBonusGross)  [ratchet excluded from exit]
+  //   aggelakakisPromotePct = carry × (devEqGross + grantBonusGross)  [ops — no ratchet]
+  //   aggelakakisExitPct    = carry × (devEqGross + grantBonusGross + ratchetGross)  [exit]
   // ratchetGross: back-compute from post-carry value (capped ratchet may be < tier raw value).
   const ratchetGrossDisplay = carry < 1 ? ratchet / (1 - carry) : 0;
   const aggelakakisPromotePct = carry * (
     developerEquityGross +
-    (input.grantApproved ? grantBonusGross : 0) +
-    ratchetGrossDisplay
+    (input.grantApproved ? grantBonusGross : 0)
+    // ratchet excluded from ops Aggelakakis carry — mirrors founder ops rate
   );
   const aggelakakisExitPct = carry * (
     developerEquityGross +
-    (input.grantApproved ? grantBonusGross : 0)
+    (input.grantApproved ? grantBonusGross : 0) +
+    ratchetGrossDisplay   // ratchet included in exit carry — mirrors founder exit rate
   );
 
   return {
@@ -443,8 +454,8 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     founderOperatingPct,
     founderExitPct,
     grantExitCapActive,
-    founderTotalPct: founderOperatingPct,   // backward-compat alias
-    investorTotalPct: 1 - founderOperatingPct,
+    founderTotalPct: founderExitPct,   // alias → exit pct (cap table is exit-focused)
+    investorTotalPct: 1 - founderExitPct,
     capBinding: cap,
     ratchetTier: tier.id,
     ratchetTierLabel: tier.label,

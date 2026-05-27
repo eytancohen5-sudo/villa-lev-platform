@@ -1945,6 +1945,16 @@ export const en: TranslationDictionary = {
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
   'ct.capRatchet10Detail':      '10% standalone ratchet cap reached',
   'ct.capNoBinding':            'No cap binding',
+  // ── Founder governance / golden share (2026-05-27) ──
+  'ct.governance.title':        'Founder Governance Rights',
+  'ct.governance.badge':        'Founder Control Share',
+  'ct.governance.badgeLabel':   'Golden Share',
+  'ct.governance.description':  'The sponsor holds a control share that preserves certain decision-making rights regardless of equity ownership percentage. These rights are personal to the founder and non-transferable.',
+  'ct.governance.right1':       'Sole right to appoint and remove the Managing Director',
+  'ct.governance.right2':       'Veto on disposal of any project property or portfolio asset',
+  'ct.governance.right3':       'Veto on new equity issuances, mergers, and capital restructurings',
+  'ct.governance.right4':       'Casting vote in the event of a Board deadlock on strategic matters',
+  'ct.governance.condition':    'Rights are exercisable within the constraints of Greek company law (N.4072/2012) and the shareholders\' agreement. Rights do not apply in the event of a material and unremedied founder default.',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',
   'bank.about.unitDbl':         'dbl',

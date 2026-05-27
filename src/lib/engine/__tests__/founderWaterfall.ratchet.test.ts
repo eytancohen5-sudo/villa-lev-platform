@@ -595,12 +595,13 @@ describe('Aggelakakis promote-layer carry', () => {
     expect(result.aggelakakisPromotePct).toBeCloseTo(0.025);
   });
 
-  it('aggelakakisExitPct excludes ratchet — must be less than aggelakakisPromotePct when ratchet > 0', () => {
-    // pref_met tier (IRR 12%, MOIC 3.0): raw ratchet = 9%, post-carry = 8.1%.
+  it('aggelakakisExitPct includes ratchet — must be greater than aggelakakisPromotePct when ratchet > 0', () => {
+    // Ratchet moved to exit: aggelakakisExitPct includes ratchetGross; aggelakakisPromotePct (ops) does not.
+    // pref_met tier (IRR 12%, MOIC 3.0): raw ratchet = 9%.
     // With grant approved and developerEquityPct = 0.25:
     //   devEqGross = 0.25, grantBonusGross ≈ 0.0836, ratchetGross ≈ 0.09
-    //   aggelakakisPromotePct = 0.10 × (0.25 + 0.0836 + 0.09) = 0.10 × 0.4236 ≈ 0.0424
-    //   aggelakakisExitPct    = 0.10 × (0.25 + 0.0836)        = 0.10 × 0.3336 ≈ 0.0334
+    //   aggelakakisPromotePct = 0.10 × (0.25 + 0.0836)        = 0.10 × 0.3336 ≈ 0.0334  [ops]
+    //   aggelakakisExitPct    = 0.10 × (0.25 + 0.0836 + 0.09) = 0.10 × 0.4236 ≈ 0.0424  [exit]
     const result = computeFounderStake({
       founderCashInvested: 200_000,
       totalEquityRaised: 1_200_000,
@@ -611,7 +612,7 @@ describe('Aggelakakis promote-layer carry', () => {
     });
     expect(result.aggelakakisPromotePct).toBeGreaterThan(0);
     expect(result.aggelakakisExitPct).toBeGreaterThan(0);
-    expect(result.aggelakakisExitPct).toBeLessThan(result.aggelakakisPromotePct);
+    expect(result.aggelakakisExitPct).toBeGreaterThan(result.aggelakakisPromotePct);
   });
 
   it('pariPassuPct is unaffected by carry — Thanasis does not participate in LP cash return', () => {
