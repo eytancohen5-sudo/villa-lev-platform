@@ -30,11 +30,12 @@ type RowDef = {
 
 
 // Default expanded state for first visit (bank view)
-// cfads and finance sections start expanded; all others collapsed
+// cfads, finance, and ebit start expanded; all others collapsed
 function getDefaultExpanded(): Record<string, boolean> {
   return {
     cfads: true,
     finance: true,
+    ebit: true,
   };
 }
 

@@ -490,26 +490,27 @@ export async function exportBankPresentation(
 
   // ── §9 P&L Statement ─────────────────────────────────────────────────────
   children.push(sectionHeading('9. P&L Statement'));
-  const pl9Widths = [12, 13, 13, 13, 12, 13, 12, 12];
+  const pl9Widths = [9, 11, 11, 11, 12, 11, 11, 12, 12];
   const pnlRows9 = real.pnl.length > 0
     ? real.pnl.map(y =>
         dataRowN([
           String(y.year),
           eur(y.totalRevenue),
           eur(y.totalOpex),
-          eur(y.ebitda),
-          pct(y.ebitdaMargin),
+          eur(y.ebitdaPreOpCo ?? y.ebitda),
+          eur(-(y.annualDepreciation ?? 0)),
+          eur((y.ebitdaPreOpCo ?? y.ebitda) - (y.annualDepreciation ?? 0)),
           eur(y.debtService),
           eur(y.netCashFlowPostVAT),
           mul(y.dscr),
         ], pl9Widths),
       )
-    : [dataRowN(['—', '—', '—', '—', '—', '—', '—', '—'], pl9Widths)];
+    : [dataRowN(['—', '—', '—', '—', '—', '—', '—', '—', '—'], pl9Widths)];
 
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      headerRowN(['Year', 'Revenue', 'Opex', 'EBITDA', 'EBITDA%', 'Debt Svc', 'NCF', 'DSCR'], pl9Widths),
+      headerRowN(['Year', 'Revenue', 'Opex', 'EBITDA', 'Depreciation', 'EBIT', 'Debt Svc', 'NCF', 'DSCR'], pl9Widths),
       ...pnlRows9,
     ],
   }));
