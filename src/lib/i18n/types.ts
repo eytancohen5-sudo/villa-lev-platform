@@ -1976,6 +1976,23 @@ export interface TranslationDictionary {
   'ct.roles.total.combinedStake': string;
   'ct.roles.total.sameWaterfall': string;
   'ct.roles.total.distributions': string;
+  // ── Cap Table investor-UX redesign (2026-05-27) ──
+  'ct.dealHeadline': string;
+  'ct.dealHeadlineSub': string;
+  'ct.investorPoolSize': string;
+  'ct.investorPoolSizeSub': string;
+  'ct.auditToggle': string;
+  'ct.auditToggleHide': string;
+  'ct.dealParams': string;
+  'ct.dealParamsSub': string;
+  'ct.dealParamsToggle': string;
+  'ct.dealParamsHide': string;
+  'ct.sponsorAlignment': string;
+  'ct.sponsorAlignmentSub': string;
+  'ct.waterfallDetail': string;
+  'ct.waterfallDetailSub': string;
+  'ct.waterfallDetailToggle': string;
+  'ct.waterfallDetailHide': string;
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd': string;
   'bank.about.unitDbl': string;

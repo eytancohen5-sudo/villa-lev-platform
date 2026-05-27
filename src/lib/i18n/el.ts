@@ -2065,6 +2065,23 @@ export const el: TranslationDictionary = {
   'ct.roles.total.combinedStake': "TODO",
   'ct.roles.total.sameWaterfall': "TODO",
   'ct.roles.total.distributions': "TODO",
+  // ── Cap Table investor-UX redesign (2026-05-27) ──
+  'ct.dealHeadline': "TODO",
+  'ct.dealHeadlineSub': "TODO",
+  'ct.investorPoolSize': "TODO",
+  'ct.investorPoolSizeSub': "TODO",
+  'ct.auditToggle': "TODO",
+  'ct.auditToggleHide': "TODO",
+  'ct.dealParams': "TODO",
+  'ct.dealParamsSub': "TODO",
+  'ct.dealParamsToggle': "TODO",
+  'ct.dealParamsHide': "TODO",
+  'ct.sponsorAlignment': "TODO",
+  'ct.sponsorAlignmentSub': "TODO",
+  'ct.waterfallDetail': "TODO",
+  'ct.waterfallDetailSub': "TODO",
+  'ct.waterfallDetailToggle': "TODO",
+  'ct.waterfallDetailHide': "TODO",
 
   // ── Bank gate ─────────────────────────────────────────────────────────────
   'bankGate.heading':         'Πριν συνεχίσετε',

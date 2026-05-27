@@ -2035,6 +2035,24 @@ export const en: TranslationDictionary = {
   'ct.roles.total.sameWaterfall': "The sponsor participates in distributions alongside all equity holders at this combined stake — same waterfall, same priority, no preferential treatment.",
   'ct.roles.total.distributions': "Distributions (base scenario)",
 
+  // ── Cap Table investor-UX redesign (2026-05-27) ──
+  'ct.dealHeadline': "Investor Summary",
+  'ct.dealHeadlineSub': "Equity pool, returns, and sponsor alignment at a glance",
+  'ct.investorPoolSize': "Investor equity pool",
+  'ct.investorPoolSizeSub': "Capital required from external investors",
+  'ct.auditToggle': "Audit",
+  'ct.auditToggleHide': "Hide audit",
+  'ct.dealParams': "Deal Parameters",
+  'ct.dealParamsSub': "Waterfall controls — adjust to recompute distributions",
+  'ct.dealParamsToggle': "Show parameters",
+  'ct.dealParamsHide': "Hide parameters",
+  'ct.sponsorAlignment': "Sponsor Alignment",
+  'ct.sponsorAlignmentSub': "How the sponsor participates alongside investors in the same waterfall",
+  'ct.waterfallDetail': "Waterfall Detail",
+  'ct.waterfallDetailSub': "Three-layer distribution mechanics — pari-passu, grant bonus, and performance ratchet",
+  'ct.waterfallDetailToggle': "Show detail",
+  'ct.waterfallDetailHide': "Hide detail",
+
   // ── Bank gate ─────────────────────────────────────────────────────────────
   'bankGate.heading':         'Before you continue',
   'bankGate.subtext':         'Please enter your name so we know who is reviewing the presentation.',
