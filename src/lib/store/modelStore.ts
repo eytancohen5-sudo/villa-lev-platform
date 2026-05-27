@@ -1556,20 +1556,9 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         changed = true;
       }
     }
-    // Also drop local-only docs that are NOT mine — they came from a
-    // previous session's shared list and are no longer published.
-    // Keep local entries that have no userId (legacy localStorage) or
-    // that I own (might be in the middle of being saved).
-    const fetchedIds = new Set(fetched.map((c) => c.id));
-    for (const c of local) {
-      if (fetchedIds.has(c.id)) continue;
-      const isLegacy = !c.userId;
-      const isMine = c.userId && uid && c.userId === uid;
-      if (!isLegacy && !isMine) {
-        byId.delete(c.id);
-        changed = true;
-      }
-    }
+    // Single shared-password team: keep ALL local configs regardless of userId.
+    // Anonymous auth gives a new UID each session, so per-UID ownership
+    // checks would silently drop configs saved in other sessions.
     if (changed) {
       const merged = Array.from(byId.values());
       set({ savedConfigs: merged });
@@ -2241,16 +2230,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       (source.assumptions ?? {}) as unknown as Record<string, unknown>,
     ) as unknown as ModelAssumptions;
 
-    // Copy-on-load semantics: if I am signed in AND this scenario belongs
-    // to another editor, hydrate from it AND fork a personal copy with
-    // provenance. The original stays untouched. Legacy docs without a
-    // userId (pre-sharing) are treated as my own — no copy needed.
+    // Single shared-password team — per-UID ownership is meaningless.
+    // All authenticated users can edit any scenario. Never copy-on-load.
     const currentUid = state.currentUserUid;
-    const isForeign = !!(
-      source.userId &&
-      currentUid &&
-      source.userId !== currentUid
-    );
+    const isForeign = false; // ownership model removed: password gate is the access control
 
     // Branch 1: legacy config has no projects/templates yet — migrate from
     // raw portfolio. Independent of foreign/own; we still hydrate state.

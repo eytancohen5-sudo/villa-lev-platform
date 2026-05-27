@@ -2996,24 +2996,11 @@ function ConfigPanel() {
       )}
 
       {(() => {
-        // ── Sharing extension: split into "Your scenarios" / "Shared scenarios" ──
-        // Own scenarios = no userId (legacy local) OR userId matches mine.
-        // Shared scenarios = userId != mine AND published == true.
-        // Banker view (uid == null) sees ONLY shared — the "Your" section
-        // is hidden entirely so it doesn't dangle empty.
-        //
-        // `mineUid` is computed at the top of ConfigPanel and is null when
-        // (a) signed-out or (b) admin is previewing as banker (security M1).
-        const own = mineUid
-          ? savedConfigs
-              .filter((c) => !c.userId || c.userId === mineUid)
-              .slice()
-              .sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0))
-          : [];
-        const shared = savedConfigs
-          .filter(
-            (c) => c.userId && c.userId !== mineUid && c.published,
-          )
+        // ── Flat scenario list — single shared-password team ──
+        // All scenarios are editable by anyone who has authenticated with the
+        // password gate. Anonymous Firebase Auth gives a new UID each session,
+        // so per-UID ownership is meaningless here.
+        const all = savedConfigs
           .slice()
           .sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
 
@@ -3178,38 +3165,8 @@ function ConfigPanel() {
         };
 
         return (
-          <div className="space-y-6">
-            {mineUid && (
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-text-tertiary mb-2">
-                  {t('scenarios.yourScenarios')}
-                </h4>
-                {own.length === 0 ? (
-                  <p className="text-sm text-text-tertiary py-2">
-                    {t('config.noSaved')}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {own.map((c) => renderCard(c, true))}
-                  </div>
-                )}
-              </div>
-            )}
-            {shared.length > 0 && (
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-text-tertiary mb-2">
-                  {t('scenarios.sharedScenarios')}
-                </h4>
-                <div className="space-y-2">
-                  {shared.map((c) => renderCard(c, false))}
-                </div>
-              </div>
-            )}
-            {!mineUid && shared.length === 0 && (
-              <p className="text-sm text-text-tertiary text-center py-6">
-                {t('config.noSaved')}
-              </p>
-            )}
+          <div className="space-y-2">
+            {all.map((c) => renderCard(c, true))}
           </div>
         );
       })()}
