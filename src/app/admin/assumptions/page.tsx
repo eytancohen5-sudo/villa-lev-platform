@@ -3086,22 +3086,18 @@ function ConfigPanel() {
                   {/* Step L — attribution line. Foreign card: "Saved by X · date".
                       Own card with copiedFrom: small "Copied from X" sub-line
                       under the date. */}
-                  {isOwn ? (
-                    <div className="text-xs text-text-tertiary">
-                      {dateStr}
-                      {config.copiedFrom && (
-                        <span className="ms-1 text-text-tertiary/80">
-                          · {t('scenarios.copiedFrom').replace('{name}', config.copiedFrom.displayName || 'Unknown')}
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-text-tertiary">
-                      {t('scenarios.savedBy')
-                        .replace('{name}', ownerName)
-                        .replace('{date}', dateStr)}
-                    </div>
-                  )}
+                  <div className="text-xs text-text-tertiary">
+                    {ownerName !== 'Unknown' && (
+                      <span className="font-medium text-text-secondary">{ownerName}</span>
+                    )}
+                    {ownerName !== 'Unknown' && <span className="mx-1">·</span>}
+                    {dateStr}
+                    {config.copiedFrom && (
+                      <span className="ms-1 text-text-tertiary/80">
+                        · {t('scenarios.copiedFrom').replace('{name}', config.copiedFrom.displayName || 'Unknown')}
+                      </span>
+                    )}
+                  </div>
                 </div>
               )}
               <div className="flex items-center gap-1.5">
