@@ -9,9 +9,9 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
  * versions are dropped into public/ and redeployed.
  */
 const PDF_BY_LOCALE: Record<string, string> = {
-  en: "/VillaLevGroup_Presentation_v19_24May2026.en.pdf",
-  el: "/VillaLevGroup_Presentation_v19_24May2026.en.pdf",
-  he: "/VillaLevGroup_Presentation_v19_24May2026.en.pdf",
+  en: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
+  el: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
+  he: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
 };
 
 export default function PresentationPage() {
