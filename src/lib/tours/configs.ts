@@ -364,9 +364,9 @@ export const BREAKEVEN_TOUR: TourConfig = {
       },
       body: {
         en: "Each cell is the DSCR at that occupancy × ADR combination. Green = above 1.25× covenant, amber = sub-covenant, red = breach. Trace the contour where DSCR crosses 1.25× — that's the bank's red line in 2-D.",
-        el: "Κάθε κελί είναι το DSCR σε αυτόν τον συνδυασμό. Πράσινο > 1.25×, πορτοκαλί υπό-covenant, κόκκινο παραβίαση.",
-        fr: "Chaque cellule = DSCR à cette combinaison. Vert > 1.25×, ambre sous-covenant, rouge brèche.",
-        he: "כל תא = DSCR בשילוב הזה. ירוק > 1.25×, כתום מתחת לקובננט, אדום הפרה.",
+        el: "Κάθε κελί είναι το DSCR σε αυτόν τον συνδυασμό. Πράσινο ≥ 1.25×, πορτοκαλί υπό-covenant, κόκκινο παραβίαση.",
+        fr: "Chaque cellule = DSCR à cette combinaison. Vert ≥ 1.25×, ambre sous-covenant, rouge brèche.",
+        he: "כל תא = DSCR בשילוב הזה. ירוק ≥ 1.25×, כתום מתחת לקובננט, אדום הפרה.",
       },
     },
   ],

@@ -253,7 +253,7 @@ export default function LexiconPage() {
             DSCR = EBITDA / Annual Debt Service
           </Formula>
           <div className="mt-3">
-            <Variable name="DSCR > 1.25x" desc="Comfortable — standard bank covenant threshold" />
+            <Variable name="DSCR ≥ 1.25×" desc="Comfortable — standard bank covenant threshold" />
             <Variable name="DSCR 1.0x - 1.25x" desc="Marginal — debt is serviceable but with limited buffer" />
             <Variable name="DSCR < 1.0x" desc="Distressed — operating income insufficient to cover debt" />
           </div>

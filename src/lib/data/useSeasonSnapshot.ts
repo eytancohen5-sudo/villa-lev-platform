@@ -98,11 +98,9 @@ function startFirestoreListener() {
         historicalYears: HistoricalYear[];
       }>;
       if (!data.currentSeason || !Array.isArray(data.historicalYears)) {
-        // Shape mismatch — keep showing the static snapshot but log so we
-        // notice if the writer drifts away from the contract.
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[seasonSnapshot] live doc missing required fields, using static");
-        }
+        // Shape mismatch — log in all envs so connector failures are visible
+        // in the hosted build's browser console, not just local dev.
+        console.warn("[seasonSnapshot] live doc missing required fields, using static");
         emit(STATIC_RESULT);
         return;
       }
@@ -119,9 +117,8 @@ function startFirestoreListener() {
       });
     },
     (err) => {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[seasonSnapshot] subscribe failed, using static:", err?.message ?? err);
-      }
+      // Log in all envs so subscription failures are visible in the hosted build's browser console
+      console.warn("[seasonSnapshot] subscribe failed, using static:", err?.message ?? err);
       emit(STATIC_RESULT);
     },
   );

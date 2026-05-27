@@ -1440,10 +1440,10 @@ function computeScenario(
     .filter((p) => p.year >= dscrWindowStart && p.dscr > 0)
     .map((p) => p.dscr);
   const minDSCRLoanLife = operationalDscrs.length
-    ? Math.min(...operationalDscrs)
+    ? Math.round(Math.min(...operationalDscrs) * 100) / 100
     : 0;
   const avgDSCRLoanLife = operationalDscrs.length
-    ? operationalDscrs.reduce((s, v) => s + v, 0) / operationalDscrs.length
+    ? Math.round((operationalDscrs.reduce((s, v) => s + v, 0) / operationalDscrs.length) * 100) / 100
     : 0;
   const covenantThreshold = a.dscrCovenantThreshold || 1.25;
   // Covenant tested against minimum (banking standard — minimum annual DSCR over loan life)
