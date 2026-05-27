@@ -695,10 +695,10 @@ export const BANK_TOUR: TourConfig = {
         he: "השוואת מסלולים",
       },
       body: {
-        en: "Four financing paths side-by-side: Commercial, RRF, Greek Development Law Grant, and TEPIX III. Rows show loan size, equity required, annual debt service, stabilised DSCR, and equity IRR for each. The active path is the sponsor's primary application.",
-        el: "Τέσσερις διαδρομές χρηματοδότησης: Commercial, ΤΑΑ, Επιχορήγηση, ΤΕΠΙΧ ΙΙΙ. Γραμμές: δάνειο, ίδια κεφάλαια, εξυπηρέτηση, DSCR, IRR.",
-        fr: "Quatre voies : Commercial, RRF, Subvention, TEPIX III. Lignes : prêt, fonds propres, DS, DSCR, TRI.",
-        he: "ארבעה מסלולים: Commercial, RRF, מענק, TEPIX III. שורות: הלוואה, הון, DS, DSCR, IRR.",
+        en: "Four financing paths side-by-side: Commercial, RRF, Greek Development Law Grant, and TEPIX III. Rows show loan size, equity required, annual debt service, and stabilised DSCR for each. The active path is the sponsor's primary application.",
+        el: "Τέσσερις διαδρομές χρηματοδότησης: Commercial, ΤΑΑ, Επιχορήγηση, ΤΕΠΙΧ ΙΙΙ. Γραμμές: δάνειο, ίδια κεφάλαια, εξυπηρέτηση, DSCR.",
+        fr: "Quatre voies : Commercial, RRF, Subvention, TEPIX III. Lignes : prêt, fonds propres, DS, DSCR.",
+        he: "ארבעה מסלולים: Commercial, RRF, מענק, TEPIX III. שורות: הלוואה, הון, DS, DSCR.",
       },
     },
     {

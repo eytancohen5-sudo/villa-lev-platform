@@ -1793,6 +1793,11 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).font = FONT.bold;
   xr += 2;
 
+  let unlevIRRResult = 0, unlevIrrCellRef = '';
+  let levIRRResult = 0, levIrrCellRef = '';
+  let moicResult = 0, moicCellRef = '';
+
+  if (!isBankViewExport) {
   // ─────────────────────────────────────────────────────────────────────
   // Issue 1a — UNLEVERED PROJECT IRR (pre-financing)
   //   Year 0: -Total CapEx
@@ -1828,12 +1833,12 @@ export async function exportBusinessPlan(
     const cfads = pyVal(y, 'cfads');
     unlevCfStream.push(i === years.length - 1 ? cfads + terminalVal : cfads);
   });
-  const unlevIRRResult = computeIRR(unlevCfStream);
+  unlevIRRResult = computeIRR(unlevCfStream);
   Cov.getCell(`B${xr}`).value = { formula: `=IRR(B${unlevStartRow}:B${unlevEndRow})`, result: unlevIRRResult };
   Cov.getCell(`B${xr}`).numFmt = FMT.pct;
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
-  const unlevIrrCellRef = `${XL.sh_coverage}!B${xr}`;
+  unlevIrrCellRef = `${XL.sh_coverage}!B${xr}`;
   xr += 2;
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1881,12 +1886,12 @@ export async function exportBusinessPlan(
     const ncf = pyVal(y, 'netCashFlowPostVAT');
     levCfStream.push(i === years.length - 1 ? ncf + terminalEquityVal : ncf);
   });
-  const levIRRResult = computeIRR(levCfStream);
+  levIRRResult = computeIRR(levCfStream);
   Cov.getCell(`B${xr}`).value = { formula: `=IRR(B${levStartRow}:B${levEndRow})`, result: levIRRResult };
   Cov.getCell(`B${xr}`).numFmt = FMT.pct;
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
-  const levIrrCellRef = `${XL.sh_coverage}!B${xr}`;
+  levIrrCellRef = `${XL.sh_coverage}!B${xr}`;
   xr += 2;
 
   // ─────────────────────────────────────────────────────────────────────
@@ -1926,8 +1931,8 @@ export async function exportBusinessPlan(
 
   Cov.getCell(`A${xr}`).value = 'MOIC (multiple on invested capital)';
   Cov.getCell(`A${xr}`).font = FONT.bold;
-  const moicResult = equityRequired > 0 ? (ncfSum + terminalEquityVal) / equityRequired : 0;
-  const moicCellRef = `${XL.sh_coverage}!B${xr}`;
+  moicResult = equityRequired > 0 ? (ncfSum + terminalEquityVal) / equityRequired : 0;
+  moicCellRef = `${XL.sh_coverage}!B${xr}`;
   Cov.getCell(`B${xr}`).value = {
     formula: `=IFERROR((B${sumDistribRow}+B${termEqRefRow})/B${eqInvestedRow},0)`,
     result: moicResult,
@@ -1969,6 +1974,7 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
   Cov.getCell(`B${xr}`).alignment = { horizontal: 'center' };
+  } // end !isBankViewExport — investor metrics
   Cov.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
   // ── 8. Scenarios (Issue 5) ──────────────────────────────────────────
@@ -2085,15 +2091,17 @@ export async function exportBusinessPlan(
     },
     { label: 'Stabilised NCF post-tax', pick: (sc) => sc.stabilisedYear?.netCashFlowPostVAT ?? 0, fmt: FMT.euro },
     { label: 'Min DSCR (post-ramp)', pick: (sc) => sc.minDSCRLoanLife, fmt: FMT.mul },
-    { label: 'Equity IRR (levered, incl. terminal)', pick: (sc) => sc.equityIRR, fmt: FMT.pct },
-    { label: 'Project IRR (unlevered, incl. terminal)', pick: (sc) => sc.projectIRR, fmt: FMT.pct },
-    { label: 'Stabilised cash-on-cash yield', pick: (sc) => sc.yieldStabilised, fmt: FMT.pct },
-    {
-      label: 'Equity payback (years from 2026)',
-      pick: (sc) => sc.equityPaybackYears ?? 0,
-      fmt: FMT.num,
-    },
-    { label: 'Cumulative yield through 2036', pick: (sc) => sc.cumulativeYieldFinal, fmt: FMT.pct },
+    ...(!isBankViewExport ? [
+      { label: 'Equity IRR (levered, incl. terminal)', pick: (sc: ModelOutput['scenarios']['realistic']) => sc.equityIRR, fmt: FMT.pct },
+      { label: 'Project IRR (unlevered, incl. terminal)', pick: (sc: ModelOutput['scenarios']['realistic']) => sc.projectIRR, fmt: FMT.pct },
+      { label: 'Stabilised cash-on-cash yield', pick: (sc: ModelOutput['scenarios']['realistic']) => sc.yieldStabilised, fmt: FMT.pct },
+      {
+        label: 'Equity payback (years from 2026)',
+        pick: (sc: ModelOutput['scenarios']['realistic']) => sc.equityPaybackYears ?? 0,
+        fmt: FMT.num,
+      },
+      { label: 'Cumulative yield through 2036', pick: (sc: ModelOutput['scenarios']['realistic']) => sc.cumulativeYieldFinal, fmt: FMT.pct },
+    ] : []),
   ];
 
   summaryRows.forEach((row) => {
@@ -2543,9 +2551,11 @@ export async function exportBusinessPlan(
     { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },
     { label: 'Stabilised EBITDA (2031)', engine: stab2031?.ebitda ?? 0, workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, fmt: FMT.euro },
     { label: 'Stabilised DSCR (2031) — incl. WC', engine: dscr2031, workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`, fmt: FMT.mul },
-    { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
-    { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
-    { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
+    ...(!isBankViewExport ? [
+      { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
+      { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
+      { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
+    ] : []),
     // Cap Table rows omitted from banker pack — investor deal economics
     // have no place in a credit submission.
     ...(isBankViewExport ? [] : [

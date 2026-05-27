@@ -280,15 +280,6 @@ export function BankPnLSection() {
     },
   );
 
-  // ── Equity return ─────────────────────────────────────────────────────────
-  rows.push({ label: t('pnl.equityReturnSection'), getValue: () => "", format: "raw", separator: true });
-  rows.push({
-    label: t('pnl.ncfToEquity'),
-    getValue: (p) => p.netCashFlowPostVAT,
-    format: "currency",
-    bold: true,
-  });
-
   // ── Construction VAT timing (memo) ────────────────────────────────────────
   rows.push({ label: t('pnl.vatMemoSection'), getValue: () => "", format: "raw", separator: true });
   rows.push({
