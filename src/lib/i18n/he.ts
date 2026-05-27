@@ -1165,6 +1165,7 @@ export const he: TranslationDictionary = {
   'bank.actions.tour.sub': 'סיור מודרך של 5 דקות בכל חלק',
   'bank.actions.presentation.title': 'מצגת בנק',
   'bank.actions.presentation.sub': 'חפיסת המשקיעים המלאה, מוכנה להצגה',
+  'bank.actions.presentation.download': 'הורד מסמך Word',
   'bank.actions.model.title': 'הורדת המודל',
   'bank.actions.model.sub': 'מודל Excel חי עם כל התרחישים',
   'admin.actions.heading': 'גישה מהירה',
@@ -1282,6 +1283,7 @@ export const he: TranslationDictionary = {
   'pnl.cfadsNote': 'CFADS = EBITDA − CIT (מס מאוחסן שלילי במנוע). DSCR עמוס כולל ריבית מסגרת הון חוזר. הרחב את קטעי הכנסות, גשר CFADS, שירות חוב וכיסוי לפרטים מלאים.',
 
   // ── Common additions (2026-05-23) ──
+  'common.back': 'חזרה',
   'common.collapse': 'כווץ',
   'common.expand': 'הרחב',
   'common.total': 'סה"כ',

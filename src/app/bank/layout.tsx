@@ -26,6 +26,7 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
   // admin surface from it.
   useEffect(() => {
     setViewModeOverride('bank');
+    setFinancingPathOverride('commercial');
     initStressTestOverrides();
     return () => {
       setViewModeOverride(null);

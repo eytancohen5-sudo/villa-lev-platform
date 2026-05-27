@@ -1164,6 +1164,7 @@ export const en: TranslationDictionary = {
   'bank.actions.tour.sub': 'A 5-minute guided walkthrough of every section',
   'bank.actions.presentation.title': 'Bank Presentation',
   'bank.actions.presentation.sub': 'The full investor deck, ready to present',
+  'bank.actions.presentation.download': 'Download Word doc',
   'bank.actions.model.title': 'Download the Model',
   'bank.actions.model.sub': 'Live Excel model with all scenarios included',
   'admin.actions.heading': 'Quick Access',
@@ -1281,6 +1282,7 @@ export const en: TranslationDictionary = {
   'pnl.cfadsNote': 'CFADS = EBITDA − CIT (tax stored negative in engine). DSCR Loaded includes WC facility interest. Expand the Revenue, CFADS bridge, Debt service, and Coverage sections for full line-item detail.',
 
   // ── Common additions (2026-05-23) ──
+  'common.back': 'Back',
   'common.collapse': 'collapse',
   'common.expand': 'expand',
   'common.total': 'Total',

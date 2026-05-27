@@ -1051,6 +1051,7 @@ export interface TranslationDictionary {
   'bank.actions.tour.sub': string;
   'bank.actions.presentation.title': string;
   'bank.actions.presentation.sub': string;
+  'bank.actions.presentation.download': string;
   'bank.actions.model.title': string;
   'bank.actions.model.sub': string;
   'bank.section.termsheet': string;
@@ -1161,6 +1162,7 @@ export interface TranslationDictionary {
   'pnl.cfadsNote': string;
 
   // ── Common additions (2026-05-23) ──
+  'common.back': string;
   'common.collapse': string;
   'common.expand': string;
   'common.total': string;
