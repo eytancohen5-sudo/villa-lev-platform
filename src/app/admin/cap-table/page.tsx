@@ -17,6 +17,7 @@ import {
   DEFAULT_FEE_CASH_SPLIT_PCT,
 } from "@/lib/engine/founderWaterfall";
 import { SectionHeader } from "@/components/AdminUI";
+import { EytanReturnBreakdown } from "@/components/EytanReturnBreakdown";
 
 function NumberInput({
   value,
@@ -633,6 +634,23 @@ export default function CapTablePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Eytan's return breakdown — three roles ─────────────────────────── */}
+      {(() => {
+        const _founderResult = result.stakeholders.find((s) => s.stakeholder.isPromoter);
+        return _founderResult ? (
+          <EytanReturnBreakdown
+            result={result}
+            founderResult={_founderResult}
+            terminalEquityValue={terminalEquityValue}
+            grantApproved={grantApproved}
+            locale={locale}
+            formatCurrency={(v) => formatCurrency(v, true, locale)}
+            formatPercent={formatPercent}
+            formatMultiple={formatMultiple}
+          />
+        ) : null;
+      })()}
 
       {/* Redacted target picker */}
       {redacted && (

@@ -1847,6 +1847,46 @@ export interface TranslationDictionary {
   'ct.capBinding75Detail': string;
   'ct.capEarned33Detail': string;
   'ct.capNoBinding': string;
+
+  // ── Eytan Return Breakdown — three-role section ──────────────────────────
+  'ct.roles.sectionTitle': string;
+  'ct.roles.sectionSub': string;
+  'ct.roles.panel1.title': string;
+  'ct.roles.panel1.sub': string;
+  'ct.roles.panel1.cashInvested': string;
+  'ct.roles.panel1.equityStake': string;
+  'ct.roles.panel1.distributions': string;
+  'ct.roles.panel1.netProfit': string;
+  'ct.roles.panel1.moic': string;
+  'ct.roles.panel1.irr': string;
+  'ct.roles.panel1.payback': string;
+  'ct.roles.panel2.title': string;
+  'ct.roles.panel2.sub': string;
+  'ct.roles.panel2.manCoFees': string;
+  'ct.roles.panel2.manCoSub': string;
+  'ct.roles.panel2.devEquityPromote': string;
+  'ct.roles.panel2.devEquitySub': string;
+  'ct.roles.panel2.ratchet': string;
+  'ct.roles.panel2.ratchetSub': string;
+  'ct.roles.panel2.bucket1BCash': string;
+  'ct.roles.panel2.bucket1BSub': string;
+  'ct.roles.panel2.total': string;
+  'ct.roles.panel3.title': string;
+  'ct.roles.panel3.sub': string;
+  'ct.roles.panel3.grantBonusPct': string;
+  'ct.roles.panel3.grantBonusSub': string;
+  'ct.roles.panel3.grantDistributions': string;
+  'ct.roles.panel3.grantAtExit': string;
+  'ct.roles.panel3.feePrincipal': string;
+  'ct.roles.panel3.inactive': string;
+  'ct.roles.panel3.activeChip': string;
+  'ct.roles.panel3.inactiveChip': string;
+  'ct.roles.total.heading': string;
+  'ct.roles.total.sub': string;
+  'ct.roles.total.euros': string;
+  'ct.roles.total.moicCombined': string;
+  'ct.roles.total.moicSub': string;
+  'ct.roles.total.footnote': string;
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd': string;
   'bank.about.unitDbl': string;
