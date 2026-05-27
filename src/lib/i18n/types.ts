@@ -1902,4 +1902,14 @@ export interface TranslationDictionary {
   'connections.loading': string;
   'connections.restricted': string;
   'connections.signInPrompt': string;
+
+  // ── Bank gate ──
+  'bankGate.heading': string;
+  'bankGate.subtext': string;
+  'bankGate.namePlaceholder': string;
+  'bankGate.cta': string;
+  'bankGate.loading': string;
+  'bankGate.nameRequired': string;
+  'bankGate.error': string;
+  'bankGate.confidential': string;
 }

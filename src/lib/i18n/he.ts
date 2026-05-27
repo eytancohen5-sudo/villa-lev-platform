@@ -1930,4 +1930,14 @@ export const he: TranslationDictionary = {
   'connections.loading':           'טוען חיבורים…',
   'connections.restricted':        'יומן החיבורים מוגבל למנהלים.',
   'connections.signInPrompt':      'התחבר כדי לצפות ביומן החיבורים.',
+
+  // ── Bank gate ─────────────────────────────────────────────────────────────
+  'bankGate.heading':         'לפני שממשיכים',
+  'bankGate.subtext':         'אנא הכנס את שמך כדי שנדע מי בוחן את המצגת.',
+  'bankGate.namePlaceholder': 'שמך',
+  'bankGate.cta':             'המשך',
+  'bankGate.loading':         'רגע אחד…',
+  'bankGate.nameRequired':    'אנא הכנס את שמך כדי להמשיך.',
+  'bankGate.error':           'משהו השתבש. אנא נסה שנית.',
+  'bankGate.confidential':    'סודי — לנמענים מורשים בלבד.',
 };

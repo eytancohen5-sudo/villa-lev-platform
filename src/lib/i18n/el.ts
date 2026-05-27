@@ -1928,4 +1928,14 @@ export const el: TranslationDictionary = {
   'connections.loading':           'Φόρτωση συνδέσεων…',
   'connections.restricted':        'Το αρχείο συνδέσεων είναι περιορισμένο σε διαχειριστές.',
   'connections.signInPrompt':      'Συνδεθείτε για να δείτε το αρχείο συνδέσεων.',
+
+  // ── Bank gate ─────────────────────────────────────────────────────────────
+  'bankGate.heading':         'Πριν συνεχίσετε',
+  'bankGate.subtext':         'Παρακαλούμε εισαγάγετε το όνομά σας ώστε να γνωρίζουμε ποιος αξιολογεί την παρουσίαση.',
+  'bankGate.namePlaceholder': 'Το όνομά σας',
+  'bankGate.cta':             'Συνέχεια',
+  'bankGate.loading':         'Μια στιγμή…',
+  'bankGate.nameRequired':    'Παρακαλούμε εισαγάγετε το όνομά σας για να συνεχίσετε.',
+  'bankGate.error':           'Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά.',
+  'bankGate.confidential':    'Εμπιστευτικό — μόνο για εξουσιοδοτημένους παραλήπτες.',
 };

@@ -1892,4 +1892,14 @@ export const en: TranslationDictionary = {
   'connections.loading':           'Loading connections…',
   'connections.restricted':        'The connections log is restricted to administrators.',
   'connections.signInPrompt':      'Sign in to view the connections log.',
+
+  // ── Bank gate ─────────────────────────────────────────────────────────────
+  'bankGate.heading':         'Before you continue',
+  'bankGate.subtext':         'Please enter your name so we know who is reviewing the presentation.',
+  'bankGate.namePlaceholder': 'Your name',
+  'bankGate.cta':             'Continue',
+  'bankGate.loading':         'One moment…',
+  'bankGate.nameRequired':    'Please enter your name to continue.',
+  'bankGate.error':           'Something went wrong. Please try again.',
+  'bankGate.confidential':    'Confidential — for authorised recipients only.',
 };

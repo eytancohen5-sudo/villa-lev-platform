@@ -3,11 +3,14 @@
 import { useEffect, useRef } from "react";
 import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { useModelStore } from "@/lib/store/modelStore";
+import { BankGate } from "@/components/BankGate";
+import { usePresence } from "@/lib/data/usePresence";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
   const { init, setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest } = useModelStore();
   useReferenceScenarioAutoLoad();
+  usePresence();
 
   const initialized = useRef(false);
   useEffect(() => {
@@ -36,8 +39,10 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
   }, [setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest]);
 
   return (
-    <div className="min-h-screen bg-surface-primary">
-      {children}
-    </div>
+    <BankGate>
+      <div className="min-h-screen bg-surface-primary">
+        {children}
+      </div>
+    </BankGate>
   );
 }
