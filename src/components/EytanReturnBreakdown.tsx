@@ -140,12 +140,20 @@ export function EytanReturnBreakdown({
           note={t("ct.roles.panel2.note")}
           colorClass="border-amber-300/60 bg-amber-50/30"
           extra={
-            ratchetPct > 0 ? (
-              <div className="text-[10px] text-amber-700/70 -mt-1">
-                {t("ct.roles.panel2.ratchetAdd")
-                  .replace("{pct}", formatPercent(ratchetPct))}
-              </div>
-            ) : undefined
+            <>
+              {ratchetPct > 0 && (
+                <div className="text-[10px] text-amber-700/70 -mt-1">
+                  {t("ct.roles.panel2.ratchetAdd")
+                    .replace("{pct}", formatPercent(ratchetPct))}
+                </div>
+              )}
+              {b.aggelakakisPromotePct > 0 && (
+                <div className="text-[10px] text-amber-700/60 mt-0.5">
+                  {t("ct.roles.panel2.aggelakakisSub")
+                    .replace("{pct}", formatPercent(b.aggelakakisPromotePct))}
+                </div>
+              )}
+            </>
           }
         />
 
@@ -169,6 +177,14 @@ export function EytanReturnBreakdown({
               labelOn={t("ct.roles.panel3.activeChip")}
               labelOff={t("ct.roles.panel3.inactiveChip")}
             />
+          }
+          extra={
+            grantApproved && b.aggelakakisExitPct > 0 ? (
+              <div className="text-[10px] text-[#4A6A8B]/60 mt-0.5">
+                {t("ct.roles.panel3.aggelakakisSub")
+                  .replace("{pct}", formatPercent(b.aggelakakisExitPct))}
+              </div>
+            ) : undefined
           }
         />
       </div>

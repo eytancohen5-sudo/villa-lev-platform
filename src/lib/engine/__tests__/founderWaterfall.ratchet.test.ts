@@ -60,7 +60,8 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.performanceRatchetPct).toBe(0);
   });
 
-  it('returns +9% ratchet for IRR 8–22% (pref_met tier)', () => {
+  it('returns +9% ratchet for IRR 8–22% (pref_met tier) reduced by 10% carry to 0.081', () => {
+    // Default aggelakakisCarryPct = 0.10; 9% × 0.90 = 8.1%
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -68,7 +69,7 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 3.0,
     });
     expect(result.ratchetTier).toBe('pref_met');
-    expect(result.performanceRatchetPct).toBeCloseTo(0.09);
+    expect(result.performanceRatchetPct).toBeCloseTo(0.081);
   });
 
   it('returns 0% ratchet for IRR 8–22% when MOIC floor not met (drops to miss)', () => {
@@ -84,7 +85,10 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.moicFloorReduction).toBe(true);
   });
 
-  it('returns +10% ratchet for IRR ≥ 22% with grant approved', () => {
+  it('returns +9% ratchet for IRR ≥ 22% with grant approved (10% cap × 0.90 carry reduction)', () => {
+    // Excellent tier raw = 10%; carry reduces to 10% × 0.90 = 9%.
+    // Standalone ratchet cap (10%) applies to the gross value before carry,
+    // so the effective post-carry cap is 10% × 0.90 = 9%.
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -92,11 +96,10 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');
-    // Ratchet standalone cap (10%) applies independently — grant bonus does not reduce it.
-    expect(result.performanceRatchetPct).toBe(0.10);
+    expect(result.performanceRatchetPct).toBeCloseTo(0.09);
   });
 
-  it('returns +10% ratchet for IRR ≥ 22% WITHOUT grant', () => {
+  it('returns +9% ratchet for IRR ≥ 22% WITHOUT grant (carry reduces 10% to 9%)', () => {
     const noGrantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: false,
@@ -104,12 +107,11 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(noGrantCase.ratchetTier).toBe('excellent');
-    expect(noGrantCase.performanceRatchetPct).toBe(0.10);
+    expect(noGrantCase.performanceRatchetPct).toBeCloseTo(0.09);
   });
 
   it('grant and no-grant excellent-tier ratchet are equal — grant bonus is independent', () => {
-    // Ratchet standalone cap means grant bonus no longer squeezes the ratchet.
-    // Both cases reach the same 10% at the excellent tier.
+    // Both reach the same post-carry ratchet (9% = 10% × 0.90) at the excellent tier.
     const grantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -122,13 +124,13 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorIRR: 0.25,
       investorMOIC: 7.0,
     });
-    expect(grantCase.performanceRatchetPct).toBe(0.10);
-    expect(noGrantCase.performanceRatchetPct).toBe(0.10);
+    expect(grantCase.performanceRatchetPct).toBeCloseTo(0.09);
+    expect(noGrantCase.performanceRatchetPct).toBeCloseTo(0.09);
     expect(grantCase.performanceRatchetPct).toBe(noGrantCase.performanceRatchetPct);
   });
 
   it('pref_met tier boundary: IRR exactly at 22% still in pref_met (exclusive upper bound)', () => {
-    // irrMax for pref_met = 0.22 (exclusive), so 0.2199 is pref_met
+    // irrMax for pref_met = 0.22 (exclusive), so 0.2199 is pref_met. 9% × 0.90 = 8.1%
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -136,7 +138,7 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 3.0,
     });
     expect(result.ratchetTier).toBe('pref_met');
-    expect(result.performanceRatchetPct).toBeCloseTo(0.09);
+    expect(result.performanceRatchetPct).toBeCloseTo(0.081);
   });
 
   it('excellent tier boundary: IRR at exactly 22% flips to excellent', () => {
@@ -147,8 +149,8 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');
-    // Standalone ratchet cap (10%) applies; grant bonus is independent.
-    expect(result.performanceRatchetPct).toBe(0.10);
+    // Carry reduces 10% raw to 10% × 0.90 = 9%.
+    expect(result.performanceRatchetPct).toBeCloseTo(0.09);
   });
 
   it('ratchetTierLabel is human-readable for each tier', () => {
@@ -568,5 +570,60 @@ describe('Grant route 55% exit cap', () => {
 
     expect(result.grantExitCapActive).toBe(false);
     expect(result.capBinding).not.toBe('exit_55_grant');
+  });
+});
+
+// ── Aggelakakis promote-layer carry tests ──────────────────────────────────
+//
+// aggelakakisPromotePct = carry × (devEq + grantBonus + ratchet) [gross values]
+// aggelakakisExitPct    = carry × (devEq + grantBonus)            [ratchet excluded]
+// pariPassuPct is untouched — Thanasis does NOT participate in Eytan's LP cash return.
+
+describe('Aggelakakis promote-layer carry', () => {
+  it('aggelakakisPromotePct is non-zero when grant is not approved', () => {
+    // With developerEquityPct = 0.25 and carry = 0.10 (default):
+    // aggelakakisPromotePct = 0.10 × 0.25 = 0.025 (devEq only; no grant, no ratchet at miss IRR)
+    const result = computeFounderStake({
+      founderCashInvested: 200_000,
+      totalEquityRaised: 1_200_000,
+      developerEquityPct: 0.25,
+      grantApproved: false,
+      investorIRR: 0.02,
+      investorMOIC: 1.0,
+    });
+    expect(result.ratchetTier).toBe('miss');
+    expect(result.aggelakakisPromotePct).toBeCloseTo(0.025);
+  });
+
+  it('aggelakakisExitPct excludes ratchet — must be less than aggelakakisPromotePct when ratchet > 0', () => {
+    // pref_met tier (IRR 12%, MOIC 3.0): raw ratchet = 9%, post-carry = 8.1%.
+    // With grant approved and developerEquityPct = 0.25:
+    //   devEqGross = 0.25, grantBonusGross ≈ 0.0836, ratchetGross ≈ 0.09
+    //   aggelakakisPromotePct = 0.10 × (0.25 + 0.0836 + 0.09) = 0.10 × 0.4236 ≈ 0.0424
+    //   aggelakakisExitPct    = 0.10 × (0.25 + 0.0836)        = 0.10 × 0.3336 ≈ 0.0334
+    const result = computeFounderStake({
+      founderCashInvested: 200_000,
+      totalEquityRaised: 1_200_000,
+      developerEquityPct: 0.25,
+      grantApproved: true,
+      investorIRR: 0.12,
+      investorMOIC: 3.0,
+    });
+    expect(result.aggelakakisPromotePct).toBeGreaterThan(0);
+    expect(result.aggelakakisExitPct).toBeGreaterThan(0);
+    expect(result.aggelakakisExitPct).toBeLessThan(result.aggelakakisPromotePct);
+  });
+
+  it('pariPassuPct is unaffected by carry — Thanasis does not participate in LP cash return', () => {
+    const result = computeFounderStake({
+      founderCashInvested: 200_000,
+      totalEquityRaised: 1_200_000,
+      developerEquityPct: 0.25,
+      grantApproved: false,
+      investorIRR: 0.02,
+      investorMOIC: 1.0,
+    });
+    // pariPassu = 200_000 / 1_200_000 ≈ 0.1667 — unchanged by carry
+    expect(result.pariPassuPct).toBeCloseTo(200_000 / 1_200_000, 6);
   });
 });

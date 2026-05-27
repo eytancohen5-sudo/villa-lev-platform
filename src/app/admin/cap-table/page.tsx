@@ -125,9 +125,9 @@ export default function CapTablePage() {
   const grantAmount = grantApproved
     ? model.keyMetrics.totalCapex - model.keyMetrics.loanAmount - model.keyMetrics.equityRequired
     : 0;
-  // Aggelakakis rides the waterfall as a % stake — same as Eytan's grantBonusPct.
+  // Aggelakakis exit EUR: based on promote-layer exit slice (devEq + grantBonus only, ratchet excluded).
   const terminalEquityValue = model.scenarios[activeScenario].terminalEquityValue ?? 0;
-  const aggelakakisExitEUR = b.aggelakakisEquityPct * terminalEquityValue;
+  const aggelakakisExitEUR = b.aggelakakisExitPct * terminalEquityValue;
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
     activeScenario === 'downside' ? t('scenario.downside') :
@@ -579,9 +579,9 @@ export default function CapTablePage() {
                   <div>
                     <div className="text-text-tertiary">{t('ct.grantConv.aggelakakisExitPct')}</div>
                     <div className="font-mono font-medium mt-0.5">
-                      {b.aggelakakisEquityPct > 0 ? formatPercent(b.aggelakakisEquityPct) : '—'}
+                      {b.aggelakakisPromotePct > 0 ? formatPercent(b.aggelakakisPromotePct) : '—'}
                     </div>
-                    <div className="text-text-tertiary/60 text-[10px] mt-0.5">of equity pool</div>
+                    <div className="text-text-tertiary/60 text-[10px] mt-0.5">{t('ct.grantConv.aggelakakisSubLabel')}</div>
                   </div>
                   <div>
                     <div className="text-text-tertiary">{t('ct.layerB.equityAtExit')}</div>
@@ -590,7 +590,7 @@ export default function CapTablePage() {
                     </div>
                     {aggelakakisExitEUR > 0 && (
                       <div className="text-text-tertiary/60 text-[10px] mt-0.5">
-                        {formatPercent(b.aggelakakisEquityPct)} × terminal equity
+                        {formatPercent(b.aggelakakisExitPct)} × terminal equity
                       </div>
                     )}
                   </div>

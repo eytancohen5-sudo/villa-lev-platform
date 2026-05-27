@@ -1928,6 +1928,9 @@ export interface TranslationDictionary {
   'ct.grantConv.aggelakakisExitPct': string;
   'ct.grantConv.subGrant': string;
   'ct.grantConv.subCash': string;
+  'ct.grantConv.aggelakakisSubLabel': string;
+  'ct.roles.panel2.aggelakakisSub': string;
+  'ct.roles.panel3.aggelakakisSub': string;
   'ct.opFeeManCo': string;
   'ct.opFeeNote': string;
   'ct.redactedShowFor': string;

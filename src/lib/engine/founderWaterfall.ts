@@ -186,6 +186,8 @@ export interface FounderStakeInput {
   bucket1BPaymentStartYear?: number;
   /** @deprecated Use grantSuccessFeePaymentYear instead. */
   loanDisbursementYear?: number;
+  /** Thanasis's promote-layer carry. Default 0.10 (10%). Does NOT apply to pariPassuPct. */
+  aggelakakisCarryPct?: number;
 }
 
 export interface FounderStakeBreakdown {
@@ -226,6 +228,10 @@ export interface FounderStakeBreakdown {
   aggelakakisEquityAtExit: number;  // EUR input used to derive aggelakakisEquityPct (kept for backward compat)
   /** % stake at inception — mirrors grantBonusPct for Eytan. Rides full waterfall (ops + exit). */
   aggelakakisEquityPct: number;
+  /** 10% of Eytan's promote layers (devEq + grantBonus + ratchet). Grant-independent for devEq. Display only — does not reduce pool. */
+  aggelakakisPromotePct: number;
+  /** 10% of Eytan's exit-applicable promote layers (devEq + grantBonus only — ratchet excluded from exit). For exit EUR display. */
+  aggelakakisExitPct: number;
   eytan1BCash: number;              // Eytan's cash portion, Bucket 1B (0 if no grant)
   grantSuccessFeePaymentYear: number; // year cash portions are paid
   // Layer B telemetry (preserved for tooltips / Excel)
@@ -344,13 +350,22 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   const advisoryAnnual = 0;
   const advisoryStartYear = paymentYear;
 
+  // ── Aggelakakis promote carry (10% of all promote layers) ──────────
+  // Thanasis's carry is carved from Eytan's promote layers only.
+  // pariPassuPct is Eytan's cash return at LP terms — Thanasis does NOT
+  // participate in it. All three promote layers (devEq, grantBonus, ratchet)
+  // are reduced by the carry fraction before caps run.
+  const carry = input.aggelakakisCarryPct ?? 0.10;
+
   // ── Layer C tier selection ────────────────────────────────────────
-  let { tier, ratchet, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
+  let { tier, ratchet: ratchetGross, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
+  let ratchet = ratchetGross * (1 - carry);
 
   // ── Ratchet standalone cap ────────────────────────────────────────
   // Layer C is capped independently at RATCHET_STANDALONE_CAP (10%).
   // Grant bonus (Layer B) and pari-passu (Layer A) are not counted
   // against this ceiling — each component is independently bounded.
+  // Cap fires on the already-reduced (post-carry) value.
   let cap: CapBinding = 'none';
   if (ratchet > RATCHET_STANDALONE_CAP + 1e-9) {
     ratchet = RATCHET_STANDALONE_CAP;
@@ -358,6 +373,10 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   } else if (Math.abs(ratchet - RATCHET_STANDALONE_CAP) < 1e-9 && ratchet > 0) {
     cap = 'ratchet_10';
   }
+  // Also reduce grant bonus by carry fraction before using it downstream.
+  const grantBonusGross = input.grantApproved ? grantBonus / (1 - carry) : 0;
+  grantBonus = grantBonus * (1 - carry);  // already computed above (0 if no grant)
+
   let earned = grantBonus + ratchet;  // no combined ceiling; layers are independent
 
   // ── Developer equity (additive on top of pari-passu) ──────────────
@@ -366,7 +385,10 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   //   • pari-passu      = cash return proportional to cash invested
   //   • developerEquity = promote for sourcing, construction, collateral
   // Both apply to operations AND exit; only the ratchet is exit-excluded.
-  const developerEquity = input.developerEquityPct ?? 0;
+  // The carry reduces developerEquityPct at source; caps then fire on the
+  // already-reduced values, which is investor-favourable.
+  const developerEquityGross = input.developerEquityPct ?? 0;
+  const developerEquity = developerEquityGross * (1 - carry);
   const operationalBase = pariPassu + developerEquity;  // additive
 
   // ── Total cap (75%) on OPERATING rate — reduce earned if needed ─────
@@ -395,6 +417,23 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     cap = 'exit_55_grant';
   }
 
+  // ── Aggelakakis promote display fields ────────────────────────────
+  // Computed from gross promote layers (before carry reduction).
+  // These are display-only — they do NOT reduce the pool.
+  //   aggelakakisPromotePct = carry × (devEqGross + grantBonusGross + ratchetGross)
+  //   aggelakakisExitPct    = carry × (devEqGross + grantBonusGross)  [ratchet excluded from exit]
+  // ratchetGross: back-compute from post-carry value (capped ratchet may be < tier raw value).
+  const ratchetGrossDisplay = carry < 1 ? ratchet / (1 - carry) : 0;
+  const aggelakakisPromotePct = carry * (
+    developerEquityGross +
+    (input.grantApproved ? grantBonusGross : 0) +
+    ratchetGrossDisplay
+  );
+  const aggelakakisExitPct = carry * (
+    developerEquityGross +
+    (input.grantApproved ? grantBonusGross : 0)
+  );
+
   return {
     pariPassuPct: pariPassu,
     developerEquityPct: developerEquity,
@@ -413,6 +452,8 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
     aggelakakisCash,
     aggelakakisEquityAtExit,
     aggelakakisEquityPct,
+    aggelakakisPromotePct,
+    aggelakakisExitPct,
     eytan1BCash,
     grantSuccessFeePaymentYear: paymentYear,
     founderNetGrantCash: founderNetCash,
@@ -476,7 +517,12 @@ export interface DistributionStreamOptions {
   // Combined Aggelakakis + Eytan cash. Paid post-debt-service; does not affect DSCR.
   aggelakakisCash?: number;        // Aggelakakis's cash portion
   eytan1BCash?: number;            // Eytan's cash portion (Bucket 1B)
-  /** % stake at inception — preferred. Rides full waterfall (ops + exit). */
+  /**
+   * @deprecated Since 2026-05-27 carry-model change. Aggelakakis's participation is
+   * now a sub-allocation from Eytan's promote layers (see aggelakakisCarryPct in
+   * FounderStakeInput). This field is accepted but NOT consumed inside
+   * buildDistributionStream — aggelakakisShare is always 0.
+   */
   aggelakakisEquityPct?: number;
   /** @deprecated — EUR input; pass aggelakakisEquityPct instead. */
   aggelakakisEquityAtExit?: number;
@@ -537,10 +583,11 @@ export function buildDistributionStream(
     const operatingDistribution = Math.max(0, ncfPreFees - manCoFee - grantFeeThisYear);
     // Exit component: full terminal equity (Aggelakakis rides as a % stake, not a deduction).
     const exitDistribution = isExit ? Math.max(0, scenario.terminalEquityValue) : 0;
-    // Aggelakakis's % stake: carved out of gross distributable before founder/investor split.
+    // Aggelakakis carry is now a sub-allocation from Eytan's promote layers only,
+    // not a pre-split pool deduction. Pool is returned in full.
     const grossDistribution = operatingDistribution + exitDistribution;
-    const aggelakakisShare = grossDistribution * aggelakakisEquityPct;
-    const totalDistribution = Math.max(0, grossDistribution - aggelakakisShare);
+    const aggelakakisShare = 0;   // field kept for YearDistribution interface compat
+    const totalDistribution = grossDistribution;
     return {
       year: p.year,
       totalDistribution,
@@ -580,6 +627,8 @@ export interface ResolveOptions {
   feeCashSplitPct?: number;
   // Developer/promote equity granted at inception. See FounderStakeInput.
   developerEquityPct?: number;
+  /** Thanasis's promote-layer carry. Default 0.10 (10%). Does NOT apply to pariPassuPct. */
+  aggelakakisCarryPct?: number;
 }
 
 /**
@@ -621,8 +670,11 @@ export function resolveFounderWaterfall(
     eytan1BCash = eytanTotal * cashSplit;
   }
 
-  // Aggelakakis's % stake — carved from gross distributable before the founder/investor split.
-  // Both founder and investors are diluted proportionally (same mechanism as Eytan's grantBonusPct).
+  // Aggelakakis's % stake — kept for backward-compat field plumbing only.
+  // Under the new carry model (2026-05-27) his participation is a sub-allocation
+  // from Eytan's promote layers, NOT a pre-split pool deduction. The value is
+  // passed into buildDistributionStream for interface compatibility but is NOT
+  // used inside that function (aggelakakisShare is always set to 0 there).
   const aggelakakisEqPct = totalEquityRaised > 0 ? aggelakakisEquityAtExit / totalEquityRaised : 0;
 
   const stream = buildDistributionStream(scenario, {
@@ -648,6 +700,7 @@ export function resolveFounderWaterfall(
     bankLoanAmount: options.bankLoanAmount,
     grantSuccessFeePaymentYear: paymentYear,
     developerEquityPct: options.developerEquityPct,
+    aggelakakisCarryPct: options.aggelakakisCarryPct ?? 0.10,
   };
 
   // Initial breakdown with ratchet = 0 (i.e. investor IRR = -∞ guess).
@@ -670,12 +723,13 @@ export function resolveFounderWaterfall(
 
   for (let i = 0; i < maxIterations; i++) {
     iterations = i + 1;
-    // Investors share the pool that remains after Aggelakakis's equity carve-out.
-    // Apply founderPct to the reduced distributions so both founder and investors
-    // bear the Aggelakakis dilution proportionally.
+    // Aggelakakis carry is now a sub-allocation from Eytan's promote layers only.
+    // The full pool is distributed between founder and investors; the carry is
+    // already baked into founderOperatingPct / founderExitPct via the reduced
+    // developerEquity / grantBonus / ratchet inputs.
     const investorYearly = stream.map((y) => {
-      const opInvestor = y.operatingDistribution * (1 - aggelakakisEqPct) * (1 - breakdown.founderOperatingPct);
-      const exitInvestor = y.exitDistribution * (1 - aggelakakisEqPct) * (1 - breakdown.founderExitPct);
+      const opInvestor = y.operatingDistribution * (1 - breakdown.founderOperatingPct);
+      const exitInvestor = y.exitDistribution * (1 - breakdown.founderExitPct);
       return opInvestor + exitInvestor;
     });
     const cfStream = [-totalNonFounderCash, ...investorYearly];
@@ -706,12 +760,12 @@ export function resolveFounderWaterfall(
   }
 
   const yearly: YearDistribution[] = stream.map((y) => {
-    // Founder and investors split the pool that remains after Aggelakakis's equity carve-out.
-    // Apply founderPct to the reduced distributions (gross × (1 − aggelakakisEqPct)) so that
-    // both founder and investors bear the dilution proportionally — not investors alone.
+    // Aggelakakis carry is a sub-allocation from Eytan's promote layers — it is
+    // already reflected in the reduced founderOperatingPct / founderExitPct.
+    // The pool is split in full between founder and investors.
     const founderShare =
-      y.operatingDistribution * (1 - aggelakakisEqPct) * breakdown.founderOperatingPct +
-      y.exitDistribution * (1 - aggelakakisEqPct) * breakdown.founderExitPct;
+      y.operatingDistribution * breakdown.founderOperatingPct +
+      y.exitDistribution * breakdown.founderExitPct;
     return { ...y, founderShare, investorShare: y.totalDistribution - founderShare };
   });
 
