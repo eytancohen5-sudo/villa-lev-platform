@@ -28,14 +28,16 @@ export const PRESENTATION_LABEL   = _m
   ? [PRESENTATION_VERSION, PRESENTATION_DATE, _time].filter(Boolean).join(" · ")
   : PRESENTATION_VERSION;
 
-// Locale-specific PDF map. EN is always the canonical v23.
+// Locale-specific PDF map. EN is always the canonical version.
 // EL/HE point to the latest translated versions available in public/.
-// When a locale-specific v23 PDF is deployed, update its entry here and
+// When a locale-specific PDF is deployed, update its entry here and
 // set its PRESENTATION_VERSION_BY_LOCALE entry to PRESENTATION_VERSION.
+// NOTE: EL/HE are v24 (partial translation: structure translated, body prose English).
+// EN stays on v23 until a v24 EN PDF is exported and placed in public/.
 export const PRESENTATION_PDF_BY_LOCALE: Partial<Record<Locale, string>> = {
   en: PRESENTATION_PDF_URL,
-  el: "/VillaLevGroup_Presentation_v23_26May2026.el.pdf",
-  he: "/VillaLevGroup_Presentation_v23_26May2026.he.pdf",
+  el: "/VillaLevGroup_Presentation_v24_27May2026.el.pdf",
+  he: "/VillaLevGroup_Presentation_v24_27May2026.he.pdf",
 };
 
 export const PRESENTATION_VERSION_BY_LOCALE: Partial<Record<Locale, string>> = {
