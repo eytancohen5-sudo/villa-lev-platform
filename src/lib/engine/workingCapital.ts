@@ -42,6 +42,8 @@ export interface AnnualWCAggregate {
 export interface WorkingCapitalSchedule {
   active: boolean;
   effectiveFacility: number;
+  /** Computed minimum: VAT-bridge peak rounded up to nearest €50k. */
+  minimumFacility: number;
   rate: number;
   quarters: WorkingCapitalQuarter[];
   annual: Map<number, AnnualWCAggregate>;
@@ -50,6 +52,7 @@ export interface WorkingCapitalSchedule {
 const EMPTY_SCHEDULE: WorkingCapitalSchedule = {
   active: false,
   effectiveFacility: 0,
+  minimumFacility: 0,
   rate: 0,
   quarters: [],
   annual: new Map(),
@@ -214,5 +217,9 @@ export function computeWorkingCapital(
     });
   }
 
-  return { active: true, effectiveFacility, rate, quarters, annual };
+  // Minimum facility: VAT-bridge peak rounded up to nearest €50k.
+  const vatBridgePeak = Math.max(0, ...quarters.map((q) => q.vatBridgeBalance ?? 0));
+  const minimumFacility = Math.ceil(vatBridgePeak / 50_000) * 50_000;
+
+  return { active: true, effectiveFacility, minimumFacility, rate, quarters, annual };
 }

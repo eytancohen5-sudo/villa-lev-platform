@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslation } from '@/lib/i18n/I18nProvider'
+import { useModelStore } from '@/lib/store/modelStore'
 
 const ROWS = [
   { quarter: 'Q3-2026', vatPaid: 182_139, vatRefund: 0,       netFloat: 182_139 },
@@ -15,10 +16,11 @@ const ROWS = [
   { quarter: 'Q4-2028', vatPaid: 136_604, vatRefund: 136_604, netFloat: 273_208 },
 ]
 
-const COVENANT = 560_000
-
 export function ConstructionVatCashflow() {
   const { t } = useTranslation()
+  const { model, activeScenario } = useModelStore()
+  const scenarioKey = (activeScenario === 'breakeven' ? 'realistic' : activeScenario) as keyof NonNullable<typeof model>['scenarios']
+  const COVENANT = model?.scenarios[scenarioKey]?.wcMinimumFacility ?? 500_000
   const fmt = (n: number) => '€' + n.toLocaleString('en-GB')
   const allOk = ROWS.every(r => r.netFloat <= COVENANT)
 
@@ -62,7 +64,7 @@ export function ConstructionVatCashflow() {
       {allOk && (
         <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
           <span>✓</span>
-          <span>{t('bank.vatCashflow.withinCovenant')}</span>
+          <span>{t('bank.vatCashflow.withinCovenant')} {fmt(COVENANT)} {t('bank.wc.revolving')}</span>
         </div>
       )}
       <div className="mt-4 space-y-1">

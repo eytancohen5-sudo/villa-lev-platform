@@ -20,6 +20,7 @@ import {
 } from "@/lib/data/marketBenchmarks";
 import { MarketComparablesDrawer } from "@/components/MarketComparablesDrawer";
 import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
+import { VILLA_RENTAL_SUMMARY } from "@/lib/data/villaMarketSales";
 import type { Locale } from "@/lib/i18n/types";
 
 // Stabilised year — matches engine model.ts `stabilisedYear = pnl.find(p => p.year === 2031)`.
@@ -120,6 +121,8 @@ const LR: Record<string, any> = {
     marketFootnoteBackstop:
       "Source: Greek Islands hotel market study — curated 13-property Paros/Antiparos/Mykonos/Santorini luxury-boutique set. All market rates are net of 18% OTA commission (consumer price × 0.82), matching the net revenue a hotel actually keeps. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
     marketSeeComparables: "See the {n} comparables →",
+    marketStudy: "Mkt study",
+    villaRentalMarket: "Villa rental market",
   },
   el: {
     header: "Τεκμήρια συντηρητισμού · Πάρος / Αντίπαρος",
@@ -179,6 +182,8 @@ const LR: Record<string, any> = {
     marketFootnoteBackstop:
       "Πηγή: Μελέτη αγοράς ξενοδοχείων — 13 επιλεγμένα luxury ξενοδοχεία Πάρου/Αντιπάρου/Μυκόνου/Σαντορίνης. Όλες οι τιμές αγοράς είναι καθαρές προμήθειας OTA 18% (τιμή καταναλωτή × 0.82), αντιστοιχώντας στα καθαρά έσοδα που κρατά το ξενοδοχείο. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
     marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
+    marketStudy: "Μελέτη αγοράς",
+    villaRentalMarket: "Αγορά ενοικίασης βίλας",
   },
   he: {
     header: "עדות שמרנות · אנטיפרוס",
@@ -238,6 +243,8 @@ const LR: Record<string, any> = {
     marketFootnoteBackstop:
       "מקור: מחקר שוק מלונות האיים היווניים — 13 מלונות luxury נבחרים בפרוס/אנטיפרוס/מיקונוס/סנטוריני. כל תעריפי השוק הם נטו עמלת OTA 18% (מחיר צרכן × 0.82), בהתאמה להכנסה הנטו שהמלון שומר לעצמו. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
     marketSeeComparables: "ראו את {n} המשווים →",
+    marketStudy: "מחקר שוק",
+    villaRentalMarket: "שוק השכרת וילות",
   },
 };
 
@@ -269,6 +276,8 @@ function CushionCard({
   modelValue,
   liveValue,
   gap,
+  marketStudyLabel,
+  marketStudyValue,
 }: {
   label: string;
   modelLabel: string;
@@ -277,6 +286,8 @@ function CushionCard({
   modelValue: string;
   liveValue: string;
   gap: number; // fractional (e.g. 0.07 = 7%)
+  marketStudyLabel?: string;
+  marketStudyValue?: string;
 }) {
   // Round to nearest 0.5% for display so the chip never shows misleadingly
   // precise figures (e.g. "+2.34%") that imply more confidence than we have.
@@ -313,6 +324,16 @@ function CushionCard({
             {liveValue}
           </span>
         </div>
+        {marketStudyLabel && marketStudyValue && (
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-[11px] uppercase tracking-wider text-brand-600">
+              {marketStudyLabel}
+            </span>
+            <span className="font-mono text-brand-700 tabular-nums font-semibold">
+              {marketStudyValue}
+            </span>
+          </div>
+        )}
       </div>
       <div className="mt-3 pt-2 border-t border-brand-200/50 flex items-center justify-between gap-2">
         <span className="text-[10px] uppercase tracking-wider text-text-tertiary">
@@ -483,6 +504,7 @@ export function LiveTrackRecord({
   // 2025 Greek Islands hotel set without scrolling further down the page.
   const [marketDrawerOpen, setMarketDrawerOpen] = useState(false);
   const [villaMarketDrawerOpen, setVillaMarketDrawerOpen] = useState(false);
+  const [villaRentalDrawerOpen, setVillaRentalDrawerOpen] = useState(false);
 
   // ── Compute live KPIs ──
   // `nowMs` comes from a useSyncExternalStore so we don't call impure
@@ -690,6 +712,8 @@ export function LiveTrackRecord({
           modelValue={formatCurrency(bpADR, false, locale)}
           liveValue={formatCurrency(adr, false, locale)}
           gap={adrGap}
+          marketStudyLabel={lr.marketStudy}
+          marketStudyValue={formatCurrency(VILLA_RENTAL_SUMMARY.avgPeakNetEurPerNight, false, locale)}
         />
         <CushionCard
           label={lr.villaOccupancy}
@@ -711,7 +735,7 @@ export function LiveTrackRecord({
         />
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={() => setShowDetail((v) => !v)}
@@ -721,6 +745,14 @@ export function LiveTrackRecord({
         >
           <span>{showDetail ? lr.hideDetail : lr.showDetail}</span>
           <span className="transition-transform duration-150 group-hover:translate-x-0.5">{showDetail ? "↑" : "↓"}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setVillaRentalDrawerOpen(true)}
+          className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+        >
+          <span>{lr.villaRentalMarket}</span>
+          <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
         </button>
       </div>
 
@@ -918,15 +950,6 @@ export function LiveTrackRecord({
               ).replace(" →", "")}</span>
               <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
             </button>
-            <button
-              data-testid="villa-market-btn"
-              type="button"
-              onClick={() => setVillaMarketDrawerOpen(true)}
-              className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
-            >
-              <span>{t("triangle.seeVillaMarket").replace(" →", "")}</span>
-              <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
-            </button>
           </div>
           <MarketComparablesDrawer
             open={marketDrawerOpen}
@@ -935,6 +958,11 @@ export function LiveTrackRecord({
           <VillaMarketDrawer
             open={villaMarketDrawerOpen}
             onClose={() => setVillaMarketDrawerOpen(false)}
+          />
+          <VillaMarketDrawer
+            open={villaRentalDrawerOpen}
+            onClose={() => setVillaRentalDrawerOpen(false)}
+            initialTab="rental"
           />
         </div>
 
