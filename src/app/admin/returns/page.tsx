@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
@@ -12,7 +11,6 @@ import { PageSkeleton } from "@/components/Skeleton";
 import { SectionHeader, KPICard } from "@/components/AdminUI";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { RETURNS_TOUR } from "@/lib/tours/configs";
-import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 
 // ── Page ────────────────────────────────────────────────────
 
@@ -20,7 +18,6 @@ export default function ReturnsPage() {
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(RETURNS_TOUR.storageKey);
-  const [saleMarketOpen, setSaleMarketOpen] = useState(false);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -169,16 +166,6 @@ export default function ReturnsPage() {
           accent={propertyExitDominates}
           tone={propertyExitDominates ? "positive" : undefined}
           chip={propertyExitDominates ? { label: t('returns.preferredExit'), ok: true } : undefined}
-          footer={
-            <button
-              type="button"
-              onClick={() => setSaleMarketOpen(true)}
-              className="group inline-flex items-center gap-1 px-3 py-1 rounded-full text-[12px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
-            >
-              <span>{t('triangle.seeVillaMarket').replace(' →', '')}</span>
-              <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
-            </button>
-          }
         />
         <KPICard
           label={t('returns.propertySaleIRR')}
@@ -236,11 +223,6 @@ export default function ReturnsPage() {
         </div>
       </div>
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={RETURNS_TOUR} />
-      <VillaMarketDrawer
-        open={saleMarketOpen}
-        onClose={() => setSaleMarketOpen(false)}
-        initialTab="sale"
-      />
     </div>
   );
 }
