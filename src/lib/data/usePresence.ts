@@ -21,7 +21,7 @@
 // }
 
 import { useEffect } from "react";
-import { doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
+import { doc, setDoc, deleteDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { getDb, getAuthInstance } from "@/lib/firebase";
 import { getGateName } from "@/components/AuthGate";
@@ -34,22 +34,34 @@ const TAB_ID: string =
     : Math.random().toString(36).slice(2);
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
+/** How often to check whether the user navigated to a new page. */
+const PAGE_CHECK_INTERVAL_MS = 3_000;
 
 // ── Optional activity logging ─────────────────────────────────────────────────
 
+export type ActionEntry = { action: string; actionAt: number };
 export type PresenceAction = "excel_download" | "presentation_view" | "tour_start";
 
 /**
  * Log a user activity against both the live presence doc and the history doc.
+ * Uses arrayUnion so every call appends a new entry — no overwrites.
  * Non-fatal — silently ignored if either doc doesn't exist yet.
  */
 export async function logPresenceActivity(action: PresenceAction): Promise<void> {
   const db = getDb();
   if (!db) return;
-  const update = { lastAction: action, lastActionAt: Date.now() };
+  const entry: ActionEntry = { action, actionAt: Date.now() };
   await Promise.allSettled([
-    updateDoc(doc(db, "presence", TAB_ID), update),
-    updateDoc(doc(db, "connectionHistory", TAB_ID), update),
+    updateDoc(doc(db, "presence", TAB_ID), {
+      lastAction: entry.action,
+      lastActionAt: entry.actionAt,
+      actions: arrayUnion(entry),
+    }),
+    updateDoc(doc(db, "connectionHistory", TAB_ID), {
+      lastAction: entry.action,
+      lastActionAt: entry.actionAt,
+      actions: arrayUnion(entry),
+    }),
   ]);
 }
 
@@ -61,25 +73,41 @@ export function usePresence(): void {
     const auth = getAuthInstance();
     if (!db || !auth) return;
 
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    let heartbeatId: ReturnType<typeof setInterval> | null = null;
+    let pageCheckId: ReturnType<typeof setInterval> | null = null;
     let cleanedUp = false;
+    // Track the last known pathname so the page-check poll can fire only on change.
+    let lastPage: string =
+      typeof window !== "undefined" ? window.location.pathname : "/";
 
     const presenceRef = doc(db, "presence", TAB_ID);
     const historyRef  = doc(db, "connectionHistory", TAB_ID);
+
+    /** Immediately push the new pathname to both docs (no heartbeat timestamp bump). */
+    async function updateCurrentPage(page: string) {
+      if (cleanedUp) return;
+      await Promise.allSettled([
+        updateDoc(presenceRef, { currentPage: page }),
+        updateDoc(historyRef,  { currentPage: page }),
+      ]);
+    }
 
     async function writeInitial(uid: string, displayName: string, isAnonymous: boolean) {
       if (cleanedUp) return;
       const safeDisplayName = displayName.trim().slice(0, 120);
       const now = Date.now();
+      const currentPage = typeof window !== "undefined" ? window.location.pathname : "/";
+      lastPage = currentPage;
       const payload = {
         uid,
         displayName: safeDisplayName,
         isAnonymous,
         connectedAt: now,
         lastHeartbeat: now,
-        currentPage: typeof window !== "undefined" ? window.location.pathname : "/",
+        currentPage,
         tabId: TAB_ID,
         schemaVersion: 1,
+        actions: [],
       };
       await Promise.allSettled([
         // Live presence doc (deleted on tab close).
@@ -93,6 +121,9 @@ export function usePresence(): void {
       if (cleanedUp) return;
       const now = Date.now();
       const page = typeof window !== "undefined" ? window.location.pathname : "/";
+      // Sync lastPage so the page-check poll doesn't fire a redundant update
+      // right after the heartbeat already wrote the same path.
+      lastPage = page;
       await Promise.allSettled([
         updateDoc(presenceRef, { lastHeartbeat: now, currentPage: page }),
         updateDoc(historyRef,  { lastHeartbeat: now, currentPage: page }),
@@ -101,9 +132,13 @@ export function usePresence(): void {
 
     async function cleanup() {
       cleanedUp = true;
-      if (intervalId !== null) {
-        clearInterval(intervalId);
-        intervalId = null;
+      if (heartbeatId !== null) {
+        clearInterval(heartbeatId);
+        heartbeatId = null;
+      }
+      if (pageCheckId !== null) {
+        clearInterval(pageCheckId);
+        pageCheckId = null;
       }
       await Promise.allSettled([
         // Mark the history doc as ended BEFORE deleting presence, so the
@@ -127,9 +162,21 @@ export function usePresence(): void {
 
       void writeInitial(uid, displayName, isAnonymous).then(() => {
         if (cleanedUp) return;
-        intervalId = setInterval(() => {
+        // 30 s heartbeat — keeps lastHeartbeat fresh and currentPage in sync.
+        heartbeatId = setInterval(() => {
           void sendHeartbeat();
         }, HEARTBEAT_INTERVAL_MS);
+        // 3 s page-change detector — updates currentPage immediately on
+        // Next.js client-side navigation without waiting for the next heartbeat.
+        if (typeof window !== "undefined") {
+          pageCheckId = setInterval(() => {
+            const page = window.location.pathname;
+            if (page !== lastPage) {
+              lastPage = page;
+              void updateCurrentPage(page);
+            }
+          }, PAGE_CHECK_INTERVAL_MS);
+        }
       });
 
       unsubAuth();

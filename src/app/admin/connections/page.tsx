@@ -211,15 +211,29 @@ export default function ConnectionsPage() {
                     <PageChips pages={entry.pages} />
                   </td>
                   <td className="py-2 pe-3">
-                    {entry.lastAction && entry.lastActionAt ? (
-                      <span className="inline-flex items-center gap-1">
+                    {entry.actions.length > 0 ? (
+                      <div className="space-y-1">
+                        {entry.actions.map((a) => (
+                          <div key={a.actionAt} className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-text-secondary">
+                              {ACTION_LABELS[a.action] ?? a.action}
+                            </span>
+                            <span className="text-[11px] text-text-tertiary">
+                              {formatRelative(a.actionAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : entry.lastAction && entry.lastActionAt ? (
+                      // Fallback for pre-migration docs without actions[].
+                      <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-medium text-text-secondary">
                           {ACTION_LABELS[entry.lastAction] ?? entry.lastAction}
                         </span>
                         <span className="text-[11px] text-text-tertiary">
                           {formatRelative(entry.lastActionAt)}
                         </span>
-                      </span>
+                      </div>
                     ) : (
                       <span className="text-[11px] text-text-tertiary">—</span>
                     )}
@@ -275,15 +289,29 @@ export default function ConnectionsPage() {
                     <PageChips pages={[entry.currentPage]} />
                   </td>
                   <td className="py-2 pe-3">
-                    {entry.lastAction && entry.lastActionAt ? (
-                      <span className="inline-flex items-center gap-1">
+                    {entry.actions.length > 0 ? (
+                      <div className="space-y-1">
+                        {entry.actions.map((a) => (
+                          <div key={a.actionAt} className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-text-secondary">
+                              {ACTION_LABELS[a.action] ?? a.action}
+                            </span>
+                            <span className="text-[11px] text-text-tertiary">
+                              {formatRelative(a.actionAt)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : entry.lastAction && entry.lastActionAt ? (
+                      // Fallback for pre-migration docs without actions[].
+                      <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-medium text-text-secondary">
                           {ACTION_LABELS[entry.lastAction] ?? entry.lastAction}
                         </span>
                         <span className="text-[11px] text-text-tertiary">
                           {formatRelative(entry.lastActionAt)}
                         </span>
-                      </span>
+                      </div>
                     ) : (
                       <span className="text-[11px] text-text-tertiary">—</span>
                     )}

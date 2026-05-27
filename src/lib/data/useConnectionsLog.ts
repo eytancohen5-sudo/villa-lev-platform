@@ -12,6 +12,8 @@ import { getDb } from "@/lib/firebase";
 
 // ── Public types ────────────────────────────────────────────────────────────
 
+export type ActionEntry = { action: string; actionAt: number };
+
 export type ConnectionEntry = {
   uid: string;
   displayName: string;
@@ -24,8 +26,10 @@ export type ConnectionEntry = {
   pages: string[];
   isStale: boolean;
   tabIds: string[];
-  lastAction?: string;
-  lastActionAt?: number;
+  /** All actions across all open tabs for this user, newest first. */
+  actions: ActionEntry[];
+  lastAction?: string;   // kept as fallback for pre-migration docs
+  lastActionAt?: number; // kept as fallback for pre-migration docs
 };
 
 export type ConnectionsLogResult = {
@@ -55,6 +59,7 @@ type PresenceDoc = {
   schemaVersion: number;
   lastAction?: string;
   lastActionAt?: number;
+  actions?: ActionEntry[];
 };
 
 const INITIAL: ConnectionsLogResult = { entries: [], loading: true, error: null };
@@ -103,7 +108,20 @@ function deriveEntries(): ConnectionEntry[] {
         seenPages.add(d.currentPage);
       }
     }
-    // Most recent action across all tabs for this user.
+    // Merge and deduplicate actions from all tabs, newest first.
+    const allActions: ActionEntry[] = [];
+    const seenActionAts = new Set<number>();
+    for (const d of docs) {
+      for (const a of d.actions ?? []) {
+        if (!seenActionAts.has(a.actionAt)) {
+          allActions.push(a);
+          seenActionAts.add(a.actionAt);
+        }
+      }
+    }
+    allActions.sort((a, b) => b.actionAt - a.actionAt);
+
+    // Fallback for pre-migration docs that only have lastAction/lastActionAt.
     const latestActionDoc = docs.reduce<PresenceDoc | null>((best, d) => {
       if (!d.lastActionAt) return best;
       if (!best || !best.lastActionAt || d.lastActionAt > best.lastActionAt) return d;
@@ -121,6 +139,7 @@ function deriveEntries(): ConnectionEntry[] {
       pages,
       isStale: now - lastSeen > STALE_THRESHOLD_MS,
       tabIds: docs.map((d) => d.tabId),
+      actions: allActions,
       lastAction: latestActionDoc?.lastAction,
       lastActionAt: latestActionDoc?.lastActionAt,
     });
@@ -161,6 +180,11 @@ function startFirestoreListener() {
             schemaVersion: typeof data.schemaVersion === "number" ? data.schemaVersion : 1,
             lastAction: typeof data.lastAction === "string" ? data.lastAction : undefined,
             lastActionAt: typeof data.lastActionAt === "number" ? data.lastActionAt : undefined,
+            actions: Array.isArray(data.actions)
+              ? (data.actions as ActionEntry[]).filter(
+                  (a) => typeof a.action === "string" && typeof a.actionAt === "number",
+                )
+              : undefined,
           });
         }
       });

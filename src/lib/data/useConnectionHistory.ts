@@ -20,6 +20,8 @@ import { getDb } from "@/lib/firebase";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
+export type ActionEntry = { action: string; actionAt: number };
+
 export type HistoryEntry = {
   tabId: string;
   uid: string;
@@ -30,8 +32,10 @@ export type HistoryEntry = {
   disconnectedAt?: number;
   currentPage: string;
   status: "active" | "ended";
-  lastAction?: string;
-  lastActionAt?: number;
+  /** All actions logged during this tab session, newest first. */
+  actions: ActionEntry[];
+  lastAction?: string;   // kept as fallback for pre-migration docs
+  lastActionAt?: number; // kept as fallback for pre-migration docs
 };
 
 export type ConnectionHistoryResult = {
@@ -84,6 +88,11 @@ function startListener() {
           typeof data.connectedAt !== "number" ||
           typeof data.lastHeartbeat !== "number"
         ) return;
+        const rawActions = Array.isArray(data.actions)
+          ? (data.actions as ActionEntry[])
+              .filter((a) => typeof a.action === "string" && typeof a.actionAt === "number")
+              .sort((a, b) => b.actionAt - a.actionAt)
+          : [];
         entries.push({
           tabId: d.id,
           uid: data.uid,
@@ -94,6 +103,7 @@ function startListener() {
           disconnectedAt: typeof data.disconnectedAt === "number" ? data.disconnectedAt : undefined,
           currentPage: typeof data.currentPage === "string" ? data.currentPage : "/",
           status: data.status === "ended" ? "ended" : "active",
+          actions: rawActions,
           lastAction: typeof data.lastAction === "string" ? data.lastAction : undefined,
           lastActionAt: typeof data.lastActionAt === "number" ? data.lastActionAt : undefined,
         });
