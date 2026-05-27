@@ -878,31 +878,6 @@ export async function exportBankReport(
   const colFinalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? (y + 30);
   y = colFinalY + 8;
 
-  // — IRR & Returns summary —
-  y = sectionHeader(doc as DocLike, heDisplay(T.sec_returns, locale), y, margin, fontFamily);
-  y += 2;
-  const retRows = [
-    [heDisplay(T.ret_projectIRR, locale), pct(realistic.projectIRR)],
-    [heDisplay(T.ret_equityIRR, locale), pct(realistic.equityIRR)],
-    [heDisplay(T.ret_moic, locale), mul(realistic.totalMOIC)],
-    [heDisplay(T.ret_payback, locale), realistic.equityPaybackYears != null ? String(realistic.equityPaybackYears) : '> projection'],
-    [heDisplay(T.ret_exitMultiple, locale), mul(realistic.exitEbitdaMultiple)],
-    [heDisplay(T.ret_terminalAsset, locale), eur(realistic.terminalAssetValue)],
-    [heDisplay(T.ret_terminalEquity, locale), eur(realistic.terminalEquityValue)],
-  ];
-  const col1W = 80;
-  doc.setFontSize(8.5);
-  retRows.forEach(([label, val]) => {
-    doc.setFont(fontFamily, 'normal');
-    doc.setTextColor(...MUTED);
-    doc.text(label, margin + 2, y);
-    doc.setFont(fontFamily, 'bold');
-    doc.setTextColor(...TEXT);
-    doc.text(val, margin + col1W, y, { align: 'right' });
-    y += 5.5;
-  });
-  y += 6;
-
   // — Key Assumptions —
   y = sectionHeader(doc as DocLike, heDisplay(T.sec_assumptions, locale), y, margin, fontFamily);
   y += 2;

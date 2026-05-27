@@ -1657,6 +1657,7 @@ function computeScenario(
     stabilisedYear,
     wcQuarters: wcSchedule.quarters,
     wcEffectiveFacility: wcSchedule.effectiveFacility,
+    wcMinimumFacility: wcSchedule.minimumFacility,
     wcRate: wcSchedule.rate,
     llcr,
     plcr,

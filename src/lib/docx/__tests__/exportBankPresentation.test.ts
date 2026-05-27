@@ -100,6 +100,7 @@ function makeScenarioOutput(dscr = 1.5) {
     stabilisedYear: stabilised,
     wcQuarters: [],
     wcEffectiveFacility: 0,
+    wcMinimumFacility: 0,
     wcRate: 0,
     llcr: 1.8,
     plcr: 2.0,

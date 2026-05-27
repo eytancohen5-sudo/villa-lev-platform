@@ -2122,42 +2122,6 @@ export async function exportBusinessPlan(
   xr += 1;
   } // end !isBankViewExport — investor metrics
 
-  // Bank-view: expose IRR and MOIC as hardcoded summary cells on the Coverage
-  // sheet so the validation table can cross-check them without the full equity
-  // waterfall (which is investor-only). Values mirror the engine's realistic
-  // scenario computation — no live Excel formula since the CF stream would
-  // require replicating the entire equity waterfall in spreadsheet form.
-  if (isBankViewExport) {
-    const scReal = m.scenarios.realistic;
-    Cov.getCell(`A${xr}`).value = 'Returns summary (engine — commercial realistic path)';
-    Cov.getCell(`A${xr}`).font = FONT.section;
-    Cov.getCell(`A${xr}`).fill = STYLE.sectionFill;
-    xr += 1;
-    Cov.getCell(`A${xr}`).value = 'Unlevered Project IRR (incl. terminal value)';
-    Cov.getCell(`B${xr}`).value = scReal.projectIRR;
-    Cov.getCell(`B${xr}`).numFmt = FMT.pct;
-    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
-    Cov.getCell(`B${xr}`).font = FONT.bold;
-    unlevIRRResult = scReal.projectIRR;
-    unlevIrrCellRef = `${XL.sh_coverage}!B${xr}`;
-    xr += 1;
-    Cov.getCell(`A${xr}`).value = 'Levered Equity IRR';
-    Cov.getCell(`B${xr}`).value = scReal.equityIRR;
-    Cov.getCell(`B${xr}`).numFmt = FMT.pct;
-    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
-    Cov.getCell(`B${xr}`).font = FONT.bold;
-    levIRRResult = scReal.equityIRR;
-    levIrrCellRef = `${XL.sh_coverage}!B${xr}`;
-    xr += 1;
-    Cov.getCell(`A${xr}`).value = 'Total MOIC (incl. exit)';
-    Cov.getCell(`B${xr}`).value = scReal.totalMOIC;
-    Cov.getCell(`B${xr}`).numFmt = FMT.mul;
-    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
-    Cov.getCell(`B${xr}`).font = FONT.bold;
-    moicResult = scReal.totalMOIC;
-    moicCellRef = `${XL.sh_coverage}!B${xr}`;
-    xr += 2;
-  }
 
   Cov.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
@@ -2813,28 +2777,6 @@ export async function exportBusinessPlan(
       label: 'Min DSCR (loan life)',
       engine: m.scenarios.realistic.minDSCRLoanLife,
       workbookRef: `${XL.sh_coverage}!B${covMinDscrRow}`,
-      fmt: FMT.mul,
-    },
-    // ── RETURNS (all views) ──────────────────────────────────────────────────
-    // IRR / MOIC appear in both bank and internal view.
-    // Bank view: values come from the hardcoded Returns summary cells added above.
-    // Internal view: values come from the IRR formula cells on the Coverage sheet.
-    {
-      label: 'Unlevered Project IRR',
-      engine: unlevIRRResult,
-      workbookRef: unlevIrrCellRef,
-      fmt: FMT.pct,
-    },
-    {
-      label: 'Levered Equity IRR',
-      engine: levIRRResult,
-      workbookRef: levIrrCellRef,
-      fmt: FMT.pct,
-    },
-    {
-      label: 'Equity MOIC',
-      engine: moicResult,
-      workbookRef: moicCellRef,
       fmt: FMT.mul,
     },
     // ── INVESTOR-ONLY METRICS ────────────────────────────────────────────────

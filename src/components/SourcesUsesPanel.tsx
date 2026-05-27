@@ -18,7 +18,6 @@ interface SourcesAndUsesPanelProps {
   km: {
     loanAmount: number;
     equityRequired: number;
-    graceInterestCarry: number;
     grantAmount: number;
   };
   capexCategories: Array<{ name: string; grandTotal: number }>;
@@ -42,7 +41,6 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
   const sourcesTotal =
     km.loanAmount +
     km.equityRequired +
-    (km.graceInterestCarry ?? 0) +
     (km.grantAmount ?? 0);
 
   const usesTotal = capexCategories
@@ -54,7 +52,6 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
     {
       "Term Loan":  km.loanAmount,
       "Equity":     km.equityRequired,
-      "Carry":      km.graceInterestCarry ?? 0,
       "Grant":      km.grantAmount ?? 0,
     },
   ];
@@ -62,7 +59,6 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
   const barSegments: Array<{ key: string; color: string }> = [
     { key: "Term Loan", color: SOURCE_COLORS.loan },
     { key: "Equity",    color: SOURCE_COLORS.equity },
-    ...(km.graceInterestCarry > 0 ? [{ key: "Carry", color: SOURCE_COLORS.carry }] : []),
     ...(km.grantAmount > 0        ? [{ key: "Grant", color: SOURCE_COLORS.grant }] : []),
   ];
 
@@ -155,20 +151,6 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
               <span className="font-mono text-text-primary">{fmtAmt(km.equityRequired)}</span>
             </div>
 
-            {/* Grace-interest carry — omit if 0 */}
-            {km.graceInterestCarry > 0 && (
-              <div className="flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-text-tertiary italic">
-                  <span
-                    className="inline-block w-2 h-2 rounded-sm shrink-0"
-                    style={{ background: SOURCE_COLORS.carry }}
-                  />
-                  {t('kpi.graceInterestCarry')} ¹
-                </span>
-                <span className="font-mono text-text-tertiary italic">{fmtAmt(km.graceInterestCarry)}</span>
-              </div>
-            )}
-
             {/* WC memo line (undrawn — not in total) */}
             <div className="flex items-center justify-between text-xs mt-1 pt-1 border-t border-surface-secondary/60">
               <span className="text-text-tertiary italic">
@@ -226,9 +208,6 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
       {/* Footnotes */}
       <div className="mt-4 pt-3 border-t border-surface-secondary/50 space-y-1">
         <p className="text-[10px] text-text-tertiary leading-relaxed">{t('sau.balanceNote')}</p>
-        {km.graceInterestCarry > 0 && (
-          <p className="text-[10px] text-text-tertiary leading-relaxed">{t('sau.graceCarryNote')}</p>
-        )}
         <p className="text-[10px] text-text-tertiary leading-relaxed">{t('sau.wcNote')}</p>
       </div>
     </div>

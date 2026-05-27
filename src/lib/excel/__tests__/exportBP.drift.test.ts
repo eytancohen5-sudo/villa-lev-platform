@@ -146,7 +146,7 @@ describe("L1 — engine metrics that feed the validation table", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("L2 — exported XLSX structural shape", () => {
-  it("validation table has exactly 7 rows in bank-view (no cap-table rows)", async () => {
+  it("validation table has exactly 10 rows in bank-view (no IRR, MOIC, or cap-table rows)", async () => {
     const a = { ...BASE_CASE, viewMode: "bank" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
@@ -172,9 +172,9 @@ describe("L2 — exported XLSX structural shape", () => {
       labels.push(String(v));
     }
 
-    // Bank-view export: 13 rows covering CAPEX+financing, operations, coverage, returns.
-    // Cap-table and investor-only rows (grace interest, LLCR, exit metrics, terminal) excluded.
-    expect(labels).toHaveLength(13);
+    // Bank-view export: 10 rows covering CAPEX+financing, operations, and coverage.
+    // IRR, MOIC, cap-table, and all investor-only rows excluded from banker pack.
+    expect(labels).toHaveLength(10);
     expect(labels[0]).toBe("Total CAPEX");
     expect(labels[1]).toBe("Total loan (80% LTC)");
     expect(labels[2]).toBe("Structural equity at close");
@@ -185,10 +185,9 @@ describe("L2 — exported XLSX structural shape", () => {
     expect(labels[7]).toMatch(/DSCR first full DS year/);
     expect(labels[8]).toMatch(/Stabilised DSCR/);
     expect(labels[9]).toBe("Min DSCR (loan life)");
-    expect(labels[10]).toBe("Unlevered Project IRR");
-    expect(labels[11]).toBe("Levered Equity IRR");
-    expect(labels[12]).toBe("Equity MOIC");
-    // No cap-table, investor-only, or waterfall rows in banker pack
+    // No IRR, MOIC, cap-table, investor-only, or waterfall rows in banker pack
+    expect(labels.some((l) => l.includes("IRR"))).toBe(false);
+    expect(labels.some((l) => l.includes("MOIC"))).toBe(false);
     expect(labels.some((l) => l.includes("Cap Table"))).toBe(false);
     expect(labels.some((l) => l.includes("Grace interest"))).toBe(false);
     expect(labels.some((l) => l.includes("LLCR"))).toBe(false);
@@ -221,7 +220,7 @@ describe("L2 — exported XLSX structural shape", () => {
       }
     }
 
-    expect(results).toHaveLength(13); // bank-view: 13 rows; internal adds 5 investor + 3 cap-table
+    expect(results).toHaveLength(10); // bank-view: 10 rows; IRR/MOIC excluded; internal adds more investor + cap-table rows
     results.forEach((result, i) => {
       expect(result, `row ${i + 1} match cell`).toBe("✓ MATCH");
     });

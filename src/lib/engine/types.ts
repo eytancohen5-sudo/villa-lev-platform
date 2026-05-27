@@ -725,6 +725,8 @@ export interface ScenarioOutput {
   stabilisedYear: AnnualPnL | null;
   wcQuarters: WorkingCapitalQuarter[];
   wcEffectiveFacility: number;
+  /** VAT-bridge peak rounded up to nearest €50k — the dynamically computed minimum facility. */
+  wcMinimumFacility: number;
   wcRate: number;
   // Aggregated bank-underwriting metrics for the active path under this scenario
   llcr: number;                       // Loan Life Coverage Ratio

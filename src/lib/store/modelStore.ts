@@ -1413,7 +1413,6 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     if (assumptions.poolConstructionCostPerM2 == null) {
       assumptions = { ...assumptions, poolConstructionCostPerM2: 1_000 };
     }
-
     const projects = savedProjects ?? DEFAULT_PROJECTS.map((p) => ({ ...p }));
 
     const savePromptDisabled = loadSavePromptDisabled();
