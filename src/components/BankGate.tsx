@@ -43,7 +43,9 @@ export function BankGate({ children }: { children: React.ReactNode }) {
       // usePresence fires after getBankName() already returns the value.
       sessionStorage.setItem(BANK_NAME_KEY, trimmed);
       const auth = getAuthInstance();
-      if (auth) await signInAnonymously(auth);
+      if (auth && !auth.currentUser) {
+        await signInAnonymously(auth);
+      }
       setReady(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("bankGate.error"));
