@@ -2110,4 +2110,6 @@ export const he: TranslationDictionary = {
   'bankGate.nameRequired':    'אנא הכנס את שמך כדי להמשיך.',
   'bankGate.error':           'משהו השתבש. אנא נסה שנית.',
   'bankGate.confidential':    'סודי — לנמענים מורשים בלבד.',
+
+  'presentation.viewer.back': '← לוח המחוונים',
 };

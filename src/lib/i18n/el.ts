@@ -2108,4 +2108,6 @@ export const el: TranslationDictionary = {
   'bankGate.nameRequired':    'Παρακαλούμε εισαγάγετε το όνομά σας για να συνεχίσετε.',
   'bankGate.error':           'Κάτι πήγε στραβά. Παρακαλούμε δοκιμάστε ξανά.',
   'bankGate.confidential':    'Εμπιστευτικό — μόνο για εξουσιοδοτημένους παραλήπτες.',
+
+  'presentation.viewer.back': '← Πίνακας Ελέγχου',
 };

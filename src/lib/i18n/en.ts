@@ -2078,4 +2078,6 @@ export const en: TranslationDictionary = {
   'bankGate.nameRequired':    'Please enter your name to continue.',
   'bankGate.error':           'Something went wrong. Please try again.',
   'bankGate.confidential':    'Confidential — for authorised recipients only.',
+
+  'presentation.viewer.back': '← Dashboard',
 };

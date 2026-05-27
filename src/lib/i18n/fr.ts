@@ -1506,4 +1506,6 @@ export const fr = {
   'sau.graceCarryNote': '¹ Le grace-carry correspond aux intérêts courus pendant la période de grâce, injectés en fonds propres à la clôture.',
   'sau.wcNote':         '² La ligne de FDR renouvelable est un engagement bancaire, non tiré à l\'origine.',
   'sau.balanceNote':    'Sources et emplois sont approximatifs. Facilité FDR et réserves de délai exclus.',
+
+  'presentation.viewer.back': '← Tableau de bord',
 };

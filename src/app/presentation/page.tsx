@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import {
@@ -23,6 +24,13 @@ export default function PresentationPage() {
       {/* Toolbar */}
       <div className="shrink-0 h-12 flex items-center justify-between px-5 bg-white border-b border-gray-200 gap-3">
         <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/admin/dashboard"
+            className="shrink-0 text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors"
+          >
+            {t("presentation.viewer.back")}
+          </Link>
+          <span className="shrink-0 text-gray-300 select-none">|</span>
           <span className="text-sm font-semibold text-gray-800 tracking-tight truncate">
             {t("presentation.viewer.title")}
           </span>

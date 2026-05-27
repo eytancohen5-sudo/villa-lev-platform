@@ -1061,6 +1061,7 @@ export interface TranslationDictionary {
   'presentation.viewer.langLabel': string;
   'presentation.viewer.staleVersion': string;
   'presentation.viewer.staleVersionDismiss': string;
+  'presentation.viewer.back': string;
   'bank.actions.heading': string;
   'bank.actions.tour.title': string;
   'bank.actions.tour.sub': string;
