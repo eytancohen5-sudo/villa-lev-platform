@@ -660,43 +660,8 @@ export default function BankPage() {
           <LiveTrackRecord />
         </div>
 
-        {/* 4 + 5. Collateral & Loan Metrics — unified card pair */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-
-          {/* 4. Collateral — Security Package */}
-          <div id="bank-collateral" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
-              {t('bank.section.collateral')}
-            </h3>
-            <p className="text-xs text-text-tertiary mb-6">{t('bank.collateral.sub')}</p>
-            <div className="grid grid-cols-2 divide-x divide-surface-tertiary">
-              <MetricCell
-                value={formatMultiple(model.collateral.market.coverage)}
-                label={t('sc.market')}
-                sublabel={`${formatCurrency(model.collateral.market.value, true, locale)} · LTV ${formatPercent(model.collateral.market.ltv)}`}
-                valueClass="text-brand-600"
-              />
-              <MetricCell
-                value={formatMultiple(model.collateral.optimistic.coverage)}
-                label={t('sc.optimistic')}
-                sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
-                valueClass="text-positive"
-              />
-            </div>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => setVillaSaleDrawerOpen(true)}
-                className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
-              >
-                <span>{t('collateral.saleMarketStudy')}</span>
-                <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 5. Loan Metrics */}
-          <div id="bank-kpi-strip" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md">
+        {/* 5. Loan Metrics */}
+        <div id="bank-kpi-strip" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md mb-6">
             <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
               {t('bank.section.loanMetrics')}
             </h3>
@@ -743,8 +708,6 @@ export default function BankPage() {
               />
             </div>
           </div>
-
-        </div>
 
         {/* 7. CAPEX Breakdown — one column per plot instance, total at right */}
         {(() => {
