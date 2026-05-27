@@ -227,7 +227,6 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/sensitivity",    labelKey: "nav.sensitivity" },
       { href: "/admin/debt-coverage",  labelKey: "nav.debtCoverage" },
       { href: "/admin/financing",      labelKey: "nav.financingPaths" },
-      { href: "/admin/presentation",   labelKey: "nav.presentation" },
     ],
   },
   {
