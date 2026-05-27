@@ -329,6 +329,16 @@ export interface TranslationDictionary {
   'villaDrawer.colShoulder': string;
   'villaDrawer.colPeak': string;
   'villaDrawer.colPlatform': string;
+  'villaDrawer.collateralTier': string;
+  'villaDrawer.mktGrossPeakAvg': string;
+  'villaDrawer.mktNetPeakAvg': string;
+  'villaDrawer.vsNetMarket': string;
+  'villaDrawer.showingTop12': string;
+  'villaDrawer.colGrossPeak': string;
+  'villaDrawer.colOtaDeduct': string;
+  'villaDrawer.colNetPeak': string;
+  'villaDrawer.recapRow': string;
+  'villaDrawer.otaNote': string;
   'villaDrawer.saleFootnote': string;
   'villaDrawer.rentalFootnote': string;
 

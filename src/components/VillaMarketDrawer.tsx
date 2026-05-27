@@ -22,13 +22,14 @@ import {
   VILLA_SALE_SUMMARY,
   VILLA_RENTAL_SUMMARY,
   VILLA_MARKET_SOURCE,
+  ADR_MARKET_CONTEXT,
   type VillaSaleComparable,
   type VillaRentalComparable,
 } from "@/lib/data/villaMarketSales";
 
 type ActiveTab = "sale" | "rental";
 type SaleSort = keyof Pick<VillaSaleComparable, "island" | "area" | "houseSqm" | "plotSqm" | "bedrooms" | "priceEur" | "pricePerSqm">;
-type RentalSort = keyof Pick<VillaRentalComparable, "name" | "sizeSqm" | "bedrooms" | "shoulderEurPerNight" | "peakEurPerNight" | "platform">;
+type RentalSort = keyof Pick<VillaRentalComparable, "name" | "sizeSqm" | "bedrooms" | "peakEurPerNight" | "peakNetEurPerNight">;
 type SortDir = "asc" | "desc";
 
 function compare(a: number | string | null, b: number | string | null, dir: SortDir): number {
@@ -50,7 +51,7 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
   const [saleSortDir, setSaleSortDir] = useState<SortDir>("desc");
 
   // Rental tab state
-  const [rentalSort, setRentalSort] = useState<RentalSort>("peakEurPerNight");
+  const [rentalSort, setRentalSort] = useState<RentalSort>("peakNetEurPerNight");
   const [rentalSortDir, setRentalSortDir] = useState<SortDir>("desc");
 
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -75,11 +76,20 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
     return rows;
   }, [islandFilter, plotFilter, saleSort, saleSortDir]);
 
+  // Top 12 by gross peak — fixed selection; user can re-sort within those 12
+  const rentalTop12 = useMemo(() =>
+    [...VILLA_RENTAL_COMPARABLES]
+      .sort((a, b) => b.peakEurPerNight - a.peakEurPerNight)
+      .slice(0, 12),
+  []);
   const rentalRows = useMemo(() => {
-    const rows = [...VILLA_RENTAL_COMPARABLES];
+    const rows = [...rentalTop12];
     rows.sort((a, b) => compare((a as Record<string, unknown>)[rentalSort] as number | string, (b as Record<string, unknown>)[rentalSort] as number | string, rentalSortDir));
     return rows;
-  }, [rentalSort, rentalSortDir]);
+  }, [rentalTop12, rentalSort, rentalSortDir]);
+  const top12AvgGrossPeak   = useMemo(() => Math.round(rentalTop12.reduce((s, r) => s + r.peakEurPerNight, 0) / rentalTop12.length), [rentalTop12]);
+  const top12AvgNetPeak     = useMemo(() => Math.round(rentalTop12.reduce((s, r) => s + r.peakNetEurPerNight, 0) / rentalTop12.length), [rentalTop12]);
+  const levVsTop12NetPct    = Math.round(((ADR_MARKET_CONTEXT.bpVillaADR - top12AvgNetPeak) / top12AvgNetPeak) * 100);
 
   const handleSaleHeader = (key: SaleSort) => {
     if (saleSort === key) setSaleSortDir(d => d === "asc" ? "desc" : "asc");
@@ -138,7 +148,7 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
             {/* Summary bar */}
             <div className="px-5 py-2.5 bg-brand-50 border-b border-brand-100 flex flex-wrap gap-x-6 gap-y-1 text-[11px]">
               <span className="text-text-tertiary">{t("villaDrawer.saleAvg")}: <span className="font-semibold text-brand-700">{filteredAvgPpm.toLocaleString()} €/m²</span></span>
-              <span className="text-text-tertiary">{t("villaDrawer.engineTier")}: <span className="font-semibold text-positive">9,000 €/m²</span> <span className="text-text-tertiary">({t("villaDrawer.conservative")})</span></span>
+              <span className="text-text-tertiary">{t("villaDrawer.collateralTier")}: <span className="font-semibold text-positive">9,000 €/m²</span> <span className="text-text-tertiary">({t("villaDrawer.conservative")})</span></span>
               <span className="text-text-tertiary">{saleRows.length} {t("villaDrawer.properties")}</span>
             </div>
 
@@ -203,9 +213,10 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
           <>
             {/* Summary bar */}
             <div className="px-5 py-2.5 bg-brand-50 border-b border-brand-100 flex flex-wrap gap-x-6 gap-y-1 text-[11px]">
-              <span className="text-text-tertiary">{t("villaDrawer.mktPeakAvg")}: <span className="font-semibold text-brand-700">{VILLA_RENTAL_SUMMARY.avgPeakEurPerNight.toLocaleString()} €/night</span></span>
-              <span className="text-text-tertiary">BP ADR: <span className="font-semibold text-positive">€3,500</span> <span className="text-text-tertiary">({t("villaDrawer.inLineWithMarket")})</span></span>
-              <span className="text-text-tertiary">{VILLA_RENTAL_SUMMARY.count} {t("villaDrawer.villas")}</span>
+              <span className="text-text-tertiary">{t("villaDrawer.mktGrossPeakAvg")}: <span className="font-semibold text-text-secondary">{top12AvgGrossPeak.toLocaleString()} €</span></span>
+              <span className="text-text-tertiary">{t("villaDrawer.mktNetPeakAvg")}: <span className="font-semibold text-brand-700">{top12AvgNetPeak.toLocaleString()} €</span></span>
+              <span className="text-text-tertiary">BP ADR: <span className="font-semibold text-positive">€{ADR_MARKET_CONTEXT.bpVillaADR.toLocaleString()}</span> <span className={levVsTop12NetPct >= 0 ? "text-positive" : "text-amber-700"}>({levVsTop12NetPct > 0 ? "+" : ""}{levVsTop12NetPct}% {t("villaDrawer.vsNetMarket")})</span></span>
+              <span className="text-text-tertiary">{t("villaDrawer.showingTop12")}</span>
             </div>
 
             {/* Rental table */}
@@ -216,9 +227,9 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
                     <Th onClick={() => handleRentalHeader("name")} arrow={rentalArrow("name")} align="start">{t("villaDrawer.colVillaName")}</Th>
                     <Th onClick={() => handleRentalHeader("sizeSqm")} arrow={rentalArrow("sizeSqm")} align="end">{t("villaDrawer.colHouseSqm")}</Th>
                     <Th onClick={() => handleRentalHeader("bedrooms")} arrow={rentalArrow("bedrooms")} align="end">{t("villaDrawer.colBeds")}</Th>
-                    <Th onClick={() => handleRentalHeader("shoulderEurPerNight")} arrow={rentalArrow("shoulderEurPerNight")} align="end">{t("villaDrawer.colShoulder")}</Th>
-                    <Th onClick={() => handleRentalHeader("peakEurPerNight")} arrow={rentalArrow("peakEurPerNight")} align="end">{t("villaDrawer.colPeak")}</Th>
-                    <Th onClick={() => handleRentalHeader("platform")} arrow={rentalArrow("platform")} align="start">{t("villaDrawer.colPlatform")}</Th>
+                    <Th onClick={() => handleRentalHeader("peakEurPerNight")} arrow={rentalArrow("peakEurPerNight")} align="end">{t("villaDrawer.colGrossPeak")}</Th>
+                    <th scope="col" className="px-3 py-2 font-medium text-end text-[10px] uppercase tracking-wider text-amber-600">{t("villaDrawer.colOtaDeduct")}</th>
+                    <Th onClick={() => handleRentalHeader("peakNetEurPerNight")} arrow={rentalArrow("peakNetEurPerNight")} align="end">{t("villaDrawer.colNetPeak")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -227,13 +238,41 @@ export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: (
                       <td className="px-3 py-2 text-text-primary font-medium">{r.name}</td>
                       <td className="px-3 py-2 text-right text-text-secondary">{r.sizeSqm}</td>
                       <td className="px-3 py-2 text-right text-text-secondary">{r.bedrooms}</td>
-                      <td className="px-3 py-2 text-right text-text-secondary">{r.shoulderEurPerNight.toLocaleString()} €</td>
-                      <td className="px-3 py-2 text-right text-text-primary font-semibold">{r.peakEurPerNight.toLocaleString()} €</td>
-                      <td className="px-3 py-2 text-text-tertiary text-[11px]">{r.platform}</td>
+                      <td className="px-3 py-2 text-right text-text-secondary">{r.peakEurPerNight.toLocaleString()} €</td>
+                      <td className="px-3 py-2 text-right text-amber-600 text-[11px]">−{Math.round(r.peakEurPerNight * 0.20).toLocaleString()} €</td>
+                      <td className="px-3 py-2 text-right text-text-primary font-semibold">{r.peakNetEurPerNight.toLocaleString()} €</td>
                     </tr>
                   ))}
+                  {/* Recap row */}
+                  <tr className="border-t-2 border-brand-200 bg-brand-50">
+                    <td className="px-3 py-2 text-text-primary font-semibold text-[11px]">{t("villaDrawer.recapRow")}</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
+                    <td className="px-3 py-2 text-right font-semibold text-text-secondary">{top12AvgGrossPeak.toLocaleString()} €</td>
+                    <td className="px-3 py-2 text-right text-amber-600 font-semibold text-[11px]">−{Math.round(top12AvgGrossPeak * 0.20).toLocaleString()} €</td>
+                    <td className="px-3 py-2 text-right font-semibold text-brand-700">{top12AvgNetPeak.toLocaleString()} €</td>
+                  </tr>
+                  {/* Villa Lev comparison row */}
+                  <tr className="border-t border-brand-200 bg-positive/5">
+                    <td className="px-3 py-2 text-positive font-semibold text-[11px]">Villa Lev — BP ADR</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">~475</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">6</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
+                    <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
+                    <td className="px-3 py-2 text-right font-bold text-positive">
+                      €{ADR_MARKET_CONTEXT.bpVillaADR.toLocaleString()}
+                      <span className={`ms-1.5 text-[10px] font-normal ${levVsTop12NetPct >= 0 ? "text-positive" : "text-amber-700"}`}>
+                        ({levVsTop12NetPct > 0 ? "+" : ""}{levVsTop12NetPct}% {t("villaDrawer.vsNetMarket")})
+                      </span>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* OTA note */}
+            <div className="px-5 py-2 border-t border-surface-tertiary bg-amber-50/60">
+              <p className="text-[10px] text-amber-700">{t("villaDrawer.otaNote")}</p>
             </div>
 
             <footer className="px-5 py-3 border-t border-surface-tertiary bg-surface-secondary/60">
