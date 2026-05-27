@@ -17,6 +17,7 @@ import BankControlBar from "@/components/BankControlBar";
 import BankSensitivityTab from "@/components/BankSensitivityTab";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { BANK_TOUR } from "@/lib/tours/configs";
+import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 import {
   BarChart,
   Bar,
@@ -74,6 +75,7 @@ export default function BankPage() {
   const [xlsxLoading, setXlsxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
   const [docxLoading, setDocxLoading] = useState(false);
+  const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
 
   const handleDownloadXlsx = async () => {
     if (!model || xlsxLoading) return;
@@ -252,9 +254,6 @@ export default function BankPage() {
   const capitalData = [
     { name: t('inv.loan'), value: km.loanAmount, color: "#8B6914" },
     { name: t('kpi.equityRequired'), value: km.equityRequired, color: "#6B7A3D" },
-    ...(km.graceInterestCarry > 0
-      ? [{ name: t('kpi.graceInterestCarry'), value: km.graceInterestCarry, color: "#9B6914" }]
-      : []),
     ...(grantAmount > 0
       ? [{ name: t('path.grantShort'), value: grantAmount, color: "#4A6A8B" }]
       : []),
@@ -533,9 +532,6 @@ export default function BankPage() {
             },
             { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
             { label: t('kpi.totalInvestment'), value: formatCurrency(km.totalCapex, true, locale), sub: `${formatCurrency(km.loanAmount, true, locale)} + ${formatCurrency(km.equityRequired, true, locale)}${grantAmount > 0 ? ` + ${formatCurrency(grantAmount, true, locale)} grant` : ''}` },
-            ...(km.graceInterestCarry > 0
-              ? [{ label: t('kpi.graceInterestCarry'), value: formatCurrency(km.graceInterestCarry, true, locale), sub: t('kpi.graceInterestCarrySub') } as Cell]
-              : []),
             { label: t('bank.termsheet.securityLabel'), value: t('bank.termsheet.securityValue'), sub: t('bank.termsheet.securitySub'), isText: true },
           ];
           const colCount = cells.length;
@@ -591,7 +587,7 @@ export default function BankPage() {
                     <span className="text-xs text-text-secondary">
                       {t('bank.creditAsk.total')}:{" "}
                       <span className="font-mono font-semibold text-text-primary">
-                        {formatCurrency(km.loanAmount + activeScenarioOutput.wcEffectiveFacility, true, locale)}
+                        {formatCurrency(km.loanAmount + activeScenarioOutput.wcMinimumFacility, true, locale)}
                       </span>
                     </span>
                   </div>
@@ -617,7 +613,7 @@ export default function BankPage() {
                         {t('bank.creditAsk.facility2.label')}
                       </div>
                       <div className="font-mono font-bold text-xl text-text-primary leading-none">
-                        {formatCurrency(activeScenarioOutput.wcEffectiveFacility, true, locale)}
+                        {formatCurrency(activeScenarioOutput.wcMinimumFacility, true, locale)}
                       </div>
                       <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
                         {assumptions.workingCapital.spreadOverTermRate > 0
@@ -701,6 +697,16 @@ export default function BankPage() {
                 sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
                 valueClass="text-positive"
               />
+            </div>
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setVillaSaleDrawerOpen(true)}
+                className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+              >
+                <span>{t('triangle.seeVillaMarket').replace(' →', '')}</span>
+                <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+              </button>
             </div>
           </div>
 
@@ -824,12 +830,11 @@ export default function BankPage() {
           km={{
             loanAmount: km.loanAmount,
             equityRequired: km.equityRequired,
-            graceInterestCarry: km.graceInterestCarry,
             grantAmount: km.grantAmount,
           }}
           capexCategories={model.capex.categories}
           wc={{
-            facilitySize: assumptions.workingCapital.facilitySize,
+            facilitySize: activeScenarioOutput.wcMinimumFacility,
             internalCashBuffer: assumptions.workingCapital.internalCashBuffer ?? 100000,
           }}
           locale={locale}
@@ -1229,7 +1234,7 @@ export default function BankPage() {
                 </tr>
               </thead>
               <tbody>
-                {model.financingComparison.map((row, i) => {
+                {model.financingComparison.filter((r) => r.key !== 'graceInterestCarry').map((row, i) => {
                   const formatVal = (val: string | number) =>
                     typeof val === "number"
                       ? row.metric.includes("DSCR") ? formatMultiple(val) : formatCurrency(val, true, locale)
@@ -1300,6 +1305,11 @@ export default function BankPage() {
       </div>}
 
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BANK_TOUR} />
+      <VillaMarketDrawer
+        open={villaSaleDrawerOpen}
+        onClose={() => setVillaSaleDrawerOpen(false)}
+        initialTab="sale"
+      />
     </>
   );
 }
