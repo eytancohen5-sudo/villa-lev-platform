@@ -2019,6 +2019,13 @@ export const en: TranslationDictionary = {
   'connections.restricted':        'The connections log is restricted to administrators.',
   'connections.signInPrompt':      'Sign in to view the connections log.',
   'connections.googleSignInCta':   'Sign in with Google',
+  'connections.sectionLive':       'Live',
+  'connections.sectionHistory':    'Session History',
+  'connections.noHistory':         'No ended sessions in the last 7 days.',
+  'connections.colLastAction':     'Last action',
+  'connections.colConnectedAt':    'Connected',
+  'connections.colDuration':       'Duration',
+  'connections.colLastPage':       'Last page',
 
   // ── Sponsor equity breakdown — three capacities ──────────────────────────
   'ct.roles.sectionTitle': "Sponsor Equity — Three Capacities",

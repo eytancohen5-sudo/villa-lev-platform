@@ -1,16 +1,23 @@
 // FIRESTORE RULES: add to your firestore.rules file:
 //
 // match /presence/{tabId} {
-//   // Any authenticated user (including anonymous) can write their own tab doc.
 //   allow create, update: if request.auth != null
 //                         && request.resource.data.uid == request.auth.uid;
-//   // A user may only delete their own tab doc (uid matches, not path segment).
 //   allow delete: if request.auth != null
 //                 && resource.data.uid == request.auth.uid;
-//   // Admins (isAdmin flag in Firestore users/{uid}.role == 'admin') can read
-//   // all presence docs. For now, allow any authenticated user to read so
-//   // the Connections page can load without a custom claims round-trip.
-//   allow read: if request.auth != null;
+//   allow read: if isAdmin();
+// }
+//
+// match /connectionHistory/{tabId} {
+//   allow create: if request.auth != null
+//                 && request.resource.data.uid == request.auth.uid
+//                 && request.resource.data.schemaVersion == 1;
+//   allow update: if request.auth != null
+//                 && resource.data.uid == request.auth.uid
+//                 && request.resource.data.uid == resource.data.uid;
+//   allow delete: if request.auth != null
+//                 && (resource.data.uid == request.auth.uid || isAdmin());
+//   allow read: if isAdmin();
 // }
 
 import { useEffect } from "react";
@@ -32,17 +39,18 @@ const HEARTBEAT_INTERVAL_MS = 30_000;
 
 export type PresenceAction = "excel_download" | "presentation_view" | "tour_start";
 
+/**
+ * Log a user activity against both the live presence doc and the history doc.
+ * Non-fatal — silently ignored if either doc doesn't exist yet.
+ */
 export async function logPresenceActivity(action: PresenceAction): Promise<void> {
   const db = getDb();
   if (!db) return;
-  try {
-    await updateDoc(doc(db, "presence", TAB_ID), {
-      lastAction: action,
-      lastActionAt: Date.now(),
-    });
-  } catch {
-    // Non-fatal: presence doc may not exist yet.
-  }
+  const update = { lastAction: action, lastActionAt: Date.now() };
+  await Promise.allSettled([
+    updateDoc(doc(db, "presence", TAB_ID), update),
+    updateDoc(doc(db, "connectionHistory", TAB_ID), update),
+  ]);
 }
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
@@ -57,37 +65,38 @@ export function usePresence(): void {
     let cleanedUp = false;
 
     const presenceRef = doc(db, "presence", TAB_ID);
+    const historyRef  = doc(db, "connectionHistory", TAB_ID);
 
     async function writeInitial(uid: string, displayName: string, isAnonymous: boolean) {
       if (cleanedUp) return;
       const safeDisplayName = displayName.trim().slice(0, 120);
-      try {
-        await setDoc(presenceRef, {
-          uid,
-          displayName: safeDisplayName,
-          isAnonymous,
-          connectedAt: Date.now(),
-          lastHeartbeat: Date.now(),
-          // Note: must never be a URL containing auth tokens or sensitive IDs in the path.
-          currentPage: typeof window !== "undefined" ? window.location.pathname : "/",
-          tabId: TAB_ID,
-          schemaVersion: 1,
-        });
-      } catch {
-        // Non-fatal: Firestore rules may not be deployed yet.
-      }
+      const now = Date.now();
+      const payload = {
+        uid,
+        displayName: safeDisplayName,
+        isAnonymous,
+        connectedAt: now,
+        lastHeartbeat: now,
+        currentPage: typeof window !== "undefined" ? window.location.pathname : "/",
+        tabId: TAB_ID,
+        schemaVersion: 1,
+      };
+      await Promise.allSettled([
+        // Live presence doc (deleted on tab close).
+        setDoc(presenceRef, payload),
+        // Persistent history doc — survives tab close; updated on heartbeat.
+        setDoc(historyRef, { ...payload, status: "active" }),
+      ]);
     }
 
-    async function sendHeartbeat(uid: string) {
+    async function sendHeartbeat() {
       if (cleanedUp) return;
-      try {
-        await updateDoc(presenceRef, {
-          lastHeartbeat: Date.now(),
-          currentPage: typeof window !== "undefined" ? window.location.pathname : "/",
-        });
-      } catch {
-        void uid;
-      }
+      const now = Date.now();
+      const page = typeof window !== "undefined" ? window.location.pathname : "/";
+      await Promise.allSettled([
+        updateDoc(presenceRef, { lastHeartbeat: now, currentPage: page }),
+        updateDoc(historyRef,  { lastHeartbeat: now, currentPage: page }),
+      ]);
     }
 
     async function cleanup() {
@@ -96,11 +105,12 @@ export function usePresence(): void {
         clearInterval(intervalId);
         intervalId = null;
       }
-      try {
-        await deleteDoc(presenceRef);
-      } catch {
-        // Non-fatal.
-      }
+      await Promise.allSettled([
+        // Mark the history doc as ended BEFORE deleting presence, so the
+        // history write has the best chance of surviving the page unload.
+        updateDoc(historyRef, { disconnectedAt: Date.now(), status: "ended" }),
+        deleteDoc(presenceRef),
+      ]);
     }
 
     // Wait for auth to resolve before writing the first doc.
@@ -118,7 +128,7 @@ export function usePresence(): void {
       void writeInitial(uid, displayName, isAnonymous).then(() => {
         if (cleanedUp) return;
         intervalId = setInterval(() => {
-          void sendHeartbeat(uid);
+          void sendHeartbeat();
         }, HEARTBEAT_INTERVAL_MS);
       });
 

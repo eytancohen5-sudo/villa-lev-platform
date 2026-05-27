@@ -1,46 +1,83 @@
 "use client";
 
-// /admin/connections — live browser-session presence board.
+// /admin/connections — live browser-session presence board + session history.
 // Admin-only: only Eytan (Google-auth admin) sees this page.
 // Stale-doc cleanup runs on mount for docs older than 10 minutes.
 
 import { useEffect } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useConnectionsLog, type ConnectionEntry } from "@/lib/data/useConnectionsLog";
+import { useConnectionHistory, type HistoryEntry } from "@/lib/data/useConnectionHistory";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 
 // ── Inline helpers ────────────────────────────────────────────────────────────
 
 const ACTION_LABELS: Record<string, string> = {
-  excel_download: "Excel ↓",
+  excel_download:    "Excel ↓",
   presentation_view: "Presentation",
-  tour_start: "Tour",
+  tour_start:        "Tour",
 };
 
 function formatRelative(ms: number): string {
   const diff = Date.now() - ms;
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 5) return "just now";
+  if (seconds < 5)  return "just now";
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24)   return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function formatDuration(startMs: number, endMs: number): string {
+  const diff = Math.max(0, endMs - startMs);
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${minutes % 60}m`;
+}
+
+function PageChips({ pages }: { pages: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {pages.map((page) => {
+        const isBank  = page.startsWith("/bank");
+        const isPitch = page.startsWith("/pitch");
+        return (
+          <span
+            key={page}
+            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono ${
+              isBank
+                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                : isPitch
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-brand-50 text-brand-700 border border-brand-200"
+            }`}
+          >
+            {page}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
 
 export default function ConnectionsPage() {
   const { t } = useTranslation();
-  const { user, isAdmin, loading, signIn } = useEffectiveAuth();
+  const { user, isAdmin, loading } = useEffectiveAuth();
   const { entries, loading: logLoading, error } = useConnectionsLog(isAdmin);
+  const { entries: historyEntries, loading: histLoading } = useConnectionHistory(isAdmin);
 
-  // Stale-doc cleanup: delete any presence doc with lastHeartbeat older
-  // than 10 minutes. Runs once on mount, only when the caller is admin.
+  // Stale-doc cleanup on mount: delete presence docs >10 min old, and
+  // connectionHistory docs >7 days old (admin-only cleanup pass).
   useEffect(() => {
     if (!isAdmin) return;
     const db = getDb();
@@ -48,18 +85,27 @@ export default function ConnectionsPage() {
 
     void (async () => {
       try {
-        const snap = await getDocs(collection(db, "presence"));
-        const cutoff = Date.now() - 600_000; // 10 minutes
+        // Clean up stale live presence docs.
+        const presSnap = await getDocs(collection(db, "presence"));
+        const presenceCutoff = Date.now() - 600_000;
         const deletions: Promise<void>[] = [];
-        snap.forEach((d) => {
+        presSnap.forEach((d) => {
           const data = d.data();
-          if (typeof data.lastHeartbeat === "number" && data.lastHeartbeat < cutoff) {
+          if (typeof data.lastHeartbeat === "number" && data.lastHeartbeat < presenceCutoff) {
             deletions.push(deleteDoc(doc(db, "presence", d.id)));
           }
         });
+        // Clean up connectionHistory docs older than 7 days.
+        const historyCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const histSnap = await getDocs(
+          query(collection(db, "connectionHistory"), where("connectedAt", "<", historyCutoff)),
+        );
+        histSnap.forEach((d) => {
+          deletions.push(deleteDoc(doc(db, "connectionHistory", d.id)));
+        });
         await Promise.allSettled(deletions);
       } catch {
-        // Non-fatal: cleanup is best-effort.
+        // Non-fatal.
       }
     })();
   }, [isAdmin]);
@@ -68,7 +114,7 @@ export default function ConnectionsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-4xl">
         <div className="text-sm text-text-tertiary">{t("connections.loading")}</div>
       </div>
     );
@@ -76,7 +122,7 @@ export default function ConnectionsPage() {
 
   if (!user) {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-4xl">
         <h1 className="font-display text-2xl text-text-primary mb-2 border-s-[3px] border-brand-400 ps-3">
           {t("connections.title")}
         </h1>
@@ -87,35 +133,22 @@ export default function ConnectionsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-3xl">
+      <div className="max-w-4xl">
         <h1 className="font-display text-2xl text-text-primary mb-2 border-s-[3px] border-brand-400 ps-3">
           {t("connections.title")}
         </h1>
-        <p className="text-sm text-text-secondary mb-4">{t("connections.restricted")}</p>
-        {/* Anonymous session — offer Google sign-in to restore admin auth. */}
-        {user?.isAnonymous && (
-          <button
-            type="button"
-            onClick={() => void signIn()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-surface-tertiary bg-white text-sm font-medium text-text-primary hover:bg-surface-secondary transition-colors"
-          >
-            <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
-              <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
-              <path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/>
-              <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
-              <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
-            </svg>
-            {t("connections.googleSignInCta")}
-          </button>
-        )}
+        <p className="text-sm text-text-secondary">{t("connections.restricted")}</p>
       </div>
     );
   }
 
+  // Ended sessions from history (exclude active — already shown in live table).
+  const endedSessions = historyEntries.filter((e) => e.status === "ended");
+
   // ── Main UI ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-3xl space-y-8">
+    <div className="max-w-4xl space-y-10">
       <div>
         <h1 className="font-display text-2xl text-text-primary border-s-[3px] border-brand-400 ps-3">
           {t("connections.title")}
@@ -123,7 +156,11 @@ export default function ConnectionsPage() {
         <p className="text-sm text-text-secondary mt-1">{t("connections.pageIntro")}</p>
       </div>
 
+      {/* ── Live connections ─────────────────────────────────────────────── */}
       <section className="bg-white rounded-xl border border-surface-tertiary p-6">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-4">
+          {t("connections.sectionLive")}
+        </h2>
         {error && (
           <p className="text-xs text-warning mb-4">{error}</p>
         )}
@@ -136,33 +173,17 @@ export default function ConnectionsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-start text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-tertiary">
-                <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colUser")}
-                </th>
-                <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colSessions")}
-                </th>
-                <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colConnectedSince")}
-                </th>
-                <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colLastSeen")}
-                </th>
-                <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colOpenPages")}
-                </th>
-                <th className="py-2 pe-3 font-medium text-start">
-                  Last action
-                </th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colUser")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colSessions")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colConnectedSince")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colLastSeen")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colOpenPages")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colLastAction")}</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((entry: ConnectionEntry) => (
-                <tr
-                  key={entry.uid}
-                  className="border-b border-surface-tertiary/50"
-                >
-                  {/* User */}
+                <tr key={entry.uid} className="border-b border-surface-tertiary/50">
                   <td className="py-2 pe-3 text-text-primary">
                     <span className="font-medium">{entry.displayName}</span>
                     {entry.isAnonymous && (
@@ -174,18 +195,8 @@ export default function ConnectionsPage() {
                       {entry.uid.slice(0, 12)}&hellip;
                     </span>
                   </td>
-
-                  {/* Sessions */}
-                  <td className="py-2 pe-3 text-text-secondary tabular-nums">
-                    {entry.sessionCount}
-                  </td>
-
-                  {/* Connected since */}
-                  <td className="py-2 pe-3 text-text-secondary">
-                    {formatRelative(entry.connectedSince)}
-                  </td>
-
-                  {/* Last seen */}
+                  <td className="py-2 pe-3 text-text-secondary tabular-nums">{entry.sessionCount}</td>
+                  <td className="py-2 pe-3 text-text-secondary">{formatRelative(entry.connectedSince)}</td>
                   <td className="py-2 pe-3">
                     <span className={entry.isStale ? "text-text-tertiary" : "text-text-secondary"}>
                       {formatRelative(entry.lastSeen)}
@@ -196,32 +207,73 @@ export default function ConnectionsPage() {
                       </span>
                     )}
                   </td>
-
-                  {/* Open pages — all tabs, newest first */}
                   <td className="py-2 pe-3">
-                    <div className="flex flex-wrap gap-1">
-                      {entry.pages.map((page) => {
-                        const isBank = page.startsWith("/bank");
-                        const isPitch = page.startsWith("/pitch");
-                        return (
-                          <span
-                            key={page}
-                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                              isBank
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : isPitch
-                                  ? "bg-green-50 text-green-700 border border-green-200"
-                                  : "bg-brand-50 text-brand-700 border border-brand-200"
-                            }`}
-                          >
-                            {page}
-                          </span>
-                        );
-                      })}
-                    </div>
+                    <PageChips pages={entry.pages} />
                   </td>
+                  <td className="py-2 pe-3">
+                    {entry.lastAction && entry.lastActionAt ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-[11px] font-medium text-text-secondary">
+                          {ACTION_LABELS[entry.lastAction] ?? entry.lastAction}
+                        </span>
+                        <span className="text-[11px] text-text-tertiary">
+                          {formatRelative(entry.lastActionAt)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-text-tertiary">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
 
-                  {/* Last action */}
+      {/* ── Session history ───────────────────────────────────────────────── */}
+      <section className="bg-white rounded-xl border border-surface-tertiary p-6">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-4">
+          {t("connections.sectionHistory")}
+        </h2>
+
+        {histLoading ? (
+          <p className="text-sm text-text-tertiary">{t("connections.loading")}</p>
+        ) : endedSessions.length === 0 ? (
+          <p className="text-sm text-text-tertiary">{t("connections.noHistory")}</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-start text-[10px] uppercase tracking-wider text-text-tertiary border-b border-surface-tertiary">
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colUser")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colConnectedAt")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colDuration")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colLastPage")}</th>
+                <th className="py-2 pe-3 font-medium text-start">{t("connections.colLastAction")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {endedSessions.map((entry: HistoryEntry) => (
+                <tr key={entry.tabId} className="border-b border-surface-tertiary/50">
+                  <td className="py-2 pe-3 text-text-primary">
+                    <span className="font-medium">{entry.displayName || "—"}</span>
+                    {entry.isAnonymous && (
+                      <span className="ms-1.5 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium uppercase tracking-wider bg-surface-tertiary text-text-tertiary">
+                        anon
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-2 pe-3 text-text-secondary">
+                    {formatRelative(entry.connectedAt)}
+                  </td>
+                  <td className="py-2 pe-3 text-text-secondary tabular-nums">
+                    {entry.disconnectedAt
+                      ? formatDuration(entry.connectedAt, entry.disconnectedAt)
+                      : "—"}
+                  </td>
+                  <td className="py-2 pe-3">
+                    <PageChips pages={[entry.currentPage]} />
+                  </td>
                   <td className="py-2 pe-3">
                     {entry.lastAction && entry.lastActionAt ? (
                       <span className="inline-flex items-center gap-1">

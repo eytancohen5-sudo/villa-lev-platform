@@ -22,8 +22,30 @@ export function BankGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true);
-    // If name was already entered this session, skip the prompt.
-    if (getBankName()) setReady(true);
+
+    // 1. If name was already entered this session, skip immediately.
+    if (getBankName()) { setReady(true); return; }
+
+    // 2. If the user is already signed in with a non-anonymous account (e.g.
+    //    the admin using Google auth navigates to /bank), skip the name prompt.
+    //    We await authStateReady() so we don't race the IndexedDB restore.
+    const auth = getAuthInstance();
+    if (!auth) return;
+    const checkExistingAuth = async () => {
+      try {
+        if (typeof (auth as { authStateReady?: () => Promise<void> }).authStateReady === "function") {
+          await (auth as { authStateReady: () => Promise<void> }).authStateReady();
+        }
+      } catch { /* ignore */ }
+      const user = auth.currentUser;
+      if (user && !user.isAnonymous) {
+        // Store display name so usePresence can pick it up from getBankName().
+        const displayName = user.displayName ?? user.email ?? "Admin";
+        try { sessionStorage.setItem(BANK_NAME_KEY, displayName.slice(0, 120)); } catch { /* private mode */ }
+        setReady(true);
+      }
+    };
+    void checkExistingAuth();
   }, []);
 
   // SSR: render nothing to avoid hydration flash.

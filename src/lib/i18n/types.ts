@@ -2066,6 +2066,13 @@ export interface TranslationDictionary {
   'connections.restricted': string;
   'connections.signInPrompt': string;
   'connections.googleSignInCta': string;
+  'connections.sectionLive': string;
+  'connections.sectionHistory': string;
+  'connections.noHistory': string;
+  'connections.colLastAction': string;
+  'connections.colConnectedAt': string;
+  'connections.colDuration': string;
+  'connections.colLastPage': string;
 
   // ── Bank gate ──
   'bankGate.heading': string;

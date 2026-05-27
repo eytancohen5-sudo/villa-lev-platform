@@ -2056,6 +2056,13 @@ export const he: TranslationDictionary = {
   'connections.restricted':        'יומן החיבורים מוגבל למנהלים.',
   'connections.signInPrompt':      'התחבר כדי לצפות ביומן החיבורים.',
   'connections.googleSignInCta':   'התחבר עם Google',
+  'connections.sectionLive':       'פעיל',
+  'connections.sectionHistory':    'היסטוריית חיבורים',
+  'connections.noHistory':         'אין סשנים שהסתיימו ב-7 הימים האחרונים.',
+  'connections.colLastAction':     'פעולה אחרונה',
+  'connections.colConnectedAt':    'התחבר',
+  'connections.colDuration':       'משך',
+  'connections.colLastPage':       'עמוד אחרון',
 
   // ── Sponsor equity breakdown — three capacities ──────────────────────────
   'ct.roles.sectionTitle': "TODO",

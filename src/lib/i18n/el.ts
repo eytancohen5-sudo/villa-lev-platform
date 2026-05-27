@@ -2054,6 +2054,13 @@ export const el: TranslationDictionary = {
   'connections.restricted':        'Το αρχείο συνδέσεων είναι περιορισμένο σε διαχειριστές.',
   'connections.signInPrompt':      'Συνδεθείτε για να δείτε το αρχείο συνδέσεων.',
   'connections.googleSignInCta':   'Σύνδεση με Google',
+  'connections.sectionLive':       'Ζωντανά',
+  'connections.sectionHistory':    'Ιστορικό Συνεδριών',
+  'connections.noHistory':         'Δεν υπάρχουν ολοκληρωμένες συνεδρίες τις τελευταίες 7 ημέρες.',
+  'connections.colLastAction':     'Τελευταία ενέργεια',
+  'connections.colConnectedAt':    'Σύνδεση',
+  'connections.colDuration':       'Διάρκεια',
+  'connections.colLastPage':       'Τελευταία σελίδα',
 
   // ── Sponsor equity breakdown — three capacities ──────────────────────────
   'ct.roles.sectionTitle': "TODO",
