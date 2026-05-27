@@ -963,7 +963,7 @@ export interface TranslationDictionary {
   'dash.founder.floorProtected': string;
   'dash.founder.capStatus': string;
   'dash.founder.capBinding75': string;
-  'dash.founder.capEarned33': string;
+  'dash.founder.capRatchet10': string;
   'dash.founder.capFree': string;
   'dash.founder.capExit55Grant': string;
   'dash.founder.earned': string;
@@ -1948,7 +1948,7 @@ export interface TranslationDictionary {
   'ct.capBindingNote': string;
   // ── Cap binding detail labels (2026-05-25) ──
   'ct.capBinding75Detail': string;
-  'ct.capEarned33Detail': string;
+  'ct.capRatchet10Detail': string;
   'ct.capNoBinding': string;
 
   // ── Sponsor equity breakdown — three capacities ──────────────────────────

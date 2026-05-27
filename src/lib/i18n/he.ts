@@ -1134,7 +1134,7 @@ export const he: TranslationDictionary = {
   'dash.founder.floorProtected': 'רצפה מוגנת בשיעור',
   'dash.founder.capStatus': 'מצב התקרה',
   'dash.founder.capBinding75': '75% מחייב',
-  'dash.founder.capEarned33': '33% הושג',
+  'dash.founder.capRatchet10': '10% תקרת ratchet',
   'dash.founder.capFree': 'פנוי',
   'dash.founder.capExit55Grant': '55% תקרת יציאה — מענק (IRR < 30%)',
   'dash.founder.earned': 'מורווח',
@@ -1956,10 +1956,10 @@ export const he: TranslationDictionary = {
   'ct.detail.cashIn':           'מזומן נכנס',
   'ct.detail.isFounder':        'נתח כלכלי של המייסד',
   'ct.detail.poolShare':        'נתח מהמאגר',
-  'ct.capBindingNote':          'תקרה שנצברה {{earnedCap}} · תקרת מייסד כוללת {{totalCap}} (משקיעים שומרים ≥ {{minInvestor}}).',
+  'ct.capBindingNote':          'תקרת ratchet {{earnedCap}} · תקרת מייסד כוללת {{totalCap}} (משקיעים שומרים ≥ {{minInvestor}}).',
   // ── Cap binding detail labels (2026-05-25) ──
   'ct.capBinding75Detail':      '75% תקרה כוללת מחייבת — שנצבר מופחת ל-{{pct}}',
-  'ct.capEarned33Detail':       'הושגה תקרת 33% שנצברה',
+  'ct.capRatchet10Detail':      'הושגה תקרת ratchet עצמאית 10%',
   'ct.capNoBinding':            'אין הגבלת תקרה',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'סטנד.',

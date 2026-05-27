@@ -84,7 +84,7 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.moicFloorReduction).toBe(true);
   });
 
-  it('returns +29% ratchet for IRR ≥ 22% with grant approved', () => {
+  it('returns +10% ratchet for IRR ≥ 22% with grant approved', () => {
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -92,19 +92,11 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');
-    // When grant is approved, the engine applies EARNED_EQUITY_CAP (0.33) as a ceiling
-    // on total earned equity (grantBonusPct + ratchet). The grant bonus is now derived
-    // from only the equity half of Eytan's share of the success fee:
-    //   Eytan's equity portion = grant × 5% × 50% = 100,347
-    //   grantBonusPct ≈ 100,347 / 1,200,000 ≈ 0.0836
-    //   ratchet = 0.33 − 0.0836 ≈ 0.2464
-    // The full 0.29 tier ratchet is only reachable when there is no grant bonus.
-    expect(result.performanceRatchetPct).toBeCloseTo(0.246378, 4);
+    // Ratchet standalone cap (10%) applies independently — grant bonus does not reduce it.
+    expect(result.performanceRatchetPct).toBe(0.10);
   });
 
-  it('returns +29% ratchet for IRR ≥ 22% WITHOUT grant (no-grant differential removed)', () => {
-    // The old structure had ratchetNoGrant = 0.33 for the top tier.
-    // After restructure both grant and no-grant are 0.29.
+  it('returns +10% ratchet for IRR ≥ 22% WITHOUT grant', () => {
     const noGrantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: false,
@@ -112,17 +104,12 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(noGrantCase.ratchetTier).toBe('excellent');
-    expect(noGrantCase.performanceRatchetPct).toBeCloseTo(0.29);
+    expect(noGrantCase.performanceRatchetPct).toBe(0.10);
   });
 
-  it('grant case excellent-tier ratchet is less than no-grant due to EARNED_EQUITY_CAP', () => {
-    // The old structure had an explicit no-grant differential (ratchetNoGrant > ratchet).
-    // That differential was removed — there is now a single ratchet value per tier.
-    // However, when a grant IS present, EARNED_EQUITY_CAP (0.33) caps total earned equity
-    // as: ratchet = max(0, EARNED_EQUITY_CAP - grantBonusPct). Grant bonus is derived from
-    // Eytan's equity portion only (grant × 5% × 50% / totalEquity ≈ 0.0836), so:
-    //   effective ratchet ≈ 0.33 - 0.0836 ≈ 0.2464, not the full tier value of 0.29.
-    // The no-grant case has no bonus, so it achieves the full 0.29.
+  it('grant and no-grant excellent-tier ratchet are equal — grant bonus is independent', () => {
+    // Ratchet standalone cap means grant bonus no longer squeezes the ratchet.
+    // Both cases reach the same 10% at the excellent tier.
     const grantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
@@ -135,9 +122,9 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorIRR: 0.25,
       investorMOIC: 7.0,
     });
-    expect(grantCase.performanceRatchetPct).toBeCloseTo(0.246378, 4);
-    expect(noGrantCase.performanceRatchetPct).toBeCloseTo(0.29, 4);
-    expect(grantCase.performanceRatchetPct).toBeLessThan(noGrantCase.performanceRatchetPct);
+    expect(grantCase.performanceRatchetPct).toBe(0.10);
+    expect(noGrantCase.performanceRatchetPct).toBe(0.10);
+    expect(grantCase.performanceRatchetPct).toBe(noGrantCase.performanceRatchetPct);
   });
 
   it('pref_met tier boundary: IRR exactly at 22% still in pref_met (exclusive upper bound)', () => {
@@ -160,9 +147,8 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');
-    // Grant is approved, so EARNED_EQUITY_CAP (0.33) − grantBonusPct (≈0.0836) ≈ 0.2464.
-    // The tier flips to 'excellent' correctly; the realised ratchet is capped below 0.29.
-    expect(result.performanceRatchetPct).toBeCloseTo(0.246378, 4);
+    // Standalone ratchet cap (10%) applies; grant bonus is independent.
+    expect(result.performanceRatchetPct).toBe(0.10);
   });
 
   it('ratchetTierLabel is human-readable for each tier', () => {

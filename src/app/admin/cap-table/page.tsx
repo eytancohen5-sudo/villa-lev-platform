@@ -9,7 +9,7 @@ import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { CAP_TABLE_TOUR } from "@/lib/tours/configs";
 import { computeCapTable } from "@/lib/engine/capTable";
 import {
-  EARNED_EQUITY_CAP,
+  RATCHET_STANDALONE_CAP,
   TOTAL_FOUNDER_CAP,
   MIN_INVESTOR_SHARE,
   DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
@@ -216,19 +216,19 @@ export default function CapTablePage() {
   };
 
   // The capBinding indicator:
-  //   total_75 — investors keep their 25% floor; earned was reduced
-  //   earned_33 — top-tier or near-top; earned hit the +33% ceiling
-  //   none — no cap pressure; founder fully earns the tier
+  //   total_75    — investors keep their 25% floor; earned was reduced
+  //   ratchet_10  — excellent tier; standalone 10% ratchet cap reached
+  //   none        — no cap pressure; founder fully earns the tier
   const capLabel =
     b.capBinding === "total_75"
       ? t('ct.capBinding75Detail').replace('{{pct}}', formatPercent(b.earnedPct))
-      : b.capBinding === "earned_33"
-        ? t('ct.capEarned33Detail')
+      : b.capBinding === "ratchet_10"
+        ? t('ct.capRatchet10Detail')
         : b.capBinding === "exit_55_grant"
           ? t('dash.founder.capExit55Grant')
           : t('ct.capNoBinding');
   const capTone =
-    b.capBinding === "total_75" || b.capBinding === "exit_55_grant" ? "warning" : b.capBinding === "earned_33" ? "neutral" : "positive";
+    b.capBinding === "total_75" || b.capBinding === "exit_55_grant" ? "warning" : b.capBinding === "ratchet_10" ? "neutral" : "positive";
 
   return (
     <div>
@@ -477,7 +477,7 @@ export default function CapTablePage() {
           <span className="font-medium">{capLabel}.</span>
           <span className="text-text-tertiary">
             {t('ct.capBindingNote')
-              .replace('{{earnedCap}}', formatPercent(EARNED_EQUITY_CAP))
+              .replace('{{earnedCap}}', formatPercent(RATCHET_STANDALONE_CAP))
               .replace('{{totalCap}}', formatPercent(TOTAL_FOUNDER_CAP))
               .replace('{{minInvestor}}', formatPercent(MIN_INVESTOR_SHARE))}
           </span>

@@ -1119,7 +1119,7 @@ export const en: TranslationDictionary = {
   'dash.founder.floorProtected': 'Floor protected at',
   'dash.founder.capStatus': 'Cap status',
   'dash.founder.capBinding75': '75% binding',
-  'dash.founder.capEarned33': '33% reached',
+  'dash.founder.capRatchet10': '10% ratchet cap',
   'dash.founder.capFree': 'Free',
   'dash.founder.capExit55Grant': 'Exit cap 55% (grant, IRR < 30%)',
   'dash.founder.earned': 'earned',
@@ -1936,10 +1936,10 @@ export const en: TranslationDictionary = {
   'ct.detail.cashIn':           'Cash in',
   'ct.detail.isFounder':        'Founder economic stake',
   'ct.detail.poolShare':        'Pool share',
-  'ct.capBindingNote':          'Earned cap {{earnedCap}} · Total founder cap {{totalCap}} (investors keep ≥ {{minInvestor}}).',
+  'ct.capBindingNote':          'Ratchet cap {{earnedCap}} · Total founder cap {{totalCap}} (investors keep ≥ {{minInvestor}}).',
   // ── Cap binding detail labels (2026-05-25) ──
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
-  'ct.capEarned33Detail':       '33% earned cap reached',
+  'ct.capRatchet10Detail':      '10% standalone ratchet cap reached',
   'ct.capNoBinding':            'No cap binding',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',

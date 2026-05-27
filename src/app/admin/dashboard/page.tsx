@@ -155,8 +155,8 @@ export default function DashboardPage() {
   const capStatusLabel =
     founderBd.capBinding === "total_75"
       ? t('dash.founder.capBinding75')
-      : founderBd.capBinding === "earned_33"
-        ? t('dash.founder.capEarned33')
+      : founderBd.capBinding === "ratchet_10"
+        ? t('dash.founder.capRatchet10')
         : founderBd.capBinding === 'exit_55_grant'
           ? t('dash.founder.capExit55Grant')
           : t('dash.founder.capFree');
@@ -1000,7 +1000,7 @@ export default function DashboardPage() {
               <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
                 {t('dash.founder.capStatus')}
               </div>
-              <div className={`text-sm font-medium ${founderBd.capBinding === "total_75" || founderBd.capBinding === "exit_55_grant" ? "text-warning" : founderBd.capBinding === "earned_33" ? "text-text-primary" : "text-positive"}`}>
+              <div className={`text-sm font-medium ${founderBd.capBinding === "total_75" || founderBd.capBinding === "exit_55_grant" ? "text-warning" : founderBd.capBinding === "ratchet_10" ? "text-text-primary" : "text-positive"}`}>
                 {capStatusLabel}
               </div>
             </div>

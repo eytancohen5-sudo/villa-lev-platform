@@ -1142,7 +1142,7 @@ export const el: TranslationDictionary = {
   'dash.founder.floorProtected': 'Κατώτατο όριο στο',
   'dash.founder.capStatus': 'Κατάσταση cap',
   'dash.founder.capBinding75': '75% δεσμευτικό',
-  'dash.founder.capEarned33': '33% επιτεύχθηκε',
+  'dash.founder.capRatchet10': '10% όριο ratchet',
   'dash.founder.capFree': 'Ελεύθερο',
   'dash.founder.capExit55Grant': '55% όριο εξόδου επιχορήγησης (IRR < 30%)',
   'dash.founder.earned': 'κερδισμένο',
@@ -1951,10 +1951,10 @@ export const el: TranslationDictionary = {
   'ct.detail.cashIn':           'Εισερχόμενο μετρητό',
   'ct.detail.isFounder':        'Οικονομικό μερίδιο ιδρυτή',
   'ct.detail.poolShare':        'Μερίδιο pool',
-  'ct.capBindingNote':          'Τεκμηριωμένο ανώτατο {{earnedCap}} · Συνολικό ανώτατο ιδρυτή {{totalCap}} (επενδυτές διατηρούν ≥ {{minInvestor}}).',
+  'ct.capBindingNote':          'Ανώτατο ratchet {{earnedCap}} · Συνολικό ανώτατο ιδρυτή {{totalCap}} (επενδυτές διατηρούν ≥ {{minInvestor}}).',
   // ── Cap binding detail labels (2026-05-25) ──
   'ct.capBinding75Detail':      'Δέσμευση 75% συνολικού ανώτατου — τεκμηριωμένο μειώνεται σε {{pct}}',
-  'ct.capEarned33Detail':       'Επιτεύχθηκε τεκμηριωμένο ανώτατο 33%',
+  'ct.capRatchet10Detail':      'Επιτεύχθηκε ανεξάρτητο ανώτατο ratchet 10%',
   'ct.capNoBinding':            'Χωρίς δέσμευση ανώτατου',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'τυπ.',

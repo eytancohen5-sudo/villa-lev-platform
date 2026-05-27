@@ -934,7 +934,7 @@ export const fr = {
   'dash.founder.floorProtected': 'Plancher protégé à',
   'dash.founder.capStatus': 'État du plafond',
   'dash.founder.capBinding75': '75% atteint',
-  'dash.founder.capEarned33': '33% atteint',
+  'dash.founder.capRatchet10': 'Plafond ratchet 10%',
   'dash.founder.capFree': 'Libre',
   'dash.founder.capExit55Grant': 'Plafond sortie 55% (subvention, IRR < 30%)',
   'dash.founder.earned': 'gagné',
@@ -1423,10 +1423,10 @@ export const fr = {
   'ct.detail.cashIn':           'Cash in',
   'ct.detail.isFounder':        'Founder economic stake',
   'ct.detail.poolShare':        'Pool share',
-  'ct.capBindingNote':          'Earned cap {{earnedCap}} · Total founder cap {{totalCap}} (investors keep ≥ {{minInvestor}}).',
+  'ct.capBindingNote':          'Plafond ratchet {{earnedCap}} · Plafond total fondateur {{totalCap}} (investisseurs gardent ≥ {{minInvestor}}).',
   // ── Cap binding detail labels (2026-05-25) ──
   'ct.capBinding75Detail':      '75% total cap binding — earned reduced to {{pct}}',
-  'ct.capEarned33Detail':       '33% earned cap reached',
+  'ct.capRatchet10Detail':      'Plafond ratchet autonome 10% atteint',
   'ct.capNoBinding':            'No cap binding',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',

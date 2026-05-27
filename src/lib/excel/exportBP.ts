@@ -24,7 +24,8 @@ import {
 } from '@/lib/engine/capTable';
 import {
   resolveFounderWaterfall,
-  EARNED_EQUITY_CAP,
+  EARNED_EQUITY_CAP,   // @deprecated — kept for Excel reference cell only
+  RATCHET_STANDALONE_CAP,
   TOTAL_FOUNDER_CAP,
   MIN_INVESTOR_SHARE,
   BUCKET_1A_COLLATERAL_CAP,
@@ -2300,7 +2301,7 @@ export async function exportBusinessPlan(
     `Scenario: ${scenarioName} · Exit ${capScenario.exitYear} @ ${capScenario.exitEbitdaMultiple}× · ` +
     `Founder ${(fb.founderTotalPct * 100).toFixed(1)}% (pp ${(fb.pariPassuPct * 100).toFixed(1)}% + grant ${(fb.grantBonusPct * 100).toFixed(0)}% + ratchet ${(fb.performanceRatchetPct * 100).toFixed(0)}%) · ` +
     `Investors ${(fb.investorTotalPct * 100).toFixed(1)}% · ` +
-    `Cap: ${fb.capBinding === 'total_75' ? '75% total binding' : fb.capBinding === 'earned_33' ? '33% earned binding' : fb.capBinding === 'exit_55_grant' ? '55% grant exit cap (IRR < 30%)' : 'free'}`;
+    `Cap: ${fb.capBinding === 'total_75' ? '75% total binding' : fb.capBinding === 'ratchet_10' ? '10% ratchet cap' : fb.capBinding === 'exit_55_grant' ? '55% grant exit cap (IRR < 30%)' : 'free'}`;
   CT.getCell('A2').font = FONT.italic;
   CT.mergeCells(`A2:${col(2 + years.length + 2)}2`);
 
@@ -2460,9 +2461,9 @@ export async function exportBusinessPlan(
       note: `Tier: ${fb.ratchetTierLabel}${fb.moicFloorReduction ? ' (MOIC floor reduced)' : ''}`,
     },
     {
-      label: 'Earned (B + C, capped at +33%)',
+      label: 'Earned (B + C — independent caps)',
       pct: fb.earnedPct,
-      note: fb.capBinding === 'earned_33' ? '33% earned cap binding' : 'Within earned cap',
+      note: fb.capBinding === 'ratchet_10' ? '10% ratchet cap reached' : 'Within ratchet cap',
     },
     {
       label: 'Founder total (A + B + C, capped at 75%)',
@@ -2513,8 +2514,8 @@ export async function exportBusinessPlan(
   WF.getCell(`A${wfr}`).fill = STYLE.sectionFill;
   WF.mergeCells(`A${wfr}:G${wfr}`);
   wfr += 1;
-  WF.getCell(`A${wfr}`).value = 'Earned cap (grant bonus + ratchet ≤)';
-  WF.getCell(`B${wfr}`).value = EARNED_EQUITY_CAP;
+  WF.getCell(`A${wfr}`).value = 'Ratchet cap (Layer C, standalone ≤)';
+  WF.getCell(`B${wfr}`).value = RATCHET_STANDALONE_CAP;
   WF.getCell(`B${wfr}`).numFmt = FMT.pct;
   wfr += 1;
   WF.getCell(`A${wfr}`).value = 'Total founder cap (pari-passu + earned ≤)';
@@ -2661,8 +2662,8 @@ export async function exportBusinessPlan(
       sb.investorTotalPct,
       sb.capBinding === 'total_75'
         ? '75% binding'
-        : sb.capBinding === 'earned_33'
-          ? '33% reached'
+        : sb.capBinding === 'ratchet_10'
+          ? '10% ratchet cap'
           : sb.capBinding === 'exit_55_grant'
             ? '55% exit cap (grant)'
             : 'free',

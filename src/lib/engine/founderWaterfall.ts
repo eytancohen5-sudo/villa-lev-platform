@@ -6,10 +6,10 @@
 //
 //   Layer A  Pari-passu cash equity        = founder_cash / total_equity
 //   Layer B  Grant landing bonus           = +4% if grant approved, else 0
-//   Layer C  Performance ratchet at exit   = 0 (miss) / 9 (pref_met) / 29 (excellent)%
+//   Layer C  Performance ratchet at exit   = 0 (miss) / 9 (pref_met) / 10 (excellent)%
 //
 // Plus two hard caps that protect investors:
-//   • Earned cap:  grant_bonus + ratchet ≤ +33%
+//   • Ratchet cap: ratchet ≤ +10%  (standalone; grant bonus and pari-passu are independent)
 //   • Total cap:   pari_passu + earned   ≤ 75%  (investors keep ≥ 25%)
 //
 // The ratchet trigger depends on *investor* IRR/MOIC at exit, which in turn
@@ -22,7 +22,12 @@ import { npv, irrNewton } from './financeUtils';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-export const EARNED_EQUITY_CAP = 0.33;      // grant_bonus + ratchet
+/** Standalone cap on the Layer C performance ratchet. Grant bonus (Layer B) and
+ *  pari-passu (Layer A) are not counted against this ceiling — each component is independent. */
+export const RATCHET_STANDALONE_CAP = 0.10;
+/** @deprecated The combined earned cap (grant_bonus + ratchet ≤ 33%) has been replaced
+ *  by RATCHET_STANDALONE_CAP. Kept as a reference constant for legacy Excel cells. */
+export const EARNED_EQUITY_CAP = 0.33;
 export const TOTAL_FOUNDER_CAP = 0.75;      // pari_passu + earned
 export const MIN_INVESTOR_SHARE = 1 - TOTAL_FOUNDER_CAP;
 export const GRANT_ROUTE_IRR_THRESHOLD = 0.30;
@@ -102,7 +107,7 @@ export interface RatchetTierDef {
 export const RATCHET_TIERS: readonly RatchetTierDef[] = [
   { id: 'miss',      label: 'Miss',      irrMin: -Infinity, irrMax: 0.08,     moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
   { id: 'pref_met',  label: 'Pref met',  irrMin: 0.08,      irrMax: 0.22,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
-  { id: 'excellent', label: 'Excellent', irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.29, ratchetNoGrant: 0.29 },
+  { id: 'excellent', label: 'Excellent', irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.10, ratchetNoGrant: 0.10 },
 ];
 
 export interface DealTermsConfig {
@@ -141,7 +146,7 @@ export const DEFAULT_DEAL_TERMS: DealTermsConfig = {
   ratchetTiers:           RATCHET_TIERS,
 };
 
-export type CapBinding = 'none' | 'earned_33' | 'total_75' | 'exit_55_grant';
+export type CapBinding = 'none' | 'ratchet_10' | 'total_75' | 'exit_55_grant';
 
 export interface FounderStakeInput {
   founderCashInvested: number;
@@ -339,21 +344,21 @@ export function computeFounderStake(input: FounderStakeInput): FounderStakeBreak
   const advisoryAnnual = 0;
   const advisoryStartYear = paymentYear;
 
-  // ── Layer C tier selection (unchanged) ─────────────────────────────
+  // ── Layer C tier selection ────────────────────────────────────────
   let { tier, ratchet, reduced } = selectTier(input.investorIRR, input.investorMOIC, input.grantApproved);
 
-  // ── Earned cap (33%) — reduce ratchet, preserve grant bonus ────────
-  // The grant bonus is contractual (the founder earned it by landing the
-  // grant); the ratchet is the flexible portion that absorbs the cap.
+  // ── Ratchet standalone cap ────────────────────────────────────────
+  // Layer C is capped independently at RATCHET_STANDALONE_CAP (10%).
+  // Grant bonus (Layer B) and pari-passu (Layer A) are not counted
+  // against this ceiling — each component is independently bounded.
   let cap: CapBinding = 'none';
-  const earnedRaw = grantBonus + ratchet;
-  if (earnedRaw > EARNED_EQUITY_CAP + 1e-9) {
-    ratchet = Math.max(0, EARNED_EQUITY_CAP - grantBonus);
-    cap = 'earned_33';
-  } else if (Math.abs(earnedRaw - EARNED_EQUITY_CAP) < 1e-9) {
-    cap = 'earned_33';
+  if (ratchet > RATCHET_STANDALONE_CAP + 1e-9) {
+    ratchet = RATCHET_STANDALONE_CAP;
+    cap = 'ratchet_10';
+  } else if (Math.abs(ratchet - RATCHET_STANDALONE_CAP) < 1e-9 && ratchet > 0) {
+    cap = 'ratchet_10';
   }
-  let earned = Math.min(grantBonus + ratchet, EARNED_EQUITY_CAP);
+  let earned = grantBonus + ratchet;  // no combined ceiling; layers are independent
 
   // ── Developer equity (additive on top of pari-passu) ──────────────
   // Developer equity (promote) and pari-passu (cash returns) are two
