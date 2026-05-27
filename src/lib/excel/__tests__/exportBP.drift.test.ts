@@ -172,17 +172,27 @@ describe("L2 — exported XLSX structural shape", () => {
       labels.push(String(v));
     }
 
-    // Bank-view export omits cap-table rows (investor deal economics).
-    expect(labels).toHaveLength(7);
+    // Bank-view export: 13 rows covering CAPEX+financing, operations, coverage, returns.
+    // Cap-table and investor-only rows (grace interest, LLCR, exit metrics, terminal) excluded.
+    expect(labels).toHaveLength(13);
     expect(labels[0]).toBe("Total CAPEX");
-    expect(labels[1]).toBe("Stabilised revenue (2031)");
-    expect(labels[2]).toBe("Stabilised EBITDA (2031)");
-    expect(labels[3]).toMatch(/Stabilised DSCR/);
-    expect(labels[4]).toBe("Unlevered Project IRR");
-    expect(labels[5]).toBe("Levered Equity IRR");
-    expect(labels[6]).toBe("Equity MOIC");
-    // No cap-table or waterfall rows in banker pack
+    expect(labels[1]).toBe("Total loan (80% LTC)");
+    expect(labels[2]).toBe("Structural equity at close");
+    expect(labels[3]).toBe("Stabilised revenue (2031)");
+    expect(labels[4]).toBe("Total OpEx (2031)");
+    expect(labels[5]).toBe("Stabilised EBITDA (2031)");
+    expect(labels[6]).toMatch(/Annual debt service/);
+    expect(labels[7]).toMatch(/DSCR first full DS year/);
+    expect(labels[8]).toMatch(/Stabilised DSCR/);
+    expect(labels[9]).toBe("Min DSCR (loan life)");
+    expect(labels[10]).toBe("Unlevered Project IRR");
+    expect(labels[11]).toBe("Levered Equity IRR");
+    expect(labels[12]).toBe("Equity MOIC");
+    // No cap-table, investor-only, or waterfall rows in banker pack
     expect(labels.some((l) => l.includes("Cap Table"))).toBe(false);
+    expect(labels.some((l) => l.includes("Grace interest"))).toBe(false);
+    expect(labels.some((l) => l.includes("LLCR"))).toBe(false);
+    expect(labels.some((l) => l.includes("Terminal"))).toBe(false);
   });
 
   it("all Match cells are pre-seeded as ✓ MATCH", async () => {
@@ -211,7 +221,7 @@ describe("L2 — exported XLSX structural shape", () => {
       }
     }
 
-    expect(results).toHaveLength(7); // bank-view omits 3 cap-table rows
+    expect(results).toHaveLength(13); // bank-view: 13 rows; internal adds 5 investor + 3 cap-table
     results.forEach((result, i) => {
       expect(result, `row ${i + 1} match cell`).toBe("✓ MATCH");
     });

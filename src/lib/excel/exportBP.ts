@@ -1840,6 +1840,43 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).font = FONT.bold;
   xr += 2;
 
+  // ── Coverage: compact financing & covenant summary ─────────────────────
+  // Single-value cells for key parameters that don't have year-columns.
+  // All views (bank + internal). Referenced by the validation table.
+  Cov.getCell(`A${xr}`).value = 'Key financing & covenant parameters';
+  Cov.getCell(`A${xr}`).font = FONT.section;
+  Cov.getCell(`A${xr}`).fill = STYLE.sectionFill;
+  xr += 1;
+
+  const covLoanRow = xr;
+  Cov.getCell(`A${xr}`).value = 'Total loan drawn';
+  Cov.getCell(`B${xr}`).value = { formula: `=${capexTotalCell}*loanCoverage`, result: m.keyMetrics.loanAmount };
+  Cov.getCell(`B${xr}`).numFmt = FMT.euro;
+  Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 1;
+
+  const covEquityRow = xr;
+  Cov.getCell(`A${xr}`).value = 'Structural equity at close';
+  Cov.getCell(`B${xr}`).value = { formula: `=${capexTotalCell}*(1-loanCoverage)`, result: m.keyMetrics.equityRequired };
+  Cov.getCell(`B${xr}`).numFmt = FMT.euro;
+  Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 1;
+
+  const covMinDscrRow = xr;
+  Cov.getCell(`A${xr}`).value = 'Min DSCR — loan life (worst operational year)';
+  Cov.getCell(`B${xr}`).value = m.scenarios.realistic.minDSCRLoanLife;
+  Cov.getCell(`B${xr}`).numFmt = FMT.mul;
+  Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 2; // blank before IRR waterfall
+
+  // Investor-only compact cells — declared here, assigned inside !isBankViewExport block.
+  let covGraceInterestRow = 0;
+  let covLLCRRow = 0;
+  let covTerminalValRow = 0;
+
   let unlevIRRResult = 0, unlevIrrCellRef = '';
   let levIRRResult = 0, levIrrCellRef = '';
   let moicResult = 0, moicCellRef = '';
@@ -2021,6 +2058,33 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
   Cov.getCell(`B${xr}`).alignment = { horizontal: 'center' };
+
+  // Investor-only compact parameters — added here so Coverage sheet has them
+  // for the validation table cross-checks (internal view only).
+  xr += 2;
+  covGraceInterestRow = xr;
+  Cov.getCell(`A${xr}`).value = 'Grace-period interest reserve';
+  Cov.getCell(`B${xr}`).value = m.keyMetrics.graceInterestCarry;
+  Cov.getCell(`B${xr}`).numFmt = FMT.euro;
+  Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 1;
+
+  covLLCRRow = xr;
+  Cov.getCell(`A${xr}`).value = 'LLCR (Loan Life Coverage Ratio)';
+  Cov.getCell(`B${xr}`).value = m.scenarios.realistic.llcr;
+  Cov.getCell(`B${xr}`).numFmt = FMT.mul;
+  Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 1;
+
+  covTerminalValRow = xr;
+  Cov.getCell(`A${xr}`).value = 'Terminal asset value';
+  Cov.getCell(`B${xr}`).value = m.scenarios.realistic.terminalAssetValue;
+  Cov.getCell(`B${xr}`).numFmt = FMT.euro;
+  Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+  Cov.getCell(`B${xr}`).font = FONT.bold;
+  xr += 1;
   } // end !isBankViewExport — investor metrics
 
   // Bank-view: expose IRR and MOIC as hardcoded summary cells on the Coverage
@@ -2625,39 +2689,179 @@ export async function exportBusinessPlan(
   cover.getColumn(5).width = 18;
 
   const stab2031 = py(2031);
+  // ── Validation table helpers ───────────────────────────────────────────────
   // DSCR validation uses the same "total DS (incl. WC)" basis as the Coverage
   // sheet, so the engine value and the workbook value are computed identically.
   const totalDs2031 = stab2031
     ? stab2031.termLoanInterest + stab2031.termLoanPrincipal + stab2031.wcInterestExpense
     : 0;
   const dscr2031 = totalDs2031 > 0 ? (stab2031?.ebitdaPreOpCo ?? 0) / totalDs2031 : 0;
-  const validations = [
-    { label: 'Total CAPEX', engine: m.capex.portfolioTotal, workbookRef: capexTotalCell, fmt: FMT.euro },
-    { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },
-    { label: 'Stabilised EBITDA (2031)', engine: stab2031?.ebitda ?? 0, workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, fmt: FMT.euro },
-    { label: 'Stabilised DSCR (2031) — incl. WC', engine: dscr2031, workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`, fmt: FMT.mul },
+
+  // First full amortisation year = first year where termLoanPrincipal > 0.
+  const firstFullDsYear = years.find((y) => (py(y)?.termLoanPrincipal ?? 0) > 0) ?? 2029;
+  const firstFullDsYearIdx = years.indexOf(firstFullDsYear);
+  const pnlFirstFullDs = py(firstFullDsYear);
+  const annualDsEngine =
+    (pnlFirstFullDs?.termLoanInterest ?? 0) +
+    (pnlFirstFullDs?.termLoanPrincipal ?? 0) +
+    (pnlFirstFullDs?.wcInterestExpense ?? 0);
+
+  // Exit year metrics.
+  const validExitYear = m.scenarios.realistic.exitYear;
+  const exitYearIdx = years.indexOf(validExitYear);
+  const pnlExit = py(validExitYear);
+
+  const validations: {
+    label: string;
+    engine: number;
+    workbookRef: string;
+    fmt: string;
+  }[] = [
+    // ── CAPEX & FINANCING ────────────────────────────────────────────────────
+    {
+      label: 'Total CAPEX',
+      engine: m.capex.portfolioTotal,
+      workbookRef: capexTotalCell,
+      fmt: FMT.euro,
+    },
+    {
+      label: 'Total loan (80% LTC)',
+      engine: m.keyMetrics.loanAmount,
+      workbookRef: `${XL.sh_coverage}!B${covLoanRow}`,
+      fmt: FMT.euro,
+    },
+    {
+      label: 'Structural equity at close',
+      engine: m.keyMetrics.equityRequired,
+      workbookRef: `${XL.sh_coverage}!B${covEquityRow}`,
+      fmt: FMT.euro,
+    },
+    // ── OPERATIONS — STABILISED 2031 ─────────────────────────────────────────
+    {
+      label: 'Stabilised revenue (2031)',
+      engine: stab2031?.totalRevenue ?? 0,
+      workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`,
+      fmt: FMT.euro,
+    },
+    {
+      label: 'Total OpEx (2031)',
+      engine: stab2031?.totalOpex ?? 0,
+      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${totalOpexRow}`,
+      fmt: FMT.euro,
+    },
+    {
+      label: 'Stabilised EBITDA (2031)',
+      engine: stab2031?.ebitda ?? 0,
+      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`,
+      fmt: FMT.euro,
+    },
+    // ── DEBT SERVICE & COVERAGE ──────────────────────────────────────────────
+    {
+      label: `Annual debt service (${firstFullDsYear}+)`,
+      engine: annualDsEngine,
+      workbookRef: `${XL.sh_coverage}!${col(2 + firstFullDsYearIdx)}${covTotalDsRow}`,
+      fmt: FMT.euro,
+    },
+    {
+      label: `DSCR first full DS year (${firstFullDsYear})`,
+      engine: pnlFirstFullDs?.dscrLoaded ?? 0,
+      workbookRef: `${XL.sh_coverage}!${col(2 + firstFullDsYearIdx)}${dscrRowOnCov}`,
+      fmt: FMT.mul,
+    },
+    {
+      label: 'Stabilised DSCR (2031) — incl. WC',
+      engine: dscr2031,
+      workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`,
+      fmt: FMT.mul,
+    },
+    {
+      label: 'Min DSCR (loan life)',
+      engine: m.scenarios.realistic.minDSCRLoanLife,
+      workbookRef: `${XL.sh_coverage}!B${covMinDscrRow}`,
+      fmt: FMT.mul,
+    },
+    // ── RETURNS (all views) ──────────────────────────────────────────────────
     // IRR / MOIC appear in both bank and internal view.
     // Bank view: values come from the hardcoded Returns summary cells added above.
     // Internal view: values come from the IRR formula cells on the Coverage sheet.
-    { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
-    { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
-    { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
+    {
+      label: 'Unlevered Project IRR',
+      engine: unlevIRRResult,
+      workbookRef: unlevIrrCellRef,
+      fmt: FMT.pct,
+    },
+    {
+      label: 'Levered Equity IRR',
+      engine: levIRRResult,
+      workbookRef: levIrrCellRef,
+      fmt: FMT.pct,
+    },
+    {
+      label: 'Equity MOIC',
+      engine: moicResult,
+      workbookRef: moicCellRef,
+      fmt: FMT.mul,
+    },
+    // ── INVESTOR-ONLY METRICS ────────────────────────────────────────────────
+    ...(!isBankViewExport
+      ? [
+          {
+            label: 'Grace interest reserve',
+            engine: m.keyMetrics.graceInterestCarry,
+            workbookRef: `${XL.sh_coverage}!B${covGraceInterestRow}`,
+            fmt: FMT.euro,
+          },
+          {
+            label: 'LLCR',
+            engine: m.scenarios.realistic.llcr,
+            workbookRef: `${XL.sh_coverage}!B${covLLCRRow}`,
+            fmt: FMT.mul,
+          },
+          {
+            label: `Revenue at exit (${validExitYear})`,
+            engine: pnlExit?.totalRevenue ?? 0,
+            workbookRef:
+              exitYearIdx >= 0
+                ? `${XL.sh_revenue}!${col(2 + exitYearIdx)}${totalRevRow}`
+                : `${XL.sh_revenue}!B${totalRevRow}`,
+            fmt: FMT.euro,
+          },
+          {
+            label: `EBITDA at exit (${validExitYear})`,
+            engine: pnlExit?.ebitda ?? 0,
+            workbookRef:
+              exitYearIdx >= 0
+                ? `'${XL.sh_opexPnl}'!${col(2 + exitYearIdx)}${ebitdaRow}`
+                : `'${XL.sh_opexPnl}'!B${ebitdaRow}`,
+            fmt: FMT.euro,
+          },
+          {
+            label: 'Terminal asset value',
+            engine: m.scenarios.realistic.terminalAssetValue,
+            workbookRef: `${XL.sh_coverage}!B${covTerminalValRow}`,
+            fmt: FMT.euro,
+          },
+        ]
+      : []),
+    // ── CAP TABLE (internal only) ────────────────────────────────────────────
     // Cap Table rows omitted from banker pack — investor deal economics
     // have no place in a credit submission.
-    ...(isBankViewExport ? [] : [
-      ...capResult.stakeholders.slice(0, 2).map((sr, idx) => ({
-        label: `Cap Table — ${sr.stakeholder.name} MOIC`,
-        engine: sr.moic,
-        workbookRef: `'${XL.sh_capTable}'!${col(5)}${5 + idx}`,
-        fmt: FMT.mul,
-      })),
-      {
-        label: 'Cap Table reconciliation diff',
-        engine: capResult.reconciliationError,
-        workbookRef: `'${XL.sh_capTable}'!B${reconcileRow + 2}`,
-        fmt: FMT.euro,
-      },
-    ]),
+    ...(!isBankViewExport
+      ? [
+          ...capResult.stakeholders.slice(0, 2).map((sr, idx) => ({
+            label: `Cap Table — ${sr.stakeholder.name} MOIC`,
+            engine: sr.moic,
+            workbookRef: `'${XL.sh_capTable}'!${col(5)}${5 + idx}`,
+            fmt: FMT.mul,
+          })),
+          {
+            label: 'Cap Table reconciliation diff',
+            engine: capResult.reconciliationError,
+            workbookRef: `'${XL.sh_capTable}'!B${reconcileRow + 2}`,
+            fmt: FMT.euro,
+          },
+        ]
+      : []),
   ];
   validations.forEach((v, i) => {
     const r0 = valHeaderRow + 1 + i;
