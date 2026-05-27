@@ -84,24 +84,25 @@ export const VILLA_SALE_COMPARABLES: VillaSaleComparable[] = [
 // Avg: 464 m² / 6 beds / €2,593 shoulder / €4,179 peak per night.
 // Villa Lev ADR assumption: €3,500/night — in line with / slightly below
 // the Paros peak average; Antiparos exclusivity premium expected on top.
+// Net = gross × 0.90 (−10% realistic ADR vs listed peak) × 0.80 (−20% OTA commission) = gross × 0.72
 export const VILLA_RENTAL_COMPARABLES: VillaRentalComparable[] = [
-  { name: "Villa Adamante",    island: "Paros", sizeSqm: 600, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  4531, peakEurPerNight:  5437, shoulderNetEurPerNight: 3625, peakNetEurPerNight: 4350, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Milaya",      island: "Paros", sizeSqm: 380, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  1636, peakEurPerNight:  2142, shoulderNetEurPerNight: 1309, peakNetEurPerNight: 1714, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Athina",      island: "Paros", sizeSqm: 235, bedrooms:  5, maxGuests: 12, shoulderEurPerNight:  1821, peakEurPerNight:  2404, shoulderNetEurPerNight: 1457, peakNetEurPerNight: 1923, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Cera",        island: "Paros", sizeSqm: 550, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  1750, peakEurPerNight:  5246, shoulderNetEurPerNight: 1400, peakNetEurPerNight: 4197, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Parosia",     island: "Paros", sizeSqm: 440, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  1236, peakEurPerNight:  2696, shoulderNetEurPerNight:  989, peakNetEurPerNight: 2157, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Tsiropoules", island: "Paros", sizeSqm: 400, bedrooms:  6, maxGuests: 14, shoulderEurPerNight:  1913, peakEurPerNight:  2486, shoulderNetEurPerNight: 1530, peakNetEurPerNight: 1989, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Niggy",       island: "Paros", sizeSqm: 630, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  1750, peakEurPerNight:  5537, shoulderNetEurPerNight: 1400, peakNetEurPerNight: 4430, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Kite",        island: "Paros", sizeSqm: 330, bedrooms:  5, maxGuests: 12, shoulderEurPerNight:  1036, peakEurPerNight:  2678, shoulderNetEurPerNight:  829, peakNetEurPerNight: 2142, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Gemmah",      island: "Paros", sizeSqm: 550, bedrooms:  8, maxGuests: 16, shoulderEurPerNight:  3060, peakEurPerNight:  5100, shoulderNetEurPerNight: 2448, peakNetEurPerNight: 4080, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Mitera",      island: "Paros", sizeSqm: 400, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  2040, peakEurPerNight:  2449, shoulderNetEurPerNight: 1632, peakNetEurPerNight: 1959, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Lya",         island: "Paros", sizeSqm: 900, bedrooms: 13, maxGuests: 26, shoulderEurPerNight: 10893, peakEurPerNight: 13750, shoulderNetEurPerNight: 8714, peakNetEurPerNight: 11000, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Kyros",       island: "Paros", sizeSqm: 450, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  3643, peakEurPerNight:  5100, shoulderNetEurPerNight: 2914, peakNetEurPerNight: 4080, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Orian",       island: "Paros", sizeSqm: 375, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  1618, peakEurPerNight:  2017, shoulderNetEurPerNight: 1294, peakNetEurPerNight: 1614, platform: "Le Collectionist", seaView: true  },
-  { name: "Villa Myrthe",      island: "Paros", sizeSqm: 400, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  2315, peakEurPerNight:  3572, shoulderNetEurPerNight: 1852, peakNetEurPerNight: 2858, platform: "Kinglike",          seaView: true  },
-  { name: "Villa Ruby",        island: "Paros", sizeSqm: 480, bedrooms:  8, maxGuests: 16, shoulderEurPerNight:  3215, peakEurPerNight:  5000, shoulderNetEurPerNight: 2572, peakNetEurPerNight: 4000, platform: "Kinglike",          seaView: true  },
-  { name: "Villa Calise",      island: "Paros", sizeSqm: 250, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  2054, peakEurPerNight:  3304, shoulderNetEurPerNight: 1643, peakNetEurPerNight: 2643, platform: "Kinglike",          seaView: true  },
-  { name: "Villa Lucien",      island: "Paros", sizeSqm: 600, bedrooms:  6, maxGuests: 14, shoulderEurPerNight:  1400, peakEurPerNight:  2500, shoulderNetEurPerNight: 1120, peakNetEurPerNight: 2000, platform: "Kinglike",          seaView: true  },
+  { name: "Villa Adamante",    island: "Paros", sizeSqm: 600, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  4531, peakEurPerNight:  5437, shoulderNetEurPerNight: 3262, peakNetEurPerNight: 3915, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Milaya",      island: "Paros", sizeSqm: 380, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  1636, peakEurPerNight:  2142, shoulderNetEurPerNight: 1178, peakNetEurPerNight: 1542, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Athina",      island: "Paros", sizeSqm: 235, bedrooms:  5, maxGuests: 12, shoulderEurPerNight:  1821, peakEurPerNight:  2404, shoulderNetEurPerNight: 1311, peakNetEurPerNight: 1731, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Cera",        island: "Paros", sizeSqm: 550, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  1750, peakEurPerNight:  5246, shoulderNetEurPerNight: 1260, peakNetEurPerNight: 3777, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Parosia",     island: "Paros", sizeSqm: 440, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  1236, peakEurPerNight:  2696, shoulderNetEurPerNight:  890, peakNetEurPerNight: 1941, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Tsiropoules", island: "Paros", sizeSqm: 400, bedrooms:  6, maxGuests: 14, shoulderEurPerNight:  1913, peakEurPerNight:  2486, shoulderNetEurPerNight: 1377, peakNetEurPerNight: 1790, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Niggy",       island: "Paros", sizeSqm: 630, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  1750, peakEurPerNight:  5537, shoulderNetEurPerNight: 1260, peakNetEurPerNight: 3987, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Kite",        island: "Paros", sizeSqm: 330, bedrooms:  5, maxGuests: 12, shoulderEurPerNight:  1036, peakEurPerNight:  2678, shoulderNetEurPerNight:  746, peakNetEurPerNight: 1928, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Gemmah",      island: "Paros", sizeSqm: 550, bedrooms:  8, maxGuests: 16, shoulderEurPerNight:  3060, peakEurPerNight:  5100, shoulderNetEurPerNight: 2203, peakNetEurPerNight: 3672, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Mitera",      island: "Paros", sizeSqm: 400, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  2040, peakEurPerNight:  2449, shoulderNetEurPerNight: 1469, peakNetEurPerNight: 1763, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Lya",         island: "Paros", sizeSqm: 900, bedrooms: 13, maxGuests: 26, shoulderEurPerNight: 10893, peakEurPerNight: 13750, shoulderNetEurPerNight: 7843, peakNetEurPerNight: 9900, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Kyros",       island: "Paros", sizeSqm: 450, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  3643, peakEurPerNight:  5100, shoulderNetEurPerNight: 2623, peakNetEurPerNight: 3672, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Orian",       island: "Paros", sizeSqm: 375, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  1618, peakEurPerNight:  2017, shoulderNetEurPerNight: 1165, peakNetEurPerNight: 1452, platform: "Le Collectionist", seaView: true  },
+  { name: "Villa Myrthe",      island: "Paros", sizeSqm: 400, bedrooms:  5, maxGuests: 10, shoulderEurPerNight:  2315, peakEurPerNight:  3572, shoulderNetEurPerNight: 1667, peakNetEurPerNight: 2572, platform: "Kinglike",          seaView: true  },
+  { name: "Villa Ruby",        island: "Paros", sizeSqm: 480, bedrooms:  8, maxGuests: 16, shoulderEurPerNight:  3215, peakEurPerNight:  5000, shoulderNetEurPerNight: 2315, peakNetEurPerNight: 3600, platform: "Kinglike",          seaView: true  },
+  { name: "Villa Calise",      island: "Paros", sizeSqm: 250, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  2054, peakEurPerNight:  3304, shoulderNetEurPerNight: 1479, peakNetEurPerNight: 2379, platform: "Kinglike",          seaView: true  },
+  { name: "Villa Lucien",      island: "Paros", sizeSqm: 600, bedrooms:  6, maxGuests: 14, shoulderEurPerNight:  1400, peakEurPerNight:  2500, shoulderNetEurPerNight: 1008, peakNetEurPerNight: 1800, platform: "Kinglike",          seaView: true  },
 ];
 
 // ── Summary statistics ─────────────────────────────────────────────────────
@@ -121,9 +122,10 @@ export const VILLA_RENTAL_SUMMARY = {
   avgShoulderEurPerNight: 2701,
   avgPeakEurPerNight: 4201,
   blendedAvg: 3451,
-  avgShoulderNetEurPerNight: 2161,
-  avgPeakNetEurPerNight: 3361,
-  blendedNetAvg: 2761,
+  avgShoulderNetEurPerNight: 1945,   // gross × 0.72 (−10% adj × −20% OTA)
+  avgPeakNetEurPerNight: 3025,       // gross × 0.72 (all-17 avg)
+  blendedNetAvg: 2485,
+  top12AvgNetPeakEurPerNight: 3595,  // top-12 by gross ADR, net × 0.72
 } as const;
 
 // Collateral engine comparison: market data vs engine tiers
@@ -137,14 +139,16 @@ export const COLLATERAL_MARKET_CONTEXT = {
 // ADR engine comparison: market data vs BP assumption
 export const ADR_MARKET_CONTEXT = {
   bpVillaADR: 3500,                  // €/night in BP
-  marketBlendedAvg: 3451,            // €/night Paros market avg (shoulder/peak 50/50)
-  marketPeakAvg: 4201,               // €/night high season avg
-  marketShoulderAvg: 2701,           // €/night shoulder avg
-  bpVsBlendedPct: (3500 - 3451) / 3451, // +1.4% vs blended — in line with market
+  marketBlendedAvg: 3451,            // €/night Paros market gross avg (shoulder/peak 50/50)
+  marketPeakAvg: 4201,               // €/night high season gross avg
+  marketShoulderAvg: 2701,           // €/night shoulder gross avg
+  bpVsBlendedPct: (3500 - 3451) / 3451,
   otaDeductionPct: 0.20,
-  marketBlendedNetAvg: 2761,
-  marketPeakNetAvg: 3361,
-  bpVsNetPeakPct: (3500 - 3361) / 3361,   // +4.1% — BP ADR slightly above market net peak
+  positioningAdjPct: 0.10,           // realistic ADR vs listed peak
+  netFactorFromGross: 0.72,          // 0.90 × 0.80
+  marketBlendedNetAvg: 2485,
+  marketPeakNetAvg: 3595,            // top-12 net ADR avg (gross × 0.72)
+  bpVsNetPeakPct: (3500 - 3595) / 3595,   // −2.6% — BP ADR is below top-12 net market avg
 } as const;
 
 export const VILLA_MARKET_SOURCE = {

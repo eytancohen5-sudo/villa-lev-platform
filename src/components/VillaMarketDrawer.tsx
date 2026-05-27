@@ -242,7 +242,7 @@ export function VillaMarketDrawer({ open, onClose, initialTab = "sale" }: { open
                       <td className="px-3 py-2 text-right text-text-secondary">{r.sizeSqm}</td>
                       <td className="px-3 py-2 text-right text-text-secondary">{r.bedrooms}</td>
                       <td className="px-3 py-2 text-right text-text-secondary">{r.peakEurPerNight.toLocaleString()} €</td>
-                      <td className="px-3 py-2 text-right text-amber-600 text-[11px]">−{Math.round(r.peakEurPerNight * 0.20).toLocaleString()} €</td>
+                      <td className="px-3 py-2 text-right text-amber-600 text-[11px]">−{(r.peakEurPerNight - r.peakNetEurPerNight).toLocaleString()} €</td>
                       <td className="px-3 py-2 text-right text-text-primary font-semibold">{r.peakNetEurPerNight.toLocaleString()} €</td>
                     </tr>
                   ))}
@@ -252,7 +252,7 @@ export function VillaMarketDrawer({ open, onClose, initialTab = "sale" }: { open
                     <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
                     <td className="px-3 py-2 text-right text-text-tertiary text-[11px]">—</td>
                     <td className="px-3 py-2 text-right font-semibold text-text-secondary">{top12AvgGrossPeak.toLocaleString()} €</td>
-                    <td className="px-3 py-2 text-right text-amber-600 font-semibold text-[11px]">−{Math.round(top12AvgGrossPeak * 0.20).toLocaleString()} €</td>
+                    <td className="px-3 py-2 text-right text-amber-600 font-semibold text-[11px]">−{(top12AvgGrossPeak - top12AvgNetPeak).toLocaleString()} €</td>
                     <td className="px-3 py-2 text-right font-semibold text-brand-700">{top12AvgNetPeak.toLocaleString()} €</td>
                   </tr>
                   {/* Villa Lev comparison row */}

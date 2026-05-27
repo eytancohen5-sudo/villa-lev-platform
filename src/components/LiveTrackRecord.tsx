@@ -713,7 +713,7 @@ export function LiveTrackRecord({
           liveValue={formatCurrency(adr, false, locale)}
           gap={adrGap}
           marketStudyLabel={lr.marketStudy}
-          marketStudyValue={formatCurrency(VILLA_RENTAL_SUMMARY.avgPeakNetEurPerNight, false, locale)}
+          marketStudyValue={formatCurrency(VILLA_RENTAL_SUMMARY.top12AvgNetPeakEurPerNight, false, locale)}
         />
         <CushionCard
           label={lr.villaOccupancy}
