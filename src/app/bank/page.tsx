@@ -1309,6 +1309,7 @@ export default function BankPage() {
         open={villaSaleDrawerOpen}
         onClose={() => setVillaSaleDrawerOpen(false)}
         initialTab="sale"
+        onlyTab="sale"
       />
     </>
   );

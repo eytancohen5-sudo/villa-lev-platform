@@ -40,12 +40,12 @@ function compare(a: number | string | null, b: number | string | null, dir: Sort
   return dir === "asc" ? r : -r;
 }
 
-export function VillaMarketDrawer({ open, onClose, initialTab = "sale" }: { open: boolean; onClose: () => void; initialTab?: ActiveTab }) {
+export function VillaMarketDrawer({ open, onClose, initialTab = "sale", onlyTab }: { open: boolean; onClose: () => void; initialTab?: ActiveTab; onlyTab?: ActiveTab }) {
   const { t, locale, dir } = useTranslation();
-  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  const [activeTab, setActiveTab] = useState<ActiveTab>(onlyTab ?? initialTab);
 
-  // Re-sync tab when initialTab changes (e.g. opened from rental vs sale trigger)
-  useEffect(() => { if (open) setActiveTab(initialTab); }, [open, initialTab]);
+  // Re-sync tab when initialTab/onlyTab changes (e.g. opened from rental vs sale trigger)
+  useEffect(() => { if (open) setActiveTab(onlyTab ?? initialTab); }, [open, initialTab, onlyTab]);
 
   // Sale tab state
   const [islandFilter, setIslandFilter] = useState<"All" | "Antiparos" | "Paros">("All");
@@ -135,15 +135,17 @@ export function VillaMarketDrawer({ open, onClose, initialTab = "sale" }: { open
           </button>
         </header>
 
-        {/* Tab switcher */}
-        <div className="flex border-b border-surface-tertiary bg-white/60">
-          {(["sale", "rental"] as ActiveTab[]).map(tab => (
-            <button key={tab} type="button" onClick={() => setActiveTab(tab)}
-              className={`flex-1 px-4 py-2.5 text-[12px] font-semibold transition-colors border-b-2 ${activeTab === tab ? "border-brand-600 text-brand-700" : "border-transparent text-text-tertiary hover:text-text-primary"}`}>
-              {tab === "sale" ? t("villaDrawer.tabSale") : t("villaDrawer.tabRental")}
-            </button>
-          ))}
-        </div>
+        {/* Tab switcher — hidden when onlyTab is set */}
+        {!onlyTab && (
+          <div className="flex border-b border-surface-tertiary bg-white/60">
+            {(["sale", "rental"] as ActiveTab[]).map(tab => (
+              <button key={tab} type="button" onClick={() => setActiveTab(tab)}
+                className={`flex-1 px-4 py-2.5 text-[12px] font-semibold transition-colors border-b-2 ${activeTab === tab ? "border-brand-600 text-brand-700" : "border-transparent text-text-tertiary hover:text-text-primary"}`}>
+                {tab === "sale" ? t("villaDrawer.tabSale") : t("villaDrawer.tabRental")}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* SALE TAB */}
         {activeTab === "sale" && (
