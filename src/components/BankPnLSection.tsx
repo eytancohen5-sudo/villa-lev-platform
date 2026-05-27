@@ -358,10 +358,10 @@ export function BankPnLSection() {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="min-w-max text-xs">
           <thead>
-            <tr className="bg-surface-secondary/40">
-              <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary/40 min-w-[220px] z-10">
+            <tr className="bg-surface-secondary sticky top-[128px] z-30">
+              <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary min-w-[220px] z-30">
                 {t('pnl.lineHeader')}
               </th>
               {years.map((yr) => {
@@ -400,10 +400,10 @@ export function BankPnLSection() {
                 const hasToggle = !!row.sectionKey;
                 const open = hasToggle && isExpanded(row.sectionKey!);
                 return (
-                  <tr key={ri} className="bg-surface-secondary/60">
+                  <tr key={ri} className="bg-surface-secondary">
                     <td
                       colSpan={years.length + 1}
-                      className="py-0 sticky left-0"
+                      className="py-0 sticky left-0 z-20"
                     >
                       {hasToggle ? (
                         <button

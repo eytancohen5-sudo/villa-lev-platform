@@ -278,10 +278,10 @@ export default function PnLPage() {
 
       <div id="pnl-table" className="bg-white rounded-xl border border-surface-tertiary overflow-hidden scroll-mt-24">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="min-w-max text-sm">
             <thead>
-              <tr className="bg-surface-secondary/40">
-                <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary/40 min-w-[200px] z-10">
+              <tr className="bg-surface-secondary sticky top-[49px] z-30">
+                <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary min-w-[200px] z-30">
                   {t('pnl.item')}
                 </th>
                 {pnl.map((p) => {
@@ -327,8 +327,8 @@ export default function PnLPage() {
                   const hasToggle = !!row.sectionKey;
                   const open = hasToggle && isExpanded(row.sectionKey!);
                   return (
-                    <tr key={ri} className="bg-surface-secondary/60">
-                      <td colSpan={pnl.length + 1} className="py-0 sticky left-0">
+                    <tr key={ri} className="bg-surface-secondary">
+                      <td colSpan={pnl.length + 1} className="py-0 sticky left-0 z-20">
                         {hasToggle ? (
                           <button
                             onClick={() => toggle(row.sectionKey!)}
