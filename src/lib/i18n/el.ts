@@ -2047,6 +2047,7 @@ export const el: TranslationDictionary = {
   'connections.colConnectedSince': 'Σύνδεση από',
   'connections.colLastSeen':       'Τελευταία εμφάνιση',
   'connections.colCurrentPage':    'Τρέχουσα σελίδα',
+  'connections.colOpenPages':      'Ανοιχτές σελίδες',
   'connections.staleBadge':        'Ανενεργό',
   'connections.noConnections':     'Δεν υπάρχουν ενεργές συνδέσεις.',
   'connections.loading':           'Φόρτωση συνδέσεων…',

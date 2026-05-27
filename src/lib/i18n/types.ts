@@ -2058,6 +2058,7 @@ export interface TranslationDictionary {
   'connections.colConnectedSince': string;
   'connections.colLastSeen': string;
   'connections.colCurrentPage': string;
+  'connections.colOpenPages': string;
   'connections.staleBadge': string;
   'connections.noConnections': string;
   'connections.loading': string;

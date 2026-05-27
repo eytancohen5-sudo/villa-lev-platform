@@ -20,6 +20,8 @@ export type ConnectionEntry = {
   connectedSince: number;
   lastSeen: number;
   currentPage: string;
+  /** All pages currently open for this user group, ordered newest → oldest heartbeat. */
+  pages: string[];
   isStale: boolean;
   tabIds: string[];
   lastAction?: string;
@@ -88,10 +90,19 @@ function deriveEntries(): ConnectionEntry[] {
   for (const [uid, docs] of byUid.entries()) {
     const connectedSince = Math.min(...docs.map((d) => d.connectedAt));
     const lastSeen = Math.max(...docs.map((d) => d.lastHeartbeat));
-    // Current page: take from the most-recently-seen tab.
-    const mostRecent = docs.reduce((a, b) =>
-      a.lastHeartbeat >= b.lastHeartbeat ? a : b,
-    );
+    // Sort docs newest-heartbeat first so currentPage and pages reflect the
+    // most recently active tab.
+    const sorted = [...docs].sort((a, b) => b.lastHeartbeat - a.lastHeartbeat);
+    const mostRecent = sorted[0];
+    // All unique pages across tabs, preserving newest-first order.
+    const pages: string[] = [];
+    const seenPages = new Set<string>();
+    for (const d of sorted) {
+      if (!seenPages.has(d.currentPage)) {
+        pages.push(d.currentPage);
+        seenPages.add(d.currentPage);
+      }
+    }
     // Most recent action across all tabs for this user.
     const latestActionDoc = docs.reduce<PresenceDoc | null>((best, d) => {
       if (!d.lastActionAt) return best;
@@ -107,6 +118,7 @@ function deriveEntries(): ConnectionEntry[] {
       connectedSince,
       lastSeen,
       currentPage: mostRecent.currentPage,
+      pages,
       isStale: now - lastSeen > STALE_THRESHOLD_MS,
       tabIds: docs.map((d) => d.tabId),
       lastAction: latestActionDoc?.lastAction,

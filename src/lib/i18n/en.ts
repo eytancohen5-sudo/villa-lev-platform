@@ -2012,6 +2012,7 @@ export const en: TranslationDictionary = {
   'connections.colConnectedSince': 'Connected since',
   'connections.colLastSeen':       'Last seen',
   'connections.colCurrentPage':    'Current page',
+  'connections.colOpenPages':      'Open pages',
   'connections.staleBadge':        'Stale',
   'connections.noConnections':     'No active connections.',
   'connections.loading':           'Loading connections…',

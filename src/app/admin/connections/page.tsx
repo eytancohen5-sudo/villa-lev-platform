@@ -149,7 +149,7 @@ export default function ConnectionsPage() {
                   {t("connections.colLastSeen")}
                 </th>
                 <th className="py-2 pe-3 font-medium text-start">
-                  {t("connections.colCurrentPage")}
+                  {t("connections.colOpenPages")}
                 </th>
                 <th className="py-2 pe-3 font-medium text-start">
                   Last action
@@ -197,9 +197,28 @@ export default function ConnectionsPage() {
                     )}
                   </td>
 
-                  {/* Current page */}
-                  <td className="py-2 pe-3 text-text-tertiary font-mono text-[11px]">
-                    {entry.currentPage}
+                  {/* Open pages — all tabs, newest first */}
+                  <td className="py-2 pe-3">
+                    <div className="flex flex-wrap gap-1">
+                      {entry.pages.map((page) => {
+                        const isBank = page.startsWith("/bank");
+                        const isPitch = page.startsWith("/pitch");
+                        return (
+                          <span
+                            key={page}
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                              isBank
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : isPitch
+                                  ? "bg-green-50 text-green-700 border border-green-200"
+                                  : "bg-brand-50 text-brand-700 border border-brand-200"
+                            }`}
+                          >
+                            {page}
+                          </span>
+                        );
+                      })}
+                    </div>
                   </td>
 
                   {/* Last action */}

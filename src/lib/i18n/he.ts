@@ -2049,6 +2049,7 @@ export const he: TranslationDictionary = {
   'connections.colConnectedSince': 'מחובר מאז',
   'connections.colLastSeen':       'נצפה לאחרונה',
   'connections.colCurrentPage':    'עמוד נוכחי',
+  'connections.colOpenPages':      'עמודים פתוחים',
   'connections.staleBadge':        'לא פעיל',
   'connections.noConnections':     'אין חיבורים פעילים.',
   'connections.loading':           'טוען חיבורים…',
