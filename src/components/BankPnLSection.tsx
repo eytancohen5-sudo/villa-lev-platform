@@ -357,10 +357,10 @@ export function BankPnLSection() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[calc(100vh-250px)]">
         <table className="min-w-max text-xs">
           <thead>
-            <tr className="bg-surface-secondary sticky top-[128px] z-30">
+            <tr className="bg-surface-secondary sticky top-0 z-30">
               <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary min-w-[220px] z-30">
                 {t('pnl.lineHeader')}
               </th>

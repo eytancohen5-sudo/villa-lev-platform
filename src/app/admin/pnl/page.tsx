@@ -277,10 +277,10 @@ export default function PnLPage() {
       </div>
 
       <div id="pnl-table" className="bg-white rounded-xl border border-surface-tertiary overflow-hidden scroll-mt-24">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-180px)]">
           <table className="min-w-max text-sm">
             <thead>
-              <tr className="bg-surface-secondary sticky top-[49px] z-30">
+              <tr className="bg-surface-secondary sticky top-0 z-30">
                 <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium sticky left-0 bg-surface-secondary min-w-[200px] z-30">
                   {t('pnl.item')}
                 </th>
