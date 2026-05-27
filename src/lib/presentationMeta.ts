@@ -28,16 +28,10 @@ export const PRESENTATION_LABEL   = _m
   ? [PRESENTATION_VERSION, PRESENTATION_DATE, _time].filter(Boolean).join(" · ")
   : PRESENTATION_VERSION;
 
-// Locale-specific PDF map. EN is always the canonical version.
-// EL/HE point to the latest translated versions available in public/.
-// When a locale-specific PDF is deployed, update its entry here and
-// set its PRESENTATION_VERSION_BY_LOCALE entry to PRESENTATION_VERSION.
-// EL/HE temporarily serve the EN PDF (full 49-page deck).
-// Replace with locale-specific PDFs once full translations are available.
 export const PRESENTATION_PDF_BY_LOCALE: Partial<Record<Locale, string>> = {
   en: PRESENTATION_PDF_URL,
-  el: PRESENTATION_PDF_URL,
-  he: PRESENTATION_PDF_URL,
+  el: "/VillaLevGroup_Presentation_v25_27May2026.el.pdf",
+  he: "/VillaLevGroup_Presentation_v25_27May2026.he.pdf",
 };
 
 export const PRESENTATION_VERSION_BY_LOCALE: Partial<Record<Locale, string>> = {

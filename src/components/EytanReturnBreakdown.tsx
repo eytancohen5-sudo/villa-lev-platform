@@ -97,11 +97,11 @@ export function EytanReturnBreakdown({
   const cashIn = founderResult.stakeholder.cashIn;
 
   // ── % values for each capacity ──
+  // Ratchet (Layer C) excluded from all display — only pari-passu + devEq + grant shown.
   const investorPct  = b.pariPassuPct;
   const developerPct = b.developerEquityPct;
   const grantPct     = b.grantBonusPct;          // 0 when grant inactive
-  const ratchetPct   = b.performanceRatchetPct;
-  const combinedPct  = b.founderTotalPct;
+  const combinedPct  = investorPct + developerPct + grantPct;
 
   return (
     <div id="captable-eytan-return" className="mb-6">
@@ -139,14 +139,7 @@ export function EytanReturnBreakdown({
           caption={t("ct.roles.panel2.caption")}
           note={t("ct.roles.panel2.note")}
           colorClass="border-amber-300/60 bg-amber-50/30"
-          extra={
-            ratchetPct > 0 ? (
-              <div className="text-[10px] text-amber-700/70 -mt-1">
-                {t("ct.roles.panel2.ratchetAdd")
-                  .replace("{pct}", formatPercent(ratchetPct))}
-              </div>
-            ) : undefined
-          }
+          extra={undefined}
         />
 
         {/* Panel 3 — Grant originator */}
@@ -206,13 +199,6 @@ export function EytanReturnBreakdown({
           <span className="text-text-tertiary/40">+</span>
           <span className="font-semibold text-text-secondary">{formatPercent(developerPct)}</span>
           <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownDeveloper")}</span>
-          {ratchetPct > 0 && (
-            <>
-              <span className="text-text-tertiary/40">+</span>
-              <span className="font-semibold text-text-secondary">{formatPercent(ratchetPct)}</span>
-              <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownRatchet")}</span>
-            </>
-          )}
           {grantApproved && grantPct > 0 && (
             <>
               <span className="text-text-tertiary/40">+</span>
