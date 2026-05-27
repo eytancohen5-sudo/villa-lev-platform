@@ -120,7 +120,7 @@ const LR: Record<string, any> = {
     marketFootnoteFresh: "Fresh data: live 2026 medians from {n} captured Paros + Antiparos hotels.",
     marketFootnoteBackstop:
       "Source: Greek Islands hotel market study — curated 13-property Paros/Antiparos/Mykonos/Santorini luxury-boutique set. All market rates are net of 18% OTA commission (consumer price × 0.82), matching the net revenue a hotel actually keeps. Operational-season blend of HIGH (Jul–Aug) and MED (May–Jun, Sep).",
-    marketSeeComparables: "See the {n} comparables →",
+    marketSeeComparables: "View Hotel Market →",
     marketStudy: "Mkt study",
     villaRentalMarket: "Villa rental market",
   },
@@ -181,7 +181,7 @@ const LR: Record<string, any> = {
       "Φρέσκα δεδομένα: διάμεσοι 2026 από {n} ξενοδοχεία Πάρου + Αντιπάρου.",
     marketFootnoteBackstop:
       "Πηγή: Μελέτη αγοράς ξενοδοχείων — 13 επιλεγμένα luxury ξενοδοχεία Πάρου/Αντιπάρου/Μυκόνου/Σαντορίνης. Όλες οι τιμές αγοράς είναι καθαρές προμήθειας OTA 18% (τιμή καταναλωτή × 0.82), αντιστοιχώντας στα καθαρά έσοδα που κρατά το ξενοδοχείο. Λειτουργικό εποχικό blend HIGH (Ιουλ–Αυγ) και MED (Μάι–Ιουν, Σεπ).",
-    marketSeeComparables: "Δείτε τα {n} συγκρίσιμα →",
+    marketSeeComparables: "Προβολή Αγοράς Ξενοδοχείων →",
     marketStudy: "Μελέτη αγοράς",
     villaRentalMarket: "Αγορά ενοικίασης βίλας",
   },
@@ -242,7 +242,7 @@ const LR: Record<string, any> = {
       "נתונים טריים: חציוני 2026 מ-{n} מלונות שנאספו בפרוס + אנטיפרוס.",
     marketFootnoteBackstop:
       "מקור: מחקר שוק מלונות האיים היווניים — 13 מלונות luxury נבחרים בפרוס/אנטיפרוס/מיקונוס/סנטוריני. כל תעריפי השוק הם נטו עמלת OTA 18% (מחיר צרכן × 0.82), בהתאמה להכנסה הנטו שהמלון שומר לעצמו. שילוב עונתי תפעולי HIGH (יולי-אוג) ו-MED (מאי-יוני, ספט).",
-    marketSeeComparables: "ראו את {n} המשווים →",
+    marketSeeComparables: "צפה בשוק המלונות →",
     marketStudy: "מחקר שוק",
     villaRentalMarket: "שוק השכרת וילות",
   },
