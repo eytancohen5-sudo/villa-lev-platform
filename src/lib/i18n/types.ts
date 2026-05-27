@@ -1897,6 +1897,7 @@ export interface TranslationDictionary {
   'ct.recon.converged': string;
   'ct.recon.diverged': string;
   'ct.founder.devEquityNote': string;
+  'ct.founder.devEqCarryNote': string;
   'ct.founder.pariPassuNote': string;
   'ct.founder.layerBNote': string;
   'ct.founder.layerBInactive': string;

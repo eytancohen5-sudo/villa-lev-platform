@@ -727,10 +727,12 @@ export default function CapTablePage() {
                     {t('ct.devEquity')}
                   </div>
                   <div className="font-mono text-2xl font-semibold text-text-primary">
-                    {formatPercent(waterfall.developerEquityPct ?? 0.25)}
+                    {formatPercent(b.developerEquityPct)}
                   </div>
                   <div className="text-xs text-text-tertiary mt-1">
-                    {t('ct.founder.devEquityNote')}
+                    {t('ct.founder.devEqCarryNote')
+                      .replace('{net}', formatPercent(b.developerEquityPct))
+                      .replace('{thanasis}', formatPercent((waterfall.developerEquityPct ?? 0.25) - b.developerEquityPct))}
                   </div>
                 </div>
                 <div>
@@ -914,6 +916,11 @@ export default function CapTablePage() {
               </div>
               <div className="text-xs text-text-tertiary mt-1">
                 {t('ct.founder.devEquityNote')}
+              </div>
+              <div className="text-xs font-medium text-text-secondary mt-1.5">
+                {t('ct.founder.devEqCarryNote')
+                  .replace('{net}', formatPercent(b.developerEquityPct))
+                  .replace('{thanasis}', formatPercent((waterfall.developerEquityPct ?? 0.25) - b.developerEquityPct))}
               </div>
             </div>
 
