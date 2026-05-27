@@ -85,7 +85,6 @@ export const VILLA_SALE_COMPARABLES: VillaSaleComparable[] = [
 // Villa Lev ADR assumption: €3,500/night — in line with / slightly below
 // the Paros peak average; Antiparos exclusivity premium expected on top.
 export const VILLA_RENTAL_COMPARABLES: VillaRentalComparable[] = [
-  { name: "Villa Elega",       island: "Paros", sizeSqm: 474, bedrooms:  6, maxGuests: 12, shoulderEurPerNight:  1821, peakEurPerNight:  4372, shoulderNetEurPerNight: 1457, peakNetEurPerNight: 3498, platform: "Le Collectionist", seaView: true  },
   { name: "Villa Adamante",    island: "Paros", sizeSqm: 600, bedrooms:  7, maxGuests: 14, shoulderEurPerNight:  4531, peakEurPerNight:  5437, shoulderNetEurPerNight: 3625, peakNetEurPerNight: 4350, platform: "Le Collectionist", seaView: true  },
   { name: "Villa Milaya",      island: "Paros", sizeSqm: 380, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  1636, peakEurPerNight:  2142, shoulderNetEurPerNight: 1309, peakNetEurPerNight: 1714, platform: "Le Collectionist", seaView: true  },
   { name: "Villa Athina",      island: "Paros", sizeSqm: 235, bedrooms:  5, maxGuests: 12, shoulderEurPerNight:  1821, peakEurPerNight:  2404, shoulderNetEurPerNight: 1457, peakNetEurPerNight: 1923, platform: "Le Collectionist", seaView: true  },
@@ -103,8 +102,6 @@ export const VILLA_RENTAL_COMPARABLES: VillaRentalComparable[] = [
   { name: "Villa Ruby",        island: "Paros", sizeSqm: 480, bedrooms:  8, maxGuests: 16, shoulderEurPerNight:  3215, peakEurPerNight:  5000, shoulderNetEurPerNight: 2572, peakNetEurPerNight: 4000, platform: "Kinglike",          seaView: true  },
   { name: "Villa Calise",      island: "Paros", sizeSqm: 250, bedrooms:  4, maxGuests:  8, shoulderEurPerNight:  2054, peakEurPerNight:  3304, shoulderNetEurPerNight: 1643, peakNetEurPerNight: 2643, platform: "Kinglike",          seaView: true  },
   { name: "Villa Lucien",      island: "Paros", sizeSqm: 600, bedrooms:  6, maxGuests: 14, shoulderEurPerNight:  1400, peakEurPerNight:  2500, shoulderNetEurPerNight: 1120, peakNetEurPerNight: 2000, platform: "Kinglike",          seaView: true  },
-  { name: "Villa Kenzie",      island: "Paros", sizeSqm: 530, bedrooms:  6, maxGuests: 12, shoulderEurPerNight:  3000, peakEurPerNight:  5143, shoulderNetEurPerNight: 2400, peakNetEurPerNight: 4114, platform: "Kinglike",          seaView: true  },
-  { name: "Villa Evane",       island: "Paros", sizeSqm: 297, bedrooms:  6, maxGuests: 12, shoulderEurPerNight:  1136, peakEurPerNight:  2652, shoulderNetEurPerNight:  909, peakNetEurPerNight: 2122, platform: "Le Collectionist", seaView: true  },
 ];
 
 // ── Summary statistics ─────────────────────────────────────────────────────
@@ -118,15 +115,15 @@ export const VILLA_SALE_SUMMARY = {
 } as const;
 
 export const VILLA_RENTAL_SUMMARY = {
-  count: 20,
-  avgSizeSqm: 464,
+  count: 17,
+  avgSizeSqm: 469,
   avgBedrooms: 6,
-  avgShoulderEurPerNight: 2593,
-  avgPeakEurPerNight: 4179,
-  blendedAvg: 3386,
-  avgShoulderNetEurPerNight: 2074,   // round(2593 * 0.80)
-  avgPeakNetEurPerNight: 3343,       // round(4179 * 0.80)
-  blendedNetAvg: 2709,               // round(3386 * 0.80)
+  avgShoulderEurPerNight: 2701,
+  avgPeakEurPerNight: 4201,
+  blendedAvg: 3451,
+  avgShoulderNetEurPerNight: 2161,
+  avgPeakNetEurPerNight: 3361,
+  blendedNetAvg: 2761,
 } as const;
 
 // Collateral engine comparison: market data vs engine tiers
@@ -140,21 +137,21 @@ export const COLLATERAL_MARKET_CONTEXT = {
 // ADR engine comparison: market data vs BP assumption
 export const ADR_MARKET_CONTEXT = {
   bpVillaADR: 3500,                  // €/night in BP
-  marketBlendedAvg: 3386,            // €/night Paros market avg (shoulder/peak 50/50)
-  marketPeakAvg: 4179,               // €/night high season avg
-  marketShoulderAvg: 2593,           // €/night shoulder avg
-  bpVsBlendedPct: (3500 - 3386) / 3386, // +3.4% vs blended — in line with market
+  marketBlendedAvg: 3451,            // €/night Paros market avg (shoulder/peak 50/50)
+  marketPeakAvg: 4201,               // €/night high season avg
+  marketShoulderAvg: 2701,           // €/night shoulder avg
+  bpVsBlendedPct: (3500 - 3451) / 3451, // +1.4% vs blended — in line with market
   otaDeductionPct: 0.20,
-  marketBlendedNetAvg: 2709,
-  marketPeakNetAvg: 3343,
-  bpVsNetPeakPct: (3500 - 3343) / 3343,   // +4.7% — BP ADR is above market net peak
+  marketBlendedNetAvg: 2761,
+  marketPeakNetAvg: 3361,
+  bpVsNetPeakPct: (3500 - 3361) / 3361,   // +4.1% — BP ADR slightly above market net peak
 } as const;
 
 export const VILLA_MARKET_SOURCE = {
   name: "Villa Lev Group Market Research — Paros / Antiparos",
   collectionPeriod: "2025–2026",
   saleProperties: 29,
-  rentalProperties: 20,
+  rentalProperties: 17,
   platforms: ["Le Collectionist", "Kinglike"],
   note: "Sale prices: active listings and recent transactions on Paros + Antiparos. Rental rates: peak (Jul–Aug) and shoulder (May–Jun, Sep) per-night whole-villa rates from ultra-luxury rental platforms.",
 } as const;
