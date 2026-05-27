@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
+import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 import {
   formatCurrency,
   formatPercent,
@@ -18,6 +20,7 @@ export default function ReturnsPage() {
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(RETURNS_TOUR.storageKey);
+  const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -166,6 +169,16 @@ export default function ReturnsPage() {
           accent={propertyExitDominates}
           tone={propertyExitDominates ? "positive" : undefined}
           chip={propertyExitDominates ? { label: t('returns.preferredExit'), ok: true } : undefined}
+          footer={
+            <button
+              type="button"
+              onClick={() => setVillaSaleDrawerOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-medium hover:bg-amber-100 hover:border-amber-400 transition-all"
+            >
+              <span>{t('triangle.seeVillaMarket').replace(' →', '')}</span>
+              <span>→</span>
+            </button>
+          }
         />
         <KPICard
           label={t('returns.propertySaleIRR')}
@@ -223,6 +236,7 @@ export default function ReturnsPage() {
         </div>
       </div>
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={RETURNS_TOUR} />
+      <VillaMarketDrawer open={villaSaleDrawerOpen} onClose={() => setVillaSaleDrawerOpen(false)} initialTab="sale" />
     </div>
   );
 }
