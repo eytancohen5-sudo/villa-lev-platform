@@ -2303,6 +2303,22 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           }),
       ];
       targetProjects = source.projects!;
+
+      // Portfolio migration: old saved configs carried a 4-plot structure before
+      // the May-2026 consolidation to proj-1 (count:2) + proj-2 (count:1) = 3 plots.
+      // If the loaded projects use only the two live-deal templates and resolve to
+      // more than DEFAULT_PROJECTS total (3), silently reset to DEFAULT_PROJECTS.
+      // Scenarios with other template IDs (custom exploration) are never touched.
+      {
+        const LIVE_DEAL_IDS = new Set(['tpl-twin-villa', 'tpl-boutique-suite']);
+        const loadedCount = targetProjects.reduce((s, p) => s + (p.count ?? 1), 0);
+        const defaultCount = DEFAULT_PROJECTS.reduce((s, p) => s + p.count, 0);
+        const allLiveDeal = targetProjects.every((p) => LIVE_DEAL_IDS.has(p.templateId));
+        if (allLiveDeal && loadedCount > defaultCount) {
+          targetProjects = DEFAULT_PROJECTS.map((p) => ({ ...p }));
+        }
+      }
+
       targetAssumptions = ensurePortfolioOpex(mergedAssumptions);
     } else {
       const migrated = migrateToPortfolio(mergedAssumptions);
