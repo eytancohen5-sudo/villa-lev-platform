@@ -730,20 +730,37 @@ export async function exportBusinessPlan(
     cr += 1;
   });
 
-  // Acquisition legal & DD = acqLegalPerPlot * sum(plots)
-  C.getCell(`A${cr}`).value = 'Acquisition legal & due diligence (per plot)';
+  // Acquisition legal & DD
+  // Legacy portfolios (acquisitionLegalRate absent on every property): every plot pays the
+  // flat `acquisitionLegalPerPlot` rate → formula =acqLegalPerPlot*plots stays live.
+  // New portfolios (acquisitionLegalRate set per property): the engine folds each property's
+  // (landCost × acquisitionLegalRate × count) into portfolioTotal directly, and the flat
+  // `acquisitionLegalPerPlot` named range is NOT used by the engine. We must write the engine
+  // category value (hardcoded) to avoid the formula =acqLegalPerPlot*plots overcounting.
+  const useLegacyAcqLegal = a.portfolio.every((p) => p.acquisitionLegalRate == null);
+  const acqLegalCat = capexCatByName.get('Acquisition legal & DD');
+  C.getCell(`A${cr}`).value = 'Acquisition legal & due diligence';
   C.getCell(`A${cr}`).font = FONT.italic;
   let acqRowSum = 0;
   propRows.forEach((pr, i) => {
     const c = C.getCell(`${col(2 + i)}${cr}`);
-    const engineVal = a.acquisitionLegalPerPlot * pr.prop.count;
-    c.value = { formula: `=acqLegalPerPlot*${P(pr.row, PCOL.plots)}`, result: engineVal };
+    let engineVal: number;
+    if (useLegacyAcqLegal) {
+      engineVal = a.acquisitionLegalPerPlot * pr.prop.count;
+      c.value = { formula: `=acqLegalPerPlot*${P(pr.row, PCOL.plots)}`, result: engineVal };
+    } else {
+      engineVal = acqLegalCat?.perProperty.find((p) => p.id === pr.prop.id)?.total ?? 0;
+      c.value = engineVal; // no Assumptions PCOL for acquisitionLegalRate; write engine value
+    }
     acqRowSum += engineVal;
     c.fill = STYLE.formulaFill;
     c.numFmt = FMT.euro;
   });
+  const acqLegalGrandTotal = acqLegalCat?.grandTotal ?? acqRowSum;
   const acqTotalCell = C.getCell(`${col(2 + propRows.length)}${cr}`);
-  acqTotalCell.value = { formula: `=SUM(${col(2)}${cr}:${col(1 + propRows.length)}${cr})`, result: acqRowSum };
+  acqTotalCell.value = useLegacyAcqLegal
+    ? { formula: `=SUM(${col(2)}${cr}:${col(1 + propRows.length)}${cr})`, result: acqLegalGrandTotal }
+    : acqLegalGrandTotal;
   acqTotalCell.fill = STYLE.totalFill;
   acqTotalCell.font = FONT.bold;
   acqTotalCell.numFmt = FMT.euro;
@@ -1140,6 +1157,24 @@ export async function exportBusinessPlan(
       // Only applies in operational years (engine: year > HORIZON_START_YEAR + 1 = 2027)
       const seniorFee = y > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
       c.value = seniorFee;
+      c.numFmt = FMT.euro;
+      c.fill = STYLE.inputFill;
+    });
+    propOpexRows.push(pr2);
+    pr2 += 1;
+  }
+
+  // Portfolio-level shared overhead (staff, services, shared overhead, pre-opening amortisation).
+  // Engine: totalOpex = propertyOpex + portfolioOpexResult.total.
+  // This row bridges the gap so the workbook SUM(propOpexRows) = engine totalOpex.
+  // Values are engine-seeded (no live Excel formula — portfolioOpex depends on headcount
+  // roles and service lines that have no Assumptions sheet columns in this export).
+  {
+    PnL.getCell(`A${pr2}`).value = '  Portfolio shared overhead (staff, services, pre-opening)';
+    PnL.getCell(`A${pr2}`).font = FONT.italic;
+    years.forEach((y, i) => {
+      const c = PnL.getCell(`${col(2 + i)}${pr2}`);
+      c.value = py(y)?.portfolioOpex?.total ?? 0;
       c.numFmt = FMT.euro;
       c.fill = STYLE.inputFill;
     });
