@@ -637,40 +637,87 @@ export async function exportBusinessPlan(
 
   // Each row: a cost category, formula-driven from Assumptions per property.
   // Engine: computeCapexPerUnit
-  //   land + (area * costPerM2) + ffe + legal + architect + civil + (area*costPerM2 + ffe)*contingency
+  //   land + building + landscaping + pools + ffe + licenses + director + contingency
   // Per-property total = perUnit * plots
-  const capexLines: { name: string; formula: (pr: PropRow) => string }[] = [
-    { name: 'Land acquisition', formula: (pr) => `=${P(pr.row, PCOL.landCost)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'Construction', formula: (pr) => `=${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'FF&E', formula: (pr) => `=${P(pr.row, PCOL.ffe)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'Legal & notary', formula: (pr) => `=${P(pr.row, PCOL.legalFees)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'Architect + interior design', formula: (pr) => `=${P(pr.row, PCOL.architect)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'Civil engineer', formula: (pr) => `=${P(pr.row, PCOL.civilEng)}*${P(pr.row, PCOL.plots)}` },
-    { name: 'Contingency (% of construction + FF&E)', formula: (pr) => `=(${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)}+${P(pr.row, PCOL.ffe)})*${P(pr.row, PCOL.contingency)}*${P(pr.row, PCOL.plots)}` },
+  // Order MUST match engine categoryDefs in model.ts so the grand-total SUM
+  // covers every item included in portfolioTotal.
+
+  // Fast category lookup by name — avoids fragile positional index.
+  const capexCatByName = new Map<string, (typeof m.capex.categories)[0]>();
+  m.capex.categories.forEach((cat) => capexCatByName.set(cat.name, cat));
+
+  // formula: returns Excel formula string (live from Assumptions) OR null
+  // (write engine value directly — used when the item has no Assumptions column
+  // or when a consolidated field like licensesPermitsCost would disagree with
+  // the individual legalFees / architectFees / civilEngineerFees columns).
+  const capexLines: { name: string; engineCatName: string; formula: (pr: PropRow) => string | null }[] = [
+    {
+      name: 'Land acquisition',
+      engineCatName: 'Land acquisition',
+      formula: (pr) => `=${P(pr.row, PCOL.landCost)}*${P(pr.row, PCOL.plots)}`,
+    },
+    {
+      name: 'Building & excavation',
+      engineCatName: 'Building & excavation',
+      formula: (pr) => `=${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)}*${P(pr.row, PCOL.plots)}`,
+    },
+    {
+      // No Assumptions column — write engine value directly so the CAPEX SUM
+      // stays in sync when landscapingCost is non-zero in the live scenario.
+      name: 'Landscaping / stone fence',
+      engineCatName: 'Landscaping / stone fence',
+      formula: () => null,
+    },
+    {
+      // Pool / wellness costs computed from poolSlots or wellnessFlatCost in
+      // the engine; no Assumptions sheet column for these.
+      name: 'Pools / wellness',
+      engineCatName: 'Pools / wellness',
+      formula: () => null,
+    },
+    {
+      name: 'FF&E',
+      engineCatName: 'FF&E',
+      formula: (pr) => `=${P(pr.row, PCOL.ffe)}*${P(pr.row, PCOL.plots)}`,
+    },
+    {
+      // Consolidated from legal + architect + civil.
+      // When licensesPermitsCost is set the engine bypasses the three individual
+      // PCOL fields and uses the combined figure — matching that in Excel prevents
+      // a CAPEX formula drift on recalculate.
+      name: 'Licenses & permits',
+      engineCatName: 'Licenses & permits',
+      formula: (pr) =>
+        pr.prop.licensesPermitsCost != null
+          ? null // hardcoded — individual PCOL columns would undercount
+          : `=(${P(pr.row, PCOL.legalFees)}+${P(pr.row, PCOL.architect)}+${P(pr.row, PCOL.civilEng)})*${P(pr.row, PCOL.plots)}`,
+    },
+    {
+      // No Assumptions column — write engine value directly.
+      name: 'Construction director',
+      engineCatName: 'Construction director',
+      formula: () => null,
+    },
+    {
+      name: 'Contingency (10% of building + FF&E)',
+      engineCatName: 'Contingency (10% of building + FF&E)',
+      formula: (pr) => `=(${P(pr.row, PCOL.area)}*${P(pr.row, PCOL.costPerM2)}+${P(pr.row, PCOL.ffe)})*${P(pr.row, PCOL.contingency)}*${P(pr.row, PCOL.plots)}`,
+    },
   ];
 
   const capexFirstDataRow = cr;
-  // Engine CAPEX-by-category lookup keyed by category name. Used to attach
-  // pre-computed result values to formula cells so the workbook opens with
-  // numbers visible.
-  const capexCategoryIndex: Record<string, number> = {
-    'Land acquisition': 0,
-    'Construction': 1,
-    'FF&E': 2,
-    'Legal & notary': 3,
-    'Architect + interior design': 4,
-    'Civil engineer': 5,
-    'Contingency (% of construction + FF&E)': 6, // engine name slightly different but order matches
-  };
   capexLines.forEach((line) => {
     C.getCell(`A${cr}`).value = line.name;
-    const engineCatIdx = capexCategoryIndex[line.name];
+    const engineCat = capexCatByName.get(line.engineCatName);
     let rowSum = 0;
     propRows.forEach((pr, i) => {
       const c = C.getCell(`${col(2 + i)}${cr}`);
-      const engineCat = m.capex.categories[engineCatIdx];
       const engineVal = engineCat?.perProperty.find((p) => p.id === pr.prop.id)?.total ?? 0;
-      c.value = { formula: line.formula(pr), result: engineVal };
+      const formulaStr = line.formula(pr);
+      // formula-driven: live Excel formula with engine seed for immediate display.
+      // hardcoded (null formula): write plain value — no live formula since the
+      // item has no Assumptions column; Excel SUM still picks it up correctly.
+      c.value = formulaStr !== null ? { formula: formulaStr, result: engineVal } : engineVal;
       rowSum += engineVal;
       c.fill = STYLE.formulaFill;
       c.numFmt = FMT.euro;
@@ -1975,6 +2022,44 @@ export async function exportBusinessPlan(
   Cov.getCell(`B${xr}`).font = FONT.bold;
   Cov.getCell(`B${xr}`).alignment = { horizontal: 'center' };
   } // end !isBankViewExport — investor metrics
+
+  // Bank-view: expose IRR and MOIC as hardcoded summary cells on the Coverage
+  // sheet so the validation table can cross-check them without the full equity
+  // waterfall (which is investor-only). Values mirror the engine's realistic
+  // scenario computation — no live Excel formula since the CF stream would
+  // require replicating the entire equity waterfall in spreadsheet form.
+  if (isBankViewExport) {
+    const scReal = m.scenarios.realistic;
+    Cov.getCell(`A${xr}`).value = 'Returns summary (engine — commercial realistic path)';
+    Cov.getCell(`A${xr}`).font = FONT.section;
+    Cov.getCell(`A${xr}`).fill = STYLE.sectionFill;
+    xr += 1;
+    Cov.getCell(`A${xr}`).value = 'Unlevered Project IRR (incl. terminal value)';
+    Cov.getCell(`B${xr}`).value = scReal.projectIRR;
+    Cov.getCell(`B${xr}`).numFmt = FMT.pct;
+    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+    Cov.getCell(`B${xr}`).font = FONT.bold;
+    unlevIRRResult = scReal.projectIRR;
+    unlevIrrCellRef = `${XL.sh_coverage}!B${xr}`;
+    xr += 1;
+    Cov.getCell(`A${xr}`).value = 'Levered Equity IRR';
+    Cov.getCell(`B${xr}`).value = scReal.equityIRR;
+    Cov.getCell(`B${xr}`).numFmt = FMT.pct;
+    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+    Cov.getCell(`B${xr}`).font = FONT.bold;
+    levIRRResult = scReal.equityIRR;
+    levIrrCellRef = `${XL.sh_coverage}!B${xr}`;
+    xr += 1;
+    Cov.getCell(`A${xr}`).value = 'Total MOIC (incl. exit)';
+    Cov.getCell(`B${xr}`).value = scReal.totalMOIC;
+    Cov.getCell(`B${xr}`).numFmt = FMT.mul;
+    Cov.getCell(`B${xr}`).fill = STYLE.totalFill;
+    Cov.getCell(`B${xr}`).font = FONT.bold;
+    moicResult = scReal.totalMOIC;
+    moicCellRef = `${XL.sh_coverage}!B${xr}`;
+    xr += 2;
+  }
+
   Cov.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
 
   // ── 8. Scenarios (Issue 5) ──────────────────────────────────────────
@@ -2551,11 +2636,12 @@ export async function exportBusinessPlan(
     { label: 'Stabilised revenue (2031)', engine: stab2031?.totalRevenue ?? 0, workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`, fmt: FMT.euro },
     { label: 'Stabilised EBITDA (2031)', engine: stab2031?.ebitda ?? 0, workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, fmt: FMT.euro },
     { label: 'Stabilised DSCR (2031) — incl. WC', engine: dscr2031, workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`, fmt: FMT.mul },
-    ...(!isBankViewExport ? [
-      { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
-      { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
-      { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
-    ] : []),
+    // IRR / MOIC appear in both bank and internal view.
+    // Bank view: values come from the hardcoded Returns summary cells added above.
+    // Internal view: values come from the IRR formula cells on the Coverage sheet.
+    { label: 'Unlevered Project IRR', engine: unlevIRRResult, workbookRef: unlevIrrCellRef, fmt: FMT.pct },
+    { label: 'Levered Equity IRR', engine: levIRRResult, workbookRef: levIrrCellRef, fmt: FMT.pct },
+    { label: 'Equity MOIC', engine: moicResult, workbookRef: moicCellRef, fmt: FMT.mul },
     // Cap Table rows omitted from banker pack — investor deal economics
     // have no place in a credit submission.
     ...(isBankViewExport ? [] : [
@@ -2773,7 +2859,6 @@ export async function exportBusinessPlan(
   writeThinRow('totalLoanDrawn', FMT.euro, 'engine.financingComparison.totalLoanDrawn');
   writeThinRow('grantReceived', FMT.euro, 'engine.financingComparison.grantReceived');
   writeThinRow('equityRequired', FMT.euro, 'engine.financingComparison.equityRequired');
-  writeThinRow('graceInterestCarry', FMT.euro, 'engine.financingComparison.graceInterestCarry — Grace-period interest reserve · injected at close; drawn over grace period; returnable surplus after grace ends');
   writeThinRow('annualDebtService', FMT.euro, 'engine.financingComparison.annualDebtService');
   writeThinRow('supplementaryLoan', FMT.euro, 'engine.financingComparison.supplementaryLoan (TEPIX only)');
   writeThinRow('equitySavingVsCommercial', FMT.euro, 'engine.financingComparison.equitySavingVsCommercial');
