@@ -1080,6 +1080,13 @@ export interface TranslationDictionary {
   'bank.wc.dual.opWcLabel': string;
   'bank.wc.dual.opWcSub': string;
   'bank.wc.dual.sizingNote': string;
+  'bank.creditAsk.heading': string;
+  'bank.creditAsk.total': string;
+  'bank.creditAsk.facility1.label': string;
+  'bank.creditAsk.facility1.purpose': string;
+  'bank.creditAsk.facility2.label': string;
+  'bank.creditAsk.facility2.purpose': string;
+  'bank.creditAsk.facility2.separate': string;
   'bank.collateral.sub': string;
   'bank.section.loanMetrics': string;
   'bank.kpi.ofCapex': string;
