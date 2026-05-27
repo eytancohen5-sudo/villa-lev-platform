@@ -153,8 +153,8 @@ export default function LexiconPage() {
           </Formula>
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">Ramp Factor:</p>
-            <Variable name="Year 1 (2028)" desc="75% of mature revenue — partial opening season" />
-            <Variable name="Year 2 (2029)" desc="88% — building brand recognition" />
+            <Variable name="Year 1 (2028)" desc="70% of mature revenue — partial opening season" />
+            <Variable name="Year 2 (2029)" desc="90% — building brand recognition" />
             <Variable name="Year 3+ (2030+)" desc="100% — stabilised operations" />
           </div>
           <div className="mt-3 space-y-1">
