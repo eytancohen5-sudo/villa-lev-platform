@@ -647,102 +647,82 @@ export function LiveTrackRecord({
       </header>
 
       {/* ── Headline conservatism statement ── */}
-      {!loading && (
-        <div className="rounded-xl bg-brand-50/80 border-l-[3px] border-brand-400 px-4 py-3 mb-5">
-          <p className="text-sm md:text-base font-medium text-text-primary leading-relaxed max-w-3xl">
-            {lr.headlineConservatism}
-          </p>
-        </div>
-      )}
-
-      {/* ── Section 1 header ── */}
-      {!loading && (
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
-          <div className="flex items-center gap-2">
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
-              {lr.cushionHeader}
-            </h3>
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
-                Math.abs(averageGapPct) < 0.5
-                  ? "bg-surface-secondary text-text-tertiary"
-                  : averageGapPct < 0
-                    ? "bg-positive/15 text-positive"
-                    : "bg-warning/15 text-warning"
-              }`}
-            >
-              {averageGapPct > 0 ? "+" : ""}{averageGapPct.toFixed(1)}%
-            </span>
-          </div>
-          <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
-            {lr.cushionSub}
-          </p>
-        </div>
-      )}
-
-      {/* ── Three cushion cards (Villa ADR / Occupancy / RevPAR) ──
-          Default-visible. Each card pairs model vs live with a coloured
-          cushion chip. Cards stack on <md. */}
-      <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3 mb-4">
-        {loading ? (
-          <>
-            <FigureSkeleton />
-            <FigureSkeleton />
-            <FigureSkeleton />
-          </>
-        ) : (
-          <>
-            <CushionCard
-              label={lr.villaADR}
-              modelLabel={lr.model}
-              liveLabel={lr.liveLabel}
-              cushionLabel={lr.cushion}
-              modelValue={formatCurrency(bpADR, false, locale)}
-              liveValue={formatCurrency(adr, false, locale)}
-              gap={adrGap}
-            />
-            <CushionCard
-              label={lr.villaOccupancy}
-              modelLabel={lr.model}
-              liveLabel={lr.liveLabel}
-              cushionLabel={lr.cushion}
-              // Displayed as a night count with unit (e.g. "95 nights")
-              // rather than percent or a "95 / 120" ratio, at Eytan's
-              // request 2026-05-22. Bankers want the absolute count.
-              // occupancyGap is still computed from the percentage values
-              // above so the corner cushion-% pill stays consistent with
-              // the ADR / RevPAR cards.
-              modelValue={`${Math.round(bp.villaBaseNights)} ${lr.nights}`}
-              liveValue={`${currentSeason.bookedNights} ${lr.nights}`}
-              gap={occupancyGap}
-            />
-            <CushionCard
-              label={lr.villaRevPAR}
-              modelLabel={lr.model}
-              liveLabel={lr.liveLabel}
-              cushionLabel={lr.cushion}
-              modelValue={formatCurrency(bpRevPAR, false, locale)}
-              liveValue={formatCurrency(revpar, false, locale)}
-              gap={revparGap}
-            />
-          </>
-        )}
+      {/* Always rendered — purely static i18n text, no live data needed. */}
+      <div className="rounded-xl bg-brand-50/80 border-l-[3px] border-brand-400 px-4 py-3 mb-5">
+        <p className="text-sm md:text-base font-medium text-text-primary leading-relaxed max-w-3xl">
+          {lr.headlineConservatism}
+        </p>
       </div>
 
-      {!loading && (
-        <div className="mt-3">
-          <button
-            type="button"
-            onClick={() => setShowDetail((v) => !v)}
-            aria-expanded={showDetail}
-            aria-controls="live-track-record-detail"
-            className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-brand-700 border border-brand-300 bg-brand-50 hover:bg-brand-100 hover:border-brand-500 hover:text-brand-900 transition-all duration-150"
+      {/* ── Section 1 header ── */}
+      {/* Always rendered — static fallback has real values for averageGapPct. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
+        <div className="flex items-center gap-2">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
+            {lr.cushionHeader}
+          </h3>
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold tabular-nums ${
+              Math.abs(averageGapPct) < 0.5
+                ? "bg-surface-secondary text-text-tertiary"
+                : averageGapPct < 0
+                  ? "bg-positive/15 text-positive"
+                  : "bg-warning/15 text-warning"
+            }`}
           >
-            <span>{showDetail ? lr.hideDetail : lr.showDetail}</span>
-            <span className="transition-transform duration-150 group-hover:translate-x-0.5">{showDetail ? "↑" : "↓"}</span>
-          </button>
+            {averageGapPct > 0 ? "+" : ""}{averageGapPct.toFixed(1)}%
+          </span>
         </div>
-      )}
+        <p className="text-[11px] text-text-tertiary leading-snug max-w-2xl">
+          {lr.cushionSub}
+        </p>
+      </div>
+
+      {/* ── Three cushion cards (Villa ADR / Occupancy / RevPAR) ──
+          Default-visible. Always rendered from static fallback data;
+          useSyncExternalStore re-renders automatically when live data arrives. */}
+      <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-3 mb-4">
+        <CushionCard
+          label={lr.villaADR}
+          modelLabel={lr.model}
+          liveLabel={lr.liveLabel}
+          cushionLabel={lr.cushion}
+          modelValue={formatCurrency(bpADR, false, locale)}
+          liveValue={formatCurrency(adr, false, locale)}
+          gap={adrGap}
+        />
+        <CushionCard
+          label={lr.villaOccupancy}
+          modelLabel={lr.model}
+          liveLabel={lr.liveLabel}
+          cushionLabel={lr.cushion}
+          modelValue={`${Math.round(bp.villaBaseNights)} ${lr.nights}`}
+          liveValue={`${currentSeason.bookedNights} ${lr.nights}`}
+          gap={occupancyGap}
+        />
+        <CushionCard
+          label={lr.villaRevPAR}
+          modelLabel={lr.model}
+          liveLabel={lr.liveLabel}
+          cushionLabel={lr.cushion}
+          modelValue={formatCurrency(bpRevPAR, false, locale)}
+          liveValue={formatCurrency(revpar, false, locale)}
+          gap={revparGap}
+        />
+      </div>
+
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setShowDetail((v) => !v)}
+          aria-expanded={showDetail}
+          aria-controls="live-track-record-detail"
+          className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-brand-700 border border-brand-300 bg-brand-50 hover:bg-brand-100 hover:border-brand-500 hover:text-brand-900 transition-all duration-150"
+        >
+          <span>{showDetail ? lr.hideDetail : lr.showDetail}</span>
+          <span className="transition-transform duration-150 group-hover:translate-x-0.5">{showDetail ? "↑" : "↓"}</span>
+        </button>
+      </div>
 
       {/* ── Detail block (collapsed by default) ──
           Existing 4-figure block + per-year history table + rooms-pending

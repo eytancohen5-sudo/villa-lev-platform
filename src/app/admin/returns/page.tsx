@@ -151,7 +151,7 @@ export default function ReturnsPage() {
         />
         <KPICard
           label={t('returns.hotelSaleIRR')}
-          value={equityIRR > 0 ? formatPercent(equityIRR) : "—"}
+          value={equityIRR !== 0 ? formatPercent(equityIRR) : "—"}
           sublabel={t('returns.equityIRRHotel')}
           tone={equityIRR >= 0.15 ? "positive" : equityIRR > 0 ? undefined : "warning"}
         />
@@ -169,7 +169,7 @@ export default function ReturnsPage() {
         />
         <KPICard
           label={t('returns.propertySaleIRR')}
-          value={equityIRRPropertySale > 0 ? formatPercent(equityIRRPropertySale) : "—"}
+          value={equityIRRPropertySale !== 0 ? formatPercent(equityIRRPropertySale) : "—"}
           sublabel={t('returns.equityIRRProperty')}
           tone={equityIRRPropertySale >= 0.15 ? "positive" : equityIRRPropertySale > 0 ? undefined : "warning"}
         />
@@ -185,7 +185,7 @@ export default function ReturnsPage() {
         />
         <KPICard
           label={t('returns.hotelProjectIRR')}
-          value={projectIRR > 0 ? formatPercent(projectIRR) : "—"}
+          value={projectIRR !== 0 ? formatPercent(projectIRR) : "—"}
           sublabel={t('returns.unleveredHotel')}
           tone={projectIRR >= 0.10 ? "positive" : projectIRR > 0 ? undefined : "warning"}
         />
@@ -201,7 +201,7 @@ export default function ReturnsPage() {
         />
         <KPICard
           label={t('returns.propertyProjectIRR')}
-          value={projectIRRPropertySale > 0 ? formatPercent(projectIRRPropertySale) : "—"}
+          value={projectIRRPropertySale !== 0 ? formatPercent(projectIRRPropertySale) : "—"}
           sublabel={t('returns.unleveredProperty')}
           tone={projectIRRPropertySale >= 0.10 ? "positive" : projectIRRPropertySale > 0 ? undefined : "warning"}
         />
