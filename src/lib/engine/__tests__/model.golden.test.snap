@@ -3,7 +3,7 @@
 exports[`computeModel — keyMetrics snapshots > pessimistic occupancy (-20% nights) / tepix-loan 1`] = `
 {
   "annualDS": 459737.6101355611,
-  "assetCoverage": 1.4810920615252643,
+  "assetCoverage": 1.610111636662576,
   "breakEvenNights": 45,
   "bufferToBreakEven": 0.30023417692588406,
   "equityRequired": 526416,
@@ -13,8 +13,8 @@ exports[`computeModel — keyMetrics snapshots > pessimistic occupancy (-20% nig
   "landFundedByCommercial": 1029480,
   "landFundedByTepix": 320520,
   "loanAmount": 4028784,
-  "ltv": 0.6751774761186526,
-  "portfolioValue": 5967000,
+  "ltv": 0.6210749473699789,
+  "portfolioValue": 6486792,
   "primaryLoan": 3205200,
   "stabilisedDSCR": 0.37736055561963827,
   "stabilisedEBITDA": 173486.83999999997,
@@ -31,7 +31,7 @@ exports[`computeModel — keyMetrics snapshots > pessimistic occupancy (-20% nig
 exports[`computeModel — keyMetrics snapshots > realistic / commercial path 1`] = `
 {
   "annualDS": 364939.7671507848,
-  "assetCoverage": 1.637414383561644,
+  "assetCoverage": 1.7800513698630136,
   "breakEvenNights": 36,
   "bufferToBreakEven": 0.06755990129919086,
   "equityRequired": 911040,
@@ -41,8 +41,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / commercial path 1`]
   "landFundedByCommercial": 0,
   "landFundedByTepix": 0,
   "loanAmount": 3644160,
-  "ltv": 0.610718954248366,
-  "portfolioValue": 5967000,
+  "ltv": 0.5617815400894618,
+  "portfolioValue": 6486792,
   "primaryLoan": 3644160,
   "stabilisedDSCR": 0.8014660673555783,
   "stabilisedEBITDA": 292486.83999999997,
@@ -59,7 +59,7 @@ exports[`computeModel — keyMetrics snapshots > realistic / commercial path 1`]
 exports[`computeModel — keyMetrics snapshots > realistic / grant path 1`] = `
 {
   "annualDS": 210869.042483807,
-  "assetCoverage": 2.8337854472508432,
+  "assetCoverage": 3.0806396462113614,
   "breakEvenNights": 21,
   "bufferToBreakEven": 0.07610583259080403,
   "equityRequired": 526416,
@@ -69,8 +69,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / grant path 1`] = `
   "landFundedByCommercial": 0,
   "landFundedByTepix": 0,
   "loanAmount": 2105664,
-  "ltv": 0.3528848667672197,
-  "portfolioValue": 5967000,
+  "ltv": 0.32460791096739344,
+  "portfolioValue": 6486792,
   "primaryLoan": 2105664,
   "stabilisedDSCR": 1.3870544322429905,
   "stabilisedEBITDA": 292486.83999999997,
@@ -87,7 +87,7 @@ exports[`computeModel — keyMetrics snapshots > realistic / grant path 1`] = `
 exports[`computeModel — keyMetrics snapshots > realistic / rrf path 1`] = `
 {
   "annualDS": 307377.0316666885,
-  "assetCoverage": 1.637414383561644,
+  "assetCoverage": 1.7800513698630136,
   "breakEvenNights": 30,
   "bufferToBreakEven": 0.013884599544666094,
   "equityRequired": 911040,
@@ -97,8 +97,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / rrf path 1`] = `
   "landFundedByCommercial": 0,
   "landFundedByTepix": 0,
   "loanAmount": 3644160,
-  "ltv": 0.610718954248366,
-  "portfolioValue": 5967000,
+  "ltv": 0.5617815400894618,
+  "portfolioValue": 6486792,
   "primaryLoan": 3644160,
   "stabilisedDSCR": 0.9515572403508826,
   "stabilisedEBITDA": 292486.83999999997,
@@ -115,7 +115,7 @@ exports[`computeModel — keyMetrics snapshots > realistic / rrf path 1`] = `
 exports[`computeModel — keyMetrics snapshots > realistic / tepix-loan path 1`] = `
 {
   "annualDS": 459737.6101355611,
-  "assetCoverage": 1.4810920615252643,
+  "assetCoverage": 1.610111636662576,
   "breakEvenNights": 45,
   "bufferToBreakEven": 0.15595568001078025,
   "equityRequired": 526416,
@@ -125,8 +125,8 @@ exports[`computeModel — keyMetrics snapshots > realistic / tepix-loan path 1`]
   "landFundedByCommercial": 1029480,
   "landFundedByTepix": 320520,
   "loanAmount": 4028784,
-  "ltv": 0.6751774761186526,
-  "portfolioValue": 5967000,
+  "ltv": 0.6210749473699789,
+  "portfolioValue": 6486792,
   "primaryLoan": 3205200,
   "stabilisedDSCR": 0.6362038553116319,
   "stabilisedEBITDA": 292486.83999999997,
