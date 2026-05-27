@@ -808,8 +808,8 @@ export async function exportBusinessPlan(
     const phase =
       y === 2026 ? 'Acquisition' :
       y === 2027 ? 'Construction' :
-      y === 2028 ? 'Y1 ramp 75%' :
-      y === 2029 ? 'Y2 ramp 88%' :
+      y === 2028 ? 'Opening' :
+      y === 2029 ? 'Year 2' :
       'Stabilised';
     const c = R.getCell(`${col(2 + i)}${rr}`);
     c.value = phase;

@@ -399,8 +399,8 @@ export const fr = {
 
   'phase.acquisition': 'Acquisition',
   'phase.construction': 'Construction',
-  'phase.opening75': 'Ouverture 75 %',
-  'phase.y2_88': 'A2 88 %',
+  'phase.opening': 'Ouverture',
+  'phase.year2': 'Année 2',
   'phase.stabilised': 'Stabilisé',
 
   'be.title': 'Analyse du seuil de rentabilité',

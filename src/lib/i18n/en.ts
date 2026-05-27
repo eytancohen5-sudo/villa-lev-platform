@@ -583,8 +583,8 @@ export const en: TranslationDictionary = {
 
   'phase.acquisition': 'Acquisition',
   'phase.construction': 'Construction',
-  'phase.opening75': 'Opening 75%',
-  'phase.y2_88': 'Y2 88%',
+  'phase.opening': 'Opening',
+  'phase.year2': 'Year 2',
   'phase.stabilised': 'Stabilised',
 
   'be.title': 'Break-Even Analysis',

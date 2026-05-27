@@ -365,8 +365,8 @@ export interface TranslationDictionary {
   // ── Phases ──
   'phase.acquisition': string;
   'phase.construction': string;
-  'phase.opening75': string;
-  'phase.y2_88': string;
+  'phase.opening': string;
+  'phase.year2': string;
   'phase.stabilised': string;
 
   // ── Break-Even ──

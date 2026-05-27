@@ -784,8 +784,8 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
 function getPhaseLabel(year: number): string {
   if (year === HORIZON_START_YEAR) return 'Acquisition';
   if (year === HORIZON_START_YEAR + 1) return 'Construction';
-  if (year === OPENING_YEAR) return 'Opening 75%';
-  if (year === FIRST_OPERATIONAL_YEAR) return 'Y2 90%';
+  if (year === OPENING_YEAR) return 'Opening';
+  if (year === FIRST_OPERATIONAL_YEAR) return 'Year 2';
   return 'Stabilised';
 }
 

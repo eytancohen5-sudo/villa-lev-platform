@@ -580,8 +580,8 @@ export const he: TranslationDictionary = {
 
   'phase.acquisition': 'רכישה',
   'phase.construction': 'בנייה',
-  'phase.opening75': 'פתיחה 75%',
-  'phase.y2_88': 'ש2 88%',
+  'phase.opening': 'פתיחה',
+  'phase.year2': 'שנה 2',
   'phase.stabilised': 'מיוצב',
 
   'be.title': 'ניתוח נקודת איזון',

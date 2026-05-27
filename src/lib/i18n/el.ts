@@ -588,8 +588,8 @@ export const el: TranslationDictionary = {
 
   'phase.acquisition': 'Απόκτηση',
   'phase.construction': 'Κατασκευή',
-  'phase.opening75': 'Έναρξη 75%',
-  'phase.y2_88': 'Ε2 88%',
+  'phase.opening': 'Έναρξη',
+  'phase.year2': 'Έτος 2',
   'phase.stabilised': 'Σταθεροποίηση',
 
   'be.title': 'Ανάλυση νεκρού σημείου',
