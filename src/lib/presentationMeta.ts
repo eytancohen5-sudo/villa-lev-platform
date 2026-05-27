@@ -16,7 +16,7 @@
 import type { Locale } from "@/lib/i18n/types";
 
 export const PRESENTATION_PDF_URL =
-  "/VillaLevGroup_Presentation_v23_26May2026.pdf";
+  "/VillaLevGroup_Presentation_v24_26May2026.pdf";
 
 const _m = PRESENTATION_PDF_URL.match(
   /_v(\d+)_(\d{2})([A-Za-z]+)(\d{4})(?:_(\d{2})(\d{2}))?/
