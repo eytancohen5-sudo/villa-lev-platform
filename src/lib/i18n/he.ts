@@ -1915,4 +1915,19 @@ export const he: TranslationDictionary = {
   'finComp.moic':                  'מכפיל הון (MOIC)',
   'finComp.payback':               'תקופת החזר',
   'finComp.totalEquityAtClose':    'סה״כ הון בסגירה',
+
+  // ── Connections page ──────────────────────────────────────────────────────
+  'nav.connections':               'חיבורים',
+  'connections.title':             'חיבורים פעילים',
+  'connections.pageIntro':         'חיבורים חיים לאפליקציה — מתעדכן כל 30 שניות.',
+  'connections.colUser':           'משתמש',
+  'connections.colSessions':       'סשנים',
+  'connections.colConnectedSince': 'מחובר מאז',
+  'connections.colLastSeen':       'נצפה לאחרונה',
+  'connections.colCurrentPage':    'עמוד נוכחי',
+  'connections.staleBadge':        'לא פעיל',
+  'connections.noConnections':     'אין חיבורים פעילים.',
+  'connections.loading':           'טוען חיבורים…',
+  'connections.restricted':        'יומן החיבורים מוגבל למנהלים.',
+  'connections.signInPrompt':      'התחבר כדי לצפות ביומן החיבורים.',
 };

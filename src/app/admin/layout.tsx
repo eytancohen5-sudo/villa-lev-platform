@@ -16,6 +16,7 @@ import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 import { AuthGate } from "@/components/AuthGate";
+import { usePresence } from "@/lib/data/usePresence";
 
 // Single brand accent for path pills — the prior multi-colour palette (one
 // hue per financing path) read as visual noise. Active = brand-700, others
@@ -239,11 +240,12 @@ const NAV_GROUPS: NavGroup[] = [
   {
     labelKey: "nav.groupInputs",
     items: [
-      { href: "/admin/assumptions", labelKey: "nav.assumptions" },
-      { href: "/admin/capex",       labelKey: "nav.capex" },
-      { href: "/admin/scenarios",   labelKey: "nav.scenarios" },
-      { href: "/admin/lexicon",     labelKey: "nav.lexicon" },
-      { href: "/admin/team",        labelKey: "nav.team" },
+      { href: "/admin/assumptions",  labelKey: "nav.assumptions" },
+      { href: "/admin/capex",        labelKey: "nav.capex" },
+      { href: "/admin/scenarios",    labelKey: "nav.scenarios" },
+      { href: "/admin/lexicon",      labelKey: "nav.lexicon" },
+      { href: "/admin/team",         labelKey: "nav.team" },
+      { href: "/admin/connections",  labelKey: "nav.connections" },
     ],
   },
 ];
@@ -253,6 +255,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
     useModelStore();
   useReferenceScenarioAutoLoad();
+  usePresence();
   const { t, locale } = useTranslation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [exitYearRaw, setExitYearRaw] = useState('');

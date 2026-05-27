@@ -1913,4 +1913,19 @@ export const el: TranslationDictionary = {
   'finComp.moic':                  'Πολλαπλασιαστής ΙΚ',
   'finComp.payback':               'Περίοδος αποπληρωμής',
   'finComp.totalEquityAtClose':    'Σύνολο ΙΚ κατά κλείσιμο',
+
+  // ── Connections page ──────────────────────────────────────────────────────
+  'nav.connections':               'Συνδέσεις',
+  'connections.title':             'Ενεργές Συνδέσεις',
+  'connections.pageIntro':         'Ζωντανές συνδέσεις στην εφαρμογή — ενημερώνεται κάθε 30 δευτερόλεπτα.',
+  'connections.colUser':           'Χρήστης',
+  'connections.colSessions':       'Συνεδρίες',
+  'connections.colConnectedSince': 'Σύνδεση από',
+  'connections.colLastSeen':       'Τελευταία εμφάνιση',
+  'connections.colCurrentPage':    'Τρέχουσα σελίδα',
+  'connections.staleBadge':        'Ανενεργό',
+  'connections.noConnections':     'Δεν υπάρχουν ενεργές συνδέσεις.',
+  'connections.loading':           'Φόρτωση συνδέσεων…',
+  'connections.restricted':        'Το αρχείο συνδέσεων είναι περιορισμένο σε διαχειριστές.',
+  'connections.signInPrompt':      'Συνδεθείτε για να δείτε το αρχείο συνδέσεων.',
 };

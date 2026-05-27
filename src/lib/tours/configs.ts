@@ -48,8 +48,12 @@ export const DEBT_COVERAGE_TOUR: TourConfig = {
 // moved to /admin/debt-coverage and /admin/pnl sub-pages. New on dashboard:
 // three-scenario return table and exit-analysis card. Dead anchors removed;
 // two new anchors added.
+// v4 2026-05-27: added #section-dscr-summary step (section was between
+// three-scenario and exit-analysis but had no tour step, causing scroll-sync
+// to silently pass through it). Fixed KPI count copy — grid now has 6-9 cards
+// depending on active path/scenario, not four.
 export const DASHBOARD_TOUR: TourConfig = {
-  storageKey: "villaLev.dashboardTour.seen.v3",
+  storageKey: "villaLev.dashboardTour.seen.v4",
   showLanguagePicker: true,
   steps: [
     {
@@ -90,10 +94,10 @@ export const DASHBOARD_TOUR: TourConfig = {
         he: "תשואות עיקריות",
       },
       body: {
-        en: "Four investor-side KPIs: Total Investment (CapEx across all plots), Equity Required, Total MOIC (cash-on-cash + terminal value at the active exit year), and levered Equity IRR. These react to the path / scenario / exit-year you set in the control bar.",
-        el: "Τέσσερα KPIs πλευράς επενδυτή: Συνολική Επένδυση (CapEx), Απαιτούμενα Ίδια Κεφάλαια, Total MOIC (cash-on-cash + τερματική αξία), Equity IRR. Αντιδρούν στη διαδρομή / σενάριο / έτος εξόδου.",
-        fr: "Quatre KPIs côté investisseur : Investissement total (CapEx), Fonds propres requis, MOIC total (cash-on-cash + valeur terminale), TRI fonds propres. Réagissent à la voie / scénario / année de sortie.",
-        he: "ארבעה KPIs מצד המשקיע: השקעה כוללת (CapEx), הון נדרש, MOIC כולל (cash-on-cash + ערך טרמינלי), Equity IRR. מגיבים למסלול / תרחיש / שנת יציאה.",
+        en: "Core investor KPIs: Total Investment (CapEx across all plots), Equity Required, Total MOIC (cash-on-cash + terminal value at the active exit year), Equity IRR, Stabilised Revenue, and EBITDA. Additional cards appear when Grant or DSRA is active. All react to the path / scenario / exit-year set in the control bar.",
+        el: "Βασικά KPIs επενδυτή: Συνολική Επένδυση (CapEx), Απαιτούμενα Ίδια Κεφάλαια, Total MOIC, Equity IRR, Σταθεροποιημένα Έσοδα και EBITDA. Πρόσθετες κάρτες εμφανίζονται όταν είναι ενεργά Grant ή DSRA. Όλα αντιδρούν στη διαδρομή / σενάριο / έτος εξόδου.",
+        fr: "KPIs investisseurs essentiels : Investissement total (CapEx), Fonds propres requis, MOIC total, TRI fonds propres, Revenus stabilisés et EBITDA. Des cartes supplémentaires apparaissent si Grant ou DSRA est actif. Tous réagissent à la voie / scénario / année de sortie.",
+        he: "KPIs עיקריים למשקיע: השקעה כוללת (CapEx), הון נדרש, MOIC כולל, Equity IRR, הכנסות מיוצבות ו-EBITDA. כרטיסים נוספים מופיעים כשמענק או DSRA פעיל. הכל מגיב למסלול / תרחיש / שנת יציאה.",
       },
     },
     {
@@ -109,6 +113,21 @@ export const DASHBOARD_TOUR: TourConfig = {
         el: "Αποδόσεις Upside / Base / Downside δίπλα-δίπλα: Equity IRR, Cash Yield σταθεροποιημένου έτους, Total MOIC. Η γραμμή Base είναι highlighted — αυτή είναι η κύρια αναφορά πιστωτικής επιτροπής. Το Downside επιβεβαιώνει ότι η συμφωνία λειτουργεί υπό αντίξοες συνθήκες.",
         fr: "Rendements Upside / Base / Downside côte à côte : TRI fonds propres, Rendement en année stabilisée, MOIC total. La ligne Base est mise en évidence — c'est la référence principale du comité de crédit. Le Downside confirme que le deal tient sous conditions adverses.",
         he: "תשואות Upside / Base / Downside זה לצד זה: Equity IRR, Cash Yield בשנה המיוצבת, MOIC כולל. שורת ה-Base מוסטת — זו ההפניה העיקרית של ועדת האשראי. ה-Downside מאשר שהעסקה עובדת בתנאים שליליים.",
+      },
+    },
+    {
+      target: "#section-dscr-summary",
+      title: {
+        en: "DSCR summary",
+        el: "Σύνοψη DSCR",
+        fr: "Résumé DSCR",
+        he: "סיכום DSCR",
+      },
+      body: {
+        en: "DSCR trajectory chart and cross-scenario table: Stabilised, Avg Loan Life, and Min DSCR across Upside / Base / Downside. The Min column is the bank's key test — does the 1.25× covenant hold in the worst single year? Click through to /admin/debt-coverage for LLCR, PLCR, and year-by-year detail.",
+        el: "Γράφημα DSCR και cross-scenario πίνακας: Σταθεροποιημένο, Μέσο Διάρκειας και Ελάχιστο DSCR για Upside / Base / Downside. Η στήλη Ελάχιστου είναι ο βασικός έλεγχος τράπεζας — παραμένει το covenant 1.25× στο χειρότερο έτος; Κλικ για /admin/debt-coverage για LLCR, PLCR και ετήσια ανάλυση.",
+        fr: "Graphique de trajectoire DSCR et tableau multi-scénarios : DSCR stabilisé, moyen et minimum pour Upside / Base / Downside. La colonne Min est le test clé de la banque — le covenant 1,25× tient-il lors de la pire année ? Cliquez pour /admin/debt-coverage pour LLCR, PLCR et le détail annuel.",
+        he: "תרשים מסלול DSCR וטבלת multi-scenario: DSCR מיוצב, ממוצע ומינימלי עבור Upside / Base / Downside. עמודת המינימום היא הבדיקה המרכזית של הבנק — האם הקובננט 1.25× עומד בשנה הגרועה? לחצו ל-/admin/debt-coverage ל-LLCR, PLCR ופירוט שנתי.",
       },
     },
     {
@@ -609,8 +628,12 @@ export const TEAM_TOUR: TourConfig = {
 // collateral, stress test, and P&L sections.
 // v3 2026-05-26: added #bank-term-sheet step (term sheet is now the first
 // section a banker sees — 7 cells + WC note + distribution covenant badge).
+// v4 2026-05-27: fixed step ordering to match DOM (collateral and kpi-strip
+// are above financing-comparison; they were reversed). Added #bank-dscr-summary
+// step for the cross-scenario DSCR table. Fixed "stabilised DSCR" copy to
+// "post-ramp 2030 DSCR". Clarified P&L step — download is in Quick Access, not inline.
 export const BANK_TOUR: TourConfig = {
-  storageKey: "villaLev.bankTour.seen.v3",
+  storageKey: "villaLev.bankTour.seen.v4",
   showLanguagePicker: true,
   steps: [
     {
@@ -636,10 +659,10 @@ export const BANK_TOUR: TourConfig = {
         he: "Term sheet",
       },
       body: {
-        en: "Seven cells: Loan amount, Term × Grace period, Interest rate, Annual debt service, DSCR covenant pass/fail, Equity required, and Security package. Below that: the working-capital revolving facility (separate from the term loan) and the distribution covenant — cash reserve minimum before any equity distribution is permitted.",
-        el: "Επτά κελιά: Δάνειο, Διάρκεια × Χάριτος, Επιτόκιο, Ετήσια εξυπηρέτηση, Covenant DSCR pass/fail, Απαιτούμενα ίδια κεφάλαια, Εξασφαλίσεις. Παρακάτω: το ανακυκλούμενο κεφάλαιο κίνησης (ξεχωριστό από το term loan) και το covenant διανομής — ελάχιστο ταμειακό αποθεματικό πριν από οποιαδήποτε διανομή στα ίδια κεφάλαια.",
-        fr: "Sept cases : Montant du prêt, Durée × Grâce, Taux, DS annuel, Covenant DSCR pass/fail, Fonds propres requis, Garanties. En dessous : la ligne de trésorerie revolving (distincte du prêt terme) et le covenant de distribution — réserve minimale avant toute distribution aux fonds propres.",
-        he: "שבעה תאים: סכום הלוואה, תקופה × חסד, ריבית, DS שנתי, קובננט DSCR pass/fail, הון נדרש, ביטחונות. מתחת: מסגרת הון חוזר מתגלגל (נפרד מהלוואת הטווח) וקובננט החלוקה — יתרת מזומן מינימלית לפני כל חלוקה להון.",
+        en: "Eight cells: Loan amount, Term × Grace period, Interest rate, Annual debt service, DSCR covenant pass/fail, Equity required, Total Investment, and Security package. Below that: the working-capital revolving facility (separate from the term loan) and the distribution covenant — cash reserve minimum before any equity distribution is permitted.",
+        el: "Οκτώ κελιά: Δάνειο, Διάρκεια × Χάριτος, Επιτόκιο, Ετήσια εξυπηρέτηση, Covenant DSCR pass/fail, Απαιτούμενα ίδια κεφάλαια, Συνολική Επένδυση, Εξασφαλίσεις. Παρακάτω: το ανακυκλούμενο κεφάλαιο κίνησης και το covenant διανομής.",
+        fr: "Huit cases : Montant du prêt, Durée × Grâce, Taux, DS annuel, Covenant DSCR pass/fail, Fonds propres requis, Investissement total, Garanties. En dessous : la ligne revolving et le covenant de distribution.",
+        he: "שמונה תאים: סכום הלוואה, תקופה × חסד, ריבית, DS שנתי, קובננט DSCR, הון נדרש, השקעה כוללת, ביטחונות. מתחת: מסגרת הון חוזר וקובננט החלוקה.",
       },
     },
     {
@@ -658,18 +681,33 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
-      target: "#bank-kpi-strip",
+      target: "#bank-collateral",
       title: {
-        en: "Headline coverage",
-        el: "Κύρια κάλυψη",
-        fr: "Couverture principale",
-        he: "כיסוי עיקרי",
+        en: "Collateral position",
+        el: "Θέση εξασφάλισης",
+        fr: "Position de garantie",
+        he: "עמדת בטחונות",
       },
       body: {
-        en: "Five headline KPIs: total investment, loan amount, LTV at completion, asset coverage, and stabilised DSCR. The 1.25× DSCR covenant is the standard bank threshold — this deal clears it from year 3 onward in every scenario including Downside.",
-        el: "Πέντε κύρια KPIs: συνολική επένδυση, δάνειο, LTV, κάλυψη ενεργητικού, σταθεροποιημένο DSCR. Το covenant 1.25× ξεπερνιέται από το έτος 3 σε κάθε σενάριο.",
-        fr: "Cinq KPIs : investissement total, prêt, LTV, couverture d'actif, DSCR stabilisé. Le covenant 1.25× est dépassé dès l'année 3 dans tous les scénarios.",
-        he: "חמישה KPIs: השקעה כוללת, הלוואה, LTV, כיסוי נכסים, DSCR מיוצב. הקובננט 1.25× נחצה משנה 3 בכל תרחיש.",
+        en: "Asset coverage at three valuation tiers: Stress (conservative), Market (base), Positive (premium). LTV and coverage ratio shown for each. Banks underwrite to the Stress tier — note how the deal remains well-covered even there.",
+        el: "Κάλυψη ενεργητικού σε τρία επίπεδα: Stress, Market, Positive. LTV και δείκτης κάλυψης ανά επίπεδο. Η τράπεζα ανερεύνει στο Stress.",
+        fr: "Couverture à trois niveaux : Stress, Marché, Positif. LTV et ratio de couverture par niveau. Les banques évaluent au niveau Stress.",
+        he: "כיסוי בשלוש רמות: Stress, שוק, חיובי. LTV ויחס כיסוי לכל רמה. בנקים מחתמים ברמת Stress.",
+      },
+    },
+    {
+      target: "#bank-kpi-strip",
+      title: {
+        en: "Headline loan metrics",
+        el: "Κύρια μετρικά δανείου",
+        fr: "Indicateurs clés du prêt",
+        he: "מדדי הלוואה עיקריים",
+      },
+      body: {
+        en: "Five KPIs: Total Investment, Loan Amount, LTV at completion, Asset Coverage, and post-ramp 2030 DSCR. The 2030 figure is the post-grace covenant-relevant year — this deal clears 1.25× in every scenario including Downside.",
+        el: "Πέντε KPIs: Συνολική Επένδυση, Δάνειο, LTV, Κάλυψη Ενεργητικού, DSCR 2030 (μετά grace). Το 2030 είναι το κύριο covenant-relevant έτος — ξεπερνά το 1.25× σε κάθε σενάριο.",
+        fr: "Cinq KPIs : Investissement total, Prêt, LTV, Couverture actif, DSCR 2030 (post-grâce). 2030 est l'année de référence pour le covenant — dépasse 1,25× dans tous les scénarios.",
+        he: "חמישה KPIs: השקעה כוללת, הלוואה, LTV, כיסוי נכסים, DSCR 2030 (לאחר חסד). 2030 הוא שנת הקובננט — עובר 1.25× בכל תרחיש.",
       },
     },
     {
@@ -687,33 +725,18 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
-      target: "#bank-financing-comparison",
+      target: "#bank-dscr-summary",
       title: {
-        en: "Financing path comparison",
-        el: "Σύγκριση διαδρομών",
-        fr: "Comparaison voies",
-        he: "השוואת מסלולים",
+        en: "DSCR across all scenarios",
+        el: "DSCR σε όλα τα σενάρια",
+        fr: "DSCR dans tous les scénarios",
+        he: "DSCR בכל התרחישים",
       },
       body: {
-        en: "Four financing paths side-by-side: Commercial, RRF, Greek Development Law Grant, and TEPIX III. Rows show loan size, equity required, annual debt service, and stabilised DSCR for each. The active path is the sponsor's primary application.",
-        el: "Τέσσερις διαδρομές χρηματοδότησης: Commercial, ΤΑΑ, Επιχορήγηση, ΤΕΠΙΧ ΙΙΙ. Γραμμές: δάνειο, ίδια κεφάλαια, εξυπηρέτηση, DSCR.",
-        fr: "Quatre voies : Commercial, RRF, Subvention, TEPIX III. Lignes : prêt, fonds propres, DS, DSCR.",
-        he: "ארבעה מסלולים: Commercial, RRF, מענק, TEPIX III. שורות: הלוואה, הון, DS, DSCR.",
-      },
-    },
-    {
-      target: "#bank-collateral",
-      title: {
-        en: "Collateral position",
-        el: "Θέση εξασφάλισης",
-        fr: "Position de garantie",
-        he: "עמדת בטחונות",
-      },
-      body: {
-        en: "Asset coverage at three valuation tiers: Stress (conservative), Market (base), Positive (premium). LTV and coverage ratio shown for each. Banks underwrite to the Stress tier — note how the deal remains well-covered even there.",
-        el: "Κάλυψη ενεργητικού σε τρία επίπεδα: Stress, Market, Positive. LTV και δείκτης κάλυψης ανά επίπεδο. Η τράπεζα ανερεύνει στο Stress.",
-        fr: "Couverture à trois niveaux : Stress, Marché, Positif. LTV et ratio de couverture par niveau. Les banques évaluent au niveau Stress.",
-        he: "כיסוי בשלוש רמות: Stress, שוק, חיובי. LTV ויחס כיסוי לכל רמה. בנקים מחתמים ברמת Stress.",
+        en: "Stabilised, average-loan-life, and minimum DSCR for Upside, Realistic, and Downside scenarios side-by-side. The minimum column is what a credit committee stress-tests: does coverage hold even in the worst single year? Pass/fail badges confirm whether each scenario clears the 1.25× covenant.",
+        el: "Σταθεροποιημένο, μέσο όρο διάρκειας δανείου και ελάχιστο DSCR για Upside, Realistic και Downside δίπλα-δίπλα. Η στήλη ελάχιστου είναι αυτό που ελέγχει η πιστωτική επιτροπή: παραμένει η κάλυψη στο χειρότερο μεμονωμένο έτος;",
+        fr: "DSCR stabilisé, moyen sur la durée du prêt et minimum pour les scénarios Upside, Realistic et Downside côte à côte. La colonne minimum est ce qu'un comité de crédit stresse : la couverture tient-elle même lors de la pire année ?",
+        he: "DSCR מיוצב, ממוצע לאורך ההלוואה ומינימלי עבור Upside, Realistic ו-Downside זה לצד זה. עמודת המינימום היא מה שוועדת אשראי בוחנת: האם הכיסוי עומד גם בשנה הגרועה ביותר?",
       },
     },
     {
@@ -732,6 +755,21 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
+      target: "#bank-financing-comparison",
+      title: {
+        en: "Financing path comparison",
+        el: "Σύγκριση διαδρομών",
+        fr: "Comparaison voies",
+        he: "השוואת מסלולים",
+      },
+      body: {
+        en: "Four financing paths side-by-side: Commercial, RRF, Greek Development Law Grant, and TEPIX III. Rows show loan size, equity required, annual debt service, and stabilised DSCR for each. The active path is the sponsor's primary application.",
+        el: "Τέσσερις διαδρομές χρηματοδότησης: Commercial, ΤΑΑ, Επιχορήγηση, ΤΕΠΙΧ ΙΙΙ. Γραμμές: δάνειο, ίδια κεφάλαια, εξυπηρέτηση, DSCR.",
+        fr: "Quatre voies : Commercial, RRF, Subvention, TEPIX III. Lignes : prêt, fonds propres, DS, DSCR.",
+        he: "ארבעה מסלולים: Commercial, RRF, מענק, TEPIX III. שורות: הלוואה, הון, DS, DSCR.",
+      },
+    },
+    {
       target: "#bank-pnl",
       title: {
         en: "Full P&L + download",
@@ -740,10 +778,10 @@ export const BANK_TOUR: TourConfig = {
         he: "P&L מלא + הורדה",
       },
       body: {
-        en: "The full 11-year P&L table is scrollable below — Revenue, EBITDA, Debt Service, NCF post-tax, DSCR, and yield to equity year by year. Use Download model (.xlsx) at the top to take the full 14-sheet Excel offline; all formulas remain linked and editable.",
-        el: "Πλήρης πίνακας P&L 11 ετών παρακάτω: έσοδα, EBITDA, εξυπηρέτηση, NCF, DSCR. Χρησιμοποιήστε Download model (.xlsx) για να πάρετε το Excel των 14 φύλλων εκτός σύνδεσης.",
-        fr: "Tableau P&L complet sur 11 ans ci-dessous. Utilisez Download model (.xlsx) pour emporter le modèle Excel 14 onglets hors ligne.",
-        he: "טבלת P&L מלאה לכל 11 שנה למטה. השתמשו ב-Download model (.xlsx) להורדת Excel 14 גליונות לעבודה לא מקוונת.",
+        en: "The full 11-year P&L table — Revenue, EBITDA, Debt Service, NCF post-tax, DSCR, and yield to equity year by year. Use the Quick Access cards at the top of the page (Tour · Presentation · Model) to download the full Excel workbook or the bank presentation deck.",
+        el: "Πλήρης πίνακας P&L 11 ετών: έσοδα, EBITDA, εξυπηρέτηση, NCF, DSCR. Χρησιμοποιήστε τα Quick Access cards στην κορυφή (Tour · Presentation · Model) για να κατεβάσετε το Excel ή την παρουσίαση τράπεζας.",
+        fr: "Tableau P&L complet sur 11 ans — Revenus, EBITDA, Service dette, FTN, DSCR. Utilisez les cartes Quick Access en haut de la page (Tour · Présentation · Modèle) pour télécharger le classeur Excel ou la présentation bancaire.",
+        he: "טבלת P&L מלאה ל-11 שנים — הכנסות, EBITDA, שירות חוב, NCF, DSCR. השתמשו בכרטיסי Quick Access בראש הדף (Tour · Presentation · Model) להורדת חוברת ה-Excel או מצגת הבנק.",
       },
     },
   ],

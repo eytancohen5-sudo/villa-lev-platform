@@ -1877,4 +1877,19 @@ export const en: TranslationDictionary = {
   'finComp.moic':                  'Equity MOIC',
   'finComp.payback':               'Payback period',
   'finComp.totalEquityAtClose':    'Total equity at close',
+
+  // ── Connections page ──────────────────────────────────────────────────────
+  'nav.connections':               'Connections',
+  'connections.title':             'Active Connections',
+  'connections.pageIntro':         'Live browser sessions connected to the app — updates every 30 seconds.',
+  'connections.colUser':           'User',
+  'connections.colSessions':       'Sessions',
+  'connections.colConnectedSince': 'Connected since',
+  'connections.colLastSeen':       'Last seen',
+  'connections.colCurrentPage':    'Current page',
+  'connections.staleBadge':        'Stale',
+  'connections.noConnections':     'No active connections.',
+  'connections.loading':           'Loading connections…',
+  'connections.restricted':        'The connections log is restricted to administrators.',
+  'connections.signInPrompt':      'Sign in to view the connections log.',
 };

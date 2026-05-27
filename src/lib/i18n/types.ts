@@ -1887,4 +1887,19 @@ export interface TranslationDictionary {
   'sau.graceCarryNote': string;
   'sau.wcNote': string;
   'sau.balanceNote': string;
+
+  // ── Connections page ──────────────────────────────────────────────────────
+  'nav.connections': string;
+  'connections.title': string;
+  'connections.pageIntro': string;
+  'connections.colUser': string;
+  'connections.colSessions': string;
+  'connections.colConnectedSince': string;
+  'connections.colLastSeen': string;
+  'connections.colCurrentPage': string;
+  'connections.staleBadge': string;
+  'connections.noConnections': string;
+  'connections.loading': string;
+  'connections.restricted': string;
+  'connections.signInPrompt': string;
 }
