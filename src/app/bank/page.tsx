@@ -15,6 +15,7 @@ import { DistributionCovenantBadge } from "@/components/DistributionCovenantBadg
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import BankControlBar from "@/components/BankControlBar";
 import BankSensitivityTab from "@/components/BankSensitivityTab";
+import { PRESENTATION_LABEL } from "@/lib/presentationMeta";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { BANK_TOUR } from "@/lib/tours/configs";
 import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
@@ -381,7 +382,7 @@ export default function BankPage() {
                     <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
                   </svg>
                 </div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">PDF</span>
+                <span className="text-[10px] font-semibold tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{PRESENTATION_LABEL}</span>
               </div>
               <div>
                 <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>

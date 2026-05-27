@@ -1,30 +1,27 @@
 "use client";
 
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-
-/**
- * PDF URL keyed by locale.
- *
- * Placeholder copies are in place for el + he until the translated
- * versions are dropped into public/ and redeployed.
- */
-const PDF_BY_LOCALE: Record<string, string> = {
-  en: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
-  el: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
-  he: "/VillaLevGroup_Presentation_v23_26May2026.pdf",
-};
+import {
+  PRESENTATION_PDF_URL,
+  PRESENTATION_LABEL,
+} from "@/lib/presentationMeta";
 
 export default function PresentationPage() {
-  const { t, locale } = useTranslation();
-  const pdfUrl = PDF_BY_LOCALE[locale] ?? PDF_BY_LOCALE.en;
+  const { t } = useTranslation();
+  const pdfUrl = PRESENTATION_PDF_URL;
 
   return (
     <>
       {/* Toolbar */}
       <div className="shrink-0 h-12 flex items-center justify-between px-5 bg-white border-b border-gray-200">
-        <span className="text-sm font-semibold text-gray-800 tracking-tight">
-          {t("presentation.viewer.title")}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-gray-800 tracking-tight">
+            {t("presentation.viewer.title")}
+          </span>
+          <span className="text-[11px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+            {PRESENTATION_LABEL}
+          </span>
+        </div>
         <a
           href={pdfUrl}
           download
