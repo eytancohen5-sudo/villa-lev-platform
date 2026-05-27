@@ -40,9 +40,12 @@ function compare(a: number | string | null, b: number | string | null, dir: Sort
   return dir === "asc" ? r : -r;
 }
 
-export function VillaMarketDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function VillaMarketDrawer({ open, onClose, initialTab = "sale" }: { open: boolean; onClose: () => void; initialTab?: ActiveTab }) {
   const { t, locale, dir } = useTranslation();
-  const [activeTab, setActiveTab] = useState<ActiveTab>("sale");
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+
+  // Re-sync tab when initialTab changes (e.g. opened from rental vs sale trigger)
+  useEffect(() => { if (open) setActiveTab(initialTab); }, [open, initialTab]);
 
   // Sale tab state
   const [islandFilter, setIslandFilter] = useState<"All" | "Antiparos" | "Paros">("All");

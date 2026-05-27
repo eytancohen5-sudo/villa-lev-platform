@@ -61,7 +61,7 @@ export const PROJECT_CONSTANTS = {
    */
   COLLATERAL_TIERS: {
     stress: 7_650,
-    market: 9_000,
+    market: 9_784,   // actual market study avg — 29 Paros/Antiparos comparables (VILLA_SALE_SUMMARY)
     optimistic: 11_000,
   },
   /**
@@ -824,8 +824,17 @@ export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumpt
     ? renamedRoles
     : [...renamedRoles, d.staffRoles.find((r) => r.name === 'Pool Technician')!];
 
+  // WC facilitySize: anything ≤ 400k causes a covenant breach — peak VAT float
+  // is €455,346. Reset to BP value of €560k wherever a stale save slipped through.
+  const wc = assumptions.workingCapital;
+  const fixedWc =
+    (wc?.facilitySize ?? 0) <= 400_000
+      ? { ...wc, facilitySize: 560_000 }
+      : wc;
+
   return {
     ...assumptions,
+    workingCapital: fixedWc,
     portfolioOpex: {
       ...d,
       ...(po ?? {}),
