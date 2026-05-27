@@ -32,15 +32,13 @@ export default function BankControlBar() {
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
         {/* Left: back-link (operator only) + brand */}
         <div className="flex items-center gap-3">
-          {user && (
-            <Link
-              href="/admin/dashboard"
-              className="text-xs text-text-tertiary hover:text-text-secondary transition-colors"
-              aria-label="Back to admin dashboard"
-            >
-              ← Admin
-            </Link>
-          )}
+          <Link
+            href="/admin/dashboard"
+            className="text-xs text-text-tertiary hover:text-text-secondary transition-colors"
+            aria-label="Back to admin dashboard"
+          >
+            ← Admin
+          </Link>
           <span className="font-semibold text-sm text-text-primary">Villa Lev Group</span>
         </div>
 
