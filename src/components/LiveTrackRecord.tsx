@@ -877,8 +877,9 @@ export function LiveTrackRecord({
           the cushion cards above are the truer villa comparable. Anchored
           to the same dataset ConservatismTriangle below uses, so the two
           panels never contradict each other. */}
-      {!loading && (
-        <div className="mb-4">
+      {/* Market strip always renders — it uses static MARKET_2025_BACKSTOP
+          data and does not need a live Firestore read. */}
+      <div className="mb-4">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-2.5">
             <div className="flex items-center gap-2">
               <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-700">
@@ -956,7 +957,6 @@ export function LiveTrackRecord({
             onClose={() => setVillaMarketDrawerOpen(false)}
           />
         </div>
-      )}
 
       {/* Subtle gold accent in the corner */}
       <div
