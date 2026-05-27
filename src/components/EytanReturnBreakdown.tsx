@@ -213,6 +213,31 @@ export function EytanReturnBreakdown({
             </div>
           </div>
         </div>
+
+        {/* Arithmetic breakdown — makes the combined % self-evident */}
+        <div className="mt-3 pt-3 border-t border-surface-tertiary/60 flex items-center gap-1.5 flex-wrap text-[11px] font-mono text-text-tertiary">
+          <span className="font-semibold text-text-secondary">{formatPercent(investorPct)}</span>
+          <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownCoInvestor")}</span>
+          <span className="text-text-tertiary/40">+</span>
+          <span className="font-semibold text-text-secondary">{formatPercent(developerPct)}</span>
+          <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownDeveloper")}</span>
+          {ratchetPct > 0 && (
+            <>
+              <span className="text-text-tertiary/40">+</span>
+              <span className="font-semibold text-text-secondary">{formatPercent(ratchetPct)}</span>
+              <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownRatchet")}</span>
+            </>
+          )}
+          {grantApproved && grantPct > 0 && (
+            <>
+              <span className="text-text-tertiary/40">+</span>
+              <span className="font-semibold text-text-secondary">{formatPercent(grantPct)}</span>
+              <span className="text-text-tertiary/50">{t("ct.roles.total.breakdownGrant")}</span>
+            </>
+          )}
+          <span className="text-text-tertiary/40">=</span>
+          <span className="font-bold text-text-primary">{formatPercent(combinedPct)}</span>
+        </div>
       </div>
 
     </div>

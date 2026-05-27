@@ -1987,6 +1987,10 @@ export interface TranslationDictionary {
   'ct.roles.total.combinedStake': string;
   'ct.roles.total.sameWaterfall': string;
   'ct.roles.total.distributions': string;
+  'ct.roles.total.breakdownCoInvestor': string;
+  'ct.roles.total.breakdownDeveloper': string;
+  'ct.roles.total.breakdownRatchet': string;
+  'ct.roles.total.breakdownGrant': string;
   // ── Cap Table investor-UX redesign (2026-05-27) ──
   'ct.dealHeadline': string;
   'ct.dealHeadlineSub': string;

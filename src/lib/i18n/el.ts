@@ -2076,6 +2076,10 @@ export const el: TranslationDictionary = {
   'ct.roles.total.combinedStake': "TODO",
   'ct.roles.total.sameWaterfall': "TODO",
   'ct.roles.total.distributions': "TODO",
+  'ct.roles.total.breakdownCoInvestor': "TODO",
+  'ct.roles.total.breakdownDeveloper': "TODO",
+  'ct.roles.total.breakdownRatchet': "TODO",
+  'ct.roles.total.breakdownGrant': "TODO",
   // ── Cap Table investor-UX redesign (2026-05-27) ──
   'ct.dealHeadline': "TODO",
   'ct.dealHeadlineSub': "TODO",

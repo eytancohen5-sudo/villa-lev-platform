@@ -1921,7 +1921,7 @@ export const en: TranslationDictionary = {
   'ct.grantConv.subGrant':          '% of grant',
   'ct.grantConv.subCash':           '% paid cash; remainder = equity at exit',
   'ct.grantConv.aggelakakisSubLabel': "10% of Eytan's promote layers",
-  'ct.roles.panel2.aggelakakisSub': "incl. {pct} sub-allocated to Thanasis Aggelakakis",
+  'ct.roles.panel2.aggelakakisSub': "incl. {pct} carry to Thanasis (devEq + ratchet combined)",
   'ct.roles.panel3.aggelakakisSub': "incl. {pct} grant-layer carry to Thanasis Aggelakakis",
   'ct.opFeeManCo':              'Founder ManCo fee (5% × revenue)',
   'ct.opFeeNote':               'Subtracted from NCF post-tax post-DS before splitting between founder and investors.',
@@ -2045,6 +2045,10 @@ export const en: TranslationDictionary = {
   'ct.roles.total.combinedStake': "Combined equity stake",
   'ct.roles.total.sameWaterfall': "The sponsor participates in distributions alongside all equity holders at this combined stake — same waterfall, same priority, no preferential treatment.",
   'ct.roles.total.distributions': "Distributions (base scenario)",
+  'ct.roles.total.breakdownCoInvestor': "co-investor",
+  'ct.roles.total.breakdownDeveloper': "developer",
+  'ct.roles.total.breakdownRatchet': "ratchet",
+  'ct.roles.total.breakdownGrant': "grant",
 
   // ── Cap Table investor-UX redesign (2026-05-27) ──
   'ct.dealHeadline': "Investor Summary",
