@@ -453,6 +453,7 @@ export const he: TranslationDictionary = {
   'triangle.defenceCopy': 'מחירי BP לסוויטה-לילה מושווים לקטגוריות חדר Basic וסוויטה Premium של השוק היווני — היחידה לכל מפתח שהבנקאי המלונאי חותם עליה. המספרים בפועל של השכרת הוילה כולה ב-Villa Lev מתארים יחידה אחרת (קונה אחד שוכר את כל הנכס) ואינם חוזרים כאן — הם מופיעים בטראק-רקורד החי שמעל.',
   'triangle.seeComparables': 'הצג את {n} ההשוואות →',
   'triangle.seeVillaMarket': 'שוק מכירה והשכרת וילות →',
+  'collateral.saleMarketStudy': 'מחקר שוק מכירות',
   'triangle.bpFloor': 'BP הוא הרצפה',
   // ── מגירת השוואות ──
   'drawer.title': 'השוואות יווניות + בינלאומיות',
@@ -477,6 +478,7 @@ export const he: TranslationDictionary = {
   'drawer.empty': 'אין השוואות התואמות את הסינון הנוכחי.',
   'drawer.countLabel': '{n} השוואות מוצגות',
   'villaDrawer.title': 'שוק וילות — פארוס / אנטיפארוס',
+  'villaDrawer.titleSaleOnly': 'מחקר שוק מכירות — פארוס / אנטיפארוס',
   'villaDrawer.subtitle': '{sale} עסקאות מכירה · {rental} השכרות · 2025–2026',
   'villaDrawer.tabSale': 'מחירי מכירה',
   'villaDrawer.tabRental': 'תעריפי השכרה',

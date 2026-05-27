@@ -457,6 +457,7 @@ export const en: TranslationDictionary = {
   'triangle.defenceCopy': "BP suite-night prices are compared against the Greek market's basic-room and premium-suite tiers — the per-key unit a hotel banker underwrites. Villa Lev's own whole-villa actuals describe a different unit (one buyer rents the entire property) and aren't repeated here — they appear in the live track-record above.",
   'triangle.seeComparables': 'See the {n} comparables →',
   'triangle.seeVillaMarket': 'Villa sale & rental market →',
+  'collateral.saleMarketStudy': 'Sales Market Study',
   'triangle.bpFloor': 'BP is the floor',
   // ── MarketComparablesDrawer ──
   'drawer.title': 'Greek + international comparables',
@@ -481,6 +482,7 @@ export const en: TranslationDictionary = {
   'drawer.empty': 'No comparables match the current filter.',
   'drawer.countLabel': '{n} comparables shown',
   'villaDrawer.title': 'Villa sale & rental market — Paros / Antiparos',
+  'villaDrawer.titleSaleOnly': 'Sales Market Study — Paros / Antiparos',
   'villaDrawer.subtitle': '{sale} sale transactions · {rental} rental comparables · 2025–2026',
   'villaDrawer.tabSale': 'Property Sale Prices',
   'villaDrawer.tabRental': 'Villa Rental Rates',

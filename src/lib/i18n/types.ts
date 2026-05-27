@@ -280,6 +280,7 @@ export interface TranslationDictionary {
   'triangle.defenceCopy': string;
   'triangle.seeComparables': string;     // template — uses {n}
   'triangle.seeVillaMarket': string;
+  'collateral.saleMarketStudy': string;
   'triangle.bpFloor': string;            // small caption: "BP is the floor"
   // Drawer
   'drawer.title': string;
@@ -305,6 +306,7 @@ export interface TranslationDictionary {
   'drawer.countLabel': string;           // template — uses {n}
   // Villa market drawer
   'villaDrawer.title': string;
+  'villaDrawer.titleSaleOnly': string;
   'villaDrawer.subtitle': string;
   'villaDrawer.tabSale': string;
   'villaDrawer.tabRental': string;

@@ -123,7 +123,7 @@ export function VillaMarketDrawer({ open, onClose, initialTab = "sale", onlyTab 
         <header className="flex items-start justify-between gap-3 px-5 py-4 border-b border-surface-tertiary bg-surface-secondary">
           <div className="min-w-0">
             <h2 id="villa-drawer-title" className="text-sm font-semibold text-text-primary uppercase tracking-[0.12em]">
-              {t("villaDrawer.title")}
+              {onlyTab === "sale" ? t("villaDrawer.titleSaleOnly") : t("villaDrawer.title")}
             </h2>
             <p className="text-[11px] text-text-tertiary mt-1">
               {t("villaDrawer.subtitle").replace("{sale}", String(VILLA_MARKET_SOURCE.saleProperties)).replace("{rental}", String(VILLA_MARKET_SOURCE.rentalProperties))}

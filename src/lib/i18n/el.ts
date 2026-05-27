@@ -461,6 +461,7 @@ export const el: TranslationDictionary = {
   'triangle.defenceCopy': 'Οι τιμές BP ανά σουίτα-διανυκτέρευση συγκρίνονται με τις κατηγορίες basic δωματίου και premium σουίτας της ελληνικής αγοράς — την ανά-κλειδί μονάδα που εγγυάται ο τραπεζίτης ξενοδοχείων. Τα πραγματικά νούμερα ολόκληρης της βίλας της Villa Lev αφορούν διαφορετική μονάδα (ένας αγοραστής νοικιάζει ολόκληρο το ακίνητο) και δεν επαναλαμβάνονται εδώ — εμφανίζονται στο live track-record παραπάνω.',
   'triangle.seeComparables': 'Δείτε τα {n} συγκρίσιμα →',
   'triangle.seeVillaMarket': 'Αγορά πώλησης & ενοικίασης βίλας →',
+  'collateral.saleMarketStudy': 'Μελέτη Αγοράς Πώλησης',
   'triangle.bpFloor': 'BP είναι το κατώφλι',
   // ── Συρτάρι συγκρίσιμων ──
   'drawer.title': 'Ελληνικά + διεθνή συγκρίσιμα',
@@ -485,6 +486,7 @@ export const el: TranslationDictionary = {
   'drawer.empty': 'Κανένα συγκρίσιμο δεν ταιριάζει με το τρέχον φίλτρο.',
   'drawer.countLabel': '{n} συγκρίσιμα εμφανίζονται',
   'villaDrawer.title': 'Αγορά βίλας — Πάρος / Αντίπαρος',
+  'villaDrawer.titleSaleOnly': 'Μελέτη Αγοράς Πώλησης — Πάρος / Αντίπαρος',
   'villaDrawer.subtitle': '{sale} πωλήσεις · {rental} ενοικιάσεις · 2025–2026',
   'villaDrawer.tabSale': 'Τιμές Πώλησης',
   'villaDrawer.tabRental': 'Ενοικιάσεις Βίλας',
