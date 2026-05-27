@@ -1454,6 +1454,13 @@ export const fr = {
   'bank.wc.dual.opWcLabel': '② Fonds de roulement opérationnel',
   'bank.wc.dual.opWcSub': 'à partir de 2028 · tirage saisonnier ≤€200K · autofinancé chaque saison haute',
   'bank.wc.dual.sizingNote': 'Dimensionné pour le pic du pont TVA ; même facilité bascule vers le FDR opérationnel après construction',
+  'bank.creditAsk.heading': 'Facilités de Crédit Demandées',
+  'bank.creditAsk.total': 'Engagement de crédit total',
+  'bank.creditAsk.facility1.label': '① Prêt à Terme',
+  'bank.creditAsk.facility1.purpose': 'Investissement en capital — construction, aménagement & paysage',
+  'bank.creditAsk.facility2.label': '② Facilité Renouvelable de Trésorerie',
+  'bank.creditAsk.facility2.purpose': 'Pont TVA construction → fonds de roulement opérationnel',
+  'bank.creditAsk.facility2.separate': 'Facilité séparée · non tirée à la clôture',
 
   // ── Exit Analysis two-row table (P2-08) ──
   'dash.exit.route':     'Voie de Sortie',

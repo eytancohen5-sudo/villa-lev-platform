@@ -582,38 +582,68 @@ export default function BankPage() {
                     </div>
                   ))}
                 </div>
-                {/* WC facility note — dual-use decomposition (ADR-0015) */}
-                <div className="border-t border-surface-tertiary bg-surface-secondary/40 px-5 py-3">
-                  <div className="flex items-start gap-2 text-[11px] text-text-tertiary">
-                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 mt-0.5 text-text-tertiary/60" aria-hidden="true">
-                      <circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" strokeWidth="1.1"/>
-                      <path d="M6.5 5.5v4M6.5 4h.01" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                    </svg>
-                    <span>
-                      <span className="font-medium text-text-secondary">{t('bank.wc.title')}</span>
-                      {" "}—{" "}
-                      {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)} {t('bank.wc.revolving')}
-                      {assumptions.workingCapital.spreadOverTermRate > 0
-                        ? ` · +${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} ${t('bank.wc.bpsSpread')}`
-                        : ""}
-                      {assumptions.workingCapital.selfLiquidating
-                        ? ` · ${t('bank.wc.selfLiquidating')}`
-                        : ""}
-                      {" "}·{" "}
-                      <span className="font-medium text-text-secondary">{t('bank.wc.notIncluded')}</span>
+                {/* Credit Facilities Requested — term loan + WC revolving */}
+                <div className="border-t border-surface-tertiary bg-amber-50/30 px-5 py-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-text-secondary">
+                      {t('bank.creditAsk.heading')}
+                    </span>
+                    <span className="text-xs text-text-secondary">
+                      {t('bank.creditAsk.total')}:{" "}
+                      <span className="font-mono font-semibold text-text-primary">
+                        {formatCurrency(km.loanAmount + assumptions.workingCapital.facilitySize, true, locale)}
+                      </span>
                     </span>
                   </div>
-                  {/* Dual-use sub-items */}
-                  <div className="mt-2 ml-5 space-y-1">
-                    <div className="text-[11px]">
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Facility 1 — Term Loan */}
+                    <div className="rounded-lg border border-brand-200 bg-white px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-brand-500 mb-1.5">
+                        {t('bank.creditAsk.facility1.label')}
+                      </div>
+                      <div className="font-mono font-bold text-xl text-text-primary leading-none">
+                        {formatCurrency(km.loanAmount, true, locale)}
+                      </div>
+                      <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
+                        {(rate * 100).toFixed(2)}% · {term}y · {grace}y grace
+                      </div>
+                      <div className="text-[10px] text-text-tertiary mt-1 leading-snug">
+                        {t('bank.creditAsk.facility1.purpose')}
+                      </div>
+                    </div>
+                    {/* Facility 2 — WC Revolving */}
+                    <div className="rounded-lg border border-amber-200 bg-white px-4 py-3">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1.5">
+                        {t('bank.creditAsk.facility2.label')}
+                      </div>
+                      <div className="font-mono font-bold text-xl text-text-primary leading-none">
+                        {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)}
+                      </div>
+                      <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
+                        {assumptions.workingCapital.spreadOverTermRate > 0
+                          ? `+${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} bps`
+                          : ""}
+                        {assumptions.workingCapital.selfLiquidating ? " · self-liquidating" : ""}
+                      </div>
+                      <div className="text-[10px] text-text-tertiary mt-1 leading-snug">
+                        {t('bank.creditAsk.facility2.purpose')}
+                      </div>
+                      <div className="text-[9px] text-amber-600/80 mt-1.5 italic">
+                        {t('bank.creditAsk.facility2.separate')}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Dual-use detail */}
+                  <div className="mt-3 space-y-1">
+                    <div className="text-[10px]">
                       <span className="font-medium text-text-secondary">{t('bank.wc.dual.vatBridgeLabel')}</span>
                       {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.vatBridgeSub')}</span>
                     </div>
-                    <div className="text-[11px]">
+                    <div className="text-[10px]">
                       <span className="font-medium text-text-secondary">{t('bank.wc.dual.opWcLabel')}</span>
                       {" · "}<span className="text-text-tertiary">{t('bank.wc.dual.opWcSub')}</span>
                     </div>
-                    <div className="text-[10px] text-text-tertiary/70 italic mt-1">
+                    <div className="text-[10px] text-text-tertiary/70 italic mt-0.5">
                       {t('bank.wc.dual.sizingNote')}
                     </div>
                   </div>
