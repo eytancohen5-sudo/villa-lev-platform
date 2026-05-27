@@ -16,7 +16,7 @@
 import type { Locale } from "@/lib/i18n/types";
 
 export const PRESENTATION_PDF_URL =
-  "/VillaLevGroup_Presentation_v24_26May2026.pdf";
+  "/VillaLevGroup_Presentation_v25_27May2026.pdf";
 
 const _m = PRESENTATION_PDF_URL.match(
   /_v(\d+)_(\d{2})([A-Za-z]+)(\d{4})(?:_(\d{2})(\d{2}))?/
@@ -32,12 +32,12 @@ export const PRESENTATION_LABEL   = _m
 // EL/HE point to the latest translated versions available in public/.
 // When a locale-specific PDF is deployed, update its entry here and
 // set its PRESENTATION_VERSION_BY_LOCALE entry to PRESENTATION_VERSION.
-// NOTE: EL/HE are v24 (partial translation: structure translated, body prose English).
-// EN stays on v23 until a v24 EN PDF is exported and placed in public/.
+// EL/HE temporarily serve the EN PDF (full 49-page deck).
+// Replace with locale-specific PDFs once full translations are available.
 export const PRESENTATION_PDF_BY_LOCALE: Partial<Record<Locale, string>> = {
   en: PRESENTATION_PDF_URL,
-  el: "/VillaLevGroup_Presentation_v24_27May2026.el.pdf",
-  he: "/VillaLevGroup_Presentation_v24_27May2026.he.pdf",
+  el: PRESENTATION_PDF_URL,
+  he: PRESENTATION_PDF_URL,
 };
 
 export const PRESENTATION_VERSION_BY_LOCALE: Partial<Record<Locale, string>> = {

@@ -2,7 +2,7 @@ import { TranslationDictionary } from './types';
 
 export const el: TranslationDictionary = {
   'app.title': 'Villa Lev Group',
-  'app.subtitle': 'Επέκταση Ξενοδοχειακού Χαρτοφυλακίου · Αντίπαρος, Ελλάδα',
+  'app.subtitle': 'Επέκταση Χαρτοφυλακίου · Αντίπαρος, Ελλάδα',
   'app.platform': 'Πλατφόρμα Χρηματοδότησης',
   'app.confidential': 'Εμπιστευτικό · Villa Lev Group',
   'app.loanApp': 'Αίτηση Χρηματοδότησης',
@@ -944,7 +944,7 @@ export const el: TranslationDictionary = {
   'pitch.cover.eyebrow': 'Επέκταση χαρτοφυλακίου · Άγιος Γεώργιος, Αντίπαρος',
   'pitch.cover.titleLine1': 'Μια αποδεδειγμένη λειτουργία,',
   'pitch.cover.titleLine2': 'σχεδιασμένη για κλίμακα.',
-  'pitch.cover.lede': 'Τρία ακίνητα. Μία γειτονιά. Μια αγορά που αναπτύχθηκε 4,6× ενώ απορρίπταμε κρατήσεις αξίας 300.000 €.',
+  'pitch.cover.lede': 'Τέσσερα οικόπεδα. Μία γειτονιά. Μια αγορά που αναπτύχθηκε 4,6× ενώ απορρίπταμε κρατήσεις αξίας 300.000 €.',
   'pitch.cover.totalInvestment': 'Συνολική επένδυση',
   'pitch.cover.loanRequested': 'Αιτούμενο δάνειο',
   'pitch.cover.ofCapex': 'του CapEx',
@@ -987,7 +987,7 @@ export const el: TranslationDictionary = {
 
   'pitch.project.eyebrow': 'Το έργο · Τρία οικόπεδα, μία θέση',
   'pitch.project.title': 'Ίδια γειτονιά. Ίδιος φορέας λειτουργίας. Σε κλίμακα.',
-  'pitch.project.lede': 'Τρία οικόπεδα στον Άγιο Γεώργιο, Αντίπαρος — ο ίδιος όρμος με τη Villa Lev — όλα εντός των οικιστικών ορίων ΦΕΚ. 950 m² δομημένης επιφάνειας σε δύο δίδυμες βίλες και ένα boutique συγκρότημα suites.',
+  'pitch.project.lede': 'Τέσσερα οικόπεδα στον Άγιο Γεώργιο, Αντίπαρος — δύο βίλες πολυτελείας 7 υπνοδωματίων (Villa N°1 και Villa N°2), ένα κτίριο 11 σουιτών σε 15.000 μ² και ένα boutique wellness κτίριο. 1.555 m² δομημένα · 17 βασικές μονάδες · 23 κλειδιά (max split) · 35 υπνοδωμάτια.',
   'pitch.project.twinIName': 'Δίδυμη Βίλα Ι',
   'pitch.project.twinIIName': 'Δίδυμη Βίλα ΙΙ',
   'pitch.project.suitesName': 'Μπουτίκ Σουίτες',

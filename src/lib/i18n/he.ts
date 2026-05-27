@@ -2,7 +2,7 @@ import { TranslationDictionary } from './types';
 
 export const he: TranslationDictionary = {
   'app.title': 'Villa Lev Group',
-  'app.subtitle': 'הרחבת תיק מלונות · אנטיפארוס, יוון',
+  'app.subtitle': 'הרחבת תיק נכסים · אגיוס גיאורגיוס, אנטיפרוס',
   'app.platform': 'פלטפורמת מימון',
   'app.confidential': 'סודי · Villa Lev Group',
   'app.loanApp': 'בקשת מימון',
@@ -122,26 +122,26 @@ export const he: TranslationDictionary = {
   'bank.pnlFooterNote': 'רצפת קובננט DSCR 1.25× · ירוק ≥1.25× תקין, כתום 1.00–1.25×, אדום <1.00×. אירועים והכנסות נלוות מוצגים נטו (לאחר ניכוי עלויות). 2029: שנה ראשונה לשירות חוב מלא (קרן + ריבית) לאחר 2 שנות גרייס. הכנסות שלב העלייה מדורגות מתחת לביצועים בפועל של Villa Lev — הנתונים המייצבים של 2031+ עולים עליהם.',
 
   // ── Bar chrome ──
-  'bar.preparing': 'מכין…', // TODO: translate
+  'bar.preparing': 'מכין…',
   // ── Export button ──
-  'bar.exportExcel': 'ייצוא מודל', // TODO: translate
-  'bar.exportExcelShort': 'ייצוא', // TODO: translate
-  'bar.exportBankDocx': '.docx', // TODO translate
-  'bar.toAdmin': 'ניהול ←', // TODO: translate
+  'bar.exportExcel': 'ייצוא מודל',
+  'bar.exportExcelShort': 'ייצוא',
+  'bar.exportBankDocx': '.docx',
+  'bar.toAdmin': 'ניהול ←',
   'bar.signIn': 'כניסה',
-  'admin.bar.adjust': 'כוונון', // TODO: translate
-  'admin.bar.loanParams': 'פרמטרי הלוואה', // TODO: translate
-  'admin.bar.exitYear': 'יציאה', // TODO: translate
-  'admin.bar.exitX': '×', // TODO: translate
-  'admin.bar.perM2': '€/m²', // TODO: translate
-  'admin.bar.stubAtMaturity': 'תשלום בפירעון', // TODO: translate
-  'admin.bar.viewPresentation': 'צפייה בפרזנטציה ↗', // TODO: translate
-  'admin.bar.bankerView': 'תצוגת בנקאי', // TODO: translate
+  'admin.bar.adjust': 'כוונון',
+  'admin.bar.loanParams': 'פרמטרי הלוואה',
+  'admin.bar.exitYear': 'יציאה',
+  'admin.bar.exitX': '×',
+  'admin.bar.perM2': '€/m²',
+  'admin.bar.stubAtMaturity': 'תשלום בפירעון',
+  'admin.bar.viewPresentation': 'צפייה בפרזנטציה ↗',
+  'admin.bar.bankerView': 'תצוגת בנקאי',
   'admin.bar.bankerViewArrow': '←', // RTL reversal
   'admin.bar.exitYearRange': '2030–2036',
   'admin.nav.collapse': 'כיווץ',
-  'admin.banner.stalePart1': 'מציג תצלום סטטי מ-', // TODO: translate
-  'admin.banner.stalePart2': '— עדכון חי לא מחובר.', // TODO: translate
+  'admin.banner.stalePart1': 'מציג תצלום סטטי מ-',
+  'admin.banner.stalePart2': '— עדכון חי לא מחובר.',
 
   // BankControlBar
   'bank.bar.commercial': 'מסחרי',
@@ -212,13 +212,9 @@ export const he: TranslationDictionary = {
   'as.dsraRepayThresholdNote': 'ההלוואה הנדחית של השותף מתחילה להיפרע רק לאחר מילוי הרזרבה במלואה ואחרי שהמלון עבר את יעד ה-DSCR במספר שנים רצופות כה.',
   'as.wcDsraNote': 'נועל נתח DSRA, מפחית גמישות',
   // ── Portfolio OPEX P&L rows ──
-  // TODO: translate
   'pnl.portfolioStaff': 'צוות תיק הנכסים',
-  // TODO: translate
   'pnl.portfolioServices': 'שירותי תיק הנכסים',
-  // TODO: translate
   'pnl.portfolioOverhead': 'הוצאות כלליות של תיק הנכסים',
-  // TODO: translate
   'pnl.portfolioPreOpening': 'פחת טרום פתיחה',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'משיכת DSRA',
@@ -288,7 +284,7 @@ export const he: TranslationDictionary = {
   'ct.footnoteWaterfall': 'כיצד עובד המפל: החלק הכלכלי של היזם נקבע ביציאה לפי שלוש השכבות; המשקיעים מחלקים את היתרה יחסית למזומן. ה-Ratchet משתמש ברצפות MOIC. Caps מגנים על משקיעים (≥ {minShare} מובטח).',
   'ct.footnoteFees': 'עמלות תפעול (נפרדות מהון): ה-ManCo של היזם מקבלת 5% מהכנסות ועמלת הצלחה 10% על מענק (מחצית מזומן, מחצית הון שכבה ב).',
   'ct.footnoteTip': 'טיפ: לחצו על שורה לפרטים שנה-שנה. שנו סכום להפעלת מחדש של המפל.',
-  'ct.exportDocx': 'Word', // TODO translate
+  'ct.exportDocx': 'Word',
 
   // ── Auth Gate / Login ──
   'auth.gate.loading': 'טוען…',
@@ -669,83 +665,44 @@ export const he: TranslationDictionary = {
   'as.general': 'כללי',
   'as.revenue': 'הכנסות',
   'as.opexTab': 'OPEX',
-  // TODO: translate
   'as.portfolioOpexTab': 'OPEX תיק הנכסים',
-  // TODO: translate
   'as.portfolioOpex.tabIntro': 'הוצאות כלליות בלתי מחולקות משותפות לכל הנכסים.',
-  // TODO: translate
   'as.portfolioOpex.totalBadge': 'סה"כ OPEX תיק הנכסים',
-  // TODO: translate
   'as.portfolioOpex.yearRoundFixed': 'קבוע כל השנה',
-  // TODO: translate
   'as.portfolioOpex.variable': 'משתנה',
-  // TODO: translate
   'as.portfolioOpex.staffSection': 'צוות משותף',
-  // TODO: translate
   'as.portfolioOpex.servicesSection': 'שירותים משותפים ותחזוקה',
-  // TODO: translate
   'as.portfolioOpex.overheadSection': 'הוצאות כלליות משותפות',
-  // TODO: translate
   'as.portfolioOpex.preOpeningSection': 'פחת טרום פתיחה',
-  // TODO: translate
   'as.portfolioOpex.addRole': 'הוספת תפקיד',
-  // TODO: translate
   'as.portfolioOpex.addService': 'הוספת שירות',
-  // TODO: translate
   'as.portfolioOpex.addOverhead': 'הוספת הוצאה כללית',
-  // TODO: translate
   'as.portfolioOpex.roleYearRound': 'כל השנה',
-  // TODO: translate
   'as.portfolioOpex.roleSeasonal': 'עונתי',
-  // TODO: translate
   'as.portfolioOpex.preOpeningTotal': 'סה"כ טרום פתיחה (€)',
-  // TODO: translate
   'as.portfolioOpex.preOpeningAmortYears': 'שנות פחת',
-  // TODO: translate
   'as.portfolioOpex.preOpeningStartYear': 'שנת התחלה',
-  // TODO: translate
   'as.portfolioOpex.annualAmort': 'פחת שנתי',
-  // TODO: translate
   'as.portfolioOpex.migrationBanner': 'מעבר v1→v2: משק בית הועבר מלפי-תבנית ל-OPEX תיק הנכסים.',
-  // TODO: translate
   'as.portfolioOpex.migrationDismiss': 'סגור',
-  // TODO: translate
   'as.portfolioOpex.sizingBasis': 'בסיס קביעת גודל',
-  // TODO: translate
   'as.portfolioOpex.bankingTooltip': '≈ הכנסות × תמהיל הזמנה ישירה × שיעור עיבוד כרטיס ממוצע. ברירת מחדל: €1.9M × 50% × 3.2% ≈ €30K.',
-  // TODO: translate
   'as.portfolioOpex.insuranceTooltip': 'D&O, BI, אדם מפתח, סייבר, חבות אירועים — פוליסה אחת ברמת תיק הנכסים נפרדת מכיסוי בניין לכל נכס.',
-  // TODO: translate
   'as.portfolioOpex.colRole': 'תפקיד',
-  // TODO: translate
   'as.portfolioOpex.colMonthlyGross': 'ברוטו חודשי',
-  // TODO: translate
   'as.portfolioOpex.colMonths': 'חודשים/שנה',
-  // TODO: translate
   'as.portfolioOpex.colBurden': 'נטל ×',
-  // TODO: translate
   'as.portfolioOpex.colAllowances': 'תוספות',
-  // TODO: translate
   'as.portfolioOpex.colNetMonthly': 'נטו/חודש (מוערך)',
-  // TODO: translate
   'as.portfolioOpex.colNetMonthlyTooltip': 'שכר עובד נטו מוערך: ברוטו פחות ביטוח לאומי (13.87%) ומדרגות מס הכנסה יווניות מפושטות. אינו חישוב שכר.',
-  // TODO: translate
   'as.portfolioOpex.colHeadcount': 'עובדים',
-  // TODO: translate
   'as.portfolioOpex.colHeadcountTooltip': 'מספר עובדים בתפקיד זה. מכפיל שכר ברוטו, נטל ותוספות.',
-  // TODO: translate
   'as.portfolioOpex.colBonus': 'דמי חגים',
-  // TODO: translate
   'as.portfolioOpex.colBonusTooltip': 'פרמיית חגים חוקית (€). מענק חג המולד (משכורת חודש) + מענק פסחא (½) + מענק חופשה שנתית (½) = 2 חודשים לעובד שנתי. עובד עונתי: ברוטו × (חודשי חוזה ÷ 12) × 2.',
-  // TODO: translate
   'as.portfolioOpex.poolCount': 'בריכות',
-  // TODO: translate
   'as.portfolioOpex.poolsAt': 'בריכות ×',
-  // TODO: translate
   'as.portfolioOpex.poolCostPerUnit': '€/בריכה/שנה',
-  // TODO: translate
   'as.portfolioOpex.poolPerPoolYear': '(חומרים + שירות)',
-  // TODO: translate
   'as.portfolioOpex.colAnnual': 'שנתי (עם נטל)',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'בחרו את מבנה המימון הפעיל. כל המודל מחושב מחדש על בסיס המסלול הנבחר.',
@@ -783,21 +740,21 @@ export const he: TranslationDictionary = {
   'field.nightsCap': 'תקרת לילות (מקסימום לילות/שנה)',
   'field.citRate': 'שיעור מס חברות',
   'field.vatRate': 'שיעור מע"מ נטו (אפקטיבי)',
-  'as.otaDistribution': 'פיזור OTA', // TODO: translate
-  'as.otaDistribution.note': 'שיעור אפקטיבי = עמלה × נתח OTA. נתח OTA 1 = 100% דרך OTA; 0 = 100% ישיר.', // TODO: translate
-  'as.otaDistribution.yearHeader': 'שנה', // TODO: translate
-  'as.otaDistribution.commissionHeader': 'עמלת OTA', // TODO: translate
-  'as.otaDistribution.otaShareHeader': 'נתח OTA', // TODO: translate
-  'as.otaDistribution.effectiveHeader': 'שיעור אפקטיבי', // TODO: translate
-  'field.otaCommissionRate': 'עמלת פלטפורמת OTA (ערך ברירת מחדל)', // TODO: translate
-  'field.otaShare': 'נתח OTA — שנת פתיחה', // TODO: translate
-  'field.otaShareDecline': 'צמיחת ערוץ ישיר (לשנה)', // TODO: translate
+  'as.otaDistribution': 'פיזור OTA',
+  'as.otaDistribution.note': 'שיעור אפקטיבי = עמלה × נתח OTA. נתח OTA 1 = 100% דרך OTA; 0 = 100% ישיר.',
+  'as.otaDistribution.yearHeader': 'שנה',
+  'as.otaDistribution.commissionHeader': 'עמלת OTA',
+  'as.otaDistribution.otaShareHeader': 'נתח OTA',
+  'as.otaDistribution.effectiveHeader': 'שיעור אפקטיבי',
+  'field.otaCommissionRate': 'עמלת פלטפורמת OTA (ערך ברירת מחדל)',
+  'field.otaShare': 'נתח OTA — שנת פתיחה',
+  'field.otaShareDecline': 'צמיחת ערוץ ישיר (לשנה)',
   'field.villaADR': 'ADR וילה — נטו משולב (€/לילה)',
   'field.villaNights': 'לילות וילה / שנה (בסיס, בשלות)',
   'field.stdSuiteADR': 'ADR סוויטה סטנדרט (€/לילה)',
   'field.dblSuiteADR': 'ADR סוויטה כפולה (€/לילה)',
-  'field.grossADR': 'ADR ברוטו', // TODO: translate
-  'field.grossADR.note': 'נטו ÷ (1 − עמלת OTA) — מחיר מדף באירבנב / בוקינג', // TODO: translate
+  'field.grossADR': 'ADR ברוטו',
+  'field.grossADR.note': 'נטו ÷ (1 − עמלת OTA) — מחיר מדף באירבנב / בוקינג',
   'field.suiteNights': 'לילות סוויטה / שנה (בסיס, בשלות)',
   'field.eventsPerYear': 'אירועים לשנה',
   'field.profitPerEvent': 'רווח נקי לאירוע (€)',
@@ -936,7 +893,7 @@ export const he: TranslationDictionary = {
   'pitch.cover.eyebrow': 'הרחבת תיק · אגיוס גיאורגיוס, אנטיפארוס',
   'pitch.cover.titleLine1': 'פעילות מוכחת,',
   'pitch.cover.titleLine2': 'בנויה במיוחד עבור הרחבה.',
-  'pitch.cover.lede': 'שלושה נכסים. שכונה אחת. שוק שצמח פי 4.6 בזמן שדחינו הזמנות בהיקף של 300,000 אירו.',
+  'pitch.cover.lede': 'ארבע חלקות. שכונה אחת. שוק שצמח פי 4.6 בזמן שדחינו הזמנות בהיקף של 300,000 אירו.',
   'pitch.cover.totalInvestment': 'השקעה כוללת',
   'pitch.cover.loanRequested': 'הלוואה מבוקשת',
   'pitch.cover.ofCapex': 'מסך ה-CapEx',
@@ -979,7 +936,7 @@ export const he: TranslationDictionary = {
 
   'pitch.project.eyebrow': 'הפרויקט · שלוש חלקות, תזה אחת',
   'pitch.project.title': 'אותה שכונה. אותו מפעיל. בקנה מידה.',
-  'pitch.project.lede': 'שלוש חלקות באגיוס גיאורגיוס, אנטיפארוס — אותו מפרץ של Villa Lev — הכל בתוך גבולות הבנייה הכפריים של ה-FEK. 950 מ״ר בנוי בשתי וילות תאומות ונכס סוויטות בוטיק אחד.',
+  'pitch.project.lede': 'ארבע חלקות באגיוס גיאורגיוס, אנטיפרוס — שתי וילות יוקרה בנות שבעה חדרי שינה (Villa N°1 ו-Villa N°2), מבנה 11 סוויטות על חלקה של 15,000 מ"ר ומבנה בוטיק wellness. 1,555 מ"ר בנוי · 17 יחידות בסיס · 23 מפתחות (פיצול מקס) · 35 חדרי שינה.',
   'pitch.project.twinIName': 'וילה תאומה I',
   'pitch.project.twinIIName': 'וילה תאומה II',
   'pitch.project.suitesName': 'סוויטות בוטיק',
@@ -1285,7 +1242,7 @@ export const he: TranslationDictionary = {
   'pnl.loanBalanceClosing': 'יתרת הלוואה (סגירה)',
   'pnl.coverageSection': 'כיסוי',
   'pnl.dscrBaseCase': 'DSCR — תרחיש בסיס (EBITDA / DS)',
-  'pnl.dscrCfads':    'DSCR — Post-tax (CFADS / DS)', // TODO: translate
+  'pnl.dscrCfads':    'DSCR — Post-tax (CFADS / DS)',
   'pnl.dscrUpside': 'DSCR — ריאליסטי+',
   'pnl.dscrDownside': 'DSCR — שלילי',
   'pnl.dscrLoadedLabel': 'DSCR עמוס (כולל ריבית הון חוזר)',
@@ -1329,19 +1286,19 @@ export const he: TranslationDictionary = {
   'stress.baseDefaults': 'כל הערכים בברירות המחדל. ערוך שדה ולחץ Enter או Tab להחלה.',
 
   // ── Page intros ──
-  'dash.pageIntro': 'עקוב אחר העסקה מכל זווית: דף תנאים, DSCR, תשואות והוכחת פעילות חיה — הכל בתצוגה אחת.', // TODO: translate
-  'pnl.pageIntro': 'טבלת 11 שנים הכנסות → EBITDA → שירות חוב → NCF, מתעדכנת בזמן אמת לכל מסלול ותרחיש.', // TODO: translate
-  'sc.pageIntro': 'ארבעה תרחישים וארבעה מסלולי מימון זה לצד זה בשנת היציבות — תצוגת מבחן לחץ של הבנקאי.', // TODO: translate
-  'capex.pageIntro': 'עלות כוללת לפרויקט לפי קטגוריה ונכס — ערוך ערך כחול כלשהו וכל המודל מחשב מחדש.', // TODO: translate
-  'sens.pageIntro': 'שנה גורם אחד בכל פעם — ריבית, תפוסה, ADR, הון חוזר — וראה DSCR ו-IRR מגיבים.', // TODO: translate
-  'opco.pageIntro': 'כיצד מבנה שתי הישויות PropCo / OpCo מפריד בין בעלות על נכסים לבין פעילות — ומה זה אומר עבור DSCR של הבנק.', // TODO: translate
-  'team.pageIntro': 'הזמן שותפי עבודה באמצעות אימייל, הקצה תפקידים וראה מי כבר ניגש למודל.', // TODO: translate
-  'returns.pageIntro': 'תשואת הון, MOIC, שנות החזר ו-IRR — כלכלת ספונסר בשנת היציאה הפעילה ומסלול המימון.', // TODO: translate
-  'dc.pageIntro': 'מסלול DSCR שנה אחר שנה וכל יחסי הכיסוי שוועדת אשראי מעריכה מולם.', // TODO: translate
-  'financing.pageIntro': 'כל ארבע מבני המימון מושווים זה לצד זה.', // TODO: translate
-  'ct.pageIntro': 'פיזור הון בשנת היציאה הפעילה — מפל מייסדים בשלוש שכבות, נתחי משקיעים, MOIC ו-IRR לכל בעל מניות.', // TODO: translate
-  'lex.pageIntro': 'כל נוסחה שהמודל מריץ — CAPEX, הכנסות, EBITDA, PMT, DSCR, נקודת איזון, בטחונות וכל ארבעת מסלולי המימון.', // TODO: translate
-  'as.pageIntro': 'לוח הבקרה של המודל: ערוך ערך כחול כלשהו בשש כרטיסיות וכל גרף, KPI וטבלה מחשבים מחדש באופן מיידי.', // TODO: translate
+  'dash.pageIntro': 'עקוב אחר העסקה מכל זווית: דף תנאים, DSCR, תשואות והוכחת פעילות חיה — הכל בתצוגה אחת.',
+  'pnl.pageIntro': 'טבלת 11 שנים הכנסות → EBITDA → שירות חוב → NCF, מתעדכנת בזמן אמת לכל מסלול ותרחיש.',
+  'sc.pageIntro': 'ארבעה תרחישים וארבעה מסלולי מימון זה לצד זה בשנת היציבות — תצוגת מבחן לחץ של הבנקאי.',
+  'capex.pageIntro': 'עלות כוללת לפרויקט לפי קטגוריה ונכס — ערוך ערך כחול כלשהו וכל המודל מחשב מחדש.',
+  'sens.pageIntro': 'שנה גורם אחד בכל פעם — ריבית, תפוסה, ADR, הון חוזר — וראה DSCR ו-IRR מגיבים.',
+  'opco.pageIntro': 'כיצד מבנה שתי הישויות PropCo / OpCo מפריד בין בעלות על נכסים לבין פעילות — ומה זה אומר עבור DSCR של הבנק.',
+  'team.pageIntro': 'הזמן שותפי עבודה באמצעות אימייל, הקצה תפקידים וראה מי כבר ניגש למודל.',
+  'returns.pageIntro': 'תשואת הון, MOIC, שנות החזר ו-IRR — כלכלת ספונסר בשנת היציאה הפעילה ומסלול המימון.',
+  'dc.pageIntro': 'מסלול DSCR שנה אחר שנה וכל יחסי הכיסוי שוועדת אשראי מעריכה מולם.',
+  'financing.pageIntro': 'כל ארבע מבני המימון מושווים זה לצד זה.',
+  'ct.pageIntro': 'פיזור הון בשנת היציאה הפעילה — מפל מייסדים בשלוש שכבות, נתחי משקיעים, MOIC ו-IRR לכל בעל מניות.',
+  'lex.pageIntro': 'כל נוסחה שהמודל מריץ — CAPEX, הכנסות, EBITDA, PMT, DSCR, נקודת איזון, בטחונות וכל ארבעת מסלולי המימון.',
+  'as.pageIntro': 'לוח הבקרה של המודל: ערוך ערך כחול כלשהו בשש כרטיסיות וכל גרף, KPI וטבלה מחשבים מחדש באופן מיידי.',
   'bank.pageIntro': 'מודל מימון חי להרחבת Villa Lev Group — DSCR, בטחונות, רווח והפסד וניתוח תרחישים מלא.',
 
   // ── Conservative Assumptions Memo ──
@@ -1983,7 +1940,7 @@ export const he: TranslationDictionary = {
   'bank.about.unitDbl':         'כפול.',
 
   // ── Bank coverage group heading (2026-05-25) ──
-  'bank.coverage.groupHeading': 'יחסי כיסוי אשראי', // TODO: translate
+  'bank.coverage.groupHeading': 'יחסי כיסוי אשראי',
 
   // ── BankStressTest output strip (P2-07) ──
   'bank.stress.output.dscr':   'DSCR בלחץ',
@@ -2017,14 +1974,14 @@ export const he: TranslationDictionary = {
   'covenant.distributionUnlocked': 'אמת מידה הרזרבה הושגה — חלוקות מותרות',
 
   // ── Tax-loss carryforward (Pass 2B) ───────────────────────────────────────
-  'term.taxLossGenerated':   'הפסד מס שנוצר', // TODO: translate
-  'term.taxLossUtilised':    'הפסד מס שנוצל', // TODO: translate
+  'term.taxLossGenerated':   'הפסד מס שנוצר',
+  'term.taxLossUtilised':    'הפסד מס שנוצל',
   'term.taxLossPoolBalance': 'הפסדים להעברה', // Losses carry forward
 
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
-  'pnl.depreciation':        'פחת (סעיף 24, קו ישר)', // TODO: translate
-  'pnl.ebit':                'EBIT (לאחר פחת)', // TODO: translate
-  'term.annualDepreciation': 'פחת שנתי', // TODO: translate
+  'pnl.depreciation':        'פחת (סעיף 24, קו ישר)',
+  'pnl.ebit':                'EBIT (לאחר פחת)',
+  'term.annualDepreciation': 'פחת שנתי',
 
   // ── Sources & Uses panel (SourcesUsesPanel) ───────────────────────────────
   'sau.sectionTitle':   'מקורות ושימושים',
