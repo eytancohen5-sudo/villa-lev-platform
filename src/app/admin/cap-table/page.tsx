@@ -635,23 +635,6 @@ export default function CapTablePage() {
         </div>
       </div>
 
-      {/* ── Eytan's return breakdown — three roles ─────────────────────────── */}
-      {(() => {
-        const _founderResult = result.stakeholders.find((s) => s.stakeholder.isPromoter);
-        return _founderResult ? (
-          <EytanReturnBreakdown
-            result={result}
-            founderResult={_founderResult}
-            terminalEquityValue={terminalEquityValue}
-            grantApproved={grantApproved}
-            locale={locale}
-            formatCurrency={(v) => formatCurrency(v, true, locale)}
-            formatPercent={formatPercent}
-            formatMultiple={formatMultiple}
-          />
-        ) : null;
-      })()}
-
       {/* Redacted target picker */}
       {redacted && (
         <div className="rounded-xl border border-warning/30 bg-warning/5 p-3 mb-6 text-sm">
@@ -894,6 +877,22 @@ export default function CapTablePage() {
           </div>
         );
       })}
+
+      {/* ── Sponsor equity breakdown — three capacities ──────────────────────── */}
+      {(() => {
+        const _founderResult = result.stakeholders.find((s) => s.stakeholder.isPromoter);
+        return _founderResult ? (
+          <EytanReturnBreakdown
+            result={result}
+            founderResult={_founderResult}
+            grantApproved={grantApproved}
+            grantAmount={grantAmount}
+            locale={locale}
+            formatCurrency={(v) => formatCurrency(v, true, locale)}
+            formatPercent={formatPercent}
+          />
+        ) : null;
+      })()}
 
       <div className="text-xs text-text-tertiary mt-6 space-y-1">
         <p>
