@@ -162,6 +162,9 @@ export const he: TranslationDictionary = {
   // BankStressTest
   'bank.stress.title': 'תרחישי לחץ',
   'bank.stress.description': 'שנה כל הנחה לבדיקת המודל. גרפים ומדדים מתעדכנים בזמן אמת.',
+  'bank.section.stressAnalysis': 'ניתוח לחץ',
+  'bank.stress.collateralHeading': 'א — לחץ ביטחונות: שווי נכס בהערכת מצוקה',
+  'bank.stress.cashFlowHeading': 'ב — לחץ תזרים מזומנים: רגישות להכנסות וריביות',
 
   // ── Returns page ──
   'returns.title': 'ניתוח תשואות',
@@ -1223,7 +1226,7 @@ export const he: TranslationDictionary = {
   'bank.vatCashflow.withinCovenant': 'כל הרבעונים בתוך',
   'bank.vatCashflow.lagNote': 'CAPEX חייב מע"מ €7,589,108 @ 24% · לוח משיכה 20/50/30% · עיכוב החזר 2 רבעונים',
   'bank.vatCashflow.postRefundNote': 'החזר לאחר בנייה €273,208 צפוי Q1-Q2 2029 — משפר תזרים שנת פתיחה',
-  'bank.collateral.sub': 'קרקע + מבנה שהושלם · משכנתא מדרגה ראשונה · שלוש רמות הערכה',
+  'bank.collateral.sub': 'קרקע + מבנה שהושלם · משכנתא מדרגה ראשונה · הערכת שוק ואופטימית',
   'bank.section.loanMetrics': 'מדדי הלוואה',
   'bank.kpi.ofCapex': 'מתוך CAPEX',
   'bank.kpi.appraisedValue': 'שווי מוערך',

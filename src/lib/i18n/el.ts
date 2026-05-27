@@ -162,6 +162,9 @@ export const el: TranslationDictionary = {
   // BankStressTest
   'bank.stress.title': 'Σενάρια Stress Test',
   'bank.stress.description': 'Τροποποιήστε οποιαδήποτε παράμετρο για να δοκιμάσετε το μοντέλο. Γραφήματα και μετρικές ενημερώνονται άμεσα.',
+  'bank.section.stressAnalysis': 'Ανάλυση Stress Test',
+  'bank.stress.collateralHeading': 'Ι — Stress Test Εξασφάλισης: Αξία Ακινήτου σε Πιεσμένη Αποτίμηση',
+  'bank.stress.cashFlowHeading': 'ΙΙ — Stress Test Ταμειακών Ροών: Ευαισθησία Εσόδων & Επιτοκίου',
 
   // ── Returns page ──
   'returns.title': 'Ανάλυση Αποδόσεων',
@@ -1216,7 +1219,7 @@ export const el: TranslationDictionary = {
   'bank.creditAsk.total': 'Συνολική πιστωτική δέσμευση',
   'bank.creditAsk.facility1.label': 'Τοκοχρεολυτικό Δάνειο',
   'bank.creditAsk.facility1.purpose': 'Κεφαλαιουχική επένδυση — κατασκευή, εξοπλισμός & διαμόρφωση',
-  'bank.creditAsk.facility2.label': 'Ανακυκλούμενη Γραμμή Κεφαλαίου Κίνησης',
+  'bank.creditAsk.facility2.label': 'Ανακυκλούμενη Γραμμή Κεφαλαίου Κίνησης ① ②',
   'bank.creditAsk.facility2.purpose': 'Γέφυρα ΦΠΑ κατασκευής → κεφάλαιο κίνησης λειτουργίας',
   'bank.creditAsk.facility2.separate': 'Ξεχωριστή διευκόλυνση · δεν αναλαμβάνεται κατά το κλείσιμο',
   'bank.vatCashflow.title': 'Ταμειακές Ροές ΦΠΑ Κατασκευής',
@@ -1231,7 +1234,7 @@ export const el: TranslationDictionary = {
   'bank.vatCashflow.withinCovenant': 'Όλα τα τρίμηνα εντός',
   'bank.vatCashflow.lagNote': 'ΦΠΑ-επιλέξιμο CAPEX €7.589.108 @ 24% · Πρόγραμμα εκταμίευσης 20/50/30% · Υστέρηση επιστροφής 2 τριμήνων',
   'bank.vatCashflow.postRefundNote': 'Επιστροφή μετά κατασκευή €273.208 αναμενόμενη Q1-Q2 2029 — βελτιώνει ταμειακή ροή έτους ανοίγματος',
-  'bank.collateral.sub': 'Γη + ολοκληρωμένη κατασκευή · Υποθήκη 1ης τάξης · τρία επίπεδα αξιολόγησης',
+  'bank.collateral.sub': 'Γη + ολοκληρωμένη κατασκευή · Υποθήκη 1ης τάξης · αγοραία & αισιόδοξη αποτίμηση',
   'bank.section.loanMetrics': 'Μετρήσεις Δανείου',
   'bank.kpi.ofCapex': 'επί του CAPEX',
   'bank.kpi.appraisedValue': 'εκτιμημένη αξία',

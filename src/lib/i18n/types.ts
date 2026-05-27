@@ -1037,6 +1037,9 @@ export interface TranslationDictionary {
   // ── BankStressTest (2026-05-23) ──
   'bank.stress.title': string;
   'bank.stress.description': string;
+  'bank.section.stressAnalysis': string;
+  'bank.stress.collateralHeading': string;
+  'bank.stress.cashFlowHeading': string;
 
   // ── Bank page full i18n (2026-05-23) ──
   'bank.about.title': string;

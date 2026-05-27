@@ -657,18 +657,6 @@ export default function BankPage() {
           );
         })()}
 
-        {/* Stress-test CTA — navigates to the Sensitivity tab */}
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('sensitivity');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 mb-6 rounded-xl border border-brand-300 bg-brand-50/60 text-sm font-semibold text-brand-700 hover:bg-brand-100 hover:border-brand-400 transition-colors print:hidden"
-        >
-          {t('bank.cta.stressTest')}
-        </button>
-
         {/* 3b. Operating Track Record — proof of operator */}
         <div id="live-track-record" className="mb-6 print:hidden">
           <LiveTrackRecord />
@@ -683,12 +671,7 @@ export default function BankPage() {
               {t('bank.section.collateral')}
             </h3>
             <p className="text-xs text-text-tertiary mb-6">{t('bank.collateral.sub')}</p>
-            <div className="grid grid-cols-3 divide-x divide-surface-tertiary">
-              <MetricCell
-                value={formatMultiple(model.collateral.stress.coverage)}
-                label={t('sc.stress')}
-                sublabel={`${formatCurrency(model.collateral.stress.value, true, locale)} · LTV ${formatPercent(model.collateral.stress.ltv)}`}
-              />
+            <div className="grid grid-cols-2 divide-x divide-surface-tertiary">
               <MetricCell
                 value={formatMultiple(model.collateral.market.coverage)}
                 label={t('sc.market')}
@@ -1199,9 +1182,53 @@ export default function BankPage() {
           <ConstructionVatCashflow />
         </div>
 
-        {/* 12. Stress Scenarios */}
-        <div id="bank-stress-test" className="mb-6 print:hidden">
-          <BankStressTest />
+        {/* 12. Stress Analysis — Collateral + Cash-Flow */}
+        <div id="bank-stress-analysis" className="mb-6 print:hidden">
+          <h3 className="text-sm font-semibold text-text-primary mb-4">{t('bank.section.stressAnalysis')}</h3>
+          <div className="space-y-4">
+
+            {/* I — Collateral Stress */}
+            <div className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+              <h4 className="text-sm font-semibold text-text-primary mb-1">{t('bank.stress.collateralHeading')}</h4>
+              <p className="text-xs text-text-tertiary mb-5">{t('bank.collateral.sub')}</p>
+              <div className="grid grid-cols-3 divide-x divide-surface-tertiary">
+                <MetricCell
+                  value={formatMultiple(model.collateral.stress.coverage)}
+                  label={t('sc.stress')}
+                  sublabel={`${formatCurrency(model.collateral.stress.value, true, locale)} · LTV ${formatPercent(model.collateral.stress.ltv)}`}
+                />
+                <MetricCell
+                  value={formatMultiple(model.collateral.market.coverage)}
+                  label={t('sc.market')}
+                  sublabel={`${formatCurrency(model.collateral.market.value, true, locale)} · LTV ${formatPercent(model.collateral.market.ltv)}`}
+                  valueClass="text-brand-600"
+                />
+                <MetricCell
+                  value={formatMultiple(model.collateral.optimistic.coverage)}
+                  label={t('sc.optimistic')}
+                  sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
+                  valueClass="text-positive"
+                />
+              </div>
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => setVillaSaleDrawerOpen(true)}
+                  className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+                >
+                  <span>{t('collateral.saleMarketStudy')}</span>
+                  <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+                </button>
+              </div>
+            </div>
+
+            {/* II — Cash-Flow Stress */}
+            <div>
+              <h4 className="text-sm font-semibold text-text-primary mb-3">{t('bank.stress.cashFlowHeading')}</h4>
+              <BankStressTest />
+            </div>
+
+          </div>
         </div>
 
         {/* 12. Financing Path Comparison */}

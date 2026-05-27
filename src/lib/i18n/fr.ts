@@ -155,6 +155,9 @@ export const fr = {
   // BankStressTest
   'bank.stress.title': 'Scénarios de Stress',
   'bank.stress.description': 'Ajustez n\'importe quelle hypothèse pour stresser le modèle. Les graphiques et métriques se mettent à jour en direct.',
+  'bank.section.stressAnalysis': 'Analyse de Stress',
+  'bank.stress.collateralHeading': 'I — Stress Collatéral : Valeur Immobilière sous Expertise Dépréciée',
+  'bank.stress.cashFlowHeading': 'II — Stress Cash-Flow : Sensibilité aux Revenus et aux Taux',
   'dash.section.operating': 'Performance opérationnelle',
   'dash.section.capital': 'Structure du capital',
   'dash.section.workingCapital': 'Facilité de Fonds de Roulement',

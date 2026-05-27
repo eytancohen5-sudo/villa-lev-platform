@@ -162,6 +162,9 @@ export const en: TranslationDictionary = {
   // BankStressTest
   'bank.stress.title': 'Stress Scenarios',
   'bank.stress.description': 'Adjust any assumption to stress the model. Charts and metrics update live.',
+  'bank.section.stressAnalysis': 'Stress Analysis',
+  'bank.stress.collateralHeading': 'I — Collateral Stress: Property Valuation Under Distressed Appraisal',
+  'bank.stress.cashFlowHeading': 'II — Cash-Flow Stress: Revenue & Rate Sensitivity',
 
   // ── Returns page ──
   'returns.title': 'Returns Analysis',
@@ -1207,7 +1210,7 @@ export const en: TranslationDictionary = {
   'bank.creditAsk.total': 'Total credit commitment',
   'bank.creditAsk.facility1.label': 'Term Loan',
   'bank.creditAsk.facility1.purpose': 'Capital investment — construction, fit-out & landscaping',
-  'bank.creditAsk.facility2.label': 'WC Revolving Facility',
+  'bank.creditAsk.facility2.label': 'WC Revolving Facility ① ②',
   'bank.creditAsk.facility2.purpose': 'Construction VAT bridge → operational working capital',
   'bank.creditAsk.facility2.separate': 'Separate facility · not drawn at close',
   'bank.vatCashflow.title': 'Construction VAT Cashflow',
@@ -1222,7 +1225,7 @@ export const en: TranslationDictionary = {
   'bank.vatCashflow.withinCovenant': 'All quarters within the',
   'bank.vatCashflow.lagNote': 'VAT-liable CapEx €7,589,108 @ 24% · Draw schedule 20/50/30% · 2-quarter refund lag',
   'bank.vatCashflow.postRefundNote': 'Post-construction refund €273,208 expected Q1-Q2 2029 — improves opening-year cash',
-  'bank.collateral.sub': 'Land + completed structure · 1st-rank mortgage · three valuation tiers',
+  'bank.collateral.sub': 'Land + completed structure · 1st-rank mortgage · market & optimistic appraisals',
   'bank.section.loanMetrics': 'Loan Metrics',
   'bank.kpi.ofCapex': 'of CAPEX',
   'bank.kpi.appraisedValue': 'appraised value',
