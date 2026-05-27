@@ -371,7 +371,7 @@ export default function BankPage() {
 
             {/* Bank Presentation — PDF viewer */}
             <a
-              href="/presentation"
+              href={`/presentation?lang=${locale}`}
               target="_blank"
               rel="noopener noreferrer"
               onClick={() => void logPresenceActivity('presentation_view')}

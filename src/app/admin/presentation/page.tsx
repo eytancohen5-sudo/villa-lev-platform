@@ -36,102 +36,59 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import type { AnnualPnL, FinancingPath } from "@/lib/engine/types";
 
-// ── Path / Scenario pill arrays (mirrors BankControlBar) ──────────────────
-
-const PATHS: { key: FinancingPath; label: string }[] = [
-  { key: "commercial", label: "Commercial" },
-  { key: "rrf",        label: "RRF" },
-  { key: "grant",      label: "Grant" },
-  { key: "tepix-loan", label: "TEPIX III" },
-];
-
-const SCENARIOS: { key: ScenarioName; label: string }[] = [
-  { key: "realistic",  label: "Realistic" },
-  { key: "upside",     label: "Upside" },
-  { key: "downside",   label: "Downside" },
-  { key: "breakeven",  label: "Break-Even" },
-];
-
-// ── Risk register — 7 Word-doc risks + Multi-asset (8th) = total 12 with
-//    historical entries retained for backward test compatibility ────────────
-
-const RISK_REGISTER = [
-  {
-    risk: "Construction cost & timeline",
-    severity: "Medium",
-    mitigant: "Fixed-price contracts with licensed Greek contractors; 10% contingency reserve built into CAPEX. Civil engineer has delivered multiple Cyclades luxury builds on schedule.",
-  },
-  {
-    risk: "Permit & regulatory",
-    severity: "Medium",
-    mitigant: "Three plots already inside FEK zone; Plot 4 has pre-confirmed buildability. Grace period absorbs up to 18-month permitting delay without triggering covenant breach.",
-  },
-  {
-    risk: "Revenue & occupancy ramp",
-    severity: "Medium",
-    mitigant: "Conservative base assumes 87 nights vs 95 delivered by Villa Lev in 2025. Model ADR €3,500 is below current live rate €3,584. WC reserve covers 2029 trough 5.2×.",
-  },
-  {
-    risk: "OPEX & cost inflation",
-    severity: "Low",
-    mitigant: "Operating costs held flat from Year 4 — no inflationary uplift modelled. Revenue upside at exit (~€103K/yr) is ~4× the cost inflation risk. A 10% reserve on OPEX is included in the CAPEX budget.",
-  },
-  {
-    risk: "Operational execution",
-    severity: "Medium",
-    mitigant: "Eytan Cohen has operated Villa Lev since 2022 with zero missed mortgage payments. Professional management contracts structured per unit. Split-unit architecture allows standalone operation.",
-  },
-  {
-    risk: "Accessibility & demand",
-    severity: "Low",
-    mitigant: "Paros airport arrivals grew 12.5% YoY to 171,500 (2024). Airport upgrade to international status is in planning — extends season. Mykonos-to-Paros rotation trend still early-stage.",
-  },
-  {
-    risk: "Climate & external shocks",
-    severity: "Low",
-    mitigant: "All revenue, costs and debt denominated in EUR — no FX exposure. Fully amortising loan with no balloon. Asset coverage >1.4× at completion. WC reserve acts as operating buffer.",
-  },
-  {
-    risk: "ADR compression",
-    severity: "Low",
-    mitigant: "Conservative ADR €3,500 is below Villa Lev 2025 actual (€3,584). No price growth assumed over 13 years. DSCR tested at ADR −10% shock — covenant still satisfied.",
-  },
-  {
-    risk: "Interest rate increase",
-    severity: "Low",
-    mitigant: "DSCR tested at +200 bps shock. Stabilised DSCR remains above 1.25× covenant floor even at 6.4%.",
-  },
-  {
-    risk: "Greek regulatory / tax change",
-    severity: "Low",
-    mitigant: "CIT, VAT, and short-term rental levies modelled at current rates. Engine recalculates immediately on any rate change.",
-  },
-  {
-    risk: "Collateral value decline",
-    severity: "Low",
-    mitigant: "Asset coverage >1.4× at completion. Stress valuation at −15% still covers loan. Break-even occupancy 31 nights vs 87 modelled.",
-  },
-  {
-    risk: "Multi-asset operational complexity",
-    severity: "Medium",
-    mitigant: "Split-unit architecture — each villa operates independently. Management contracts are structured per unit, eliminating cross-asset dependency. One unit can be taken out of service without interrupting others.",
-  },
-];
-
-// ── Covenants (§7) ──────────────────────────────────────────────────────────
-
-const COVENANTS = [
-  { label: "Minimum DSCR", value: "1.25× annual" },
-  { label: "Minimum ICR", value: "1.10× annual" },
-  { label: "Maximum leverage", value: "Net debt / EBITDA ≤ 8× (construction); ≤ 5× (stabilised)" },
-  { label: "WC reserve account", value: "€470,000 maintained in escrow" },
-  { label: "Reporting frequency", value: "Semi-annual management accounts; annual audit" },
-];
+// PATHS, SCENARIOS, RISK_REGISTER, and COVENANTS are built inside the component
+// using t() so labels are locale-aware. See the component body.
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function PresentationPage() {
   const { t, locale } = useTranslation();
+
+  // ── Locale-aware pill arrays ───────────────────────────────────────────────
+  const PATHS: { key: FinancingPath; label: string }[] = [
+    { key: "commercial", label: t("path.commercialShort") },
+    { key: "rrf",        label: t("path.rrfShort") },
+    { key: "grant",      label: t("path.grantShort") },
+    { key: "tepix-loan", label: t("path.tepixLoanShort") },
+  ];
+
+  const SCENARIOS: { key: ScenarioName; label: string }[] = [
+    { key: "realistic",  label: t("scenario.realistic") },
+    { key: "upside",     label: t("scenario.upside") },
+    { key: "downside",   label: t("scenario.downside") },
+    { key: "breakeven",  label: t("scenario.breakeven") },
+  ];
+
+  const RISK_REGISTER: { risk: string; severity: string; mitigant: string }[] = [
+    { risk: t("presentation.risk.construction"), severity: "Medium", mitigant: t("presentation.risk.construction.mit") },
+    { risk: t("presentation.risk.permit"),       severity: "Medium", mitigant: t("presentation.risk.permit.mit") },
+    { risk: t("presentation.risk.revenue"),      severity: "Medium", mitigant: t("presentation.risk.revenue.mit") },
+    { risk: t("presentation.risk.opex"),         severity: "Low",    mitigant: t("presentation.risk.opex.mit") },
+    { risk: t("presentation.risk.ops"),          severity: "Medium", mitigant: t("presentation.risk.ops.mit") },
+    { risk: t("presentation.risk.access"),       severity: "Low",    mitigant: t("presentation.risk.access.mit") },
+    { risk: t("presentation.risk.climate"),      severity: "Low",    mitigant: t("presentation.risk.climate.mit") },
+    { risk: t("presentation.risk.adr"),          severity: "Low",    mitigant: t("presentation.risk.adr.mit") },
+    { risk: t("presentation.risk.rate"),         severity: "Low",    mitigant: t("presentation.risk.rate.mit") },
+    { risk: t("presentation.risk.regulatory"),   severity: "Low",    mitigant: t("presentation.risk.regulatory.mit") },
+    { risk: t("presentation.risk.collateral"),   severity: "Low",    mitigant: t("presentation.risk.collateral.mit") },
+    { risk: t("presentation.risk.multiasset"),   severity: "Medium", mitigant: t("presentation.risk.multiasset.mit") },
+  ];
+
+  const SEVERITY_LABELS: Record<string, string> = {
+    None:   t("risk.severity.none"),
+    Low:    t("risk.severity.low"),
+    Medium: t("risk.severity.medium"),
+    High:   t("risk.severity.high"),
+  };
+
+  const COVENANTS: { label: string; value: string }[] = [
+    { label: t("presentation.s7.covenant.dscr"),      value: t("presentation.s7.covenant.dscr.value") },
+    { label: t("presentation.s7.covenant.icr"),       value: t("presentation.s7.covenant.icr.value") },
+    { label: t("presentation.s7.covenant.leverage"),  value: t("presentation.s7.covenant.leverage.value") },
+    { label: t("presentation.s7.covenant.wc"),        value: t("presentation.s7.covenant.wc.value") },
+    { label: t("presentation.s7.covenant.reporting"), value: t("presentation.s7.covenant.reporting.value") },
+  ];
+
   const {
     model,
     assumptions,
@@ -1347,9 +1304,9 @@ export default function PresentationPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800 text-white">
-                <th className="px-3 py-2 text-left font-semibold w-1/4">Risk</th>
-                <th className="px-3 py-2 text-left font-semibold w-[80px]">Severity</th>
-                <th className="px-3 py-2 text-left font-semibold">Mitigant</th>
+                <th className="px-3 py-2 text-left font-semibold w-1/4">{t("presentation.tbl.risk")}</th>
+                <th className="px-3 py-2 text-left font-semibold w-[80px]">{t("presentation.tbl.severity")}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.mitigant")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1368,7 +1325,7 @@ export default function PresentationPage() {
                               : "bg-red-100 text-red-700"
                       }`}
                     >
-                      {r.severity}
+                      {SEVERITY_LABELS[r.severity] ?? r.severity}
                     </span>
                   </td>
                   <td className="px-3 py-2 text-text-secondary leading-relaxed align-top">{r.mitigant}</td>
@@ -1408,10 +1365,10 @@ export default function PresentationPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800 text-white">
-                <th className="px-3 py-2 text-left font-semibold">Item</th>
-                <th className="px-3 py-2 text-right font-semibold">Property A (per project)</th>
-                <th className="px-3 py-2 text-right font-semibold">Property B</th>
-                <th className="px-3 py-2 text-right font-semibold">Total</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.item")}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t("presentation.tbl.propertyA")}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t("presentation.tbl.propertyB")}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t("presentation.tbl.total")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1434,25 +1391,25 @@ export default function PresentationPage() {
                 const annualDSPerUnit = km.annualDS / Math.max(totalVillas + (totalSuites > 0 ? 1 : 0), 1);
                 return [
                   {
-                    item: "Total cost",
+                    item: t("presentation.s7.totalCost"),
                     a: formatCurrency(capexA, true, locale),
                     b: formatCurrency(capexB, true, locale),
                     total: formatCurrency(km.totalCapex, true, locale),
                   },
                   {
-                    item: `Loan (${formatPercent(ltvRate, 0)})`,
+                    item: `${t("presentation.s7.loanAmountMetric")} (${formatPercent(ltvRate, 0)})`,
                     a: formatCurrency(loanA, true, locale),
                     b: formatCurrency(loanB, true, locale),
                     total: formatCurrency(km.loanAmount, true, locale),
                   },
                   {
-                    item: `Equity (${formatPercent(1 - ltvRate, 0)})`,
+                    item: `${t("presentation.s7.equityRow")} (${formatPercent(1 - ltvRate, 0)})`,
                     a: formatCurrency(equityA, true, locale),
                     b: formatCurrency(equityB, true, locale),
                     total: formatCurrency(km.equityRequired, true, locale),
                   },
                   {
-                    item: "Annual DS (est.)",
+                    item: t("presentation.s7.annualDs"),
                     a: formatCurrency(annualDSPerUnit, true, locale),
                     b: formatCurrency(annualDSPerUnit, true, locale),
                     total: formatCurrency(km.annualDS, true, locale),
@@ -1478,18 +1435,18 @@ export default function PresentationPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800 text-white">
-                <th className="px-3 py-2 text-left font-semibold">Metric</th>
-                <th className="px-3 py-2 text-right font-semibold">Value</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.metric")}</th>
+                <th className="px-3 py-2 text-right font-semibold">{t("presentation.tbl.value")}</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { metric: "Portfolio value (market)", value: formatCurrency(km.portfolioValue, true, locale) },
-                { metric: "Loan amount", value: formatCurrency(km.loanAmount, true, locale) },
-                { metric: "LTV", value: formatPercent(km.ltv ?? ltc, 1) },
-                { metric: "Asset coverage", value: `${km.assetCoverage.toFixed(2)}×` },
-                { metric: "Stress valuation (−15%)", value: formatCurrency(km.portfolioValue * 0.85, true, locale) },
-                { metric: "Remaining buffer (stress)", value: `${((km.portfolioValue * 0.85 / km.loanAmount) - 1 > 0 ? ((km.portfolioValue * 0.85 / km.loanAmount) - 1) * 100 : 0).toFixed(0)}% above loan` },
+                { metric: t("presentation.s7.portfolioValue"),      value: formatCurrency(km.portfolioValue, true, locale) },
+                { metric: t("presentation.s7.loanAmountMetric"),    value: formatCurrency(km.loanAmount, true, locale) },
+                { metric: "LTV",                                     value: formatPercent(km.ltv ?? ltc, 1) },
+                { metric: t("presentation.s7.assetCoverageMetric"), value: `${km.assetCoverage.toFixed(2)}×` },
+                { metric: t("presentation.s7.stressValuation"),     value: formatCurrency(km.portfolioValue * 0.85, true, locale) },
+                { metric: t("presentation.s7.remainingBuffer"),     value: `${((km.portfolioValue * 0.85 / km.loanAmount) - 1 > 0 ? ((km.portfolioValue * 0.85 / km.loanAmount) - 1) * 100 : 0).toFixed(0)}% above loan` },
               ].map((r, i) => (
                 <tr key={r.metric} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                   <td className="px-3 py-2 font-medium text-text-primary">{r.metric}</td>
@@ -1511,7 +1468,7 @@ export default function PresentationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary mb-3">
-              Financial Covenants
+              {t("presentation.s7.financialCovenants")}
             </p>
             <div className="space-y-2">
               {COVENANTS.map((c) => (
@@ -1525,16 +1482,16 @@ export default function PresentationPage() {
 
           <div>
             <p className="text-[11px] font-bold uppercase tracking-wider text-text-tertiary mb-3">
-              Loan Terms
+              {t("presentation.s7.loanTerms")}
             </p>
             <div className="space-y-2">
               {[
-                { label: "Facility type", value: "Senior secured term loan" },
-                { label: "Amount", value: formatCurrency(km.loanAmount, false, locale) },
+                { label: t("presentation.s7.facilityType"), value: t("presentation.s7.facilityTypeValue") },
+                { label: t("presentation.s7.amount"), value: formatCurrency(km.loanAmount, false, locale) },
                 { label: "LTC", value: formatPercent(ltc, 0) },
-                { label: "Tenor", value: `${gracePeriodYears + repaymentTermYears}yr (${gracePeriodYears}yr grace)` },
-                { label: "Rate", value: `${"interestRate" in loanParams ? formatPercent(loanParams.interestRate, 2) : "4.40%"} p.a.` },
-                { label: "Currency", value: "EUR" },
+                { label: t("presentation.s7.tenor"), value: `${gracePeriodYears + repaymentTermYears}yr (${gracePeriodYears}yr grace)` },
+                { label: t("presentation.s7.rate"), value: `${"interestRate" in loanParams ? formatPercent(loanParams.interestRate, 2) : "4.40%"} p.a.` },
+                { label: t("presentation.s7.currency"), value: "EUR" },
               ].map((r) => (
                 <div key={r.label} className="flex justify-between items-baseline gap-2 py-1.5 border-b border-surface-tertiary last:border-0">
                   <span className="text-xs text-text-secondary">{r.label}</span>
@@ -1553,18 +1510,18 @@ export default function PresentationPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800 text-white">
-                <th className="px-3 py-2 text-left font-semibold">Milestone</th>
-                <th className="px-3 py-2 text-left font-semibold">Timing</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.milestone")}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.timing")}</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { milestone: "Loan approval", timing: "Q2 2026" },
-                { milestone: "Plot acquisition", timing: "Q2–Q3 2026" },
-                { milestone: "Permit preparation", timing: "Q2–Q4 2026" },
-                { milestone: "Construction", timing: "Q1 2027 – Q2 2028" },
-                { milestone: "Fit-out", timing: "Q2–Q3 2028" },
-                { milestone: "Operational launch", timing: "Summer 2028" },
+                { milestone: t("presentation.timeline.loanApproval"),    timing: "Q2 2026" },
+                { milestone: t("presentation.timeline.plotAcquisition"), timing: "Q2–Q3 2026" },
+                { milestone: t("presentation.timeline.permitPrep"),      timing: "Q2–Q4 2026" },
+                { milestone: t("presentation.timeline.construction"),    timing: "Q1 2027 – Q2 2028" },
+                { milestone: t("presentation.timeline.fitOut"),          timing: "Q2–Q3 2028" },
+                { milestone: t("presentation.timeline.launch"),          timing: "Summer 2028" },
               ].map((r, i) => (
                 <tr key={r.milestone} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                   <td className="px-3 py-2 font-medium text-text-primary">{r.milestone}</td>
@@ -1588,7 +1545,7 @@ export default function PresentationPage() {
           {t("presentation.s8.corporate.header")}
         </p>
         <p className="text-sm text-text-secondary leading-relaxed mb-6">
-          The borrower is a holding company currently being incorporated in Greece, with three shareholders: a Greek tax resident, a French tax resident, and an Israeli tax resident. The holding company controls dedicated operating subsidiaries — one per property — each a standalone Greek company (ΙΚΕ/ΑΕ) registered under KAD 55.10 (Hotels and similar accommodation), fully VAT-compliant and professionally insured. Villa Lev Group Management, the sister company responsible for all operational management, operates debt-free and carries no existing financial liabilities. Ownership and operations are cleanly separated at the entity level, providing lender clarity and structural flexibility.
+          {t("presentation.s8.corporateStructure")}
         </p>
 
         {/* Eytan Cohen — full Word-doc bio */}
@@ -1599,7 +1556,7 @@ export default function PresentationPage() {
           <div className="border-l-4 border-brand-500 pl-5">
             <p className="text-sm font-bold text-text-primary">Eytan Cohen</p>
             <p className="text-xs font-semibold text-brand-700 uppercase tracking-wider mb-2">
-              Founder &amp; Operator
+              {t("presentation.s8.founder")}
             </p>
             <p className="text-sm text-text-secondary leading-relaxed">
               {t("presentation.s8.eytan.bio")}
@@ -1608,19 +1565,19 @@ export default function PresentationPage() {
           <div className="border-l-4 border-slate-300 pl-5">
             <p className="text-sm font-bold text-text-primary">Leftheris Dimitriou</p>
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">
-              Local Operations &amp; Permitting
+              {t("presentation.s8.leftheris.title")}
             </p>
             <p className="text-sm text-text-secondary leading-relaxed">
-              Leftheris brings deep knowledge of the Antiparos and Paros construction and permitting environment, having managed multiple development projects across the Cyclades over more than a decade. He oversees on-the-ground relationships with municipal authorities, licensed contractors, and local service providers — critical capabilities for the FEK-zone permitting track and buildability confirmation. His established relationships with the relevant authorities materially reduce permitting timeline risk.
+              {t("presentation.s8.leftheris.bio")}
             </p>
           </div>
           <div className="border-l-4 border-slate-300 pl-5">
             <p className="text-sm font-bold text-text-primary">Thanasis Aggelakakis</p>
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-2">
-              Development &amp; Architecture
+              {t("presentation.s8.thanasis.title")}
             </p>
             <p className="text-sm text-text-secondary leading-relaxed">
-              Thanasis leads the architectural and technical development programme for the portfolio, coordinating licensed civil engineers, managing the construction schedule, and ensuring each design meets FEK zone requirements and the Villa Lev luxury positioning. His involvement reduces construction-quality and specification risk and ensures the portfolio delivers at the positioned market tier.
+              {t("presentation.s8.thanasis.bio")}
             </p>
           </div>
         </div>
@@ -1633,42 +1590,42 @@ export default function PresentationPage() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-800 text-white">
-                <th className="px-3 py-2 text-left font-semibold">Bucket</th>
-                <th className="px-3 py-2 text-left font-semibold">Mechanism</th>
-                <th className="px-3 py-2 text-left font-semibold">Detail</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.bucket")}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.mechanism")}</th>
+                <th className="px-3 py-2 text-left font-semibold">{t("presentation.tbl.detail")}</th>
               </tr>
             </thead>
             <tbody>
               {[
                 {
                   bucket: "Revenue Floor",
-                  mechanism: "Minimum annual revenue floor",
-                  detail: "€80,000/property. Operator funds any shortfall personally before senior debt service is called.",
+                  mechanism: t("presentation.s8.alignment.rf.mechanism"),
+                  detail: t("presentation.s8.alignment.rf.detail"),
                 },
                 {
                   bucket: "Bucket 1A",
-                  mechanism: "Personal collateral — construction",
-                  detail: "€1,000,000 personal collateral pledge during construction phase.",
+                  mechanism: t("presentation.s8.alignment.1a.mechanism"),
+                  detail: t("presentation.s8.alignment.1a.detail"),
                 },
                 {
                   bucket: "Bucket 1B",
-                  mechanism: "TEPIX III advisory fee",
-                  detail: "10% of TEPIX III grant as advisory fee, deferred to disbursement — aligns operator with grant approval.",
+                  mechanism: t("presentation.s8.alignment.1b.mechanism"),
+                  detail: t("presentation.s8.alignment.1b.detail"),
                 },
                 {
                   bucket: "Bucket 1C",
-                  mechanism: "Performance ratchet at exit",
-                  detail: "0% operator share if IRR < 8% · +9% at IRR 8–22% · +29% if IRR ≥ 22%.",
+                  mechanism: t("presentation.s8.alignment.1c.mechanism"),
+                  detail: t("presentation.s8.alignment.1c.detail"),
                 },
                 {
                   bucket: "Bucket 2A",
-                  mechanism: "Management fee (gross revenue)",
-                  detail: "5% of gross revenue, minimum €24,000/villa/yr. Senior to debt service.",
+                  mechanism: t("presentation.s8.alignment.2a.mechanism"),
+                  detail: t("presentation.s8.alignment.2a.detail"),
                 },
                 {
                   bucket: "Bucket 2B",
-                  mechanism: "Incentive fee (GOP above hurdle)",
-                  detail: "10% of GOP above 8% hurdle, subject to investor protection cap.",
+                  mechanism: t("presentation.s8.alignment.2b.mechanism"),
+                  detail: t("presentation.s8.alignment.2b.detail"),
                 },
               ].map((r, i) => (
                 <tr key={r.bucket} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
