@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+
 /**
  * /presentation layout — public, no AuthGate, full viewport height.
  *
@@ -11,7 +13,7 @@ export default function PresentationLayout({
 }) {
   return (
     <div className="h-screen overflow-hidden flex flex-col">
-      {children}
+      <Suspense>{children}</Suspense>
     </div>
   );
 }
