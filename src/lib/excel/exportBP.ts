@@ -1165,16 +1165,23 @@ export async function exportBusinessPlan(
   }
 
   // Portfolio-level shared overhead (staff, services, shared overhead, pre-opening amortisation).
-  // Engine: totalOpex = propertyOpex + portfolioOpexResult.total.
-  // This row bridges the gap so the workbook SUM(propOpexRows) = engine totalOpex.
-  // Values are engine-seeded (no live Excel formula — portfolioOpex depends on headcount
-  // roles and service lines that have no Assumptions sheet columns in this export).
+  // Seeded as the EXACT RESIDUAL: engine.totalOpex − Σ(propertyBreakdown[].totalOpex) − seniorFloor.
+  // Using the residual rather than portfolioOpex.total directly avoids any mis-match caused by
+  // legacy per-villa managementFee fields in Firestore that the engine subtracts from propertyOpex
+  // even though they are no longer included in computeOpexForProperty. By construction the SUM
+  // of all propOpexRows cells will exactly equal the engine's totalOpex for every year.
   {
     PnL.getCell(`A${pr2}`).value = '  Portfolio shared overhead (staff, services, pre-opening)';
     PnL.getCell(`A${pr2}`).font = FONT.italic;
     years.forEach((y, i) => {
       const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-      c.value = py(y)?.portfolioOpex?.total ?? 0;
+      const pnlY = py(y);
+      const engineTotalOpex = pnlY?.totalOpex ?? 0;
+      const propertyOpexAllY = (pnlY?.propertyBreakdown ?? []).reduce((s, p) => s + p.totalOpex, 0);
+      const seniorFloorY = isBankViewExport && y > 2027
+        ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
+      const residual = engineTotalOpex - propertyOpexAllY - seniorFloorY;
+      c.value = residual;
       c.numFmt = FMT.euro;
       c.fill = STYLE.inputFill;
     });
