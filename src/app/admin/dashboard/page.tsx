@@ -295,7 +295,7 @@ export default function DashboardPage() {
 
           {/* Investor Presentation */}
           <a
-            href="/admin/presentation"
+            href="/presentation"
             target="_blank"
             rel="noopener noreferrer"
             className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
