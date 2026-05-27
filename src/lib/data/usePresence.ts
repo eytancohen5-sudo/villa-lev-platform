@@ -14,15 +14,11 @@
 // }
 
 import { useEffect } from "react";
-import {
-  doc,
-  setDoc,
-  deleteDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, setDoc, deleteDoc, updateDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { getDb, getAuthInstance } from "@/lib/firebase";
 import { getGateName } from "@/components/AuthGate";
+import { getBankName } from "@/components/BankGate";
 
 // Module-level stable tab identifier — survives re-renders.
 const TAB_ID: string =
@@ -31,6 +27,25 @@ const TAB_ID: string =
     : Math.random().toString(36).slice(2);
 
 const HEARTBEAT_INTERVAL_MS = 30_000;
+
+// ── Optional activity logging ─────────────────────────────────────────────────
+
+export type PresenceAction = "excel_download" | "presentation_view" | "tour_start";
+
+export async function logPresenceActivity(action: PresenceAction): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    await updateDoc(doc(db, "presence", TAB_ID), {
+      lastAction: action,
+      lastActionAt: Date.now(),
+    });
+  } catch {
+    // Non-fatal: presence doc may not exist yet.
+  }
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
 export function usePresence(): void {
   useEffect(() => {
@@ -71,7 +86,6 @@ export function usePresence(): void {
           currentPage: typeof window !== "undefined" ? window.location.pathname : "/",
         });
       } catch {
-        // Heartbeat failure is non-fatal.
         void uid;
       }
     }
@@ -91,17 +105,16 @@ export function usePresence(): void {
 
     // Wait for auth to resolve before writing the first doc.
     const unsubAuth = onAuthStateChanged(auth, (user) => {
-      if (!user) return; // No presence doc for unauthenticated state.
+      if (!user) return;
       if (cleanedUp) return;
 
       const uid = user.uid;
       const displayName =
         !user.isAnonymous && user.displayName
           ? user.displayName
-          : getGateName() || user.displayName || "Anonymous";
+          : getBankName() || getGateName() || user.displayName || "Anonymous";
       const isAnonymous = user.isAnonymous;
 
-      // Write initial doc, then start heartbeat.
       void writeInitial(uid, displayName, isAnonymous).then(() => {
         if (cleanedUp) return;
         intervalId = setInterval(() => {
@@ -109,14 +122,10 @@ export function usePresence(): void {
         }, HEARTBEAT_INTERVAL_MS);
       });
 
-      // Unsubscribe from auth changes after first resolution — we only
-      // need the initial auth state for presence. A sign-in change mid-
-      // session would require a page reload anyway.
       unsubAuth();
     });
 
     const handleBeforeUnload = () => {
-      // Synchronous deleteDoc best-effort — browser may not wait for it.
       void cleanup();
     };
     if (typeof window !== "undefined") {
@@ -130,5 +139,5 @@ export function usePresence(): void {
       }
       void cleanup();
     };
-  }, []); // Run once on mount.
+  }, []);
 }

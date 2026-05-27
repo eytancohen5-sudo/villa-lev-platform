@@ -22,6 +22,8 @@ export type ConnectionEntry = {
   currentPage: string;
   isStale: boolean;
   tabIds: string[];
+  lastAction?: string;
+  lastActionAt?: number;
 };
 
 export type ConnectionsLogResult = {
@@ -49,6 +51,8 @@ type PresenceDoc = {
   currentPage: string;
   tabId: string;
   schemaVersion: number;
+  lastAction?: string;
+  lastActionAt?: number;
 };
 
 const INITIAL: ConnectionsLogResult = { entries: [], loading: true, error: null };
@@ -88,6 +92,13 @@ function deriveEntries(): ConnectionEntry[] {
     const mostRecent = docs.reduce((a, b) =>
       a.lastHeartbeat >= b.lastHeartbeat ? a : b,
     );
+    // Most recent action across all tabs for this user.
+    const latestActionDoc = docs.reduce<PresenceDoc | null>((best, d) => {
+      if (!d.lastActionAt) return best;
+      if (!best || !best.lastActionAt || d.lastActionAt > best.lastActionAt) return d;
+      return best;
+    }, null);
+
     entries.push({
       uid,
       displayName: mostRecent.displayName || uid.slice(0, 8),
@@ -98,6 +109,8 @@ function deriveEntries(): ConnectionEntry[] {
       currentPage: mostRecent.currentPage,
       isStale: now - lastSeen > STALE_THRESHOLD_MS,
       tabIds: docs.map((d) => d.tabId),
+      lastAction: latestActionDoc?.lastAction,
+      lastActionAt: latestActionDoc?.lastActionAt,
     });
   }
 
@@ -134,6 +147,8 @@ function startFirestoreListener() {
             currentPage: typeof data.currentPage === "string" ? data.currentPage : "/",
             tabId: typeof data.tabId === "string" ? data.tabId : d.id,
             schemaVersion: typeof data.schemaVersion === "number" ? data.schemaVersion : 1,
+            lastAction: typeof data.lastAction === "string" ? data.lastAction : undefined,
+            lastActionAt: typeof data.lastActionAt === "number" ? data.lastActionAt : undefined,
           });
         }
       });

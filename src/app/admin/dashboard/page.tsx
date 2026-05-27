@@ -14,6 +14,7 @@ import { PageSkeleton } from "@/components/Skeleton";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { DASHBOARD_TOUR } from "@/lib/tours/configs";
+import { logPresenceActivity } from "@/lib/data/usePresence";
 import {
   SERVICES_PROFIT_MARGIN,
   BP_ANCILLARY_PROFIT_PER_VILLA,
@@ -40,6 +41,7 @@ export default function DashboardPage() {
   const handleDownloadXlsx = async () => {
     if (!model || xlsxLoading) return;
     setXlsxLoading(true);
+    void logPresenceActivity('excel_download');
     try {
       const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
       const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
@@ -275,7 +277,7 @@ export default function DashboardPage() {
 
           {/* Tour */}
           <button
-            onClick={() => setTourOpen(true)}
+            onClick={() => { void logPresenceActivity('tour_start'); setTourOpen(true); }}
             className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full"
           >
             <div className="flex items-start justify-between">
@@ -298,6 +300,7 @@ export default function DashboardPage() {
             href="/presentation"
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => void logPresenceActivity('presentation_view')}
             className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
           >
             <div className="flex items-start justify-between">

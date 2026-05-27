@@ -11,7 +11,13 @@ import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useConnectionsLog, type ConnectionEntry } from "@/lib/data/useConnectionsLog";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 
-// ── Inline helper ─────────────────────────────────────────────────────────────
+// ── Inline helpers ────────────────────────────────────────────────────────────
+
+const ACTION_LABELS: Record<string, string> = {
+  excel_download: "Excel ↓",
+  presentation_view: "Presentation",
+  tour_start: "Tour",
+};
 
 function formatRelative(ms: number): string {
   const diff = Date.now() - ms;
@@ -129,6 +135,9 @@ export default function ConnectionsPage() {
                 <th className="py-2 pe-3 font-medium text-start">
                   {t("connections.colCurrentPage")}
                 </th>
+                <th className="py-2 pe-3 font-medium text-start">
+                  Last action
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -175,6 +184,22 @@ export default function ConnectionsPage() {
                   {/* Current page */}
                   <td className="py-2 pe-3 text-text-tertiary font-mono text-[11px]">
                     {entry.currentPage}
+                  </td>
+
+                  {/* Last action */}
+                  <td className="py-2 pe-3">
+                    {entry.lastAction && entry.lastActionAt ? (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-[11px] font-medium text-text-secondary">
+                          {ACTION_LABELS[entry.lastAction] ?? entry.lastAction}
+                        </span>
+                        <span className="text-[11px] text-text-tertiary">
+                          {formatRelative(entry.lastActionAt)}
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-[11px] text-text-tertiary">—</span>
+                    )}
                   </td>
                 </tr>
               ))}
