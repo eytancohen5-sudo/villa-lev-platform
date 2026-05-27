@@ -591,7 +591,7 @@ export default function BankPage() {
                     <span className="text-xs text-text-secondary">
                       {t('bank.creditAsk.total')}:{" "}
                       <span className="font-mono font-semibold text-text-primary">
-                        {formatCurrency(km.loanAmount + assumptions.workingCapital.facilitySize, true, locale)}
+                        {formatCurrency(km.loanAmount + activeScenarioOutput.wcEffectiveFacility, true, locale)}
                       </span>
                     </span>
                   </div>
@@ -617,7 +617,7 @@ export default function BankPage() {
                         {t('bank.creditAsk.facility2.label')}
                       </div>
                       <div className="font-mono font-bold text-xl text-text-primary leading-none">
-                        {formatCurrency(assumptions.workingCapital.facilitySize, true, locale)}
+                        {formatCurrency(activeScenarioOutput.wcEffectiveFacility, true, locale)}
                       </div>
                       <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
                         {assumptions.workingCapital.spreadOverTermRate > 0
