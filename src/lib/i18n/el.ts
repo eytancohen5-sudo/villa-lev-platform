@@ -122,26 +122,26 @@ export const el: TranslationDictionary = {
   'bank.pnlFooterNote': 'Κατώφλι covenant ΔΚΕΧ 1,25× · Πράσινο ≥1,25× εντός ορίων, πορτοκαλί 1,00–1,25×, κόκκινο <1,00×. Εκδηλώσεις και παρεπόμενα έσοδα παρουσιάζονται καθαρά (μετά αφαίρεση κόστους). 2029: πρώτο έτος πλήρους εξυπηρέτησης χρέους (κεφάλαιο + τόκοι) μετά από 2ετή περίοδο χάριτος. Τα έσοδα της φάσης εκκίνησης μοντελοποιούνται κάτω από τις τρέχουσες επιδόσεις της Villa Lev — τα σταθεροποιημένα μεγέθη 2031+ τα υπερβαίνουν.',
 
   // ── Bar chrome ──
-  'bar.preparing': 'Προετοιμασία…', // TODO: translate
+  'bar.preparing': 'Προετοιμασία…',
   // ── Export button ──
-  'bar.exportExcel': 'Εξαγωγή Μοντέλου', // TODO: translate
-  'bar.exportExcelShort': 'Εξαγωγή', // TODO: translate
-  'bar.exportBankDocx': '.docx', // TODO translate
-  'bar.toAdmin': '← Διαχείριση', // TODO: translate
+  'bar.exportExcel': 'Εξαγωγή Μοντέλου',
+  'bar.exportExcelShort': 'Εξαγωγή',
+  'bar.exportBankDocx': '.docx',
+  'bar.toAdmin': '← Διαχείριση',
   'bar.signIn': 'Σύνδεση',
-  'admin.bar.adjust': 'Ρύθμιση', // TODO: translate
-  'admin.bar.loanParams': 'Παράμετροι δανείου', // TODO: translate
-  'admin.bar.exitYear': 'Έξοδος', // TODO: translate
-  'admin.bar.exitX': '×', // TODO: translate
-  'admin.bar.perM2': '€/m²', // TODO: translate
-  'admin.bar.stubAtMaturity': 'αποπληρωμή στη λήξη', // TODO: translate
-  'admin.bar.viewPresentation': 'Προβολή Παρουσίασης ↗', // TODO: translate
-  'admin.bar.bankerView': 'Προβολή Τραπεζίτη', // TODO: translate
-  'admin.bar.bankerViewArrow': '→', // TODO: translate
+  'admin.bar.adjust': 'Ρύθμιση',
+  'admin.bar.loanParams': 'Παράμετροι δανείου',
+  'admin.bar.exitYear': 'Έξοδος',
+  'admin.bar.exitX': '×',
+  'admin.bar.perM2': '€/m²',
+  'admin.bar.stubAtMaturity': 'αποπληρωμή στη λήξη',
+  'admin.bar.viewPresentation': 'Προβολή Παρουσίασης ↗',
+  'admin.bar.bankerView': 'Προβολή Τραπεζίτη',
+  'admin.bar.bankerViewArrow': '→',
   'admin.bar.exitYearRange': '2030–2036',
   'admin.nav.collapse': 'Σύμπτυξη',
-  'admin.banner.stalePart1': 'Εμφάνιση στατικής στιγμιότυπας από', // TODO: translate
-  'admin.banner.stalePart2': '— η ζωντανή τροφοδοσία δεν είναι συνδεδεμένη.', // TODO: translate
+  'admin.banner.stalePart1': 'Εμφάνιση στατικής στιγμιότυπας από',
+  'admin.banner.stalePart2': '— η ζωντανή τροφοδοσία δεν είναι συνδεδεμένη.',
 
   // BankControlBar
   'bank.bar.commercial': 'Εμπορική',
@@ -209,13 +209,13 @@ export const el: TranslationDictionary = {
   'as.dsraRepayThresholdNote': 'Η μειωμένης εξασφάλισης προκαταβολή εταίρου αρχίζει να αποπληρώνεται μόνο όταν το αποθεματικό είναι πλήρως αναπληρωμένο ΚΑΙ το ξενοδοχείο έχει ξεπεράσει τον στόχο ΔΚΕΧ για τόσα συνεχόμενα έτη.',
   'as.wcDsraNote': 'Κλειδώνει μερίδιο DSRA, μειώνει ευελιξία',
   // ── Portfolio OPEX P&L rows ──
-  // TODO: translate
+ 
   'pnl.portfolioStaff': 'Προσωπικό Χαρτοφυλακίου',
-  // TODO: translate
+ 
   'pnl.portfolioServices': 'Υπηρεσίες Χαρτοφυλακίου',
-  // TODO: translate
+ 
   'pnl.portfolioOverhead': 'Γενικά Έξοδα Χαρτοφυλακίου',
-  // TODO: translate
+ 
   'pnl.portfolioPreOpening': 'Αποσβέσεις Προ-Έναρξης',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'Ανάληψη DSRA',
@@ -285,7 +285,7 @@ export const el: TranslationDictionary = {
   'ct.footnoteWaterfall': 'Πώς λειτουργεί το waterfall: το οικονομικό μερίδιο του ιδρυτή καθορίζεται κατά την έξοδο από τα τρία στρώματα· οι επενδυτές μοιράζονται το υπόλοιπο αναλογικά. Το ratchet απόδοσης χρησιμοποιεί κατώτατα όρια MOIC. Τα caps προστατεύουν τους επενδυτές (≥ {minShare} εγγυημένο).',
   'ct.footnoteFees': 'Αμοιβές λειτουργίας (ξεχωριστά από ίδια κεφάλαια): η ManCo του ιδρυτή λαμβάνει 5% των εσόδων και 10% αμοιβή επιτυχίας επιχορήγησης (μισό σε μετρητά, μισό σε μετοχές Στρώμα Β).',
   'ct.footnoteTip': 'Συμβουλή: κάντε κλικ σε μια γραμμή για ετήσιες λεπτομέρειες. Αλλάξτε το κεφάλαιο για επανυπολογισμό waterfall.',
-  'ct.exportDocx': 'Word', // TODO translate
+  'ct.exportDocx': 'Word',
 
   // ── Auth Gate / Login ──
   'auth.gate.loading': 'Φόρτωση…',
@@ -662,83 +662,83 @@ export const el: TranslationDictionary = {
   'as.general': 'Γενικά',
   'as.revenue': 'Έσοδα',
   'as.opexTab': 'OPEX',
-  // TODO: translate
+ 
   'as.portfolioOpexTab': 'OPEX Χαρτοφυλακίου',
-  // TODO: translate
+ 
   'as.portfolioOpex.tabIntro': 'Αδιανέμητα γενικά έξοδα κοινά για όλα τα ακίνητα.',
-  // TODO: translate
+ 
   'as.portfolioOpex.totalBadge': 'Συνολικό OPEX Χαρτοφυλακίου',
-  // TODO: translate
+ 
   'as.portfolioOpex.yearRoundFixed': 'Σταθερό όλο το χρόνο',
-  // TODO: translate
+ 
   'as.portfolioOpex.variable': 'Μεταβλητό',
-  // TODO: translate
+ 
   'as.portfolioOpex.staffSection': 'Κοινό Προσωπικό',
-  // TODO: translate
+ 
   'as.portfolioOpex.servicesSection': 'Κοινές Υπηρεσίες & Συντήρηση',
-  // TODO: translate
+ 
   'as.portfolioOpex.overheadSection': 'Κοινά Γενικά Έξοδα',
-  // TODO: translate
+ 
   'as.portfolioOpex.preOpeningSection': 'Αποσβέσεις Προ-Έναρξης',
-  // TODO: translate
+ 
   'as.portfolioOpex.addRole': 'Προσθήκη ρόλου',
-  // TODO: translate
+ 
   'as.portfolioOpex.addService': 'Προσθήκη υπηρεσίας',
-  // TODO: translate
+ 
   'as.portfolioOpex.addOverhead': 'Προσθήκη γενικού εξόδου',
-  // TODO: translate
+ 
   'as.portfolioOpex.roleYearRound': 'Όλο το χρόνο',
-  // TODO: translate
+ 
   'as.portfolioOpex.roleSeasonal': 'Εποχικό',
-  // TODO: translate
+ 
   'as.portfolioOpex.preOpeningTotal': 'Σύνολο προ-έναρξης (€)',
-  // TODO: translate
+ 
   'as.portfolioOpex.preOpeningAmortYears': 'Έτη απόσβεσης',
-  // TODO: translate
+ 
   'as.portfolioOpex.preOpeningStartYear': 'Έτος έναρξης',
-  // TODO: translate
+ 
   'as.portfolioOpex.annualAmort': 'Ετήσια απόσβεση',
-  // TODO: translate
+ 
   'as.portfolioOpex.migrationBanner': 'Μετάβαση v1→v2: Η οικονομία μετακινήθηκε από ανά-πρότυπο σε OPEX Χαρτοφυλακίου.',
-  // TODO: translate
+ 
   'as.portfolioOpex.migrationDismiss': 'Παράβλεψη',
-  // TODO: translate
+ 
   'as.portfolioOpex.sizingBasis': 'Βάση διαστασιολόγησης',
-  // TODO: translate
+ 
   'as.portfolioOpex.bankingTooltip': '≈ Έσοδα × μερίδιο άμεσης κράτησης × μεικτό επιτόκιο επεξεργασίας καρτών. Προεπιλογή: €1,9M × 50% × 3,2% ≈ €30K.',
-  // TODO: translate
+ 
   'as.portfolioOpex.insuranceTooltip': 'D&O, ΔΕ, key-person, cyber, ευθύνη εκδηλώσεων — ένα ενιαίο ασφαλιστήριο χαρτοφυλακίου ξεχωριστό από την κάλυψη κτιρίου ανά ακίνητο.',
-  // TODO: translate
+ 
   'as.portfolioOpex.colRole': 'Ρόλος',
-  // TODO: translate
+ 
   'as.portfolioOpex.colMonthlyGross': 'Μηνιαίες αποδοχές',
-  // TODO: translate
+ 
   'as.portfolioOpex.colMonths': 'Μήνες/έτος',
-  // TODO: translate
+ 
   'as.portfolioOpex.colBurden': 'Βαρύνσεις ×',
-  // TODO: translate
+ 
   'as.portfolioOpex.colAllowances': 'Επιδόματα',
-  // TODO: translate
+ 
   'as.portfolioOpex.colNetMonthly': 'Καθαρό/μήνα (εκτιμ.)',
-  // TODO: translate
+ 
   'as.portfolioOpex.colNetMonthlyTooltip': 'Εκτιμώμενες καθαρές αποδοχές εργαζομένου: μεικτός μισθός μείον ΕΦΚΑ (13,87%) και απλοποιημένες ελληνικές κλίμακες φόρου εισοδήματος. Δεν αποτελεί υπολογισμό μισθοδοσίας.',
-  // TODO: translate
+ 
   'as.portfolioOpex.colHeadcount': 'ΙΠΑ',
-  // TODO: translate
+ 
   'as.portfolioOpex.colHeadcountTooltip': 'Αριθμός εργαζομένων σε αυτόν τον ρόλο. Πολλαπλασιάζει τον μεικτό μισθό, τις βαρύνσεις και τα επιδόματα.',
-  // TODO: translate
+ 
   'as.portfolioOpex.colBonus': 'Επίδομα διακοπών',
-  // TODO: translate
+ 
   'as.portfolioOpex.colBonusTooltip': 'Νόμιμο επίδομα διακοπών (€). Δώρο Χριστουγέννων (1 μηνιαίος μισθός) + Δώρο Πάσχα (½) + Επίδομα άδειας (½) = 2 μήνες για εκτάκτους. Εποχικοί: μικτός × (μήνες σύμβασης ÷ 12) × 2.',
-  // TODO: translate
+ 
   'as.portfolioOpex.poolCount': 'Πισίνες',
-  // TODO: translate
+ 
   'as.portfolioOpex.poolsAt': 'πισίνες ×',
-  // TODO: translate
+ 
   'as.portfolioOpex.poolCostPerUnit': '€/πισίνα/έτος',
-  // TODO: translate
+ 
   'as.portfolioOpex.poolPerPoolYear': '(υλικά + υπηρεσία)',
-  // TODO: translate
+ 
   'as.portfolioOpex.colAnnual': 'Ετήσιο (με βαρύνσεις)',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Επιλέξτε την ενεργή δομή χρηματοδότησης. Ολόκληρο το μοντέλο επανυπολογίζεται βάσει της επιλεγμένης δομής.',
@@ -776,21 +776,21 @@ export const el: TranslationDictionary = {
   'field.nightsCap': 'Ανώτατο όριο διανυκτερεύσεων (μέγ. διαν./έτος)',
   'field.citRate': 'Συντελεστής φόρου εισοδήματος νομικών προσώπων',
   'field.vatRate': 'Καθαρός συντελεστής ΦΠΑ (πραγματικός)',
-  'as.otaDistribution': 'Κατανομή OTA', // TODO: translate
-  'as.otaDistribution.note': 'Αποτελεσματικό ποσοστό = προμήθεια × μερίδιο OTA. Μερίδιο OTA 1 = 100% μέσω OTA· 0 = 100% άμεσο.', // TODO: translate
-  'as.otaDistribution.yearHeader': 'Έτος', // TODO: translate
-  'as.otaDistribution.commissionHeader': 'Προμήθεια OTA', // TODO: translate
-  'as.otaDistribution.otaShareHeader': 'Μερίδιο OTA', // TODO: translate
-  'as.otaDistribution.effectiveHeader': 'Αποτελεσματικό Ποσοστό', // TODO: translate
-  'field.otaCommissionRate': 'Προμήθεια πλατφόρμας OTA (εναλλακτική τιμή)', // TODO: translate
-  'field.otaShare': 'Μερίδιο OTA — έτος έναρξης', // TODO: translate
-  'field.otaShareDecline': 'Ανάπτυξη άμεσου καναλιού (ανά έτος)', // TODO: translate
+  'as.otaDistribution': 'Κατανομή OTA',
+  'as.otaDistribution.note': 'Αποτελεσματικό ποσοστό = προμήθεια × μερίδιο OTA. Μερίδιο OTA 1 = 100% μέσω OTA· 0 = 100% άμεσο.',
+  'as.otaDistribution.yearHeader': 'Έτος',
+  'as.otaDistribution.commissionHeader': 'Προμήθεια OTA',
+  'as.otaDistribution.otaShareHeader': 'Μερίδιο OTA',
+  'as.otaDistribution.effectiveHeader': 'Αποτελεσματικό Ποσοστό',
+  'field.otaCommissionRate': 'Προμήθεια πλατφόρμας OTA (εναλλακτική τιμή)',
+  'field.otaShare': 'Μερίδιο OTA — έτος έναρξης',
+  'field.otaShareDecline': 'Ανάπτυξη άμεσου καναλιού (ανά έτος)',
   'field.villaADR': 'ΜΗΤ βίλας — μεικτό καθαρό (€/διαν.)',
   'field.villaNights': 'Διανυκτερεύσεις βίλας / έτος (βάση, ωρίμανση)',
   'field.stdSuiteADR': 'ΜΗΤ σουίτας standard (€/διαν.)',
   'field.dblSuiteADR': 'ΜΗΤ σουίτας double (€/διαν.)',
-  'field.grossADR': 'Ακαθάριστο ΜΗΤ', // TODO: translate
-  'field.grossADR.note': 'Καθαρό ÷ (1 − προμήθεια OTA) — τιμή ράφι στο Airbnb / Booking.com', // TODO: translate
+  'field.grossADR': 'Ακαθάριστο ΜΗΤ',
+  'field.grossADR.note': 'Καθαρό ÷ (1 − προμήθεια OTA) — τιμή ράφι στο Airbnb / Booking.com',
   'field.suiteNights': 'Διανυκτερεύσεις σουίτας / έτος (βάση, ωρίμανση)',
   'field.eventsPerYear': 'Εκδηλώσεις ανά έτος',
   'field.profitPerEvent': 'Καθαρό κέρδος ανά εκδήλωση (€)',
@@ -1173,6 +1173,7 @@ export const el: TranslationDictionary = {
   'bank.actions.tour.sub': 'Ξενάγηση 5 λεπτών σε κάθε ενότητα',
   'bank.actions.presentation.title': 'Παρουσίαση Τράπεζας',
   'bank.actions.presentation.sub': 'Πλήρης παρουσίαση επενδυτών, έτοιμη για παρουσίαση',
+  'bank.actions.presentation.download': 'Λήψη εγγράφου Word',
   'bank.actions.model.title': 'Λήψη Μοντέλου',
   'bank.actions.model.sub': 'Ζωντανό μοντέλο Excel με όλα τα σενάρια',
   'admin.actions.heading': 'Γρήγορη Πρόσβαση',
@@ -1287,6 +1288,7 @@ export const el: TranslationDictionary = {
   'pnl.cfadsNote': 'CFADS = EBITDA − ΦΕΕ (ο φόρος αποθηκεύεται αρνητικός στη μηχανή). Φορτωμένο DSCR συμπεριλαμβάνει τόκους ΚΚ. Αναπτύξτε τις ενότητες Έσοδα, Γέφυρα CFADS, Εξυπηρέτηση χρέους και Κάλυψη για πλήρη ανάλυση.',
 
   // ── Common additions (2026-05-23) ──
+  'common.back': 'Πίσω',
   'common.collapse': 'σύμπτυξη',
   'common.expand': 'ανάπτυξη',
   'common.total': 'Σύνολο',
@@ -1307,19 +1309,19 @@ export const el: TranslationDictionary = {
   'stress.baseDefaults': 'Όλες οι τιμές είναι στις προεπιλογές. Επεξεργαστείτε οποιοδήποτε πεδίο και πατήστε Enter ή Tab για εφαρμογή.',
 
   // ── Page intros ──
-  'dash.pageIntro': 'Παρακολουθήστε τη συμφωνία από κάθε γωνία: φύλλο όρων, ΔΚΕΧ, αποδόσεις και ζωντανή αποδεικτική λειτουργία — όλα σε μία προβολή.', // TODO: translate
-  'pnl.pageIntro': 'Πίνακας 11 ετών Έσοδα → EBITDA → Εξυπηρέτηση Χρέους → NCF, ενημερωμένος σε πραγματικό χρόνο για κάθε δρόμο και σενάριο.', // TODO: translate
-  'sc.pageIntro': 'Τέσσερα σενάρια και τέσσερις δομές χρηματοδότησης παράλληλα στο σταθεροποιημένο έτος — η άποψη stress-test του τραπεζίτη.', // TODO: translate
-  'capex.pageIntro': 'Συνολικό κόστος έργου ανά κατηγορία και ακίνητο — επεξεργαστείτε οποιαδήποτε μπλε τιμή και ολόκληρο το μοντέλο επανυπολογίζεται.', // TODO: translate
-  'sens.pageIntro': 'Ρυθμίστε έναν παράγοντα κάθε φορά — επιτόκιο, πληρότητα, ΜΗΤ, κεφάλαιο κίνησης — και παρακολουθήστε ΔΚΕΧ και IRR να αντιδρούν.', // TODO: translate
-  'opco.pageIntro': 'Πώς η δομή δύο οντοτήτων PropCo / OpCo διαχωρίζει την κυριότητα ακινήτων από τη λειτουργία — και τι σημαίνει αυτό για το ΔΚΕΧ της τράπεζας.', // TODO: translate
-  'team.pageIntro': 'Προσκαλέστε συνεργάτες μέσω email, αναθέστε ρόλους και δείτε ποιος έχει ήδη αποκτήσει πρόσβαση στο μοντέλο.', // TODO: translate
-  'returns.pageIntro': 'Απόδοση equity, MOIC, έτη αποπληρωμής και IRR — οικονομικά χορηγού κατά το ενεργό έτος εξόδου και δρόμο χρηματοδότησης.', // TODO: translate
-  'dc.pageIntro': 'Τροχιά ΔΚΕΧ ανά έτος και όλοι οι δείκτες κάλυψης που αξιολογεί πιστωτική επιτροπή.', // TODO: translate
-  'financing.pageIntro': 'Και οι τέσσερις δομές χρηματοδότησης συγκρινόμενες παράλληλα.', // TODO: translate
-  'ct.pageIntro': 'Κατανομή equity στο ενεργό έτος εξόδου — τριεπίπεδος καταρράκτης ιδρυτή, μερίδια επενδυτών, MOIC και IRR ανά μέτοχο.', // TODO: translate
-  'lex.pageIntro': 'Κάθε τύπος που τρέχει το μοντέλο — CAPEX, έσοδα, EBITDA, PMT, ΔΚΕΧ, νεκρό σημείο, εξασφαλίσεις και όλες οι τέσσερις δομές χρηματοδότησης.', // TODO: translate
-  'as.pageIntro': 'Το πιλοτήριο του μοντέλου: επεξεργαστείτε οποιαδήποτε μπλε τιμή σε έξι καρτέλες και κάθε γράφημα, KPI και πίνακας επανυπολογίζεται άμεσα.', // TODO: translate
+  'dash.pageIntro': 'Παρακολουθήστε τη συμφωνία από κάθε γωνία: φύλλο όρων, ΔΚΕΧ, αποδόσεις και ζωντανή αποδεικτική λειτουργία — όλα σε μία προβολή.',
+  'pnl.pageIntro': 'Πίνακας 11 ετών Έσοδα → EBITDA → Εξυπηρέτηση Χρέους → NCF, ενημερωμένος σε πραγματικό χρόνο για κάθε δρόμο και σενάριο.',
+  'sc.pageIntro': 'Τέσσερα σενάρια και τέσσερις δομές χρηματοδότησης παράλληλα στο σταθεροποιημένο έτος — η άποψη stress-test του τραπεζίτη.',
+  'capex.pageIntro': 'Συνολικό κόστος έργου ανά κατηγορία και ακίνητο — επεξεργαστείτε οποιαδήποτε μπλε τιμή και ολόκληρο το μοντέλο επανυπολογίζεται.',
+  'sens.pageIntro': 'Ρυθμίστε έναν παράγοντα κάθε φορά — επιτόκιο, πληρότητα, ΜΗΤ, κεφάλαιο κίνησης — και παρακολουθήστε ΔΚΕΧ και IRR να αντιδρούν.',
+  'opco.pageIntro': 'Πώς η δομή δύο οντοτήτων PropCo / OpCo διαχωρίζει την κυριότητα ακινήτων από τη λειτουργία — και τι σημαίνει αυτό για το ΔΚΕΧ της τράπεζας.',
+  'team.pageIntro': 'Προσκαλέστε συνεργάτες μέσω email, αναθέστε ρόλους και δείτε ποιος έχει ήδη αποκτήσει πρόσβαση στο μοντέλο.',
+  'returns.pageIntro': 'Απόδοση equity, MOIC, έτη αποπληρωμής και IRR — οικονομικά χορηγού κατά το ενεργό έτος εξόδου και δρόμο χρηματοδότησης.',
+  'dc.pageIntro': 'Τροχιά ΔΚΕΧ ανά έτος και όλοι οι δείκτες κάλυψης που αξιολογεί πιστωτική επιτροπή.',
+  'financing.pageIntro': 'Και οι τέσσερις δομές χρηματοδότησης συγκρινόμενες παράλληλα.',
+  'ct.pageIntro': 'Κατανομή equity στο ενεργό έτος εξόδου — τριεπίπεδος καταρράκτης ιδρυτή, μερίδια επενδυτών, MOIC και IRR ανά μέτοχο.',
+  'lex.pageIntro': 'Κάθε τύπος που τρέχει το μοντέλο — CAPEX, έσοδα, EBITDA, PMT, ΔΚΕΧ, νεκρό σημείο, εξασφαλίσεις και όλες οι τέσσερις δομές χρηματοδότησης.',
+  'as.pageIntro': 'Το πιλοτήριο του μοντέλου: επεξεργαστείτε οποιαδήποτε μπλε τιμή σε έξι καρτέλες και κάθε γράφημα, KPI και πίνακας επανυπολογίζεται άμεσα.',
   'bank.pageIntro': 'Ζωντανό χρηματοοικονομικό μοντέλο για την επέκταση Villa Lev Group — DSCR, εξασφαλίσεις, Κ&Ζ και πλήρης ανάλυση σεναρίων.',
 
   // ── Conservative Assumptions Memo ──
@@ -1541,14 +1543,14 @@ export const el: TranslationDictionary = {
   'bank.about.villaUnitMixMaxSplit': 'μέγιστη διαίρεση',
   'bank.about.totalKeysLabel':       'κλειδιά (μέγιστη διαίρεση)',
   'bank.about.totalBedroomsLabel':   'υπνοδωμάτια',
-  'bank.about.isDeveloping':         'is developing',
-  'bank.about.villaDesc':            'seven-bedroom luxury villas with independent guest pavilions and',
-  'bank.about.suiteDesc':            'private suite-villas across two buildings (the 11-suite building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
-  'bank.about.inventoryIntro':       'Total inventory:',
-  'bank.about.bedroomsAcross':       'bedrooms across up to',
-  'bank.about.rentableKeys':         'rentable keys at maximum lockable split.',
-  'bank.about.anchorPrefix':         'The anchor asset —',
-  'bank.about.anchorSuffix':         '— is live today and provides the operating track record for all projections in this package.',
+  'bank.about.isDeveloping':         'αναπτύσσει',
+  'bank.about.villaDesc':            'πολυτελείς βίλες επτά υπνοδωματίων με ανεξάρτητα περίπτερα φιλοξενίας και',
+  'bank.about.suiteDesc':            'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 σουιτών στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
+  'bank.about.inventoryIntro':       'Συνολικό απόθεμα:',
+  'bank.about.bedroomsAcross':       'υπνοδωμάτια έως και',
+  'bank.about.rentableKeys':         'ενοικιαζόμενα κλειδιά σε μέγιστη διαχωρίσιμη διαίρεση.',
+  'bank.about.anchorPrefix':         'Το εμβληματικό ακίνητο —',
+  'bank.about.anchorSuffix':         '— λειτουργεί σήμερα και αποτελεί το λειτουργικό ιστορικό για όλες τις προβλέψεις αυτού του πακέτου.',
   'as.portfolioOverview.keysMaxSplit': 'ΕΝΟΙΚΙΑΖΟΜΕΝΑ ΚΛΕΙΔΙΑ',
   'as.portfolioOverview.bedrooms':     'ΥΠΝΟΔΩΜΑΤΙΑ',
   'as.portfolioOverview.projects':     'ΕΡΓΑ',
@@ -1830,7 +1832,7 @@ export const el: TranslationDictionary = {
   'bank.about.unitDbl':         'διπλ.',
 
   // ── Bank coverage group heading (2026-05-25) ──
-  'bank.coverage.groupHeading': 'Δείκτες Κάλυψης Πίστωσης', // TODO: translate
+  'bank.coverage.groupHeading': 'Δείκτες Κάλυψης Πίστωσης',
 
   // ── BankStressTest output strip (P2-07) ──
   'bank.stress.output.dscr':   'DSCR υπό πίεση',
