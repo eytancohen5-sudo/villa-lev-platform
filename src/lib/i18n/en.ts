@@ -455,7 +455,7 @@ export const en: TranslationDictionary = {
   'triangle.tierPremium': 'Premium suite (per-night)',
   'triangle.deltaVsMarket': '{pct} vs market',
   'triangle.defenceCopy': "BP suite-night prices are compared against the Greek market's basic-room and premium-suite tiers — the per-key unit a hotel banker underwrites. Villa Lev's own whole-villa actuals describe a different unit (one buyer rents the entire property) and aren't repeated here — they appear in the live track-record above.",
-  'triangle.seeComparables': 'See the {n} comparables →',
+  'triangle.seeComparables': 'View Hotel Market →',
   'triangle.seeVillaMarket': 'Villa sale & rental market →',
   'collateral.saleMarketStudy': 'Sales Market Study',
   'triangle.bpFloor': 'BP is the floor',

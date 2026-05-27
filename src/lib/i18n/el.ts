@@ -459,7 +459,7 @@ export const el: TranslationDictionary = {
   'triangle.tierPremium': 'Σουίτα premium (ανά διανυκτέρευση)',
   'triangle.deltaVsMarket': '{pct} vs αγορά',
   'triangle.defenceCopy': 'Οι τιμές BP ανά σουίτα-διανυκτέρευση συγκρίνονται με τις κατηγορίες basic δωματίου και premium σουίτας της ελληνικής αγοράς — την ανά-κλειδί μονάδα που εγγυάται ο τραπεζίτης ξενοδοχείων. Τα πραγματικά νούμερα ολόκληρης της βίλας της Villa Lev αφορούν διαφορετική μονάδα (ένας αγοραστής νοικιάζει ολόκληρο το ακίνητο) και δεν επαναλαμβάνονται εδώ — εμφανίζονται στο live track-record παραπάνω.',
-  'triangle.seeComparables': 'Δείτε τα {n} συγκρίσιμα →',
+  'triangle.seeComparables': 'Προβολή Αγοράς Ξενοδοχείων →',
   'triangle.seeVillaMarket': 'Αγορά πώλησης & ενοικίασης βίλας →',
   'collateral.saleMarketStudy': 'Μελέτη Αγοράς Πώλησης',
   'triangle.bpFloor': 'BP είναι το κατώφλι',

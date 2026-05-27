@@ -267,7 +267,7 @@ export const fr = {
   'triangle.tierPremium': 'Suite premium (par nuit)',
   'triangle.deltaVsMarket': '{pct} vs marché',
   'triangle.defenceCopy': "Les tarifs BP par suite-nuit sont comparés aux catégories chambre Basic et suite Premium du marché grec — l'unité par clé que le banquier hôtelier sous-écrit. Les chiffres réels de Villa Lev en location pleine villa concernent une unité différente (un seul acheteur loue tout le bien) et ne sont pas répétés ici — ils figurent dans le bandeau live ci-dessus.",
-  'triangle.seeComparables': 'Voir les {n} comparables →',
+  'triangle.seeComparables': 'Voir le marché hôtelier →',
   'triangle.seeVillaMarket': 'Marché vente & location villa →',
   'collateral.saleMarketStudy': 'Étude de marché vente',
   'triangle.bpFloor': 'BP est le plancher',

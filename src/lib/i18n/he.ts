@@ -451,7 +451,7 @@ export const he: TranslationDictionary = {
   'triangle.tierPremium': 'סוויטה פרימיום (ללילה)',
   'triangle.deltaVsMarket': '{pct} מול שוק',
   'triangle.defenceCopy': 'מחירי BP לסוויטה-לילה מושווים לקטגוריות חדר Basic וסוויטה Premium של השוק היווני — היחידה לכל מפתח שהבנקאי המלונאי חותם עליה. המספרים בפועל של השכרת הוילה כולה ב-Villa Lev מתארים יחידה אחרת (קונה אחד שוכר את כל הנכס) ואינם חוזרים כאן — הם מופיעים בטראק-רקורד החי שמעל.',
-  'triangle.seeComparables': 'הצג את {n} ההשוואות →',
+  'triangle.seeComparables': 'צפה בשוק המלונות →',
   'triangle.seeVillaMarket': 'שוק מכירה והשכרת וילות →',
   'collateral.saleMarketStudy': 'מחקר שוק מכירות',
   'triangle.bpFloor': 'BP הוא הרצפה',
