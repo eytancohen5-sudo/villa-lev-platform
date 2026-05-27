@@ -129,9 +129,7 @@ export default function CapTablePage() {
   const grantAmount = grantApproved
     ? model.keyMetrics.totalCapex - model.keyMetrics.loanAmount - model.keyMetrics.equityRequired
     : 0;
-  // Aggelakakis exit EUR: based on promote-layer exit slice (devEq + grantBonus only, ratchet excluded).
-  const terminalEquityValue = model.scenarios[activeScenario].terminalEquityValue ?? 0;
-  const aggelakakisExitEUR = b.aggelakakisExitPct * terminalEquityValue;
+
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
     activeScenario === 'downside' ? t('scenario.downside') :
@@ -844,57 +842,19 @@ export default function CapTablePage() {
                       <span className="ml-2">{t('ct.layerB.paymentYear')}: <span className="font-medium text-text-primary">{b.grantSuccessFeePaymentYear}</span></span>
                     </div>
                   </div>
-                  {/* Two-party breakdown */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Aggelakakis */}
-                    <div className="rounded-lg bg-surface-secondary/50 border border-surface-tertiary p-3 text-xs">
-                      <div className="font-medium text-text-primary mb-2 flex items-center gap-1.5">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-earth-terracotta/70" />
-                        {t('ct.layerB.aggelakakis')}
+                  {/* Grant success fee — founder portion */}
+                  <div className="rounded-lg bg-brand-50/60 border border-brand-200/60 p-3 text-xs">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <div className="text-text-tertiary">{t('ct.layerB.cashPortion').replace('{year}', String(b.grantSuccessFeePaymentYear))}</div>
+                        <div className="font-mono font-medium mt-0.5 text-negative">{formatCurrency(b.eytan1BCash, true, locale)}</div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <div className="text-text-tertiary">{t('ct.layerB.cashPortion').replace('{year}', String(b.grantSuccessFeePaymentYear))}</div>
-                          <div className="font-mono font-medium mt-0.5 text-negative">{formatCurrency(b.aggelakakisCash, true, locale)}</div>
-                        </div>
-                        <div>
-                          <div className="text-text-tertiary">{t('ct.grantConv.aggelakakisExitPct')}</div>
-                          <div className="font-mono font-medium mt-0.5">
-                            {b.aggelakakisPromotePct > 0 ? formatPercent(b.aggelakakisPromotePct) : '—'}
-                          </div>
-                          <div className="text-text-tertiary/60 text-[10px] mt-0.5">{t('ct.grantConv.aggelakakisSubLabel')}</div>
-                        </div>
-                        <div>
-                          <div className="text-text-tertiary">{t('ct.layerB.equityAtExit')}</div>
-                          <div className="font-mono font-medium mt-0.5">
-                            {aggelakakisExitEUR > 0 ? formatCurrency(aggelakakisExitEUR, true, locale) : '—'}
-                          </div>
-                          {aggelakakisExitEUR > 0 && (
-                            <div className="text-text-tertiary/60 text-[10px] mt-0.5">
-                              {formatPercent(b.aggelakakisExitPct)} × terminal equity
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {/* Eytan */}
-                    <div className="rounded-lg bg-brand-50/60 border border-brand-200/60 p-3 text-xs">
-                      <div className="font-medium text-text-primary mb-2 flex items-center gap-1.5">
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-500" />
-                        {t('ct.layerB.eytan')}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <div className="text-text-tertiary">{t('ct.layerB.cashPortion').replace('{year}', String(b.grantSuccessFeePaymentYear))}</div>
-                          <div className="font-mono font-medium mt-0.5 text-negative">{formatCurrency(b.eytan1BCash, true, locale)}</div>
-                        </div>
-                        <div>
-                          <div className="text-text-tertiary">{t('ct.layerB.layerBEquity')}</div>
-                          <div className="font-mono font-medium mt-0.5 text-brand-700">
-                            {formatCurrency(b.founderNetGrantCash, true, locale)}
-                            <span className="text-text-tertiary font-normal ml-1">÷ {formatCurrency(totalEquity, true, locale)}</span>
-                            <span className="ml-1">= {formatPercent(b.grantBonusPct)}</span>
-                          </div>
+                      <div>
+                        <div className="text-text-tertiary">{t('ct.layerB.layerBEquity')}</div>
+                        <div className="font-mono font-medium mt-0.5 text-brand-700">
+                          {formatCurrency(b.founderNetGrantCash, true, locale)}
+                          <span className="text-text-tertiary font-normal ml-1">÷ {formatCurrency(totalEquity, true, locale)}</span>
+                          <span className="ml-1">= {formatPercent(b.grantBonusPct)}</span>
                         </div>
                       </div>
                     </div>
@@ -975,7 +935,7 @@ export default function CapTablePage() {
                     <div className="text-text-tertiary/70 mt-0.5 font-mono">{formatCurrency(grantAmount * (assumptions.grantProcurementFeePct ?? DEFAULT_GRANT_PROCUREMENT_FEE_PCT), true, locale)}</div>
                   </div>
                   <div>
-                    <div className="text-text-tertiary mb-1">{t('ct.grantConv.consultantSharePct')} <span className="text-text-tertiary/60">({t('ct.grantConv.subGrant')} → Aggelakakis)</span></div>
+                    <div className="text-text-tertiary mb-1">{t('ct.grantConv.consultantSharePct')}</div>
                     <NumberInput
                       value={Math.round((assumptions.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT) * 1000) / 10}
                       onCommit={(v) => setAssumption('consultantSharePct', v / 100)}
