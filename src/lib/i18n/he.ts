@@ -148,6 +148,7 @@ export const he: TranslationDictionary = {
   'bank.bar.rrf': 'RRF',
   'bank.bar.grant': 'מענק',
   'bank.bar.tepix': 'TEPIX',
+  'bank.bar.optima': 'Optima',
   'bank.bar.realistic': 'שמרני',
   'bank.bar.upside': 'ריאלי+',
   'bank.bar.downside': 'פסימי',
@@ -2079,4 +2080,19 @@ export const he: TranslationDictionary = {
   'bankGate.confidential':    'סודי — לנמענים מורשים בלבד.',
 
   'presentation.viewer.back': '← לוח המחוונים',
+
+  // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
+  'bank.optima.eyebrow': 'Optima Bank — מבנה שני תת-פרויקטים',
+  'bank.optima.capexNote': 'עמלות נותני שירותים ועתודה בלתי צפויה נכללות בשורת הבנייה לפי כללי הכשירות של Optima Bank (הצעת Optima, 2026-05-28). תצוגת המנהל שומרת על הפירוט המלא.',
+  'bank.optima.splitDisclaimer': 'גבולות תת-הפרויקטים הם אינדיקטיביים. חלוקת הנכסים הפיזית לפי דרישות הישות המשפטית של Optima Bank תאושר לפני הגשה.',
+  'bank.optima.subProjectA': 'תת-פרויקט א\'',
+  'bank.optima.subProjectB': 'תת-פרויקט ב\'',
+  'bank.optima.loanTerm': '12 שנים סה"כ / 2 שנות גרייס / 10 שנות פירעון',
+  'bank.optima.rateNote': 'משתנה: Euribor + מרווח. הריבית מוצגת נכון לזמן הפגישה.',
+  'bank.optima.subProjects': 'תת-פרויקטים',
+  'bank.optima.capApplied': 'הוחל מגבלת בנייה — יחס מוגבל ל-59.4%',
+  'bank.optima.reducedBy': 'הופחת ב',
+  'bank.optima.subProjectAllocation': 'הקצאת תת-פרויקטים',
+  'bank.optima.assignToA': 'א',
+  'bank.optima.assignToB': 'ב',
 };

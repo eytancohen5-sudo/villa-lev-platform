@@ -1023,6 +1023,7 @@ export interface TranslationDictionary {
   'bank.bar.rrf': string;
   'bank.bar.grant': string;
   'bank.bar.tepix': string;
+  'bank.bar.optima': string;
   'bank.bar.realistic': string;
   'bank.bar.upside': string;
   'bank.bar.downside': string;
@@ -2086,4 +2087,19 @@ export interface TranslationDictionary {
   'bankGate.nameRequired': string;
   'bankGate.error': string;
   'bankGate.confidential': string;
+
+  // ── Optima Bank page (2026-05-28) ──
+  'bank.optima.eyebrow': string;
+  'bank.optima.capexNote': string;
+  'bank.optima.splitDisclaimer': string;
+  'bank.optima.subProjectA': string;
+  'bank.optima.subProjectB': string;
+  'bank.optima.loanTerm': string;
+  'bank.optima.rateNote': string;
+  'bank.optima.subProjects': string;
+  'bank.optima.capApplied': string;
+  'bank.optima.reducedBy': string;
+  'bank.optima.subProjectAllocation': string;
+  'bank.optima.assignToA': string;
+  'bank.optima.assignToB': string;
 }

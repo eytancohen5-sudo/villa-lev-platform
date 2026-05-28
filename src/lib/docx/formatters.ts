@@ -21,5 +21,6 @@ export function financingPathLabel(path: ModelAssumptions['financingPath']): str
     case 'grant':       return 'ESPA Development Grant';
     case 'rrf':         return 'Recovery & Resilience Facility';
     case 'tepix-loan':  return 'TEPIX III Entrepreneurship Fund';
+    case 'optima':      return 'Optima Bank';
   }
 }

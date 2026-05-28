@@ -148,6 +148,7 @@ export const en: TranslationDictionary = {
   'bank.bar.rrf': 'RRF',
   'bank.bar.grant': 'Grant',
   'bank.bar.tepix': 'TEPIX',
+  'bank.bar.optima': 'Optima',
   'bank.bar.realistic': 'Conservative',
   'bank.bar.upside': 'Realistic',
   'bank.bar.downside': 'Downside',
@@ -2090,4 +2091,19 @@ export const en: TranslationDictionary = {
   'bankGate.confidential':    'Confidential — for authorised recipients only.',
 
   'presentation.viewer.back': '← Dashboard',
+
+  // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
+  'bank.optima.eyebrow': 'Optima Bank — Dual Sub-Project Structure',
+  'bank.optima.capexNote': 'Service provider fees and contingency absorbed into construction line per Optima Bank eligibility rules (Optima\'s proposed structure, 2026-05-28). Admin view retains full breakdown.',
+  'bank.optima.splitDisclaimer': 'Sub-project boundaries are indicative. Physical property allocation per Optima\'s legal entity requirements will be confirmed prior to submission.',
+  'bank.optima.subProjectA': 'Sub-Project A',
+  'bank.optima.subProjectB': 'Sub-Project B',
+  'bank.optima.loanTerm': '12y total / 2y grace / 10y amortisation',
+  'bank.optima.rateNote': 'Variable: Euribor + spread. Rate shown at time of meeting.',
+  'bank.optima.subProjects': 'Sub-projects',
+  'bank.optima.capApplied': 'Construction cap applied — ratio capped at 59.4%',
+  'bank.optima.reducedBy': 'reduced by',
+  'bank.optima.subProjectAllocation': 'Sub-Project Allocation',
+  'bank.optima.assignToA': 'A',
+  'bank.optima.assignToB': 'B',
 };

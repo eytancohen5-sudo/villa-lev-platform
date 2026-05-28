@@ -148,6 +148,7 @@ export const el: TranslationDictionary = {
   'bank.bar.rrf': 'ΤΑΑ',
   'bank.bar.grant': 'Επιδότηση',
   'bank.bar.tepix': 'ΤΕΠΙΧ',
+  'bank.bar.optima': 'Optima',
   'bank.bar.realistic': 'Συντηρητικό',
   'bank.bar.upside': 'Ρεαλιστικό+',
   'bank.bar.downside': 'Απαισιόδοξο',
@@ -2120,4 +2121,19 @@ export const el: TranslationDictionary = {
   'bankGate.confidential':    'Εμπιστευτικό — μόνο για εξουσιοδοτημένους παραλήπτες.',
 
   'presentation.viewer.back': '← Πίνακας Ελέγχου',
+
+  // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
+  'bank.optima.eyebrow': 'Optima Bank — Δομή Δύο Υπο-έργων',
+  'bank.optima.capexNote': 'Αμοιβές παρόχων υπηρεσιών και απρόβλεπτα ενσωματωμένα στη γραμμή κατασκευής σύμφωνα με τους κανόνες επιλεξιμότητας Optima Bank (πρόταση Optima, 2026-05-28). Η προβολή διαχειριστή διατηρεί την πλήρη ανάλυση.',
+  'bank.optima.splitDisclaimer': 'Τα όρια υπο-έργων είναι ενδεικτικά. Η φυσική κατανομή ακινήτων σύμφωνα με τις απαιτήσεις νομικής οντότητας της Optima Bank θα επιβεβαιωθεί πριν την υποβολή.',
+  'bank.optima.subProjectA': 'Υπο-έργο Α',
+  'bank.optima.subProjectB': 'Υπο-έργο Β',
+  'bank.optima.loanTerm': '12 έτη συνολικά / 2 έτη χάριτος / 10 έτη αποπληρωμής',
+  'bank.optima.rateNote': 'Μεταβλητό: Euribor + spread. Επιτόκιο κατά την ημέρα της συνάντησης.',
+  'bank.optima.subProjects': 'Υπο-έργα',
+  'bank.optima.capApplied': 'Εφαρμόστηκε όριο κατασκευής — αναλογία περιορισμένη στο 59,4%',
+  'bank.optima.reducedBy': 'μειώθηκε κατά',
+  'bank.optima.subProjectAllocation': 'Κατανομή Υπο-έργων',
+  'bank.optima.assignToA': 'Α',
+  'bank.optima.assignToB': 'Β',
 };

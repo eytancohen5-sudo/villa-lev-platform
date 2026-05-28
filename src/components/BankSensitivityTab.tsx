@@ -321,7 +321,9 @@ export default function BankSensitivityTab() {
         ? t("path.rrf")
         : activePath === "tepix-loan"
           ? t("path.tepixLoan")
-          : t("path.commercial");
+          : activePath === "optima"
+            ? "Optima Bank"
+            : t("path.commercial");
 
   const formatNights = (v: number) => `${Math.round(v)}`;
   const formatADR = (v: number) => formatCurrency(v, false, locale);

@@ -627,6 +627,19 @@ export const BASE_CASE: ModelAssumptions = {
   acquisitionLegalPerPlot: 50000,
   poolConstructionCostPerM2: 1_000,
   developerConstructionFeePerYear: 75_000,
+  optimaLoan: {
+    euriborRate: 0.025,      // ~2.5% Euribor — confirm with Eytan before next meeting
+    spreadBps: 250,          // 2.5% spread per 2026-05-28 term sheet
+    totalTermYears: 12,
+    gracePeriodYears: 2,
+    repaymentYears: 10,
+    splitThresholdEur: 6_000_000,
+    maxConstructionRatio: 5.7 / 9.6,   // 0.59375 — Optima Bank deal constraint
+    // subProjectAllocation intentionally omitted from BASE_CASE:
+    // live project IDs are timestamp-based (set via admin A/B toggle).
+    // When absent the engine falls back to 50/50 monetary split.
+    absorb: { serviceProviders: true, contingency: true },
+  },
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
   // Default exit at the end of the modeled horizon (2036 = Y10 of operations).

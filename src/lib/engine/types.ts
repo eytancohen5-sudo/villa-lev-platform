@@ -334,7 +334,31 @@ export interface TepixLoanFundParams {
   landCapOnFundContribution: number;
 }
 
-export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan';
+/** Optima Bank two-sub-project structure agreed 2026-05-28.
+ *  Service providers and contingency are ineligible; Optima's workaround is to
+ *  absorb them into the construction line (their suggestion, documented in meeting). */
+export interface OptimaLoanParams {
+  euriborRate: number;         // current Euribor rate, e.g. 0.025
+  spreadBps: number;           // lender spread in basis points, e.g. 250
+  totalTermYears: number;      // full term including grace, e.g. 12
+  gracePeriodYears: number;    // grace included in totalTermYears, e.g. 2
+  repaymentYears: number;      // totalTermYears - gracePeriodYears, e.g. 10
+  /** Maximum fraction of portfolioTotal that the translated construction line may consume.
+   *  Optima Bank constraint: 5.7 / 9.6 ≈ 0.59375. Excess is capped in computeDebtService.
+   *  Default 0.59375. Optional so old Firestore scenarios deserialise without migration. */
+  maxConstructionRatio?: number;
+  /** Per-property sub-project assignment. Keys are ProjectAllocation.id values (e.g. 'proj-1').
+   *  'A' = Sub-project A; 'B' = Sub-project B.
+   *  When absent, falls back to 50/50 monetary split (preserves backward compat). */
+  subProjectAllocation?: Record<string, 'A' | 'B'>;
+  splitThresholdEur: number;   // max total CAPEX per sub-project, e.g. 6_000_000
+  absorb: {
+    serviceProviders: boolean; // fold architect/civil/legal/construction-director into construction
+    contingency: boolean;      // fold contingency into construction
+  };
+}
+
+export type FinancingPath = 'commercial' | 'grant' | 'rrf' | 'tepix-loan' | 'optima';
 
 export interface TaxAssumptions {
   corporateIncomeTaxRate: number;
@@ -537,6 +561,9 @@ export interface ModelAssumptions {
   // on the Coverage sheet of the BP export with a Pass/Fail row.
   dscrCovenantThreshold: number;
   dsra?: DSRAParams;
+  /** Optima Bank two-sub-project financing params agreed 2026-05-28.
+   *  Optional so existing Firestore scenarios deserialise without migration. */
+  optimaLoan?: OptimaLoanParams;
   /** FF&E Reserve rate schedule. Engine applies max(floor, rate × revenue/unit) per year.
    *  Year 2028 (opening): floor only (rate 0). Years 2029+: ramp by schedule below. */
   ffeSchedule?: {
@@ -823,6 +850,8 @@ export interface ModelOutput {
   rrfScenario: ScenarioOutput;
   commercialScenario: ScenarioOutput;
   tepixLoanScenario: ScenarioOutput;
+  /** Optima Bank scenario — optional so existing consumers do not require migration. */
+  optimaScenario?: ScenarioOutput;
   financingComparison: FinancingComparison[];
   keyMetrics: {
     stabilisedRevenue: number;

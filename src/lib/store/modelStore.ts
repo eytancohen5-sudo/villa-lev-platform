@@ -959,6 +959,10 @@ interface ModelStore {
     email: string | null;
   }) => void;
   hydrateForUser: (uid: string | null) => Promise<void>;
+
+  // Optima Bank sub-project allocation
+  setOptimaSubProjectSide: (propertyId: string, side: 'A' | 'B') => void;
+  setOptimaEuriborRate: (rate: number) => void;
 }
 
 // Revision 2 — resolve the displayName to stamp on a SavedConfiguration.
@@ -1563,6 +1567,41 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       set({ savedConfigs: merged });
       saveToStorage(merged);
     }
+  },
+
+  // ── Optima Bank sub-project allocation ──
+
+  setOptimaSubProjectSide: (propertyId: string, side: 'A' | 'B') => {
+    const { assumptions } = get();
+    const loan = assumptions.optimaLoan;
+    if (!loan) return;
+    const updated: ModelAssumptions = {
+      ...assumptions,
+      optimaLoan: {
+        ...loan,
+        subProjectAllocation: { ...(loan.subProjectAllocation ?? {}), [propertyId]: side },
+      },
+    };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    // bumpEditCounter marks editsSinceLastSave > 0, preventing the reference-
+    // scenario auto-load from overwriting this allocation after the Firestore
+    // fetch completes (race condition on fresh page load).
+    bumpEditCounter(get, set);
+    get().recompute();
+  },
+
+  setOptimaEuriborRate: (rate: number) => {
+    const { assumptions } = get();
+    const loan = assumptions.optimaLoan;
+    if (!loan) return;
+    const updated: ModelAssumptions = {
+      ...assumptions,
+      optimaLoan: { ...loan, euriborRate: rate },
+    };
+    set({ assumptions: updated });
+    // NOT calling saveAssumptionsToStorage — live rate is ephemeral
+    get().recompute();
   },
 
   // ── Template Management ──
@@ -2301,6 +2340,24 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     if (!isForeign) {
       // Own scenario (or legacy / banker view): hydrate state and pin
       // the active pointer to the source id, as before.
+
+      // Preserve subProjectAllocation — it's a UI routing preference (which
+      // Optima sub-project each property belongs to), not a financial scenario
+      // parameter. Scenarios saved before this field existed have no allocation,
+      // so we keep whatever the user last set rather than silently resetting it.
+      const loadedAllocation = targetAssumptions.optimaLoan?.subProjectAllocation;
+      const currentAllocation = get().assumptions.optimaLoan?.subProjectAllocation;
+      const hasLoadedAllocation =
+        loadedAllocation && Object.keys(loadedAllocation).length > 0;
+      const hasCurrentAllocation =
+        currentAllocation && Object.keys(currentAllocation).length > 0;
+      if (!hasLoadedAllocation && hasCurrentAllocation && targetAssumptions.optimaLoan) {
+        targetAssumptions = {
+          ...targetAssumptions,
+          optimaLoan: { ...targetAssumptions.optimaLoan, subProjectAllocation: currentAllocation },
+        };
+      }
+
       set({
         assumptions: targetAssumptions,
         templates: targetTemplates,

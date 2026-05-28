@@ -121,6 +121,7 @@ export const fr = {
   'bank.bar.rrf': 'FRR',
   'bank.bar.grant': 'Subvention',
   'bank.bar.tepix': 'TEPIX',
+  'bank.bar.optima': 'Optima',
   'bank.bar.realistic': 'Conservateur',
   'bank.bar.upside': 'Réaliste+',
   'bank.bar.downside': 'Pessimiste',

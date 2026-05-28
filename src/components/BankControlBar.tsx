@@ -11,6 +11,7 @@ const PATHS = [
   { key: 'rrf',        labelKey: 'bank.bar.rrf' },
   { key: 'grant',      labelKey: 'bank.bar.grant' },
   { key: 'tepix-loan', labelKey: 'bank.bar.tepix' },
+  { key: 'optima',     labelKey: 'bank.bar.optima' },
 ] as const;
 
 const SCENARIOS = [

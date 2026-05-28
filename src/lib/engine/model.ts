@@ -15,11 +15,13 @@ import {
   FinancingComparison,
   FinancingPath,
   PropertyConfig,
+  OptimaLoanParams,
   getPropertyDisplayType,
   computeTotalArea,
 } from './types';
 import { DOWNSIDE_FACTORS, DEFAULT_ROOM_AREAS, DEFAULT_EXIT_EBITDA_MULTIPLE, DEFAULT_PORTFOLIO_OPEX, PROJECT_CONSTANTS } from './defaults';
 import { computeWorkingCapital } from './workingCapital';
+import { optimaCapexView } from './optimaView';
 
 const {
   HORIZON_START_YEAR,
@@ -345,6 +347,7 @@ function computeCapex(a: ModelAssumptions): CapexBreakdown {
 // ────────────────────────────────────────────
 
 function pmt(rate: number, nper: number, pv: number): number {
+  if (nper === 0) return 0;
   if (rate === 0) return -pv / nper;
   const r = rate;
   return (r * pv) / (1 - Math.pow(1 + r, -nper));
@@ -662,16 +665,183 @@ function computeDebtService(
     };
   }
 
+  if (path === 'optima') {
+    const op = a.optimaLoan;
+
+    // If OptimaLoanParams is absent (old scenario without the field), fall back
+    // to a zero debt service result so no existing scenario is broken.
+    if (!op) {
+      return {
+        annualDS: 0,
+        loanAmount: 0,
+        equityRequired: totalCost,
+        grantAmount: 0,
+        effectiveInterestRate: 0,
+        repaymentTermYears: 10,
+        graceEndYear: HORIZON_START_YEAR + 2,
+        graceInterestCarry: 0,
+        getDS: () => 0,
+      };
+    }
+
+    const effectiveRate = op.euriborRate + op.spreadBps / 10_000;
+
+    // Translate the CAPEX: absorb ineligible soft costs into construction.
+    const translatedCapex = optimaCapexView(capex, op.absorb);
+
+    // Determine translated construction cost: sum of all construction-category
+    // grandTotals in the translated CAPEX (categories matching 'building',
+    // 'excavation', or 'construction' — same keywords as optimaCapexView).
+    const CONSTRUCTION_KW = ['building', 'excavation', 'construction'];
+    const translatedConstructionCost = translatedCapex.categories
+      .filter((c) =>
+        CONSTRUCTION_KW.some((kw) => c.name.toLowerCase().includes(kw))
+      )
+      .reduce((sum, c) => sum + c.grandTotal, 0);
+
+    // Apply construction ratio cap (Optima Bank constraint: ≤ 59.375% of portfolioTotal).
+    const maxRatio = op.maxConstructionRatio ?? (5.7 / 9.6);
+    const maxAllowedConstruction = Math.floor(translatedCapex.portfolioTotal * maxRatio);
+    const cappedConstructionCost = Math.min(translatedConstructionCost, maxAllowedConstruction);
+
+    // Split into two sub-projects using property-based allocation when configured,
+    // otherwise fall back to 50/50 monetary split (backward compat).
+    let rawSubA: number;
+    let rawSubB: number;
+
+    if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
+      const CONST_KW2 = ['building', 'excavation', 'construction'];
+      let sumA = 0;
+      let sumB = 0;
+      for (const cat of translatedCapex.categories) {
+        if (!CONST_KW2.some((kw) => cat.name.toLowerCase().includes(kw))) continue;
+        for (const pp of cat.perProperty) {
+          const side = op.subProjectAllocation[pp.id] ?? 'B';
+          if (side === 'A') sumA += pp.total;
+          else sumB += pp.total;
+        }
+      }
+      const rawTotal = sumA + sumB;
+      const capFactor = rawTotal > 0 ? cappedConstructionCost / rawTotal : 1;
+      rawSubA = Math.round(sumA * capFactor);
+      rawSubB = cappedConstructionCost - rawSubA;
+    } else {
+      rawSubA = cappedConstructionCost / 2;
+      rawSubB = cappedConstructionCost - rawSubA;
+    }
+
+    const subA = Math.min(rawSubA, op.splitThresholdEur);
+    const subB = rawSubB;
+
+    const annualDS_A = pmt(effectiveRate, op.repaymentYears, subA);
+    const annualDS_B = pmt(effectiveRate, op.repaymentYears, subB);
+    const annualDS = annualDS_A + annualDS_B;
+
+    const loanAmount = subA + subB; // = translatedConstructionCost
+    const equityRequired = capex.portfolioTotal - loanAmount;
+
+    const optimaGraceEndYear = HORIZON_START_YEAR + op.gracePeriodYears;
+
+    // Grace-period interest: interest-only on full loan at effectiveRate.
+    const graceInterestPerYear = loanAmount * effectiveRate;
+    const optimaGetDS = (year: number): number => {
+      if (year >= HORIZON_START_YEAR && year <= optimaGraceEndYear) {
+        // Scale interest-only linearly across the grace years.
+        // In the first grace year the loan is not yet fully drawn (land phase),
+        // so we mirror the commercial path convention: a fraction of the
+        // full-draw interest-only amount. For simplicity we apply a flat
+        // proportional draw analogous to the commercial path.
+        if (year === HORIZON_START_YEAR) return graceInterestPerYear * 0.20;
+        if (year === HORIZON_START_YEAR + 1) return graceInterestPerYear * 0.60;
+        if (year === optimaGraceEndYear) return graceInterestPerYear;
+        return graceInterestPerYear;
+      }
+      if (year > optimaGraceEndYear) return annualDS;
+      return 0;
+    };
+
+    const graceInterestCarry =
+      op.gracePeriodYears === 0
+        ? 0
+        : optimaGetDS(HORIZON_START_YEAR) +
+          optimaGetDS(HORIZON_START_YEAR + 1) +
+          optimaGetDS(optimaGraceEndYear);
+
+    return {
+      annualDS,
+      loanAmount,
+      equityRequired,
+      grantAmount: 0,
+      effectiveInterestRate: effectiveRate,
+      repaymentTermYears: op.repaymentYears,
+      graceEndYear: optimaGraceEndYear,
+      graceInterestCarry,
+      getDS: optimaGetDS,
+    };
+  }
+
+  // Exhaustiveness guard: every FinancingPath must have a branch above.
+  throw new Error(`Unhandled financing path: ${path as string}`);
+}
+
+// ────────────────────────────────────────────
+// OPTIMA CAP RESULT HELPER
+// ────────────────────────────────────────────
+
+export interface OptimaCapResult {
+  applied: boolean;
+  ratio: number;          // actual capped ratio
+  maxRatio: number;
+  reductionEur: number;   // 0 when cap not applied
+  subProjectTotalsPreCap: { A: number; B: number };
+}
+
+export function computeOptimaCapResult(
+  capex: CapexBreakdown,
+  op: OptimaLoanParams,
+): OptimaCapResult {
+  const translated = optimaCapexView(capex, op.absorb);
+  const CONST_KW = ['building', 'excavation', 'construction'];
+  const rawConstruction = translated.categories
+    .filter((c) => CONST_KW.some((kw) => c.name.toLowerCase().includes(kw)))
+    .reduce((sum, c) => sum + c.grandTotal, 0);
+  const maxRatio = op.maxConstructionRatio ?? (5.7 / 9.6);
+  const maxAllowed = Math.floor(translated.portfolioTotal * maxRatio);
+  const capped = Math.min(rawConstruction, maxAllowed);
+
+  // Compute subProjectTotalsPreCap — total CAPEX (all categories) per sub-project.
+  // We use the full translated category breakdown so every cost (land, FFE,
+  // pools, construction, etc.) is attributed to the correct sub-project.
+  // Absorbed service-provider and contingency costs land in the inflated
+  // construction perProperty entries after optimaCapexView(), so no special
+  // handling is needed here.
+  let sumA = 0;
+  let sumB = 0;
+  if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
+    // Build per-property total from ALL translated categories.
+    const perPropTotal: Record<string, number> = {};
+    for (const cat of translated.categories) {
+      for (const pp of (cat as { name: string; grandTotal: number; perProperty: { id: string; perUnit: number; total: number }[] }).perProperty ?? []) {
+        perPropTotal[pp.id] = (perPropTotal[pp.id] ?? 0) + pp.total;
+      }
+    }
+    for (const [propId, total] of Object.entries(perPropTotal)) {
+      const side = op.subProjectAllocation[propId] ?? 'B';
+      if (side === 'A') sumA += total;
+      else sumB += total;
+    }
+  } else {
+    // No allocation set — default 50/50 split of total portfolio CAPEX
+    sumA = translated.portfolioTotal / 2;
+    sumB = translated.portfolioTotal / 2;
+  }
+
   return {
-    annualDS: 0,
-    loanAmount: 0,
-    equityRequired: 0,
-    grantAmount: 0,
-    effectiveInterestRate: a.commercialLoan.interestRate,
-    repaymentTermYears: a.commercialLoan.repaymentTermYears,
-    graceEndYear: HORIZON_START_YEAR + 2,
-    graceInterestCarry: 0,
-    getDS: () => 0,
+    applied: capped < rawConstruction,
+    ratio: translated.portfolioTotal > 0 ? capped / translated.portfolioTotal : 0,
+    maxRatio,
+    reductionEur: rawConstruction - capped,
+    subProjectTotalsPreCap: { A: sumA, B: sumB },
   };
 }
 
@@ -1710,6 +1880,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
   const grantDebt = computeDebtService(a, capex, 'grant');
   const rrfDebt = computeDebtService(a, capex, 'rrf');
   const tepixLoanDebt = computeDebtService(a, capex, 'tepix-loan');
+  const optimaDebt = computeDebtService(a, capex, 'optima');
 
   const activeDebt =
     a.financingPath === 'grant'
@@ -1718,7 +1889,9 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
         ? rrfDebt
         : a.financingPath === 'tepix-loan'
           ? tepixLoanDebt
-          : commercialDebt;
+          : a.financingPath === 'optima'
+            ? optimaDebt
+            : commercialDebt;
 
   const realistic = computeScenario(
     'Realistic',
@@ -1832,6 +2005,15 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     a,
     a.revenueRealistic,
     tepixLoanDebt,
+    undefined,
+    capex
+  );
+
+  const optimaScenario = computeScenario(
+    'Optima Bank',
+    a,
+    a.revenueRealistic,
+    optimaDebt,
     undefined,
     capex
   );
@@ -2032,6 +2214,7 @@ export function computeModel(a: ModelAssumptions): ModelOutput {
     rrfScenario: rrfRealistic,
     commercialScenario: commercialRealistic,
     tepixLoanScenario: tepixLoanRealistic,
+    optimaScenario,
     financingComparison,
     keyMetrics,
     dscrByYear,

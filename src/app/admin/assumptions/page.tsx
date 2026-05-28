@@ -1310,6 +1310,7 @@ export default function AssumptionsPage() {
     updatePortfolioOverhead,
     removePortfolioOverhead,
     updatePortfolioOpexScalar,
+    setOptimaSubProjectSide,
   } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
@@ -1814,6 +1815,45 @@ export default function AssumptionsPage() {
             </>)}
 
           </div>
+
+          {/* Optima sub-project allocation (shown whenever optimaLoan is configured) */}
+          {a.optimaLoan && (
+            <div className="mt-6 bg-white rounded-xl border border-surface-tertiary p-6">
+              <h3 className="font-display text-base text-text-primary mb-1">
+                {t('bank.optima.subProjectAllocation')}
+              </h3>
+              <p className="text-xs text-text-tertiary mb-4">
+                {t('bank.optima.splitDisclaimer')}
+              </p>
+              <div className="space-y-2">
+                {projects.map((proj) => {
+                  const side = (a.optimaLoan?.subProjectAllocation ?? {})[proj.id] ?? 'B';
+                  return (
+                    <div key={proj.id} className="flex items-center justify-between py-2 border-b border-surface-secondary/50 last:border-0">
+                      <span className="text-sm text-text-secondary">{proj.name}</span>
+                      <div className="flex gap-1">
+                        {(['A', 'B'] as const).map((s) => (
+                          <button
+                            key={s}
+                            type="button"
+                            onClick={() => setOptimaSubProjectSide(proj.id, s)}
+                            className={[
+                              "w-8 h-7 rounded text-xs font-bold transition-colors",
+                              side === s
+                                ? "bg-brand-600 text-white"
+                                : "bg-surface-secondary text-text-tertiary hover:bg-surface-tertiary"
+                            ].join(' ')}
+                          >
+                            {s === 'A' ? t('bank.optima.assignToA') : t('bank.optima.assignToB')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Impact Summary */}
           <div className="mt-6 grid grid-cols-3 gap-4">

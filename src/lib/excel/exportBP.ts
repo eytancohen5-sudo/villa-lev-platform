@@ -3555,6 +3555,7 @@ function pathLabel(path: string): string {
   if (path === 'grant') return 'Development Law Grant';
   if (path === 'rrf') return 'RRF Loan';
   if (path === 'tepix-loan') return 'TEPIX Loan Fund';
+  if (path === 'optima') return 'Optima Bank';
   return 'Commercial Loan';
 }
 

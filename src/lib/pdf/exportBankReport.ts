@@ -475,6 +475,7 @@ export async function exportBankReport(
     a.financingPath === 'commercial' ? T.pathCommercial
     : a.financingPath === 'grant' ? T.pathGrant
     : a.financingPath === 'rrf' ? T.pathRRF
+    : a.financingPath === 'optima' ? 'Optima Bank'
     : T.pathTepix;
 
   const generated = new Date().toLocaleDateString('en-GB', {
