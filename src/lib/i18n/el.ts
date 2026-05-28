@@ -1679,7 +1679,7 @@ export const el: TranslationDictionary = {
   'bank.about.totalBedroomsLabel':   'υπνοδωμάτια',
   'bank.about.isDeveloping':         'αναπτύσσει',
   'bank.about.villaDesc':            'πολυτελείς βίλες επτά υπνοδωματίων με ανεξάρτητα περίπτερα φιλοξενίας και',
-  'bank.about.suiteDesc':            'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 σουιτών στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
+  'bank.about.suiteDesc':            'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 villa suites στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
   'bank.about.inventoryIntro':       'Συνολικό απόθεμα:',
   'bank.about.bedroomsAcross':       'υπνοδωμάτια έως και',
   'bank.about.rentableKeys':         'ενοικιαζόμενα κλειδιά σε μέγιστη διαχωρίσιμη διαίρεση.',
@@ -1718,7 +1718,7 @@ export const el: TranslationDictionary = {
   'dash.about.isDeveloping':       'αναπτύσσει',
   'dash.about.plotsIn':            'οικόπεδα στον Άγιο Γεώργιο, Αντίπαρο —',
   'dash.about.villaDesc':          'πολυτελείς βίλες επτά υπνοδωματίων με ανεξάρτητα περίπτερα φιλοξενίας και',
-  'dash.about.suiteDesc':          'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 σουιτών στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
+  'dash.about.suiteDesc':          'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 villa suites στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
   'dash.about.inventoryIntro':     'Συνολικό απόθεμα:',
   'dash.about.bedroomsAcross':     'υπνοδωμάτια έως και',
   'dash.about.rentableKeys':       'ενοικιαζόμενα κλειδιά σε μέγιστη διαχωρίσιμη διαίρεση.',
@@ -2144,4 +2144,5 @@ export const el: TranslationDictionary = {
   'bank.optima.ratioExceeded': 'Εφαρμόστηκε όριο',
   'bank.optima.pnlProjection': 'Προβολή Α/Ζ (αναλογικά βάσει CAPEX)',
   'bank.optima.stabilisedSnapshot': 'Λειτουργίες σε Σταθερή Κατάσταση',
+  'bank.optima.noProjectsAssigned': 'Δεν έχουν ανατεθεί ακίνητα σε αυτό το υπό-έργο — μεταβείτε στο Admin → Παραδοχές για κατανομή.',
 };

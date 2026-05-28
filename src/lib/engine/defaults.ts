@@ -188,7 +188,7 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
     landscapingCost: 300_000,
     licensesPermitsCost: 250_000,
     constructionDirectorCost: 60_000,
-    // Source: BP v6 CAPEX sheet row B8 "Architect + interior design" for 11-Room Suites (Plot A).
+    // Source: BP v6 CAPEX sheet row B8 "Architect + interior design" for 11 Villa Suites (Plot A).
     // In BP v7+ this line was merged into licensesPermitsCost; the value here represents the
     // interior-design sub-component of that bundle and is displayed separately in the CapEx table.
     interiorDesignerCost: 50_000,
@@ -383,13 +383,13 @@ export const BUILT_IN_TEMPLATES: PropertyTemplate[] = [
 // ── Default Project Allocations ──
 
 // Default cold-start allocation — 4 plots, mirrors the Full Tora Complex
-// structure (Luxury Villa ×2 + Boutique ×1 + Twin Villa ×1). The reference
+// structure (Luxury Villa ×2 + Boutique ×1 + 11 Villa Suites ×1). The reference
 // scenario (appConfig/current) overrides this on first load; these built-in
 // templates stand in until Firestore resolves.
 export const DEFAULT_PROJECTS: ProjectAllocation[] = [
   { id: 'proj-1', templateId: 'tpl-luxury-villa',   name: 'Luxury Villa',    count: 2 },
   { id: 'proj-2', templateId: 'tpl-boutique-suite', name: 'Boutique Suites', count: 1 },
-  { id: 'proj-3', templateId: 'tpl-twin-villa',     name: 'Suite Villa',     count: 1 },
+  { id: 'proj-3', templateId: 'tpl-twin-villa',     name: '11 Villa Suites', count: 1 },
 ];
 
 // Helper: resolve projects → portfolio (PropertyConfig[])

@@ -204,7 +204,7 @@ export default function DashboardPage() {
   const bpAccommodationPerVilla = bpADR * bpNights;
   const bpEventsPortfolio = rev.eventsPerYear * rev.netProfitPerEvent;
   // Ancillary: the BP allocates ancillary profit explicitly per-villa
-  // (€15K) and separately to suite rooms (€30K across 11 rooms). For the
+  // (€15K) and separately to suite rooms (€30K across 11 villa suites). For the
   // per-villa conservatism comparison we use the villa value directly —
   // suite rooms have a different service mix (fewer guests per room) and
   // belong in a different comparator if surfaced.

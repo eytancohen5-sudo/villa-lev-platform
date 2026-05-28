@@ -2110,4 +2110,5 @@ export interface TranslationDictionary {
   'bank.optima.ratioExceeded': string;
   'bank.optima.pnlProjection': string;
   'bank.optima.stabilisedSnapshot': string;
+  'bank.optima.noProjectsAssigned': string;
 }

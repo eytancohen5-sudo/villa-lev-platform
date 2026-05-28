@@ -1147,7 +1147,7 @@ export const en: TranslationDictionary = {
   'bank.about.isDeveloping':    'is developing',
   'bank.about.plotsIn':         'plots in Agios Georgios, Antiparos —',
   'bank.about.villaDesc':       'seven-bedroom luxury villas with independent guest pavilions and',
-  'bank.about.suiteDesc':       'private suite-villas across two buildings (the 11-suite building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
+  'bank.about.suiteDesc':       'private suite-villas across two buildings (the 11 villa suites building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
   'bank.about.inventoryIntro':  'Total inventory:',
   'bank.about.bedroomsAcross':  'bedrooms across up to',
   'bank.about.rentableKeys':    'rentable keys at maximum lockable split.',
@@ -1703,7 +1703,7 @@ export const en: TranslationDictionary = {
   'dash.about.isDeveloping':       'is developing',
   'dash.about.plotsIn':            'plots in Agios Georgios, Antiparos —',
   'dash.about.villaDesc':          'seven-bedroom luxury villas with independent guest pavilions and',
-  'dash.about.suiteDesc':          'private suite-villas across two buildings (the 11-suite building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
+  'dash.about.suiteDesc':          'private suite-villas across two buildings (the 11 villa suites building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
   'dash.about.inventoryIntro':     'Total inventory:',
   'dash.about.bedroomsAcross':     'bedrooms across up to',
   'dash.about.rentableKeys':       'rentable keys at maximum lockable split.',
@@ -2114,4 +2114,5 @@ export const en: TranslationDictionary = {
   'bank.optima.ratioExceeded': 'Cap applied',
   'bank.optima.pnlProjection': 'P&L Projection (proportional by CAPEX weight)',
   'bank.optima.stabilisedSnapshot': 'Stabilised Operations Snapshot',
+  'bank.optima.noProjectsAssigned': 'No properties assigned to this sub-project — go to Admin → Assumptions to allocate.',
 };

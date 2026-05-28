@@ -1641,7 +1641,7 @@ export const he: TranslationDictionary = {
   'bank.about.totalBedroomsLabel':   'חדרי שינה',
   'bank.about.isDeveloping':         'is developing',
   'bank.about.villaDesc':            'seven-bedroom luxury villas with independent guest pavilions and',
-  'bank.about.suiteDesc':            'private suite-villas across two buildings (the 11-suite building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
+  'bank.about.suiteDesc':            'private suite-villas across two buildings (the 11 villa suites building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
   'bank.about.inventoryIntro':       'Total inventory:',
   'bank.about.bedroomsAcross':       'bedrooms across up to',
   'bank.about.rentableKeys':         'rentable keys at maximum lockable split.',
@@ -1680,7 +1680,7 @@ export const he: TranslationDictionary = {
   'dash.about.isDeveloping':       'מפתח',
   'dash.about.plotsIn':            'מגרשים בקדוש גאורגיוס, אנטיפרוס —',
   'dash.about.villaDesc':          'וילות יוקרה בנות שבעה חדרי שינה עם פוויליוני אורחים עצמאיים ו-',
-  'dash.about.suiteDesc':          'סוויטות-וילות פרטיות בשני בניינים (בניין 11 הסוויטות על מגרש 15,000 מ"ר והבניין הבוטיק ורווחה בתוך הכפר).',
+  'dash.about.suiteDesc':          'סוויטות-וילות פרטיות בשני בניינים (בניין 11 Villa Suites על מגרש 15,000 מ"ר והבניין הבוטיק ורווחה בתוך הכפר).',
   'dash.about.inventoryIntro':     'מלאי כולל:',
   'dash.about.bedroomsAcross':     'חדרי שינה ב-',
   'dash.about.rentableKeys':       'יחידות להשכרה בפיצול נעילה מקסימלי.',
@@ -2103,4 +2103,5 @@ export const he: TranslationDictionary = {
   'bank.optima.ratioExceeded': 'הוחלה מגבלה',
   'bank.optima.pnlProjection': 'תחזית רוו"ה (יחסי לפי CAPEX)',
   'bank.optima.stabilisedSnapshot': 'תמונת מצב פעילות יציבה',
+  'bank.optima.noProjectsAssigned': 'אין נכסים המוקצים לתת-פרויקט זה — עברו ל-Admin → הנחות להקצאה.',
 };

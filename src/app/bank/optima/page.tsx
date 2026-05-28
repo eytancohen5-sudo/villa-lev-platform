@@ -289,7 +289,7 @@ export default function OptimaPage() {
       {/* ── PER-TAB CONTENT ── */}
 
       {/* Projects in this sub-project */}
-      {tabData.tabProjects.length > 0 && (
+      {tabData.tabProjects.length > 0 ? (
         <div className="flex flex-wrap gap-2 mb-5">
           {tabData.tabProjects.map((p) => (
             <span
@@ -299,6 +299,10 @@ export default function OptimaPage() {
               {p.name}
             </span>
           ))}
+        </div>
+      ) : (
+        <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-relaxed">
+          {t('bank.optima.noProjectsAssigned')}
         </div>
       )}
 
@@ -387,8 +391,10 @@ export default function OptimaPage() {
               <tbody>
                 {tabData.tabCapexRows.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="text-center py-6 text-text-tertiary text-xs">
-                      {t("common.loading")}
+                    <td colSpan={3} className="text-center py-6 text-text-tertiary text-xs italic">
+                      {tabData.tabProjects.length === 0
+                        ? t('bank.optima.noProjectsAssigned')
+                        : t('common.loading')}
                     </td>
                   </tr>
                 ) : (
