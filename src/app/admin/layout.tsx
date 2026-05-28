@@ -371,6 +371,20 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
               </>
             )}
           </Link>
+          <Link
+            href={`/bank/optima?lang=${locale}`}
+            className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-md text-[11px] font-medium text-brand-600 bg-brand-50 border border-brand-200 hover:bg-brand-100 transition-colors"
+            title={sidebarCollapsed ? t('admin.bar.optimaView') : undefined}
+          >
+            {sidebarCollapsed ? (
+              <span className="mx-auto font-bold">O</span>
+            ) : (
+              <>
+                <span>{t('admin.bar.optimaView')}</span>
+                <span className="opacity-50">{t('admin.bar.bankerViewArrow')}</span>
+              </>
+            )}
+          </Link>
           <button
             onClick={() => setSidebarCollapsed(v => !v)}
             aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}

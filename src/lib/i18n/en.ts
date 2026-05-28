@@ -137,6 +137,7 @@ export const en: TranslationDictionary = {
   'admin.bar.stubAtMaturity': 'stub at maturity',
   'admin.bar.viewPresentation': 'View Presentation ↗',
   'admin.bar.bankerView': 'Banker view',
+  'admin.bar.optimaView': 'Optima Bank',
   'admin.bar.bankerViewArrow': '→',
   'admin.bar.exitYearRange': '2030–2036',
   'admin.nav.collapse': 'Collapse',

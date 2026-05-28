@@ -137,6 +137,7 @@ export const he: TranslationDictionary = {
   'admin.bar.stubAtMaturity': 'תשלום בפירעון',
   'admin.bar.viewPresentation': 'צפייה בפרזנטציה ↗',
   'admin.bar.bankerView': 'תצוגת בנקאי',
+  'admin.bar.optimaView': 'Optima Bank',
   'admin.bar.bankerViewArrow': '←', // RTL reversal
   'admin.bar.exitYearRange': '2030–2036',
   'admin.nav.collapse': 'כיווץ',

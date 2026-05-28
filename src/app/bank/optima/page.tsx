@@ -12,6 +12,7 @@ import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
+import Link from "next/link";
 
 type TabSide = 'A' | 'B';
 
@@ -212,6 +213,19 @@ export default function OptimaPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none animate-fade-in">
+
+      {/* ── Back to admin ── */}
+      <div className="flex items-center justify-between mb-6 print:hidden">
+        <Link
+          href={`/admin/assumptions?lang=${locale}`}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-text-tertiary hover:text-brand-600 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {t('common.back')} Admin
+        </Link>
+      </div>
 
       {/* ── Hero (shared) ── */}
       <div className="text-center mb-8 print:mb-4">

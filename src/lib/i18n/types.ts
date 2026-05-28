@@ -1005,6 +1005,7 @@ export interface TranslationDictionary {
   'admin.bar.stubAtMaturity': string;
   'admin.bar.viewPresentation': string;
   'admin.bar.bankerView': string;
+  'admin.bar.optimaView': string;
   'admin.bar.bankerViewArrow': string;
   'admin.bar.exitYearRange': string;
   'admin.nav.collapse': string;

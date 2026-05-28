@@ -137,6 +137,7 @@ export const el: TranslationDictionary = {
   'admin.bar.stubAtMaturity': 'αποπληρωμή στη λήξη',
   'admin.bar.viewPresentation': 'Προβολή Παρουσίασης ↗',
   'admin.bar.bankerView': 'Προβολή Τραπεζίτη',
+  'admin.bar.optimaView': 'Optima Bank',
   'admin.bar.bankerViewArrow': '→',
   'admin.bar.exitYearRange': '2030–2036',
   'admin.nav.collapse': 'Σύμπτυξη',
