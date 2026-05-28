@@ -633,8 +633,9 @@ export const BASE_CASE: ModelAssumptions = {
     totalTermYears: 12,
     gracePeriodYears: 2,
     repaymentYears: 10,
+    loanCoverageRate: 0.70,             // 70% of total project CAPEX (Optima Bank LTC)
     splitThresholdEur: 6_000_000,
-    maxConstructionRatio: 0.60,         // 60% max construction / total CAPEX (Optima Bank)
+    maxConstructionRatio: 0.60,         // informational only — admin indicator, does NOT cap loan
     // subProjectAllocation intentionally omitted from BASE_CASE:
     // live project IDs are timestamp-based (set via admin A/B toggle).
     // When absent the engine falls back to 50/50 monetary split.

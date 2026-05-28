@@ -689,45 +689,38 @@ function computeDebtService(
     // Translate the CAPEX: absorb ineligible soft costs into construction.
     const translatedCapex = optimaCapexView(capex, op.absorb);
 
-    // Determine translated construction cost: sum of all construction-category
-    // grandTotals in the translated CAPEX (categories matching 'building',
-    // 'excavation', or 'construction' — same keywords as optimaCapexView).
-    const CONSTRUCTION_KW = ['building', 'excavation', 'construction'];
-    const translatedConstructionCost = translatedCapex.categories
-      .filter((c) =>
-        CONSTRUCTION_KW.some((kw) => c.name.toLowerCase().includes(kw))
-      )
-      .reduce((sum, c) => sum + c.grandTotal, 0);
+    // Loan = coverage rate × total project CAPEX (70% LTC per Optima Bank terms).
+    // The old construction-cap approach (maxConstructionRatio) is informational only —
+    // it no longer drives the loan amount.
+    const loanCoverage = op.loanCoverageRate ?? 0.70;
+    const totalLoan = translatedCapex.portfolioTotal * loanCoverage;
 
-    // Apply construction ratio cap (Optima Bank constraint: ≤ 59.375% of portfolioTotal).
-    const maxRatio = op.maxConstructionRatio ?? (5.7 / 9.6);
-    const maxAllowedConstruction = Math.floor(translatedCapex.portfolioTotal * maxRatio);
-    const cappedConstructionCost = Math.min(translatedConstructionCost, maxAllowedConstruction);
-
-    // Split into two sub-projects using property-based allocation when configured,
-    // otherwise fall back to 50/50 monetary split (backward compat).
+    // Split total loan into two sub-projects proportional to each sub-project's
+    // share of total CAPEX. Falls back to 50/50 when no allocation is set.
     let rawSubA: number;
     let rawSubB: number;
 
     if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
-      const CONST_KW2 = ['building', 'excavation', 'construction'];
-      let sumA = 0;
-      let sumB = 0;
+      // Sum CAPEX (all categories) per sub-project using property allocation.
+      const perPropTotal: Record<string, number> = {};
       for (const cat of translatedCapex.categories) {
-        if (!CONST_KW2.some((kw) => cat.name.toLowerCase().includes(kw))) continue;
         for (const pp of cat.perProperty) {
-          const side = op.subProjectAllocation[pp.id] ?? 'B';
-          if (side === 'A') sumA += pp.total;
-          else sumB += pp.total;
+          perPropTotal[pp.id] = (perPropTotal[pp.id] ?? 0) + pp.total;
         }
       }
-      const rawTotal = sumA + sumB;
-      const capFactor = rawTotal > 0 ? cappedConstructionCost / rawTotal : 1;
-      rawSubA = Math.round(sumA * capFactor);
-      rawSubB = cappedConstructionCost - rawSubA;
+      let capexA = 0;
+      let capexB = 0;
+      for (const [propId, total] of Object.entries(perPropTotal)) {
+        const side = op.subProjectAllocation[propId] ?? 'B';
+        if (side === 'A') capexA += total;
+        else capexB += total;
+      }
+      const capexTotal = capexA + capexB;
+      rawSubA = capexTotal > 0 ? totalLoan * (capexA / capexTotal) : totalLoan / 2;
+      rawSubB = totalLoan - rawSubA;
     } else {
-      rawSubA = cappedConstructionCost / 2;
-      rawSubB = cappedConstructionCost - rawSubA;
+      rawSubA = totalLoan / 2;
+      rawSubB = totalLoan / 2;
     }
 
     const subA = Math.min(rawSubA, op.splitThresholdEur);
@@ -813,23 +806,17 @@ export function computeOptimaCapResult(
 ): OptimaCapResult {
   const translated = optimaCapexView(capex, op.absorb);
   const CONST_KW = ['building', 'excavation', 'construction'];
+
+  // Raw construction total (for admin ratio indicator only — does NOT drive loan).
   const rawConstruction = translated.categories
     .filter((c) => CONST_KW.some((kw) => c.name.toLowerCase().includes(kw)))
     .reduce((sum, c) => sum + c.grandTotal, 0);
-  const maxRatio = op.maxConstructionRatio ?? (5.7 / 9.6);
-  const maxAllowed = Math.floor(translated.portfolioTotal * maxRatio);
-  const capped = Math.min(rawConstruction, maxAllowed);
+  const maxRatio = op.maxConstructionRatio ?? 0.60;
 
-  // Compute subProjectTotalsPreCap — total CAPEX (all categories) per sub-project.
-  // We use the full translated category breakdown so every cost (land, FFE,
-  // pools, construction, etc.) is attributed to the correct sub-project.
-  // Absorbed service-provider and contingency costs land in the inflated
-  // construction perProperty entries after optimaCapexView(), so no special
-  // handling is needed here.
+  // Total CAPEX per sub-project (all categories, by property allocation).
   let sumA = 0;
   let sumB = 0;
   if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
-    // Build per-property total from ALL translated categories.
     const perPropTotal: Record<string, number> = {};
     for (const cat of translated.categories) {
       for (const pp of (cat as { name: string; grandTotal: number; perProperty: { id: string; perUnit: number; total: number }[] }).perProperty ?? []) {
@@ -842,13 +829,11 @@ export function computeOptimaCapResult(
       else sumB += total;
     }
   } else {
-    // No allocation set — default 50/50 split of total portfolio CAPEX
     sumA = translated.portfolioTotal / 2;
     sumB = translated.portfolioTotal / 2;
   }
 
-  // Per-sub-project construction split — for loan computation.
-  // Construction categories only (same CONST_KW filter as ratio check).
+  // Construction CAPEX per sub-project (retained for subProjectConstructionPreCap).
   let constrA = 0;
   let constrB = 0;
   if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
@@ -865,25 +850,26 @@ export function computeOptimaCapResult(
     constrB = rawConstruction / 2;
   }
 
-  // Apply construction cap proportionally across sub-projects.
-  const totalConstr = constrA + constrB;
-  const capFactor = totalConstr > 0 ? capped / totalConstr : 1;
+  // Loan = loanCoverageRate × portfolioTotal, split proportionally by sub-project CAPEX.
+  const loanCoverage = op.loanCoverageRate ?? 0.70;
+  const totalLoan = translated.portfolioTotal * loanCoverage;
+  const capexTotal = sumA + sumB;
+  const rawLoanA = capexTotal > 0 ? totalLoan * (sumA / capexTotal) : totalLoan / 2;
+  const rawLoanB = totalLoan - rawLoanA;
   const splitThresh = op.splitThresholdEur ?? 6_000_000;
-  const rawLoanA = constrA * capFactor;
-  const rawLoanB = constrB * capFactor;
   const loanA = Math.min(rawLoanA, splitThresh);
-  const loanB = rawLoanB; // Sub-project B gets remainder (not independently capped)
+  const loanB = rawLoanB;
 
   return {
-    applied: capped < rawConstruction,
-    ratio: translated.portfolioTotal > 0 ? capped / translated.portfolioTotal : 0,
+    applied: false,  // construction cap no longer drives loan — always false
+    ratio: loanCoverage,
     rawConstructionRatio: translated.portfolioTotal > 0 ? rawConstruction / translated.portfolioTotal : 0,
     maxRatio,
-    reductionEur: rawConstruction - capped,
+    reductionEur: 0,
     subProjectTotalsPreCap: { A: sumA, B: sumB },
     subProjectConstructionPreCap: { A: constrA, B: constrB },
     subProjectLoans: { A: loanA, B: loanB },
-    cappedConstruction: capped,
+    cappedConstruction: rawConstruction,
     rawConstruction,
   };
 }

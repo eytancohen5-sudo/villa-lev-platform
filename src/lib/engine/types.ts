@@ -343,9 +343,13 @@ export interface OptimaLoanParams {
   totalTermYears: number;      // full term including grace, e.g. 12
   gracePeriodYears: number;    // grace included in totalTermYears, e.g. 2
   repaymentYears: number;      // totalTermYears - gracePeriodYears, e.g. 10
-  /** Maximum fraction of portfolioTotal that the translated construction line may consume.
-   *  Optima Bank constraint: 5.7 / 9.6 ≈ 0.59375. Excess is capped in computeDebtService.
-   *  Default 0.59375. Optional so old Firestore scenarios deserialise without migration. */
+  /** Loan-to-cost fraction applied to the translated portfolioTotal.
+   *  Optima Bank: 70% of total project CAPEX.
+   *  Default 0.70. Optional so old Firestore scenarios deserialise without migration. */
+  loanCoverageRate?: number;
+  /** Maximum fraction of portfolioTotal that the construction line may represent.
+   *  Used as an informational indicator in the admin view only — does NOT cap the loan.
+   *  Default 0.60. Optional so old Firestore scenarios deserialise without migration. */
   maxConstructionRatio?: number;
   /** Per-property sub-project assignment. Keys are ProjectAllocation.id values (e.g. 'proj-1').
    *  'A' = Sub-project A; 'B' = Sub-project B.
