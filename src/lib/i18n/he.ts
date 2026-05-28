@@ -2095,4 +2095,11 @@ export const he: TranslationDictionary = {
   'bank.optima.subProjectAllocation': 'הקצאת תת-פרויקטים',
   'bank.optima.assignToA': 'א',
   'bank.optima.assignToB': 'ב',
+  'bank.optima.project1': 'פרויקט 1',
+  'bank.optima.project2': 'פרויקט 2',
+  'bank.optima.constructionRatio': 'בנייה / סך הכל',
+  'bank.optima.withinLimit': 'בתחום המגבלה',
+  'bank.optima.ratioExceeded': 'הוחלה מגבלה',
+  'bank.optima.pnlProjection': 'תחזית רוו"ה (יחסי לפי CAPEX)',
+  'bank.optima.stabilisedSnapshot': 'תמונת מצב פעילות יציבה',
 };

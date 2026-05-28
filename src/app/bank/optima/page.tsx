@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -12,6 +12,8 @@ import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
+
+type TabSide = 'A' | 'B';
 
 function MetricCell({
   value,
@@ -40,6 +42,7 @@ function MetricCell({
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
   const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate } = useModelStore();
+  const [activeTab, setActiveTab] = useState<TabSide>('A');
 
   // Override financing path to 'optima' for the duration of this page.
   // The layout sets 'commercial' on mount; this overrides that.
@@ -75,63 +78,111 @@ export default function OptimaPage() {
   };
 
   const optimaScenario = model.optimaScenario;
-  const stabilisedDscr = optimaScenario?.stabilisedYear?.dscr ?? 0;
-  const dscrPass = stabilisedDscr >= (assumptions.dscrCovenantThreshold ?? 1.25);
+  const allocation = assumptions.optimaLoan?.subProjectAllocation ?? {};
+  const portfolioProjects = model.capex.properties;
+  const totalCapex = model.capex.portfolioTotal;
 
-  // Translated CAPEX view — no raw service-provider breakdown shown.
+  // Translated CAPEX view — absorbs service providers + contingency into construction
   const optimaCapex = optimaCapexView(model.capex, optimaLoan.absorb);
 
-  // Construction ratio cap result
+  // Construction ratio cap result (Optima-specific, admin-only — not displayed on bank view)
   const capResult: OptimaCapResult | null = optimaLoan
     ? computeOptimaCapResult(model.capex, optimaLoan)
     : null;
 
-  // Effective rate = Euribor + spread
-  const effectiveRatePct = (optimaLoan.euriborRate + optimaLoan.spreadBps / 10000) * 100;
+  // Effective interest rate = Euribor + spread
+  const effectiveRate = optimaLoan.euriborRate + optimaLoan.spreadBps / 10000;
+  const effectiveRatePct = effectiveRate * 100;
+  const repayYears = optimaLoan.repaymentYears ?? 10;
+  const dscrCovenant = assumptions.dscrCovenantThreshold ?? 1.25;
 
-  // Sub-project CAPEX allocation — use property-based allocation when available
-  const totalCapex = model.capex.portfolioTotal;
-  const subTotals = capResult?.subProjectTotalsPreCap ?? { A: totalCapex / 2, B: totalCapex / 2 };
-  const subACapex = subTotals.A;
-  const subBCapex = subTotals.B;
-
-  // Optima loan amount: from keyMetrics when path = optima, else compute from scenario
-  // We use optimaScenario to derive loan amount: loan balance at start of repayment.
-  // Simpler: use a fixed CAPEX * coverage ratio. But the engine stores loanAmount in
-  // keyMetrics only for the active path. We access it via the scenario's debtService year.
-  // The cleanest signal is termLoanBalance at end of grace period.
+  // Portfolio-level optima loan total (for shared sections)
   const graceEndYear = 2026 + optimaLoan.gracePeriodYears;
   const optimaLoanAmountFromScenario = optimaScenario?.pnl.find(
     (p) => p.year === graceEndYear
   )?.termLoanBalance ?? 0;
+  const optimaLoanAmount =
+    optimaLoanAmountFromScenario > 0 ? optimaLoanAmountFromScenario : totalCapex * 0.75;
 
-  // Fall back to portfolio CAPEX × 75% (commercial coverage) if scenario not available
-  const optimaLoanAmount = optimaLoanAmountFromScenario > 0
-    ? optimaLoanAmountFromScenario
-    : totalCapex * 0.75;
+  // ── Per-tab data computation ──
+  // This function derives all display values for a given sub-project side.
+  // Pure computation — no state mutations.
+  function getTabData(side: TabSide) {
+    // Projects assigned to this side
+    const tabProjects = portfolioProjects.filter(
+      (p) => (allocation[p.id] ?? 'B') === side
+    );
 
-  // Sub-project loan allocation proportional to CAPEX split
-  const optimaDebtLoan = optimaLoanAmount;
-  const subALoan = (subACapex + subBCapex) > 0
-    ? optimaDebtLoan * (subACapex / (subACapex + subBCapex))
-    : optimaDebtLoan / 2;
-  const subBLoan = optimaDebtLoan - subALoan;
+    // Total CAPEX for this sub-project (all categories combined)
+    // capResult.subProjectTotalsPreCap sums ALL translated categories, not just construction.
+    const tabCapexTotal =
+      capResult?.subProjectTotalsPreCap[side] ?? totalCapex / 2;
 
-  // Projects per sub-project from allocation config
-  const allocation = assumptions.optimaLoan?.subProjectAllocation ?? {};
-  // Resolve project names from the current portfolio
-  const portfolioProjects = model.capex.properties;
+    // CAPEX weight for P&L proportioning
+    const capexRatio = totalCapex > 0 ? tabCapexTotal / totalCapex : 0.5;
 
-  // Optima loan annual DS from scenario
-  const optimaAnnualDS = optimaScenario?.pnl.find(
-    (p) => p.year === graceEndYear + 1
-  )?.debtService ?? 0;
+    // Sub-project loan (already respects 60% construction cap + €6M per-project threshold)
+    const tabLoan = capResult?.subProjectLoans[side] ?? optimaLoanAmount / 2;
 
+    // Annual debt service via PMT: (PV × r) / (1 − (1+r)^−n)
+    const tabAnnualDS =
+      repayYears > 0 && effectiveRate > 0 && tabLoan > 0
+        ? (tabLoan * effectiveRate) / (1 - Math.pow(1 + effectiveRate, -repayYears))
+        : 0;
+
+    // Annual interest component (for ICR)
+    const tabInterestAnnual = tabLoan * effectiveRate;
+
+    // Stabilised P&L scaled by CAPEX weight (revenue and EBITDA scale with asset share)
+    const stabYear = optimaScenario?.stabilisedYear;
+    const tabRevenue = stabYear ? stabYear.totalRevenue * capexRatio : 0;
+    const tabEbitda = stabYear ? stabYear.ebitda * capexRatio : 0;
+    const tabEbitdaMargin = stabYear?.ebitdaMargin ?? 0; // margin stays the same
+    const tabDSCR =
+      tabAnnualDS > 0 && tabEbitda > 0 ? tabEbitda / tabAnnualDS : 0;
+    const tabICR =
+      tabInterestAnnual > 0 && tabEbitda > 0 ? tabEbitda / tabInterestAnnual : 0;
+    const tabNCF = stabYear ? stabYear.netCashFlowPostVAT * capexRatio : 0;
+
+    // Per-tab CAPEX rows: filter each category's perProperty by side, then sum
+    const tabCapexRows = optimaCapex.categories
+      .map((cat) => {
+        const catTotal = cat.perProperty
+          .filter((pp) => (allocation[pp.id] ?? 'B') === side)
+          .reduce((s, pp) => s + pp.total, 0);
+        return { name: cat.name, total: catTotal };
+      })
+      .filter((r) => r.total > 0);
+
+    return {
+      tabProjects,
+      tabCapexTotal,
+      capexRatio,
+      tabLoan,
+      tabAnnualDS,
+      tabRevenue,
+      tabEbitda,
+      tabEbitdaMargin,
+      tabDSCR,
+      tabICR,
+      tabNCF,
+      tabCapexRows,
+    };
+  }
+
+  const tabData = getTabData(activeTab);
+  const dscrPass = tabData.tabDSCR >= dscrCovenant;
+
+  const tabLabels: Record<TabSide, string> = {
+    A: t("bank.optima.project1"),
+    B: t("bank.optima.project2"),
+  };
+
+  // Term Sheet cells — scoped to active sub-project
   const termSheetCells = [
     {
       label: t("kpi.loanAmount"),
-      value: formatCurrency(optimaLoanAmount, true, locale),
-      sub: `2 × ≤ €6M ${t("kpi.ofTotal")}`,
+      value: formatCurrency(tabData.tabLoan, true, locale),
     },
     {
       label: t("dash.termsheet.term"),
@@ -145,15 +196,16 @@ export default function OptimaPage() {
       sub: `Euribor ${(optimaLoan.euriborRate * 100).toFixed(2)}% + ${(optimaLoan.spreadBps / 100).toFixed(2)}%`,
     },
     {
-      label: t("bank.optima.subProjects"),
-      value: "2 × ≤ €6M",
-      sub: `${t("bank.optima.subProjectA")} + ${t("bank.optima.subProjectB")}`,
-      isText: true,
+      label: t("kpi.ltvAtCompletion"),
+      value:
+        tabData.tabCapexTotal > 0
+          ? formatPercent(tabData.tabLoan / tabData.tabCapexTotal, 0)
+          : "—",
     },
     {
       label: t("term.dscr"),
-      value: stabilisedDscr > 0 ? formatMultiple(stabilisedDscr) : "—",
-      sub: `Covenant ≥ ${(assumptions.dscrCovenantThreshold ?? 1.25).toFixed(2)}×`,
+      value: tabData.tabDSCR > 0 ? formatMultiple(tabData.tabDSCR) : "—",
+      sub: `Covenant ≥ ${dscrCovenant.toFixed(2)}×`,
       tone: dscrPass ? ("positive" as const) : ("warning" as const),
     },
   ];
@@ -161,7 +213,7 @@ export default function OptimaPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none animate-fade-in">
 
-      {/* Hero */}
+      {/* ── Hero (shared) ── */}
       <div className="text-center mb-8 print:mb-4">
         <p className="text-sm text-brand-500 font-medium uppercase tracking-widest mb-3 print:mb-1">
           {t("bank.optima.eyebrow")}
@@ -177,8 +229,8 @@ export default function OptimaPage() {
         </p>
       </div>
 
-      {/* Live Euribor badge */}
-      <div className="flex justify-center -mt-2 mb-4">
+      {/* ── Live Euribor badge (shared) ── */}
+      <div className="flex justify-center -mt-2 mb-6">
         {euribor.status === 'loading' && (
           <span className="text-xs text-text-tertiary">Fetching live Euribor…</span>
         )}
@@ -196,7 +248,47 @@ export default function OptimaPage() {
         )}
       </div>
 
-      {/* Loan Term Sheet strip */}
+      {/* ── Tab selector ── */}
+      <div className="flex border-b border-surface-tertiary mb-6 print:hidden" role="tablist">
+        {(['A', 'B'] as TabSide[]).map((side) => (
+          <button
+            key={side}
+            role="tab"
+            aria-selected={activeTab === side}
+            onClick={() => setActiveTab(side)}
+            className={[
+              "px-6 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors focus:outline-none",
+              activeTab === side
+                ? "border-brand-500 text-brand-600"
+                : "border-transparent text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary",
+            ].join(" ")}
+          >
+            {tabLabels[side]}
+          </button>
+        ))}
+        {/* Print: show active tab label */}
+        <div className="hidden print:block text-sm font-semibold text-brand-600 pb-2 border-b-2 border-brand-500 px-6">
+          {tabLabels[activeTab]}
+        </div>
+      </div>
+
+      {/* ── PER-TAB CONTENT ── */}
+
+      {/* Projects in this sub-project */}
+      {tabData.tabProjects.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-5">
+          {tabData.tabProjects.map((p) => (
+            <span
+              key={p.id}
+              className="px-3 py-1 rounded-full bg-brand-50 text-brand-600 text-xs font-medium border border-brand-100"
+            >
+              {p.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Term Sheet strip */}
       <div className="mb-6" id="optima-term-sheet">
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("bank.section.termsheet")}
@@ -224,7 +316,13 @@ export default function OptimaPage() {
                     "leading-tight",
                     c.isText
                       ? "font-semibold text-sm text-text-primary"
-                      : `font-mono font-bold text-xl ${c.tone === "positive" ? "text-positive" : c.tone === "warning" ? "text-warning" : "text-text-primary"}`,
+                      : `font-mono font-bold text-xl ${
+                          c.tone === "positive"
+                            ? "text-positive"
+                            : c.tone === "warning"
+                            ? "text-warning"
+                            : "text-text-primary"
+                        }`,
                   ].join(" ")}
                 >
                   {c.value}
@@ -251,73 +349,7 @@ export default function OptimaPage() {
         </div>
       </div>
 
-      {/* Sub-project split panel */}
-      <div className="mb-6" id="optima-subproject-split">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">
-          {t("bank.optima.subProjectA")} / {t("bank.optima.subProjectB")} — {t("capex.totalCapex")}
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-          {[
-            { label: t("bank.optima.subProjectA"), side: 'A' as const, capex: subACapex, loan: subALoan },
-            { label: t("bank.optima.subProjectB"), side: 'B' as const, capex: subBCapex, loan: subBLoan },
-          ].map((proj) => {
-            const projsInSide = portfolioProjects.filter(
-              (p) => (allocation[p.id] ?? 'B') === proj.side
-            );
-            return (
-              <div
-                key={proj.label}
-                className="bg-white rounded-xl border border-surface-tertiary p-5"
-              >
-                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-brand-500 mb-3">
-                  {proj.label}
-                </div>
-                {projsInSide.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {projsInSide.map((p) => (
-                      <span key={p.id} className="px-2 py-0.5 rounded-full bg-brand-50 text-brand-600 text-[11px] font-medium border border-brand-100">
-                        {p.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">{t("kpi.totalInvestment")}</span>
-                    <span className="font-mono font-semibold text-text-primary">
-                      {formatCurrency(proj.capex, true, locale)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">{t("kpi.loanAmount")}</span>
-                    <span className="font-mono font-semibold text-brand-600">
-                      {formatCurrency(proj.loan, true, locale)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-text-secondary">{t("kpi.ltvAtCompletion")}</span>
-                    <span className="font-mono text-text-secondary">
-                      {proj.capex > 0 ? formatPercent(proj.loan / proj.capex, 0) : "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        {/* Cap badge */}
-        {capResult?.applied && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 mb-2">
-            {t('bank.optima.capApplied')} — {formatPercent(capResult.maxRatio)} ({t('bank.optima.reducedBy')} {formatCurrency(capResult.reductionEur, false, locale)})
-          </div>
-        )}
-        {/* Split disclaimer */}
-        <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-xs text-amber-900 leading-relaxed">
-          {t("bank.optima.splitDisclaimer")}
-        </div>
-      </div>
-
-      {/* Translated CAPEX table — no raw service-provider breakdown */}
+      {/* CAPEX table — filtered to this sub-project */}
       <div className="mb-6" id="optima-capex">
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("capex.title")} — {t("bank.capex.useOfProceeds")}
@@ -339,30 +371,38 @@ export default function OptimaPage() {
                 </tr>
               </thead>
               <tbody>
-                {optimaCapex.categories.map((cat, i) => (
-                  <tr
-                    key={cat.name}
-                    className={`border-t border-surface-secondary/60 ${
-                      i % 2 === 0 ? "" : "bg-surface-secondary/10"
-                    }`}
-                  >
-                    <td className="py-2.5 px-5 text-text-secondary whitespace-nowrap">
-                      {cat.name}
-                    </td>
-                    <td className="text-right py-2.5 px-5 font-mono text-sm font-medium text-text-primary">
-                      {formatCurrency(cat.grandTotal, false, locale)}
-                    </td>
-                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-secondary">
-                      {optimaCapex.portfolioTotal > 0
-                        ? formatPercent(cat.grandTotal / optimaCapex.portfolioTotal, 0)
-                        : "—"}
+                {tabData.tabCapexRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="text-center py-6 text-text-tertiary text-xs">
+                      {t("common.loading")}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  tabData.tabCapexRows.map((row, i) => (
+                    <tr
+                      key={row.name}
+                      className={`border-t border-surface-secondary/60 ${
+                        i % 2 === 0 ? "" : "bg-surface-secondary/10"
+                      }`}
+                    >
+                      <td className="py-2.5 px-5 text-text-secondary whitespace-nowrap">
+                        {row.name}
+                      </td>
+                      <td className="text-right py-2.5 px-5 font-mono text-sm font-medium text-text-primary">
+                        {formatCurrency(row.total, false, locale)}
+                      </td>
+                      <td className="text-right py-2.5 px-5 font-mono text-sm text-text-secondary">
+                        {tabData.tabCapexTotal > 0
+                          ? formatPercent(row.total / tabData.tabCapexTotal, 0)
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))
+                )}
                 <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
                   <td className="py-3.5 px-5 text-text-primary">{t("capex.totalCapex")}</td>
                   <td className="text-right py-3.5 px-5 font-mono text-brand-600">
-                    {formatCurrency(optimaCapex.portfolioTotal, false, locale)}
+                    {formatCurrency(tabData.tabCapexTotal, false, locale)}
                   </td>
                   <td className="text-right py-3.5 px-5 font-mono text-text-secondary">
                     100%
@@ -377,97 +417,89 @@ export default function OptimaPage() {
         </div>
       </div>
 
-      {/* Loan Metrics strip */}
-      {optimaScenario && (
-        <div className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md mb-6" id="optima-loan-metrics">
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
-            {t("bank.section.loanMetrics")}
-          </h3>
-          <div className="grid grid-cols-3 divide-x divide-surface-tertiary mb-4">
-            <MetricCell
-              value={formatCurrency(totalCapex, true, locale)}
-              label={t("kpi.totalInvestment")}
-            />
-            <MetricCell
-              value={formatCurrency(optimaLoanAmount, true, locale)}
-              label={t("kpi.loanAmount")}
-              sublabel={`${optimaLoanAmount > 0 && totalCapex > 0 ? formatPercent(optimaLoanAmount / totalCapex, 0) : "—"} ${t("bank.kpi.ofCapex")}`}
-              valueClass="text-brand-600"
-            />
-            <MetricCell
-              value={optimaAnnualDS > 0 ? formatCurrency(optimaAnnualDS, true, locale) : "—"}
-              label={t("kpi.annualDS")}
-              sublabel={`${t("bank.optima.loanTerm")}`}
-            />
-          </div>
-          <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
-            <MetricCell
-              value={stabilisedDscr > 0 ? formatMultiple(stabilisedDscr) : "—"}
-              label={t("term.dscr")}
-              sublabel={t("inv.stabilisedOps")}
-              valueClass={stabilisedDscr >= 1.25 ? "text-positive" : "text-warning"}
-            />
-            <MetricCell
-              value={
-                optimaScenario.icrStabilised > 0
-                  ? formatMultiple(optimaScenario.icrStabilised)
-                  : "—"
-              }
-              label={t("kpi.icr")}
-              sublabel={t("kpi.icrSub")}
-            />
-          </div>
+      {/* Loan Metrics strip — per sub-project */}
+      <div
+        className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md mb-6"
+        id="optima-loan-metrics"
+      >
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
+          {t("bank.section.loanMetrics")}
+        </h3>
+        <div className="grid grid-cols-3 divide-x divide-surface-tertiary mb-4">
+          <MetricCell
+            value={formatCurrency(tabData.tabCapexTotal, true, locale)}
+            label={t("kpi.totalInvestment")}
+          />
+          <MetricCell
+            value={formatCurrency(tabData.tabLoan, true, locale)}
+            label={t("kpi.loanAmount")}
+            sublabel={`${
+              tabData.tabCapexTotal > 0
+                ? formatPercent(tabData.tabLoan / tabData.tabCapexTotal, 0)
+                : "—"
+            } ${t("bank.kpi.ofCapex")}`}
+            valueClass="text-brand-600"
+          />
+          <MetricCell
+            value={
+              tabData.tabAnnualDS > 0
+                ? formatCurrency(tabData.tabAnnualDS, true, locale)
+                : "—"
+            }
+            label={t("kpi.annualDS")}
+            sublabel={t("bank.optima.loanTerm")}
+          />
         </div>
-      )}
+        <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
+          <MetricCell
+            value={tabData.tabDSCR > 0 ? formatMultiple(tabData.tabDSCR) : "—"}
+            label={t("term.dscr")}
+            sublabel={t("inv.stabilisedOps")}
+            valueClass={
+              tabData.tabDSCR >= dscrCovenant ? "text-positive" : "text-warning"
+            }
+          />
+          <MetricCell
+            value={tabData.tabICR > 0 ? formatMultiple(tabData.tabICR) : "—"}
+            label={t("kpi.icr")}
+            sublabel={t("kpi.icrSub")}
+          />
+        </div>
+      </div>
 
-      {/* Sources & Uses */}
-      <SourcesUsesPanel
-        km={{
-          loanAmount: optimaLoanAmount,
-          equityRequired: totalCapex - optimaLoanAmount,
-          grantAmount: 0,
-        }}
-        capexCategories={optimaCapex.categories}
-        wc={{
-          facilitySize: optimaScenario?.wcMinimumFacility ?? 0,
-          internalCashBuffer: assumptions.workingCapital.internalCashBuffer ?? 100000,
-        }}
-        locale={locale}
-      />
-
-      {/* Stabilised year snapshot */}
+      {/* Stabilised year snapshot — scaled by CAPEX weight */}
       {optimaScenario?.stabilisedYear && (
         <div className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-sm font-semibold text-text-primary mb-1">
-            {t("inv.stabilisedOps")}
+            {t("bank.optima.stabilisedSnapshot")}
           </h3>
           <p className="text-xs text-text-tertiary mb-5">{t("bank.stabilisedOpsSub")}</p>
           <div className="space-y-4">
             {[
               {
                 label: t("inv.annualRevenue"),
-                value: formatCurrency(optimaScenario.stabilisedYear.totalRevenue, true, locale),
+                value: formatCurrency(tabData.tabRevenue, true, locale),
               },
               {
                 label: t("term.ebitda"),
-                value: formatCurrency(optimaScenario.stabilisedYear.ebitda, true, locale),
+                value: formatCurrency(tabData.tabEbitda, true, locale),
               },
               {
                 label: t("term.ebitdaMargin"),
-                value: formatPercent(optimaScenario.stabilisedYear.ebitdaMargin),
+                value: formatPercent(tabData.tabEbitdaMargin),
               },
               {
                 label: t("kpi.annualDS"),
-                value: formatCurrency(optimaScenario.stabilisedYear.debtService, true, locale),
+                value: formatCurrency(tabData.tabAnnualDS, true, locale),
               },
               {
                 label: t("term.dscr"),
-                value: formatMultiple(optimaScenario.stabilisedYear.dscr),
+                value: tabData.tabDSCR > 0 ? formatMultiple(tabData.tabDSCR) : "—",
                 highlight: true,
               },
               {
                 label: t("pnl.ncfPostVAT"),
-                value: formatCurrency(optimaScenario.stabilisedYear.netCashFlowPostVAT, true, locale),
+                value: formatCurrency(tabData.tabNCF, true, locale),
               },
             ].map((item) => (
               <div
@@ -486,10 +518,27 @@ export default function OptimaPage() {
                 </span>
               </div>
             ))}
-            <p className="text-xs text-stone-500 mt-1">{t("bank.dscr.mgmtFeeNote")}</p>
+            <p className="text-xs text-stone-500 mt-1 italic">{t("bank.optima.pnlProjection")}</p>
           </div>
         </div>
       )}
+
+      {/* ── SHARED PORTFOLIO-LEVEL SECTIONS ── */}
+
+      {/* Sources & Uses (total portfolio) */}
+      <SourcesUsesPanel
+        km={{
+          loanAmount: optimaLoanAmount,
+          equityRequired: totalCapex - optimaLoanAmount,
+          grantAmount: 0,
+        }}
+        capexCategories={optimaCapex.categories}
+        wc={{
+          facilitySize: optimaScenario?.wcMinimumFacility ?? 0,
+          internalCashBuffer: assumptions.workingCapital.internalCashBuffer ?? 100000,
+        }}
+        locale={locale}
+      />
 
       {/* P&L Timeline */}
       <div className="mb-6" id="optima-pnl">
@@ -513,6 +562,11 @@ export default function OptimaPage() {
           {t("bank.stress.cashFlowHeading")}
         </h4>
         <BankStressTest />
+      </div>
+
+      {/* Sub-project boundary disclaimer */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-xs text-amber-900 leading-relaxed mb-6">
+        {t("bank.optima.splitDisclaimer")}
       </div>
 
       {/* Footer */}

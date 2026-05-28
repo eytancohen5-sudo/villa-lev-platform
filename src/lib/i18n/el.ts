@@ -2136,4 +2136,11 @@ export const el: TranslationDictionary = {
   'bank.optima.subProjectAllocation': 'Κατανομή Υπο-έργων',
   'bank.optima.assignToA': 'Α',
   'bank.optima.assignToB': 'Β',
+  'bank.optima.project1': 'Έργο 1',
+  'bank.optima.project2': 'Έργο 2',
+  'bank.optima.constructionRatio': 'Κατασκευή / Σύνολο',
+  'bank.optima.withinLimit': 'Εντός ορίου',
+  'bank.optima.ratioExceeded': 'Εφαρμόστηκε όριο',
+  'bank.optima.pnlProjection': 'Προβολή Α/Ζ (αναλογικά βάσει CAPEX)',
+  'bank.optima.stabilisedSnapshot': 'Λειτουργίες σε Σταθερή Κατάσταση',
 };

@@ -2102,4 +2102,11 @@ export interface TranslationDictionary {
   'bank.optima.subProjectAllocation': string;
   'bank.optima.assignToA': string;
   'bank.optima.assignToB': string;
+  'bank.optima.project1': string;
+  'bank.optima.project2': string;
+  'bank.optima.constructionRatio': string;
+  'bank.optima.withinLimit': string;
+  'bank.optima.ratioExceeded': string;
+  'bank.optima.pnlProjection': string;
+  'bank.optima.stabilisedSnapshot': string;
 }

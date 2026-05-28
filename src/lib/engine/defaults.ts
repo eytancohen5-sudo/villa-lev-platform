@@ -634,7 +634,7 @@ export const BASE_CASE: ModelAssumptions = {
     gracePeriodYears: 2,
     repaymentYears: 10,
     splitThresholdEur: 6_000_000,
-    maxConstructionRatio: 5.7 / 9.6,   // 0.59375 — Optima Bank deal constraint
+    maxConstructionRatio: 0.60,         // 60% max construction / total CAPEX (Optima Bank)
     // subProjectAllocation intentionally omitted from BASE_CASE:
     // live project IDs are timestamp-based (set via admin A/B toggle).
     // When absent the engine falls back to 50/50 monetary split.

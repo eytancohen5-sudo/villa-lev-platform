@@ -13,7 +13,7 @@ import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
 import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, PoolSlot, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
 import { resolvePortfolio } from "@/lib/engine/defaults";
-import { computePortfolioOpex } from "@/lib/engine/model";
+import { computePortfolioOpex, computeOptimaCapResult } from "@/lib/engine/model";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { getDb } from "@/lib/firebase";
 import {
@@ -1653,37 +1653,39 @@ export default function AssumptionsPage() {
 
           {/* Financing path selector */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {(
+            {(() => {
+              const dsRow = model.financingComparison.find(r => r.key === 'annualDebtService');
+              return (
               [
                 {
                   id: "commercial" as FinancingPath,
                   title: t('path.commercial'),
-                  desc: t('path.commercialDesc'),
-                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.commercial as number, true, locale)}/yr`,
+                  desc: `${(a.commercialLoan.loanCoverageRate * 100).toFixed(0)}% LTV at ${(a.commercialLoan.interestRate * 100).toFixed(2)}% · ${a.commercialLoan.repaymentTermYears}yr repayment · ${a.commercialLoan.gracePeriodYears}yr grace`,
+                  highlight: `${t('term.ds')}: ${formatCurrency((dsRow?.commercial as number) ?? 0, true, locale)}/yr`,
                   borderColor: "#8B6914",
                   bgColor: "#FAF7F0",
                 },
                 {
                   id: "rrf" as FinancingPath,
                   title: t('path.rrf'),
-                  desc: t('path.rrfDesc'),
-                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.rrf as number, true, locale)}/yr`,
+                  desc: `${(a.rrf.rrfShareOfLoan * 100).toFixed(0)}% RRF @ ${(a.rrf.rrfInterestRate * 100).toFixed(2)}% + ${(a.rrf.commercialShareRate * 100).toFixed(0)}% commercial @ ${(a.rrf.commercialInterestRate * 100).toFixed(2)}%`,
+                  highlight: `${t('term.ds')}: ${formatCurrency((dsRow?.rrf as number) ?? 0, true, locale)}/yr`,
                   borderColor: "#4A6A8B",
                   bgColor: "#F0F4F8",
                 },
                 {
                   id: "grant" as FinancingPath,
                   title: t('path.grant'),
-                  desc: t('path.grantDesc'),
-                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.grant as number, true, locale)}/yr`,
+                  desc: `${(a.grant.grantRate * 100).toFixed(0)}% non-plot costs as non-repayable grant`,
+                  highlight: `${t('term.ds')}: ${formatCurrency((dsRow?.grant as number) ?? 0, true, locale)}/yr`,
                   borderColor: "#4A7C3F",
                   bgColor: "#F0F8EF",
                 },
                 {
                   id: "tepix-loan" as FinancingPath,
                   title: t('path.tepixLoan'),
-                  desc: t('path.tepixLoanDesc'),
-                  highlight: `${t('term.ds')}: ${formatCurrency(model.financingComparison[3]?.tepixLoan as number, true, locale)}/yr`,
+                  desc: `${(a.tepixLoan.hdbShareOfLoan * 100).toFixed(0)}% interest-free HDB + ${(a.tepixLoan.bankShareOfLoan * 100).toFixed(0)}% bank · ${a.tepixLoan.totalTermYears - a.tepixLoan.gracePeriodYears}+${a.tepixLoan.gracePeriodYears}yr`,
+                  highlight: `${t('term.ds')}: ${formatCurrency((dsRow?.tepixLoan as number) ?? 0, true, locale)}/yr`,
                   borderColor: "#7B5EA7",
                   bgColor: "#F5F0FA",
                 },
@@ -1719,7 +1721,8 @@ export default function AssumptionsPage() {
                   <p className="text-sm font-mono font-medium text-text-primary">{path.highlight}</p>
                 </button>
               );
-            })}
+            });
+          })()}
           </div>
 
           {/* Active path details */}
@@ -1825,6 +1828,37 @@ export default function AssumptionsPage() {
               <p className="text-xs text-text-tertiary mb-4">
                 {t('bank.optima.splitDisclaimer')}
               </p>
+
+              {/* Construction / Total ratio indicator (admin-only) */}
+              {(() => {
+                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
+                const rawPct = (cr.rawConstructionRatio * 100).toFixed(1);
+                const maxPct = (cr.maxRatio * 100).toFixed(0);
+                const withinLimit = !cr.applied;
+                return (
+                  <div className={[
+                    "mb-5 px-4 py-3 rounded-xl border text-sm flex items-center justify-between gap-4",
+                    withinLimit
+                      ? "bg-positive/[0.05] border-positive/30 text-positive"
+                      : "bg-amber-50 border-amber-300 text-amber-900",
+                  ].join(' ')}>
+                    <span className="font-medium">
+                      {t('bank.optima.constructionRatio')}: <span className="font-mono font-bold">{rawPct}%</span>
+                      <span className="text-xs font-normal ml-1 opacity-70">/ {maxPct}% max</span>
+                    </span>
+                    <span className={[
+                      "inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                      withinLimit
+                        ? "bg-positive/15 text-positive"
+                        : "bg-amber-200/60 text-amber-900",
+                    ].join(' ')}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {withinLimit ? t('bank.optima.withinLimit') : t('bank.optima.ratioExceeded')}
+                    </span>
+                  </div>
+                );
+              })()}
+
               <div className="space-y-2">
                 {projects.map((proj) => {
                   const side = (a.optimaLoan?.subProjectAllocation ?? {})[proj.id] ?? 'B';

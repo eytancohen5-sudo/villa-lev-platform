@@ -790,10 +790,21 @@ function computeDebtService(
 
 export interface OptimaCapResult {
   applied: boolean;
-  ratio: number;          // actual capped ratio
+  /** Construction cost / portfolio total — after cap applied */
+  ratio: number;
+  /** Raw construction / portfolio total — before cap */
+  rawConstructionRatio: number;
   maxRatio: number;
   reductionEur: number;   // 0 when cap not applied
+  /** Total CAPEX (all categories) per sub-project — for display as "Total Investment" */
   subProjectTotalsPreCap: { A: number; B: number };
+  /** Construction CAPEX per sub-project — for loan proportioning */
+  subProjectConstructionPreCap: { A: number; B: number };
+  /** Capped loan per sub-project (respects splitThresholdEur per project) */
+  subProjectLoans: { A: number; B: number };
+  /** Total capped construction = total Optima loan */
+  cappedConstruction: number;
+  rawConstruction: number;
 }
 
 export function computeOptimaCapResult(
@@ -836,12 +847,44 @@ export function computeOptimaCapResult(
     sumB = translated.portfolioTotal / 2;
   }
 
+  // Per-sub-project construction split — for loan computation.
+  // Construction categories only (same CONST_KW filter as ratio check).
+  let constrA = 0;
+  let constrB = 0;
+  if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
+    for (const cat of translated.categories) {
+      if (!CONST_KW.some((kw) => cat.name.toLowerCase().includes(kw))) continue;
+      for (const pp of (cat as { name: string; grandTotal: number; perProperty: { id: string; perUnit: number; total: number }[] }).perProperty ?? []) {
+        const pSide = op.subProjectAllocation[pp.id] ?? 'B';
+        if (pSide === 'A') constrA += pp.total;
+        else constrB += pp.total;
+      }
+    }
+  } else {
+    constrA = rawConstruction / 2;
+    constrB = rawConstruction / 2;
+  }
+
+  // Apply construction cap proportionally across sub-projects.
+  const totalConstr = constrA + constrB;
+  const capFactor = totalConstr > 0 ? capped / totalConstr : 1;
+  const splitThresh = op.splitThresholdEur ?? 6_000_000;
+  const rawLoanA = constrA * capFactor;
+  const rawLoanB = constrB * capFactor;
+  const loanA = Math.min(rawLoanA, splitThresh);
+  const loanB = rawLoanB; // Sub-project B gets remainder (not independently capped)
+
   return {
     applied: capped < rawConstruction,
     ratio: translated.portfolioTotal > 0 ? capped / translated.portfolioTotal : 0,
+    rawConstructionRatio: translated.portfolioTotal > 0 ? rawConstruction / translated.portfolioTotal : 0,
     maxRatio,
     reductionEur: rawConstruction - capped,
     subProjectTotalsPreCap: { A: sumA, B: sumB },
+    subProjectConstructionPreCap: { A: constrA, B: constrB },
+    subProjectLoans: { A: loanA, B: loanB },
+    cappedConstruction: capped,
+    rawConstruction,
   };
 }
 
