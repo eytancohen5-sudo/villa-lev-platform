@@ -4,7 +4,7 @@
 // Admin-only: only Eytan (Google-auth admin) sees this page.
 // Stale-doc cleanup runs on mount for docs older than 10 minutes.
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
@@ -75,6 +75,24 @@ export default function ConnectionsPage() {
   const { user, isAdmin, loading } = useEffectiveAuth();
   const { entries, loading: logLoading, error } = useConnectionsLog(isAdmin);
   const { entries: historyEntries, loading: histLoading } = useConnectionHistory(isAdmin);
+  const [expandedUids, setExpandedUids] = useState<Set<string>>(new Set());
+  const [expandedTabs, setExpandedTabs] = useState<Set<string>>(new Set());
+
+  function toggleUid(uid: string) {
+    setExpandedUids((prev) => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid); else next.add(uid);
+      return next;
+    });
+  }
+
+  function toggleTab(tabId: string) {
+    setExpandedTabs((prev) => {
+      const next = new Set(prev);
+      if (next.has(tabId)) next.delete(tabId); else next.add(tabId);
+      return next;
+    });
+  }
 
   // Stale-doc cleanup on mount: delete presence docs >10 min old, and
   // connectionHistory docs >7 days old (admin-only cleanup pass).
@@ -211,20 +229,45 @@ export default function ConnectionsPage() {
                     <PageChips pages={entry.pages} />
                   </td>
                   <td className="py-2 pe-3">
-                    {entry.actions.length > 0 ? (
-                      <div className="space-y-1">
-                        {entry.actions.map((a) => (
-                          <div key={a.actionAt} className="flex items-center gap-1.5">
+                    {entry.actions.length > 0 ? (() => {
+                      const first = entry.actions[0];
+                      const extra = entry.actions.length - 1;
+                      const expanded = expandedUids.has(entry.uid);
+                      return (
+                        <div>
+                          <button
+                            onClick={() => toggleUid(entry.uid)}
+                            className="flex items-center gap-1.5 group text-start"
+                          >
                             <span className="text-[11px] font-medium text-text-secondary">
-                              {ACTION_LABELS[a.action] ?? a.action}
+                              {ACTION_LABELS[first.action] ?? first.action}
                             </span>
                             <span className="text-[11px] text-text-tertiary">
-                              {formatRelative(a.actionAt)}
+                              {formatRelative(first.actionAt)}
                             </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : entry.lastAction && entry.lastActionAt ? (
+                            {extra > 0 && (
+                              <span className="text-[10px] text-text-tertiary group-hover:text-text-secondary transition-colors ms-0.5">
+                                {expanded ? "▲" : `+${extra}`}
+                              </span>
+                            )}
+                          </button>
+                          {expanded && (
+                            <div className="mt-1 space-y-1 border-s border-surface-tertiary ps-2">
+                              {entry.actions.slice(1).map((a) => (
+                                <div key={a.actionAt} className="flex items-center gap-1.5">
+                                  <span className="text-[11px] text-text-tertiary">
+                                    {ACTION_LABELS[a.action] ?? a.action}
+                                  </span>
+                                  <span className="text-[11px] text-text-tertiary">
+                                    {formatRelative(a.actionAt)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : entry.lastAction && entry.lastActionAt ? (
                       // Fallback for pre-migration docs without actions[].
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-medium text-text-secondary">
@@ -289,20 +332,45 @@ export default function ConnectionsPage() {
                     <PageChips pages={[entry.currentPage]} />
                   </td>
                   <td className="py-2 pe-3">
-                    {entry.actions.length > 0 ? (
-                      <div className="space-y-1">
-                        {entry.actions.map((a) => (
-                          <div key={a.actionAt} className="flex items-center gap-1.5">
+                    {entry.actions.length > 0 ? (() => {
+                      const first = entry.actions[0];
+                      const extra = entry.actions.length - 1;
+                      const expanded = expandedTabs.has(entry.tabId);
+                      return (
+                        <div>
+                          <button
+                            onClick={() => toggleTab(entry.tabId)}
+                            className="flex items-center gap-1.5 group text-start"
+                          >
                             <span className="text-[11px] font-medium text-text-secondary">
-                              {ACTION_LABELS[a.action] ?? a.action}
+                              {ACTION_LABELS[first.action] ?? first.action}
                             </span>
                             <span className="text-[11px] text-text-tertiary">
-                              {formatRelative(a.actionAt)}
+                              {formatRelative(first.actionAt)}
                             </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : entry.lastAction && entry.lastActionAt ? (
+                            {extra > 0 && (
+                              <span className="text-[10px] text-text-tertiary group-hover:text-text-secondary transition-colors ms-0.5">
+                                {expanded ? "▲" : `+${extra}`}
+                              </span>
+                            )}
+                          </button>
+                          {expanded && (
+                            <div className="mt-1 space-y-1 border-s border-surface-tertiary ps-2">
+                              {entry.actions.slice(1).map((a) => (
+                                <div key={a.actionAt} className="flex items-center gap-1.5">
+                                  <span className="text-[11px] text-text-tertiary">
+                                    {ACTION_LABELS[a.action] ?? a.action}
+                                  </span>
+                                  <span className="text-[11px] text-text-tertiary">
+                                    {formatRelative(a.actionAt)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })() : entry.lastAction && entry.lastActionAt ? (
                       // Fallback for pre-migration docs without actions[].
                       <div className="flex items-center gap-1.5">
                         <span className="text-[11px] font-medium text-text-secondary">

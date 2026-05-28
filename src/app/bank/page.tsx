@@ -18,6 +18,8 @@ import BankSensitivityTab from "@/components/BankSensitivityTab";
 import { PRESENTATION_LABEL } from "@/lib/presentationMeta";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { logPresenceActivity } from "@/lib/data/usePresence";
+import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
+import { useConnectionsLog } from "@/lib/data/useConnectionsLog";
 import { BANK_TOUR } from "@/lib/tours/configs";
 import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 import {
@@ -78,6 +80,8 @@ export default function BankPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
   const [docxLoading, setDocxLoading] = useState(false);
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
+  const { isAdmin } = useEffectiveAuth();
+  const { entries: connectedUsers } = useConnectionsLog(isAdmin);
 
   const handleDownloadXlsx = async () => {
     if (!model || xlsxLoading) return;
@@ -1287,7 +1291,45 @@ export default function BankPage() {
           <BankPnLSection />
         </div>
 
-        {/* 15. Footer */}
+        {/* 15. Admin-only: who's currently viewing */}
+        {isAdmin && (
+          <div className="mb-6 print:hidden">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
+              Connected viewers
+            </h3>
+            {connectedUsers.length === 0 ? (
+              <p className="text-xs text-text-tertiary">No active viewers.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {connectedUsers.map((u) => {
+                  const lastAction = u.actions[0];
+                  return (
+                    <div
+                      key={u.uid}
+                      className="flex items-center gap-2 rounded-lg border border-surface-tertiary bg-white px-3 py-2"
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${u.isStale ? "bg-text-tertiary" : "bg-green-500"}`} />
+                      <span className="text-[11px] font-medium text-text-primary">{u.displayName}</span>
+                      {u.isAnonymous && (
+                        <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary bg-surface-tertiary px-1.5 py-0.5 rounded-full">
+                          anon
+                        </span>
+                      )}
+                      <span className="text-[11px] text-text-tertiary font-mono">{u.currentPage}</span>
+                      {lastAction && (
+                        <span className="text-[11px] text-text-tertiary">
+                          · {lastAction.action.replace(/_/g, " ")}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 16. Footer */}
         <div className="text-center py-8 border-t border-surface-tertiary">
           <p className="text-xs text-text-tertiary">
             {t('app.title')} &middot; {t('app.location')} &middot; {t('app.confidential')}
