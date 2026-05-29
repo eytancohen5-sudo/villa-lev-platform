@@ -701,7 +701,8 @@ function computeDebtService(
     let rawSubB: number;
 
     if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
-      // Sum CAPEX (all categories) per sub-project using property allocation.
+      // Sum CAPEX (all categories) per sub-project using per-unit allocation.
+      const propCountMap = Object.fromEntries(translatedCapex.properties.map(p => [p.id, p.count]));
       const perPropTotal: Record<string, number> = {};
       for (const cat of translatedCapex.categories) {
         for (const pp of cat.perProperty) {
@@ -711,9 +712,10 @@ function computeDebtService(
       let capexA = 0;
       let capexB = 0;
       for (const [propId, total] of Object.entries(perPropTotal)) {
-        const side = op.subProjectAllocation[propId] ?? 'B';
-        if (side === 'A') capexA += total;
-        else capexB += total;
+        const count = propCountMap[propId] ?? 1;
+        const { a, b } = countUnitsBySide(op.subProjectAllocation, propId, count);
+        capexA += total * (a / count);
+        capexB += total * (b / count);
       }
       const capexTotal = capexA + capexB;
       rawSubA = capexTotal > 0 ? totalLoan * (capexA / capexTotal) : totalLoan / 2;
@@ -778,6 +780,40 @@ function computeDebtService(
 }
 
 // ────────────────────────────────────────────
+// OPTIMA HELPERS
+// ────────────────────────────────────────────
+
+/**
+ * Resolve the sub-project side for a single unit of a property.
+ * Checks the per-unit key `{propId}__u{unitIndex}` first, then falls back
+ * to the legacy per-property key `{propId}`, then defaults to 'B'.
+ * This lets multi-unit projects split individual units across sub-projects.
+ */
+function resolveUnitSide(
+  allocation: Record<string, 'A' | 'B'>,
+  propId: string,
+  unitIndex: number
+): 'A' | 'B' {
+  return allocation[`${propId}__u${unitIndex}`] ?? allocation[propId] ?? 'B';
+}
+
+/**
+ * Count how many units of a property are allocated to each sub-project.
+ * Falls back gracefully for count=1 properties and legacy (non-per-unit) keys.
+ */
+function countUnitsBySide(
+  allocation: Record<string, 'A' | 'B'>,
+  propId: string,
+  count: number
+): { a: number; b: number } {
+  let a = 0, b = 0;
+  for (let i = 0; i < count; i++) {
+    if (resolveUnitSide(allocation, propId, i) === 'A') a++; else b++;
+  }
+  return { a, b };
+}
+
+// ────────────────────────────────────────────
 // OPTIMA CAP RESULT HELPER
 // ────────────────────────────────────────────
 
@@ -813,7 +849,8 @@ export function computeOptimaCapResult(
     .reduce((sum, c) => sum + c.grandTotal, 0);
   const maxRatio = op.maxConstructionRatio ?? 0.60;
 
-  // Total CAPEX per sub-project (all categories, by property allocation).
+  // Total CAPEX per sub-project (all categories, by per-unit allocation).
+  const propCountMap = Object.fromEntries(capex.properties.map(p => [p.id, p.count]));
   let sumA = 0;
   let sumB = 0;
   if (op.subProjectAllocation && Object.keys(op.subProjectAllocation).length > 0) {
@@ -824,9 +861,10 @@ export function computeOptimaCapResult(
       }
     }
     for (const [propId, total] of Object.entries(perPropTotal)) {
-      const side = op.subProjectAllocation[propId] ?? 'B';
-      if (side === 'A') sumA += total;
-      else sumB += total;
+      const count = propCountMap[propId] ?? 1;
+      const { a, b } = countUnitsBySide(op.subProjectAllocation, propId, count);
+      sumA += total * (a / count);
+      sumB += total * (b / count);
     }
   } else {
     sumA = translated.portfolioTotal / 2;
@@ -840,9 +878,10 @@ export function computeOptimaCapResult(
     for (const cat of translated.categories) {
       if (!CONST_KW.some((kw) => cat.name.toLowerCase().includes(kw))) continue;
       for (const pp of (cat as { name: string; grandTotal: number; perProperty: { id: string; perUnit: number; total: number }[] }).perProperty ?? []) {
-        const pSide = op.subProjectAllocation[pp.id] ?? 'B';
-        if (pSide === 'A') constrA += pp.total;
-        else constrB += pp.total;
+        const count = propCountMap[pp.id] ?? 1;
+        const { a, b } = countUnitsBySide(op.subProjectAllocation, pp.id, count);
+        constrA += pp.perUnit * a;
+        constrB += pp.perUnit * b;
       }
     }
   } else {

@@ -84,6 +84,23 @@ export default function OptimaPage() {
   const portfolioProjects = model.capex.properties;
   const totalCapex = model.capex.portfolioTotal;
 
+  // Build a count lookup so the per-unit helpers can split multi-unit projects.
+  const propCountMap = Object.fromEntries(portfolioProjects.map(p => [p.id, p.count]));
+
+  /** Resolve allocation side for one unit of a property (mirrors engine logic). */
+  function unitSide(propId: string, unitIndex: number): 'A' | 'B' {
+    return allocation[`${propId}__u${unitIndex}`] ?? allocation[propId] ?? 'B';
+  }
+
+  /** Expand portfolioProjects into per-unit display items for the chip list. */
+  const portfolioUnits = portfolioProjects.flatMap(p =>
+    Array.from({ length: p.count }, (_, i) => ({
+      id: p.count > 1 ? `${p.id}__u${i}` : p.id,
+      name: p.count > 1 ? `${p.name} ${i + 1}` : p.name,
+      side: unitSide(p.id, i),
+    }))
+  );
+
   // Translated CAPEX view — absorbs service providers + contingency into construction
   const optimaCapex = optimaCapexView(model.capex, optimaLoan.absorb);
 
@@ -110,14 +127,13 @@ export default function OptimaPage() {
   // This function derives all display values for a given sub-project side.
   // Pure computation — no state mutations.
   function getTabData(side: TabSide) {
-    // When no allocation is set the engine falls back to 50/50; show all
-    // properties in both tabs so the chips match the computed totals.
-    const tabProjects = isUnallocated
-      ? portfolioProjects
-      : portfolioProjects.filter((p) => (allocation[p.id] ?? 'B') === side);
+    // Chip list: per-unit items so multi-unit projects appear as separate chips.
+    const tabUnits = isUnallocated
+      ? portfolioUnits
+      : portfolioUnits.filter((u) => u.side === side);
 
-    // Total CAPEX for this sub-project (all categories combined)
-    // capResult.subProjectTotalsPreCap sums ALL translated categories, not just construction.
+    // Total CAPEX for this sub-project (all categories combined).
+    // Engine already handles per-unit allocation via resolveUnitSide.
     const tabCapexTotal =
       capResult?.subProjectTotalsPreCap[side] ?? totalCapex / 2;
 
@@ -148,23 +164,28 @@ export default function OptimaPage() {
     const tabNCF = stabYear ? stabYear.netCashFlowPostVAT * capexRatio : 0;
 
     // Per-tab CAPEX rows.
-    // When unallocated: engine splits 50/50, so show grandTotal/2 per category.
-    // When allocated: filter each category's perProperty by the assigned side.
+    // When unallocated: engine splits 50/50, show grandTotal/2 per category.
+    // When allocated: split each perProperty entry proportionally by per-unit allocation.
     const tabCapexRows = isUnallocated
       ? optimaCapex.categories
           .map((cat) => ({ name: cat.name, total: cat.grandTotal / 2 }))
           .filter((r) => r.total > 0)
       : optimaCapex.categories
           .map((cat) => {
-            const catTotal = cat.perProperty
-              .filter((pp) => (allocation[pp.id] ?? 'B') === side)
-              .reduce((s, pp) => s + pp.total, 0);
+            const catTotal = cat.perProperty.reduce((s, pp) => {
+              const count = propCountMap[pp.id] ?? 1;
+              let sideUnits = 0;
+              for (let i = 0; i < count; i++) {
+                if (unitSide(pp.id, i) === side) sideUnits++;
+              }
+              return s + pp.perUnit * sideUnits;
+            }, 0);
             return { name: cat.name, total: catTotal };
           })
           .filter((r) => r.total > 0);
 
     return {
-      tabProjects,
+      tabProjects: tabUnits,
       tabCapexTotal,
       capexRatio,
       tabLoan,
