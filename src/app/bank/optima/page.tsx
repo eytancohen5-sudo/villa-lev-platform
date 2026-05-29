@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
-import { optimaCapexView, SERVICE_PROVIDER_KEYWORDS, CONTINGENCY_KEYWORDS, CONSTRUCTION_KEYWORDS } from "@/lib/engine/optimaView";
+import { optimaCapexView } from "@/lib/engine/optimaView";
 import { computeOptimaCapResult } from "@/lib/engine/model";
 import type { OptimaCapResult } from "@/lib/engine/model";
 import { BankPnLSection } from "@/components/BankPnLSection";
@@ -43,7 +43,7 @@ function MetricCell({
 
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, setCapexLineAbsorption, capexUpliftEur, clearCapexUplift } = useModelStore();
+  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, capexUpliftEur, clearCapexUplift } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
 
   // Refs to capture baseline values before any uplift is applied (Fix 4).
@@ -123,26 +123,7 @@ export default function OptimaPage() {
     }))
   );
 
-  // Translated CAPEX view — absorbs service providers + contingency into construction
   const optimaCapex = optimaCapexView(model.capex, optimaLoan.absorb);
-
-  // Construction basis = the inflated Building & excavation line after absorption.
-  // Use the FIRST matching category — same precedence as the engine's constructionCat find().
-  const constructionCatName = model.capex.categories.find(c =>
-    CONSTRUCTION_KEYWORDS.some(kw => c.name.toLowerCase().includes(kw))
-  )?.name;
-  const constructionCat = optimaCapex.categories.find(c => c.name === constructionCatName);
-  const constructionTotal = constructionCat?.grandTotal ?? 0;
-
-  // Returns the effective "in construction" state for a given category name.
-  function isLineAbsorbed(catName: string): boolean {
-    const { lineOverrides, serviceProviders, contingency } = optimaLoan.absorb;
-    if (lineOverrides && catName in lineOverrides) return lineOverrides[catName];
-    const lower = catName.toLowerCase();
-    if (serviceProviders && SERVICE_PROVIDER_KEYWORDS.some(kw => lower.includes(kw))) return true;
-    if (contingency && CONTINGENCY_KEYWORDS.some(kw => lower.includes(kw))) return true;
-    return false;
-  }
 
   // Construction ratio cap result (Optima-specific, admin-only — not displayed on bank view)
   const capResult: OptimaCapResult | null = optimaLoan
@@ -453,7 +434,7 @@ export default function OptimaPage() {
         </div>
       </div>
 
-      {/* CAPEX full breakdown — all individual line items with absorption toggles */}
+      {/* CAPEX — per sub-project, clean use-of-proceeds table, no admin annotations */}
       <div className="mb-6" id="optima-capex">
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("bank.optima.capexBreakdown")}
@@ -472,103 +453,34 @@ export default function OptimaPage() {
                   <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
                     {formatPercent(1, 0)} {t("kpi.ofTotal")}
                   </th>
-                  <th className="text-center py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
-                    {t("bank.optima.inConstruction")}
-                  </th>
                 </tr>
               </thead>
               <tbody>
-                {model.capex.categories.filter(cat => cat.grandTotal > 0).map((cat, i) => {
-                  const isConstrBase = cat.name === constructionCatName;
-                  const absorbed = !isConstrBase && isLineAbsorbed(cat.name);
-                  return (
-                    <tr
-                      key={cat.name}
-                      className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? "" : "bg-surface-secondary/10"}`}
-                    >
-                      <td className="py-2.5 px-5 text-text-secondary whitespace-nowrap">
-                        {cat.name}
-                      </td>
-                      <td className="text-right py-2.5 px-5 font-mono text-sm font-medium text-text-primary">
-                        {formatCurrency(cat.grandTotal, false, locale)}
-                      </td>
-                      <td className="text-right py-2.5 px-5 font-mono text-sm text-text-secondary">
-                        {totalCapex > 0 ? formatPercent(cat.grandTotal / totalCapex, 0) : "—"}
-                      </td>
-                      <td className="text-center py-2.5 px-5">
-                        {isConstrBase ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-700">
-                            {t("bank.optima.constructionBase")}
-                          </span>
-                        ) : absorbed ? (
-                          <button
-                            onClick={() => setCapexLineAbsorption(cat.name, false)}
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-positive/15 text-positive hover:bg-positive/25 transition-colors cursor-pointer"
-                            title="Click to exclude from construction"
-                          >
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                              <path d="M1.5 4L3 5.5L6.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            {t("bank.optima.inConstruction")}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setCapexLineAbsorption(cat.name, true)}
-                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary hover:bg-surface-secondary transition-colors cursor-pointer"
-                            title="Click to include in construction"
-                          >
-                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                              <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
-                            </svg>
-                            {t("bank.optima.excluded")}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {tabData.tabCapexRows.map((row, i) => (
+                  <tr
+                    key={row.name}
+                    className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? "" : "bg-surface-secondary/10"}`}
+                  >
+                    <td className="py-2.5 px-5 text-text-secondary whitespace-nowrap">
+                      {row.name}
+                    </td>
+                    <td className="text-right py-2.5 px-5 font-mono text-sm font-medium text-text-primary">
+                      {formatCurrency(row.total, false, locale)}
+                    </td>
+                    <td className="text-right py-2.5 px-5 font-mono text-sm text-text-secondary">
+                      {tabData.tabCapexTotal > 0 ? formatPercent(row.total / tabData.tabCapexTotal, 0) : "—"}
+                    </td>
+                  </tr>
+                ))}
                 <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
                   <td className="py-3.5 px-5 text-text-primary">{t("capex.totalCapex")}</td>
                   <td className="text-right py-3.5 px-5 font-mono text-brand-600">
-                    {formatCurrency(totalCapex, false, locale)}
+                    {formatCurrency(tabData.tabCapexTotal, false, locale)}
                   </td>
                   <td className="text-right py-3.5 px-5 font-mono text-text-secondary">100%</td>
-                  <td />
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          {/* Construction vs Budget summary */}
-          <div className="px-5 py-4 border-t border-surface-tertiary/50 bg-brand-50">
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary mb-1">
-                  {t("bank.optima.constructionBasis")}
-                </div>
-                <div className="font-mono text-lg font-semibold text-brand-700">
-                  {formatCurrency(constructionTotal, false, locale)}
-                </div>
-                <div className="text-xs text-text-tertiary mt-0.5">
-                  {totalCapex > 0 ? formatPercent(constructionTotal / totalCapex, 0) : "—"} {t("kpi.ofTotal")}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary mb-1">
-                  {t("bank.optima.budgetTotal")}
-                </div>
-                <div className="font-mono text-lg font-semibold text-text-primary">
-                  {formatCurrency(totalCapex, false, locale)}
-                </div>
-                <div className="text-xs text-text-tertiary mt-0.5">
-                  {t("bank.optima.constructionRatio")}: {totalCapex > 0 ? formatPercent(constructionTotal / totalCapex, 0) : "—"}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="px-5 py-2.5 border-t border-surface-tertiary/50 bg-surface-secondary/10 text-[11px] text-text-tertiary italic">
-            {t("bank.optima.capexNote")}
           </div>
         </div>
       </div>
