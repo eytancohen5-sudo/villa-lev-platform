@@ -7,11 +7,11 @@
 // engine's annual P&L contract.
 //
 // Schedule (default Realistic):
-//   • Q3-2027 → Q2-2028: pre-opening draw, €50K/quarter (×4 = €200K total)
-//   • Q3-2028 (peak season): self-liquidating repay of pre-opening balance
-//   • Q4-2028: seasonal draw €150K + Y2 ramp buffer top-up €100K
-//   • Q1-2029, Q2-2029: balance carries
-//   • Q3-2029: self-liquidating repay
+//   • Q1-2029 → Q3-2029: pre-opening draw, €50K/quarter (×4 = €200K total)
+//   • Q3-2029 (peak season / opening): self-liquidating repay of pre-opening balance
+//   • Q4-2029: seasonal draw €150K + Y2 ramp buffer top-up €100K
+//   • Q1-2030, Q2-2030: balance carries
+//   • Q3-2030: self-liquidating repay
 //   • Q4 each subsequent year: seasonal draw €150K
 //   • Q3 each subsequent year: self-liquidating repay
 //
@@ -59,11 +59,11 @@ const EMPTY_SCHEDULE: WorkingCapitalSchedule = {
 };
 
 // ── VAT-bridge sub-facility ──────────────────────────────────────────────────
-// During construction (Q3-2026 → Q4-2028) the project pays VAT on progress
-// invoices and draws the revolving line to fund that cash outflow while AADE
-// processes the refund. The outstanding balance (= VAT receivable still
-// pending refund) is tracked here as a second sub-balance alongside the
-// operational WC.
+// All 4 construction tranches fall within 2029 (mobilization + 3 milestones,
+// March–July 2029). The project pays VAT on progress invoices and draws the
+// revolving line to fund that cash outflow while AADE processes the refund.
+// The outstanding balance (= VAT receivable still pending refund) is tracked
+// here as a second sub-balance alongside the operational WC.
 //
 // All amounts are the CLOSING BALANCE of the VAT-bridge sub-facility at each
 // quarter end. The engine computes incremental draws/repayments from the
@@ -72,22 +72,20 @@ const EMPTY_SCHEDULE: WorkingCapitalSchedule = {
 // automatically.
 //
 // Construction VAT total: €7,589,108 (93.4% of professional services at 24%)
-// AADE refund lag: 2 quarters after payment quarter.
-// Peak outstanding: Q2-Q4 2027 = €455,346.
-// Final refund received: Q1-Q2 2029, balance fully closed by Q2-2029.
+// Tranche schedule (4 equal tranches of 25% each):
+//   Q1-2029 (March):     Tranche 1 — mobilization      25%
+//   Q2-2029 (Apr-May):   Tranches 2 & 3 — main work    50%
+//   Q3-2029 (June):      Tranche 4 — fit-out completion 25%
+// AADE refund lag: received Q1-Q2 2030 after 2029 completion.
+// Peak outstanding: Q3-Q4 2029 ≈ full VAT amount.
+// Final refund received: Q1-Q2 2030, balance fully closed by Q2-2030.
 const VAT_BRIDGE_CLOSING: Record<string, number> = {
-  '2026Q3': 182_139,
-  '2026Q4': 364_278,
-  '2027Q1': 409_812,
-  '2027Q2': 455_346,
-  '2027Q3': 455_346,
-  '2027Q4': 455_346,
-  '2028Q1': 364_277,
-  '2028Q2': 273_208,
-  '2028Q3': 273_208,
-  '2028Q4': 273_208,
-  '2029Q1': 136_604,
-  '2029Q2': 0,
+  '2029Q1': 455_346,
+  '2029Q2': 728_554,
+  '2029Q3': 728_554,
+  '2029Q4': 728_554,
+  '2030Q1': 364_277,
+  '2030Q2': 0,
 };
 
 export function computeWorkingCapital(
@@ -135,30 +133,29 @@ export function computeWorkingCapital(
       let draws = 0;
       let repayments = 0;
 
-      // Pre-opening draws: Q3-2027, Q4-2027, Q1-2028, Q2-2028.
+      // Pre-opening draws: Q1-2029, Q2-2029, Q3-2029 (construction tranches).
       const isPreOpenQuarter =
-        (y === 2027 && (q === 3 || q === 4)) ||
-        (y === 2028 && (q === 1 || q === 2));
+        y === 2029 && (q === 1 || q === 2 || q === 3);
       if (isPreOpenQuarter) {
         draws += preOpenPerQuarter;
       }
 
-      // Seasonal draw: Q4 of every operational year (2028+).
+      // Seasonal draw: Q4 of every operational year (2029+).
       // Gated by prior-year cumulative cash — once the company has built up
       // surplus above its internal cash buffer, the revolver stops drawing.
-      if (y >= 2028 && q === 4) {
+      if (y >= 2029 && q === 4) {
         draws += gateDrawByCash(y, baseSeasonalDraw);
       }
 
-      // Y2 ramp buffer top-up: drawn alongside Q4-2028 seasonal cycle.
-      // Same cash-gating applies (in 2028 cum cash is negative, so this
+      // Y2 ramp buffer top-up: drawn alongside Q4-2029 seasonal cycle.
+      // Same cash-gating applies (in 2029 cum cash is negative, so this
       // typically draws in full — but kept consistent for symmetry).
-      if (y === 2028 && q === 4) {
+      if (y === 2029 && q === 4) {
         draws += gateDrawByCash(y, params.y2RampBufferTopup);
       }
 
       // Self-liquidating repayment: Q3 each operational year.
-      if (params.selfLiquidating && y >= 2028 && q === 3) {
+      if (params.selfLiquidating && y >= 2029 && q === 3) {
         repayments = opening * repaymentRatio;
       }
 
@@ -213,7 +210,7 @@ export function computeWorkingCapital(
       troughBalance: trough,
       interestExpense,
       netContribution: drawsTotal - repaymentsTotal,
-      selfLiquidatingViolation: y >= 2028 && trough > WC_TROUGH_THRESHOLD,
+      selfLiquidatingViolation: y >= 2029 && trough > WC_TROUGH_THRESHOLD,
     });
   }
 

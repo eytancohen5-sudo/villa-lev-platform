@@ -395,10 +395,10 @@ export async function exportInvestorPresentationV2CapitalDiscipline(
 
   // ── §3 The Asset ──────────────────────────────────────────────────────────
   // Phase years derived from milestones.yaml (no villa-lev-specific dates; TBD entries).
-  // Fallback: acquisition 2026, construction commencement 2027, first revenue season 2028.
+  // Fallback: acquisition 2026, construction commencement 2029, first revenue season 2029.
   const phase1Year = 2026;
   const phase2Year = 2027;
-  const phase3Year = 2028;
+  const phase3Year = 2029;
   children.push(sectionBanner('3. The Asset'));
   children.push(
     bodyText(`Capital is deployed in three milestone-gated phases: ${phase1Year} site acquisition and regulatory preparation, ${phase2Year} construction commencement with equity drawdown, ${phase3Year} first revenue season and commencement of debt service.`),
@@ -620,15 +620,15 @@ export async function exportInvestorPresentationV2CapitalDiscipline(
   );
   const op6Widths = [25, 25, 25, 25];
   const pnl = real.pnl;
-  const y1 = pnl.find(p => p.year === 2028) ?? pnl[0];
-  const y2 = pnl.find(p => p.year === 2029) ?? pnl[1];
-  const y3 = pnl.find(p => p.year === 2030) ?? pnl[2];
+  const y1 = pnl.find(p => p.year === 2029) ?? pnl[0];
+  const y2 = pnl.find(p => p.year === 2030) ?? pnl[1];
+  const y3 = pnl.find(p => p.year === 2031) ?? pnl[2];
 
   const opRows = [
     headerRowN(['Year', 'Revenue', 'EBITDA', 'DSCR'], op6Widths),
-    dataRowN(['Y1 (2028)', eur(y1?.totalRevenue ?? 0), eur(y1?.ebitda ?? 0), mul(y1?.dscr ?? 0)], op6Widths),
-    dataRowN(['Y2 (2029)', eur(y2?.totalRevenue ?? 0), eur(y2?.ebitda ?? 0), mul(y2?.dscr ?? 0)], op6Widths),
-    dataRowN(['Y3 (2030)', eur(y3?.totalRevenue ?? 0), eur(y3?.ebitda ?? 0), mul(y3?.dscr ?? 0)], op6Widths),
+    dataRowN(['Y1 (2029)', eur(y1?.totalRevenue ?? 0), eur(y1?.ebitda ?? 0), mul(y1?.dscr ?? 0)], op6Widths),
+    dataRowN(['Y2 (2030)', eur(y2?.totalRevenue ?? 0), eur(y2?.ebitda ?? 0), mul(y2?.dscr ?? 0)], op6Widths),
+    dataRowN(['Y3 (2031)', eur(y3?.totalRevenue ?? 0), eur(y3?.ebitda ?? 0), mul(y3?.dscr ?? 0)], op6Widths),
     dataRowN([
       'Stabilised',
       eur(real.stabilisedYear?.totalRevenue ?? km.stabilisedRevenue),
@@ -642,7 +642,7 @@ export async function exportInvestorPresentationV2CapitalDiscipline(
   }));
 
   children.push(
-    bodyText('Year 2028 is a ramp year; use the stabilised row as the normalised baseline.'),
+    bodyText('Year 2029 is a ramp year; use the stabilised row as the normalised baseline.'),
   );
 
   children.push(navLink('/admin/p-and-l'));

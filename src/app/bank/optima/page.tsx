@@ -234,8 +234,8 @@ export default function OptimaPage() {
   // proportional to the active sub-project.
   const optimaPnl = optimaScenario?.pnl ?? model.scenarios.realistic.pnl;
   const stabRev = optimaScenario?.stabilisedYear?.totalRevenue ?? 0;
-  const pnlY1 = optimaPnl.find((p) => p.year === 2028);
-  const pnlY2 = optimaPnl.find((p) => p.year === 2029);
+  const pnlY1 = optimaPnl.find((p) => p.year === 2029);
+  const pnlY2 = optimaPnl.find((p) => p.year === 2030);
   const year1HaircutPct = stabRev > 0 && pnlY1
     ? Math.round((1 - pnlY1.totalRevenue / stabRev) * 100) : 0;
   const year2HaircutPct = stabRev > 0 && pnlY2

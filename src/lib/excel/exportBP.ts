@@ -328,7 +328,7 @@ export async function exportBusinessPlan(
   };
 
   // Years and scenario data — used by every sheet.
-  const years = Array.from({ length: 11 }, (_, i) => 2026 + i); // 2026..2036
+  const years = Array.from({ length: 12 }, (_, i) => 2026 + i); // 2026..2037
   const scenario = m.scenarios[scenarioName];
   const pnl = scenario.pnl;
   const path = a.financingPath;
@@ -452,9 +452,9 @@ export async function exportBusinessPlan(
   r += 1;
 
   writeSection('Ramp assumptions');
-  writeInput('Year-1 ramp factor (2028)', a.general.year1RampFactor, FMT.pct, undefined, 'rampY1');
-  writeInput('Year-2 ramp factor (2029)', a.general.year2RampFactor, FMT.pct, undefined, 'rampY2');
-  writeInput('Nights growth per year (post-2029)', a.general.nightsGrowthPerYear, FMT.num, undefined, 'nightsGrowth');
+  writeInput('Year-1 ramp factor (2029)', a.general.year1RampFactor, FMT.pct, undefined, 'rampY1');
+  writeInput('Year-2 ramp factor (2030)', a.general.year2RampFactor, FMT.pct, undefined, 'rampY2');
+  writeInput('Nights growth per year (post-2030)', a.general.nightsGrowthPerYear, FMT.num, undefined, 'nightsGrowth');
   writeInput('Nights cap', a.general.nightsCap, FMT.num, undefined, 'nightsCap');
   r += 1;
 
@@ -873,8 +873,8 @@ export async function exportBusinessPlan(
     const phase =
       y === 2026 ? 'Acquisition' :
       y === 2027 ? 'Construction' :
-      y === 2028 ? 'Opening' :
-      y === 2029 ? 'Year 2' :
+      y === 2029 ? 'Opening' :
+      y === 2030 ? 'Year 2' :
       'Stabilised';
     const c = R.getCell(`${col(2 + i)}${rr}`);
     c.value = phase;
@@ -889,9 +889,9 @@ export async function exportBusinessPlan(
   const rampRow = rr;
   years.forEach((y, i) => {
     const c = R.getCell(`${col(2 + i)}${rr}`);
-    if (y <= 2027) c.value = 0;
-    else if (y === 2028) c.value = { formula: '=rampY1' };
-    else if (y === 2029) c.value = { formula: '=rampY2' };
+    if (y <= 2028) c.value = 0;
+    else if (y === 2029) c.value = { formula: '=rampY1' };
+    else if (y === 2030) c.value = { formula: '=rampY2' };
     else c.value = 1;
     c.numFmt = FMT.pct;
     c.fill = STYLE.formulaFill;
@@ -903,9 +903,9 @@ export async function exportBusinessPlan(
   const villaNightsRow = rr;
   years.forEach((y, i) => {
     const c = R.getCell(`${col(2 + i)}${rr}`);
-    if (y <= 2027) c.value = 0;
-    else if (y <= 2029) c.value = { formula: '=villaBaseNights' };
-    else c.value = { formula: `=MIN(nightsCap,villaBaseNights+MAX(0,${y - 2030})*nightsGrowth)` };
+    if (y <= 2028) c.value = 0;
+    else if (y <= 2030) c.value = { formula: '=villaBaseNights' };
+    else c.value = { formula: `=MIN(nightsCap,villaBaseNights+MAX(0,${y - 2031})*nightsGrowth)` };
     c.numFmt = FMT.num;
     c.fill = STYLE.formulaFill;
   });
@@ -916,9 +916,9 @@ export async function exportBusinessPlan(
   const suiteNightsRow = rr;
   years.forEach((y, i) => {
     const c = R.getCell(`${col(2 + i)}${rr}`);
-    if (y <= 2027) c.value = 0;
-    else if (y <= 2029) c.value = { formula: '=suiteBaseNights' };
-    else c.value = { formula: `=MIN(nightsCap,suiteBaseNights+MAX(0,${y - 2030})*nightsGrowth)` };
+    if (y <= 2028) c.value = 0;
+    else if (y <= 2030) c.value = { formula: '=suiteBaseNights' };
+    else c.value = { formula: `=MIN(nightsCap,suiteBaseNights+MAX(0,${y - 2031})*nightsGrowth)` };
     c.numFmt = FMT.num;
     c.fill = STYLE.formulaFill;
   });
@@ -939,7 +939,7 @@ export async function exportBusinessPlan(
       const cell = R.getCell(`${col(2 + i)}${rr}`);
       const eng = py(y);
       const engineRev = eng?.propertyBreakdown.find((p) => p.id === pr.prop.id)?.totalRevenue ?? 0;
-      if (y <= 2027) {
+      if (y <= 2028) {
         cell.value = 0;
       } else {
         const villaPart = `${P(pr.row, PCOL.villaUnits)}*${col(2 + i)}${villaNightsRow}*villaADR`;
@@ -963,7 +963,7 @@ export async function exportBusinessPlan(
   years.forEach((y, i) => {
     const cell = R.getCell(`${col(2 + i)}${rr}`);
     const engineEvents = py(y)?.revenueEvents ?? 0;
-    if (y <= 2027) cell.value = 0;
+    if (y <= 2028) cell.value = 0;
     else cell.value = { formula: `=${A_('eventsPerYear')}*${A_('netProfitPerEvent')}*${col(2 + i)}${rampRow}`, result: engineEvents };
     cell.numFmt = FMT.euro;
     cell.fill = STYLE.formulaFill;
@@ -977,9 +977,9 @@ export async function exportBusinessPlan(
   years.forEach((y, i) => {
     const cell = R.getCell(`${col(2 + i)}${rr}`);
     const engineAnc = py(y)?.revenueAncillary ?? 0;
-    if (y < 2028) cell.value = 0;
+    if (y < 2029) cell.value = 0;
     else {
-      const offset = y - 2028;
+      const offset = y - 2029;
       cell.value = { formula: `=${A_('ancillaryBase')}*POWER(1+${A_('ancillaryGrowth')},MIN(${offset},${A_('ancillaryGrowthYears')}))`, result: engineAnc };
     }
     cell.numFmt = FMT.euro;
@@ -1111,7 +1111,7 @@ export async function exportBusinessPlan(
   // OPEX per property — one row per property, fully engine-seeded (no live formula).
   //
   // FF&E Reserve is revenue-based: max(ffeReserveFloor, rate% × revenuePerUnit)
-  //   Rates: 0% OPENING_YEAR (2028, floor only), 2% (2029), 3% (2030), 4%+ thereafter.
+  //   Rates: 0% OPENING_YEAR (2029, floor only), 2% (2030), 3% (2031), 4%+ thereafter.
   // Revenue-based FF&E Reserve cannot be expressed as an Assumptions-sheet formula
   // without referencing the Revenue sheet (circular). Per-property OPEX rows are
   // seeded directly from engine output — they will NOT drift when Excel recalculates.
@@ -1139,7 +1139,7 @@ export async function exportBusinessPlan(
       const cell = PnL.getCell(`${col(2 + i)}${pr2}`);
       const eng = py(y);
       const engineOpex = eng?.propertyBreakdown.find((p) => p.id === pr.prop.id)?.totalOpex ?? 0;
-      cell.value = y <= 2027 ? 0 : engineOpex;
+      cell.value = y <= 2028 ? 0 : engineOpex;
       cell.numFmt = FMT.euro;
       cell.fill = STYLE.inputFill;
     });
@@ -1700,7 +1700,7 @@ export async function exportBusinessPlan(
     const v = (fc as unknown as Record<string, number>)[pk === 'tepix-loan' ? 'tepixLoan' : pk];
     return typeof v === 'number' ? v : 0;
   }, FMT.euro, 'Annual PMT (fully-amortising, post-grace)', true);
-  writeDsRow('Stabilised DSCR (2031)', (sc) => sc.stabilisedYear?.dscr ?? 0, FMT.mul, 'EBITDA / annual DS — post-ramp steady state', true);
+  writeDsRow('Stabilised DSCR (2032)', (sc) => sc.stabilisedYear?.dscr ?? 0, FMT.mul, 'EBITDA / annual DS — post-ramp steady state', true);
   writeDsRow('Min DSCR (loan life)', (sc) => sc.minDSCRLoanLife, FMT.mul, 'Worst single year, post-ramp');
 
   // Year-by-year amortisation section — active path only (full table; other paths: opening/closing only)
@@ -1846,10 +1846,10 @@ export async function exportBusinessPlan(
   Cov.getCell(`A${xr}`).font = FONT.section;
   xr += 1;
 
-  Cov.getCell(`A${xr}`).value = '  Stabilised EBITDA (2031)';
+  Cov.getCell(`A${xr}`).value = '  Stabilised EBITDA (2032)';
   const stabEbitdaRow = xr;
-  const stabEbitdaVal = pyVal(2031, 'ebitda');
-  Cov.getCell(`B${xr}`).value = { formula: `='${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`, result: stabEbitdaVal };
+  const stabEbitdaVal = pyVal(2032, 'ebitda');
+  Cov.getCell(`B${xr}`).value = { formula: `='${XL.sh_opexPnl}'!${col(2 + (2032 - 2026))}${ebitdaRow}`, result: stabEbitdaVal };
   Cov.getCell(`B${xr}`).numFmt = FMT.euro;
   Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
   xr += 1;
@@ -2233,7 +2233,7 @@ export async function exportBusinessPlan(
     pick: (sc: ModelOutput['scenarios']['realistic']) => number;
     fmt: string;
   }> = [
-    { label: 'Stabilised EBITDA (2031)', pick: (sc) => sc.stabilisedYear?.ebitda ?? 0, fmt: FMT.euro },
+    { label: 'Stabilised EBITDA (2032)', pick: (sc) => sc.stabilisedYear?.ebitda ?? 0, fmt: FMT.euro },
     {
       label: 'Stabilised total DS (incl. WC)',
       pick: (sc) => {
@@ -2702,14 +2702,14 @@ export async function exportBusinessPlan(
   cover.getColumn(4).width = 24;
   cover.getColumn(5).width = 18;
 
-  const stab2031 = py(2031);
+  const stab2032 = py(2032);
   // ── Validation table helpers ───────────────────────────────────────────────
   // DSCR validation uses the same "total DS (incl. WC)" basis as the Coverage
   // sheet, so the engine value and the workbook value are computed identically.
-  const totalDs2031 = stab2031
-    ? stab2031.termLoanInterest + stab2031.termLoanPrincipal + stab2031.wcInterestExpense
+  const totalDs2032 = stab2032
+    ? stab2032.termLoanInterest + stab2032.termLoanPrincipal + stab2032.wcInterestExpense
     : 0;
-  const dscr2031 = totalDs2031 > 0 ? (stab2031?.ebitdaPreOpCo ?? 0) / totalDs2031 : 0;
+  const dscr2032 = totalDs2032 > 0 ? (stab2032?.ebitdaPreOpCo ?? 0) / totalDs2032 : 0;
 
   // First full amortisation year = first year where termLoanPrincipal > 0.
   const firstFullDsYear = years.find((y) => (py(y)?.termLoanPrincipal ?? 0) > 0) ?? 2029;
@@ -2752,21 +2752,21 @@ export async function exportBusinessPlan(
     },
     // ── OPERATIONS — STABILISED 2031 ─────────────────────────────────────────
     {
-      label: 'Stabilised revenue (2031)',
-      engine: stab2031?.totalRevenue ?? 0,
-      workbookRef: `${XL.sh_revenue}!${col(2 + (2031 - 2026))}${totalRevRow}`,
+      label: 'Stabilised revenue (2032)',
+      engine: stab2032?.totalRevenue ?? 0,
+      workbookRef: `${XL.sh_revenue}!${col(2 + (2032 - 2026))}${totalRevRow}`,
       fmt: FMT.euro,
     },
     {
-      label: 'Total OpEx (2031)',
-      engine: stab2031?.totalOpex ?? 0,
-      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${totalOpexRow}`,
+      label: 'Total OpEx (2032)',
+      engine: stab2032?.totalOpex ?? 0,
+      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2032 - 2026))}${totalOpexRow}`,
       fmt: FMT.euro,
     },
     {
-      label: 'Stabilised EBITDA (2031)',
-      engine: stab2031?.ebitda ?? 0,
-      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2031 - 2026))}${ebitdaRow}`,
+      label: 'Stabilised EBITDA (2032)',
+      engine: stab2032?.ebitda ?? 0,
+      workbookRef: `'${XL.sh_opexPnl}'!${col(2 + (2032 - 2026))}${ebitdaRow}`,
       fmt: FMT.euro,
     },
     // ── DEBT SERVICE & COVERAGE ──────────────────────────────────────────────
@@ -2783,9 +2783,9 @@ export async function exportBusinessPlan(
       fmt: FMT.mul,
     },
     {
-      label: 'Stabilised DSCR (2031) — incl. WC',
-      engine: dscr2031,
-      workbookRef: `${XL.sh_coverage}!${col(2 + (2031 - 2026))}${dscrRowOnCov}`,
+      label: 'Stabilised DSCR (2032) — incl. WC',
+      engine: dscr2032,
+      workbookRef: `${XL.sh_coverage}!${col(2 + (2032 - 2026))}${dscrRowOnCov}`,
       fmt: FMT.mul,
     },
     {
@@ -3078,7 +3078,7 @@ export async function exportBusinessPlan(
     'sub',
   );
   writeFcMetric(
-    'Stabilised NCF post-tax (2031)',
+    'Stabilised NCF post-tax (2032)',
     (sc) => sc.stabilisedYear?.netCashFlowPostVAT ?? 0,
     FMT.euro,
     'ScenarioOutput.stabilisedYear.netCashFlowPostVAT',
@@ -3463,7 +3463,7 @@ export async function exportBusinessPlan(
     [`   ↳ Min DSCR over loan life (post-ramp, worst-year stress)`, activeScenario.minDSCRLoanLife, FMT.mul, `ScenarioOutput.minDSCRLoanLife — covenant-floor check; min occurs in yr ${activeMinDscrYear ?? '—'} then recovers as NCF ramps`, 'sub'],
     ['LLCR (Loan Life Coverage Ratio)', activeScenario.llcr, FMT.mul, 'ScenarioOutput.llcr — NPV of CFADS over loan life ÷ outstanding debt', 'normal'],
     ['PLCR (Project Life Coverage Ratio)', activeScenario.plcr, FMT.mul, 'ScenarioOutput.plcr — NPV of CFADS over project life ÷ outstanding debt', 'normal'],
-    ['ICR stabilised (2031)', activeScenario.icrStabilised, FMT.mul, 'ScenarioOutput.icrStabilised', 'normal'],
+    ['ICR stabilised (2032)', activeScenario.icrStabilised, FMT.mul, 'ScenarioOutput.icrStabilised', 'normal'],
     ['DSCR covenant headroom', activeScenario.dscrCovenantHeadroom, FMT.pct, '(minDSCR − 1.25) / 1.25', 'normal'],
     ['Grace-period interest total (2026–28)', activeScenario.gracePeriodInterestTotal, FMT.euro, 'ScenarioOutput.gracePeriodInterestTotal', 'normal'],
     ['Peak debt outstanding (term + WC)', activeScenario.peakDebtOutstanding, FMT.euro, 'ScenarioOutput.peakDebtOutstanding', 'normal'],

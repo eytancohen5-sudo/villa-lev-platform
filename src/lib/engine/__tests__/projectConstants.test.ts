@@ -25,12 +25,12 @@ describe('PROJECT_CONSTANTS — relational invariants', () => {
     expect(GRACE_END_YEAR).toBe(HORIZON_START_YEAR + 2);
   });
 
-  it('OPENING_YEAR === GRACE_END_YEAR (construction finishes end of 2028, villa opens)', () => {
-    expect(OPENING_YEAR).toBe(GRACE_END_YEAR);
+  it('OPENING_YEAR === GRACE_END_YEAR + 1 (construction completes 2029; amortisation starts 2029)', () => {
+    expect(OPENING_YEAR).toBe(GRACE_END_YEAR + 1);
   });
 
-  it('FIRST_OPERATIONAL_YEAR === GRACE_END_YEAR + 1', () => {
-    expect(FIRST_OPERATIONAL_YEAR).toBe(GRACE_END_YEAR + 1);
+  it('FIRST_OPERATIONAL_YEAR === GRACE_END_YEAR + 2', () => {
+    expect(FIRST_OPERATIONAL_YEAR).toBe(GRACE_END_YEAR + 2);
   });
 
   it('STABILISED_YEAR >= FIRST_OPERATIONAL_YEAR + 1', () => {
@@ -65,7 +65,7 @@ describe('PROJECT_CONSTANTS — relational invariants', () => {
     expect(PHASE1_LAND_PERMITS).toBeGreaterThan(0);
   });
 
-  it('horizon array length: HORIZON_END_YEAR - HORIZON_START_YEAR + 1 === 11', () => {
-    expect(HORIZON_END_YEAR - HORIZON_START_YEAR + 1).toBe(11);
+  it('horizon array length: HORIZON_END_YEAR - HORIZON_START_YEAR + 1 === 12', () => {
+    expect(HORIZON_END_YEAR - HORIZON_START_YEAR + 1).toBe(12);
   });
 });

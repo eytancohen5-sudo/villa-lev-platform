@@ -217,8 +217,8 @@ const EN: PdfStrings = {
   ass_suiteDblADR: 'Suite double ADR',
   ass_villaBaseNights: 'Villa base nights/year',
   ass_suiteBaseNights: 'Suite base nights/year',
-  ass_y1Ramp: 'Y1 ramp factor (2028)',
-  ass_y2Ramp: 'Y2 ramp factor (2029)',
+  ass_y1Ramp: 'Y1 ramp factor (2029)',
+  ass_y2Ramp: 'Y2 ramp factor (2030)',
   ass_interestRate: 'Loan interest rate',
   ass_coverageRate: 'Loan coverage rate',
   ass_repaymentTerm: 'Repayment term',
@@ -308,8 +308,8 @@ const EL: PdfStrings = {
   ass_suiteDblADR: 'ADR Σουίτας Double',
   ass_villaBaseNights: 'Βασικές διανυκτερεύσεις Βίλας/έτος',
   ass_suiteBaseNights: 'Βασικές διανυκτερεύσεις Σουίτας/έτος',
-  ass_y1Ramp: 'Συντελεστής Y1 (2028)',
-  ass_y2Ramp: 'Συντελεστής Y2 (2029)',
+  ass_y1Ramp: 'Συντελεστής Y1 (2029)',
+  ass_y2Ramp: 'Συντελεστής Y2 (2030)',
   ass_interestRate: 'Επιτόκιο Δανείου',
   ass_coverageRate: 'Ποσοστό Κάλυψης Δανείου',
   ass_repaymentTerm: 'Διάρκεια Αποπληρωμής',
@@ -399,8 +399,8 @@ const HE: PdfStrings = {
   ass_suiteDblADR: 'ADR סוויטה כפולה',
   ass_villaBaseNights: 'לילות בסיס וילה/שנה',
   ass_suiteBaseNights: 'לילות בסיס סוויטה/שנה',
-  ass_y1Ramp: 'מקדם שנה 1 (2028)',
-  ass_y2Ramp: 'מקדם שנה 2 (2029)',
+  ass_y1Ramp: 'מקדם שנה 1 (2029)',
+  ass_y2Ramp: 'מקדם שנה 2 (2030)',
   ass_interestRate: 'ריבית הלוואה',
   ass_coverageRate: 'שיעור כיסוי הלוואה',
   ass_repaymentTerm: 'תקופת פירעון',
@@ -637,7 +637,7 @@ export async function exportBankReport(
   doc.text(heDisplay(T.page2_title, locale), margin, 8);
   y = 18;
 
-  const opYears = pnl.filter((p) => p.year >= 2028);
+  const opYears = pnl.filter((p) => p.year >= 2029);
   const allYears = pnl;
   const yrLabels = allYears.map((p) => String(p.year));
 

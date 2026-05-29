@@ -3,17 +3,15 @@
 import { useTranslation } from '@/lib/i18n/I18nProvider'
 import { useModelStore } from '@/lib/store/modelStore'
 
+// All 4 construction tranches in 2029 (mobilization + 3 milestones, March–July 2029).
+// AADE refund arrives Q1-Q2 2030 (~4-month lag after 2029 completion).
 const ROWS = [
-  { quarter: 'Q3-2026', vatPaid: 182_139, vatRefund: 0,       netFloat: 182_139 },
-  { quarter: 'Q4-2026', vatPaid: 182_139, vatRefund: 0,       netFloat: 364_278 },
-  { quarter: 'Q1-2027', vatPaid: 227_673, vatRefund: 182_139, netFloat: 409_812 },
-  { quarter: 'Q2-2027', vatPaid: 227_673, vatRefund: 182_139, netFloat: 455_346 },
-  { quarter: 'Q3-2027', vatPaid: 227_673, vatRefund: 227_673, netFloat: 455_346 },
-  { quarter: 'Q4-2027', vatPaid: 227_673, vatRefund: 227_673, netFloat: 455_346 },
-  { quarter: 'Q1-2028', vatPaid: 136_604, vatRefund: 227_673, netFloat: 364_277 },
-  { quarter: 'Q2-2028', vatPaid: 136_604, vatRefund: 227_673, netFloat: 273_208 },
-  { quarter: 'Q3-2028', vatPaid: 136_604, vatRefund: 136_604, netFloat: 273_208 },
-  { quarter: 'Q4-2028', vatPaid: 136_604, vatRefund: 136_604, netFloat: 273_208 },
+  { quarter: 'Q1-2029', vatPaid: 182_139, vatRefund: 0,       netFloat: 182_139 },
+  { quarter: 'Q2-2029', vatPaid: 364_278, vatRefund: 0,       netFloat: 546_416 },
+  { quarter: 'Q3-2029', vatPaid: 182_139, vatRefund: 0,       netFloat: 728_554 },
+  { quarter: 'Q4-2029', vatPaid: 0,       vatRefund: 0,       netFloat: 728_554 },
+  { quarter: 'Q1-2030', vatPaid: 0,       vatRefund: 364_277, netFloat: 364_277 },
+  { quarter: 'Q2-2030', vatPaid: 0,       vatRefund: 364_277, netFloat: 0       },
 ]
 
 export function ConstructionVatCashflow() {

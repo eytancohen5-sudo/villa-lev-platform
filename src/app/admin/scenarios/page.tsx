@@ -96,7 +96,7 @@ export default function ScenariosPage() {
             </tr>
           </thead>
           <tbody>
-            {model.dscrByYear.filter(d => d.year >= 2028).map((d) => {
+            {model.dscrByYear.filter(d => d.year >= 2029).map((d) => {
               const floor = assumptions?.dsra?.targetDSCR ?? 1.25;
               // Always use effective DSCR — equals raw dscr when no reserve needed
               const r = d.effectiveRealistic ?? d.realistic;

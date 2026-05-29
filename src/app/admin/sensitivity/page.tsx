@@ -4,6 +4,8 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatMultiple, formatPercent } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel } from "@/lib/engine/model";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+const { HORIZON_END_YEAR, MIN_EXIT_YEAR } = PROJECT_CONSTANTS;
 import type { ModelAssumptions } from "@/lib/engine/types";
 import { useMemo } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
@@ -94,9 +96,9 @@ function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; b
       // Earlier exit usually lifts IRR (terminal lump lands sooner, less
       // discounting); later exit usually lowers it. Bracket ±2 years from base.
       vary: (a, s) => {
-        const base = a.exitYear ?? 2036;
-        const lo = Math.max(2030, base - 2);
-        const hi = Math.min(2036, base + 2);
+        const base = a.exitYear ?? HORIZON_END_YEAR;
+        const lo = Math.max(MIN_EXIT_YEAR, base - 2);
+        const hi = Math.min(HORIZON_END_YEAR, base + 2);
         a.exitYear = s === 'low' ? lo : hi;
         return a;
       },
@@ -299,7 +301,7 @@ export default function SensitivityPage() {
     // sensitivity for exit-side underwriting. 4 years × 8 multiples = 32 runs.
     // Multiple range widened past the legacy 14× cap per Eytan 2026-05-22 —
     // sponsor wants to stress the optimistic ceiling without the input clamp.
-    const exitYears = [2030, 2032, 2034, 2036];
+    const exitYears = [2031, 2033, 2035, 2037];
     const exitMultiples = [6, 8, 10, 12, 14, 16, 18, 20];
     const exitMatrix = exitYears.map((year) => ({
       year,
@@ -312,7 +314,7 @@ export default function SensitivityPage() {
           moic: result.totalMOIC,
           underwater: result.terminalUnderwater,
           isBase:
-            year === (assumptions.exitYear ?? 2036) &&
+            year === (assumptions.exitYear ?? HORIZON_END_YEAR) &&
             Math.abs(mult - assumptions.exitEbitdaMultiple) < 0.01,
         };
       }),
@@ -384,7 +386,7 @@ export default function SensitivityPage() {
             Exit year × multiple — equity IRR matrix
           </h3>
           <div className="text-xs text-text-tertiary">
-            Active: <span className="font-mono text-text-primary">{assumptions.exitYear ?? 2036} @ {assumptions.exitEbitdaMultiple}×</span>
+            Active: <span className="font-mono text-text-primary">{assumptions.exitYear ?? HORIZON_END_YEAR} @ {assumptions.exitEbitdaMultiple}×</span>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -437,7 +439,7 @@ export default function SensitivityPage() {
           </table>
         </div>
         <p className="mt-3 text-[11px] text-text-tertiary leading-relaxed">
-          Equity IRR for every combination of exit year (2030–2036) and exit EBITDA multiple (6× to 20×).
+          Equity IRR for every combination of exit year (2031–2037) and exit EBITDA multiple (6× to 20×).
           Active configuration is ringed; cells in <span className="text-warning">amber</span> are underwater
           (remaining debt &gt; asset value, equity sale proceeds floor at €0). Hover for MOIC.
         </p>

@@ -251,8 +251,8 @@ export async function exportBankPresentation(
   }));
   children.push(
     bodyText('Phase 1 (2026): Land acquisition and legal completion across all portfolio properties.'),
-    bodyText('Phase 2 (2027): Construction and fitout. All properties delivered to shell stage by Q3 2027.'),
-    bodyText('Phase 3 (2028 onwards): Operations commence. Revenue ramp over 2 years to stabilised levels.'),
+    bodyText('Phase 2 (2027–2029): Construction and fitout. All 4 tranches complete by Q3 2029.'),
+    bodyText('Phase 3 (2029 onwards): Operations commence. Revenue ramp over 2 years to stabilised levels.'),
   );
 
   // ── §3 Sources & Uses ────────────────────────────────────────────────────

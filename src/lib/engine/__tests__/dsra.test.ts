@@ -100,14 +100,14 @@ describe('DSRA engine — Pass 3 waterfall', () => {
   // ── Test 3: Two-layer funding — algebraic contract ────────────────────────
   it('enabled (targetDSCR=2.0): partner advance fills the gap between sweep and target', () => {
     // The DSRA funding contract:
-    //   dsraSweep2028  = sweep2028Pct × max(0, NCF_2028)   (full 2028 NCF, uncapped)
+    //   dsraSweep2028  = sweep2028Pct × max(0, NCF_2029)   (full 2029 NCF, uncapped)
     //   dsraPartnerAdvance = max(0, dsraTarget - dsraSweep2028)
     //
     // When sweep >= target, partnerAdvance = 0 (the sweep over-covers).
     // When sweep < target, partnerAdvance fills the residual exactly.
     // In either case: min(sweep, target) + partnerAdvance == target.
     //
-    // At targetDSCR=2.0 with BASE_CASE, dsraTarget ≈ €228K and 2028 NCF ≈
+    // At targetDSCR=2.0 with BASE_CASE, dsraTarget ≈ €228K and 2029 NCF ≈
     // €248K (sweep > target), so partnerAdvance is expected to be 0.
     const a: ModelAssumptions = withDSRA({ enabled: true, targetDSCR: 2.0 });
     const out = computeModel(a);
@@ -131,8 +131,8 @@ describe('DSRA engine — Pass 3 waterfall', () => {
   });
 
   // ── Test 4: Drawdown supplements DSCR to target in the known weak year ─────
-  it('enabled (targetDSCR=2.0): 2029 row has a positive draw and effectiveDSCR >= 2.0', () => {
-    // With targetDSCR=2.0 and 2029 DSCR ≈ 1.75, the engine must draw from the
+  it('enabled (targetDSCR=2.0): FIRST_OPERATIONAL_YEAR row has a positive draw and effectiveDSCR >= 2.0', () => {
+    // With targetDSCR=2.0 and FIRST_OPERATIONAL_YEAR DSCR ≈ 1.75, the engine must draw from the
     // reserve to bridge the gap to the 2.0× coverage threshold.
     const a: ModelAssumptions = withDSRA({ enabled: true, targetDSCR: 2.0 });
     const out = computeModel(a);
@@ -196,7 +196,7 @@ describe('DSRA engine — Pass 3 waterfall', () => {
     // targetDSCR=1.25, which produces a genuine shortfall in 2029 (≈€42K).
     // The sweep may cover it entirely; if so, partnerAdvance=0 and repayment
     // is vacuously satisfied. Otherwise repayment should trigger within the
-    // 2029–2036 horizon at threshold=1.
+    // 2029–2037 horizon at threshold=1.
     //
     // Note: `scenarios.downside` in computeModel uses the ACTIVE debt (commercial
     // at BASE_CASE) and applies DOWNSIDE_FACTORS (occupancyReduction, adrReduction).
@@ -226,11 +226,11 @@ describe('DSRA engine — Pass 3 waterfall', () => {
 
     if (!anyRepayment) {
       // Surface the constraint rather than silently failing.
-      // The projection horizon (2029–2036) may not include enough surplus years
+      // The projection horizon (2029–2037) may not include enough surplus years
       // for repayment to trigger. Log the situation and skip without failing —
       // the test still confirms the field is present and correctly typed.
       console.warn(
-        '[DSRA Test 6] No partnerRepayment > 0 found in 2029–2036. ' +
+        '[DSRA Test 6] No partnerRepayment > 0 found in 2029–2037. ' +
         `dsraPartnerAdvance=${dsraPartnerAdvance}, dsraTarget=${dsraTarget}. ` +
         'This likely means the downside scenario never accumulates surplus ' +
         'above the DSRA target within the modeled horizon. ' +

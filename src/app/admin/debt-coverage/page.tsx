@@ -90,7 +90,7 @@ export default function DebtCoveragePage() {
   const wcStabilisedAvg = stab?.wcAvgBalance ?? 0;
   const wcStabilisedInterest = stab?.wcInterestExpense ?? 0;
   const worstTrough = activePnL
-    .filter((p) => p.year >= 2028)
+    .filter((p) => p.year >= 2029)
     .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
   // VAT-bridge balances come directly from the engine (vatBridgeBalance per quarter,
   // derived from the static VAT_BRIDGE_CLOSING schedule in workingCapital.ts).
@@ -132,7 +132,7 @@ export default function DebtCoveragePage() {
   // DSCR trajectory chart — realistic/downside/upside use the active path's debt schedule.
   // Grant is kept as a fixed reference line (always grant debt, path-invariant).
   const dscrTrajectoryData = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2028)
+    .filter((p) => p.year >= 2029)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);

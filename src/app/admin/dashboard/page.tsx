@@ -109,7 +109,7 @@ export default function DashboardPage() {
   };
 
   const dscrDashboardData = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2028)
+    .filter((p) => p.year >= 2029)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);

@@ -312,8 +312,9 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
     'Developer management fee (construction, 2 yrs)',
   ]);
   const VAT_RATE = 0.24;
-  const VAT_DRAW_SCHEDULE: Record<number, number> = { 2026: 0.20, 2027: 0.50, 2028: 0.30 };
-  const REFUND_YEAR = 2029; // conservative: pool the full refund in 2029 (~4-month lag after 2028 completion)
+  // All 4 construction tranches fall within 2029 (mobilization + 3 milestones, March–July 2029).
+  const VAT_DRAW_SCHEDULE: Record<number, number> = { 2029: 1.0 };
+  const REFUND_YEAR = 2030; // conservative: pool the full refund in 2030 (~4-month lag after 2029 completion)
 
   const vatLiableTotal = categories
     .filter(cat => !VAT_EXEMPT_CATEGORIES.has(cat.name) && !cat.name.includes('::'))
@@ -327,7 +328,7 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
     constructionVatByYear[year] = vatOutflow;
     totalVatOutflow += vatOutflow;
   }
-  // Refund in 2029: positive inflow equal to the sum of all prior outflows
+  // Refund in 2030: positive inflow equal to the sum of all prior outflows
   constructionVatByYear[REFUND_YEAR] = -totalVatOutflow;
 
   return {
@@ -1517,7 +1518,7 @@ function computeScenario(
     let vintages: Vintage[] = [];
 
     // Pre-opening years are those before OPENING_YEAR (construction phase).
-    // OPENING_YEAR = 2028 per PROJECT_CONSTANTS.
+    // OPENING_YEAR = 2029 per PROJECT_CONSTANTS.
     for (const row of pnl) {
       // A. Expire vintages outside the carryforward window.
       //    Condition: vintage.year + carryForwardYears < row.year

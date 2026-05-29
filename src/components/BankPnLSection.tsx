@@ -327,7 +327,7 @@ export function BankPnLSection({
   };
 
   const phaseLabel = (year: number) =>
-    year <= 2027 ? t('pnl.phaseDev') : year === 2028 ? t('pnl.phaseRampGrace') : year === 2029 ? t('pnl.phaseRampDS') : t('pnl.phaseStab');
+    year <= 2028 ? t('pnl.phaseDev') : year <= 2030 ? t('pnl.phaseRampDS') : t('pnl.phaseStab');
 
   // How many sections currently have at least one detail row visible
   const anyExpanded = Object.values(expanded).some(Boolean);
@@ -383,9 +383,9 @@ export function BankPnLSection({
               </th>
               {years.map((yr) => {
                 const tone =
-                  yr <= 2027
+                  yr <= 2028
                     ? "border-t-4 border-earth-terracotta/60"
-                    : yr <= 2029
+                    : yr <= 2030
                       ? "border-t-4 border-warning/60"
                       : "border-t-4 border-positive/60";
                 return (

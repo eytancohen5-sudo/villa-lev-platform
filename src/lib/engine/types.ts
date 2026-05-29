@@ -17,7 +17,7 @@ export interface PropertyOpex {
   consumables: number;
   accounting: number;
   /** FF&E Reserve floor per plot (EUR/year). Engine computes max(ffeReserveFloor, rate% × revenue).
-   *  Rates: 0% in Y1 of ops (2028, floor only), 2% (2029), 3% (2030), 4%+ thereafter. */
+   *  Rates: 0% in Y1 of ops (2029, floor only), 2% (2030), 3% (2031), 4%+ thereafter. */
   ffeReserveFloor?: number;
 }
 
@@ -225,8 +225,8 @@ export interface RevenueAssumptions {
   netProfitPerEvent: number;
   ancillaryBaseProfit: number;
   ancillaryGrowthRate: number;
-  // Number of years from 2028 over which ancillaryGrowthRate compounds.
-  // After 2028 + ancillaryGrowthYears, ancillary revenue stays flat at the
+  // Number of years from OPENING_YEAR over which ancillaryGrowthRate compounds.
+  // After OPENING_YEAR + ancillaryGrowthYears, ancillary revenue stays flat at the
   // capped value. 0 disables compounding entirely; a large value (>=10)
   // restores the original "grow forever" behavior across the projection.
   ancillaryGrowthYears: number;
@@ -249,11 +249,11 @@ export interface WorkingCapitalParams {
   facilitySize: number;
   // Spread above the term-loan rate, in decimal (0.01 = 100 bps).
   spreadOverTermRate: number;
-  // Pre-opening total drawn over Q3-2027 → Q2-2028 (4 equal quarterly slugs).
+  // Pre-opening total drawn over Q1-Q3 2029 (4 equal quarterly slugs).
   preOpeningTotalDraw: number;
   // Drawn each Q4 of an operational year, repaid the following Q3.
   seasonalDrawPerCycle: number;
-  // Additional one-shot top-up drawn alongside the Q4-2028 seasonal cycle.
+  // Additional one-shot top-up drawn alongside the Q4-2029 seasonal cycle.
   y2RampBufferTopup: number;
   // True: each Q3 (peak-season end) repays the outstanding balance.
   selfLiquidating: boolean;
@@ -270,7 +270,7 @@ export interface WorkingCapitalParams {
 export interface DSRAParams {
   enabled: boolean;
   targetDSCR: number;          // coverage threshold that triggers drawdown (default 1.25)
-  sweep2028Pct: number;        // fraction 0–1 of 2028 post-tax NCF swept (default 1.0)
+  sweep2028Pct: number;        // fraction 0–1 of OPENING_YEAR (2029) post-tax NCF swept (default 1.0)
   replenishmentPriority: number; // fraction 0–1 of post-DS surplus used to replenish (default 1.0)
   partnerRepaymentThreshold: number; // consecutive stable years before partner repayment (default 2)
 }
@@ -595,7 +595,7 @@ export interface ModelAssumptions {
    *  Optional so existing Firestore scenarios deserialise without migration. */
   optimaLoan?: OptimaLoanParams;
   /** FF&E Reserve rate schedule. Engine applies max(floor, rate × revenue/unit) per year.
-   *  Year 2028 (opening): floor only (rate 0). Years 2029+: ramp by schedule below. */
+   *  Year 2029 (opening): floor only (rate 0). Years 2030+: ramp by schedule below. */
   ffeSchedule?: {
     rate2029: number;       // first operational year — default 0.02
     rate2030: number;       // second operational year — default 0.03
@@ -645,7 +645,7 @@ export interface CapexBreakdown {
    * Construction VAT cashflow by year (ADR-0015).
    * Negative = VAT paid on construction invoices (cash outflow).
    * Positive = AADE refund received (cash inflow). 24% Greek rate.
-   * Draw schedule: 20% in 2026, 50% in 2027, 30% in 2028; refund pooled in 2029.
+   * Draw schedule: 100% in 2029 (4 tranches: mobilization + 3 milestones); refund pooled in 2030.
    */
   constructionVatByYear: Record<number, number>;
 }
@@ -675,7 +675,7 @@ export interface AnnualPnL {
   revenueEvents: number;
   revenueAncillary: number;
   // True for years where the ancillary growth cap has flattened the trajectory
-  // (i.e. year - 2028 >= ancillaryGrowthYears, with growth rate > 0).
+  // (i.e. year - OPENING_YEAR >= ancillaryGrowthYears, with growth rate > 0).
   revenueAncillaryCapped: boolean;
   totalRevenue: number;
   totalOpex: number;

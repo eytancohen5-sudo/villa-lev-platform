@@ -217,7 +217,7 @@ export default function PitchPage() {
     ];
   }, [historicalYears, snapshotLoading]);
   const operatingPnl = useMemo(
-    () => scenario?.pnl.filter((p) => p.year >= 2028) ?? [],
+    () => scenario?.pnl.filter((p) => p.year >= 2029) ?? [],
     [scenario]
   );
 
@@ -235,7 +235,7 @@ export default function PitchPage() {
   const dscrChart = useMemo(
     () =>
       (model?.dscrByYear ?? [])
-        .filter((d) => d.year >= 2028)
+        .filter((d) => d.year >= 2029)
         .map((d) => ({
           year: d.year,
           Realistic: Number(d.realistic.toFixed(2)),
@@ -564,7 +564,7 @@ export default function PitchPage() {
                 <div className="flex justify-between text-[10px] text-text-tertiary mt-2 uppercase tracking-wider">
                   <span>Q2 2026</span>
                   <span>Q4 2026 – Q1 2027</span>
-                  <span>Summer 2028</span>
+                  <span>{t('pitch.timeline.opening')}</span>
                 </div>
               </div>
 

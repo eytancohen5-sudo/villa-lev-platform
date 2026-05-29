@@ -11,6 +11,8 @@ import { BankViewBadge } from "@/components/BankViewToggle";
 import { AssumptionPrompts } from "@/components/AssumptionPrompts";
 import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { FinancingPath } from "@/lib/engine/types";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+const { HORIZON_END_YEAR, MIN_EXIT_YEAR } = PROJECT_CONSTANTS;
 import { TranslationDictionary } from "@/lib/i18n/types";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
@@ -481,15 +483,15 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
                 </span>
                 <input
                   type="number"
-                  min={2030}
-                  max={2036}
+                  min={MIN_EXIT_YEAR}
+                  max={HORIZON_END_YEAR}
                   step={1}
-                  value={exitYearRaw || String(assumptions.exitYear ?? 2036)}
+                  value={exitYearRaw || String(assumptions.exitYear ?? HORIZON_END_YEAR)}
                   onChange={(e) => {
                     setExitYearRaw(e.target.value);
                     const v = parseInt(e.target.value, 10);
                     if (Number.isFinite(v)) {
-                      setAssumption("exitYear", Math.max(2030, Math.min(2036, v)), "Exit year");
+                      setAssumption("exitYear", Math.max(MIN_EXIT_YEAR, Math.min(HORIZON_END_YEAR, v)), "Exit year");
                     }
                   }}
                   onBlur={() => setExitYearRaw('')}
@@ -502,7 +504,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
                       : "Exit year"
                   }
                 />
-                {exitYearRaw && (parseInt(exitYearRaw) < 2030 || parseInt(exitYearRaw) > 2036) && (
+                {exitYearRaw && (parseInt(exitYearRaw) < MIN_EXIT_YEAR || parseInt(exitYearRaw) > HORIZON_END_YEAR) && (
                   <span className="text-[10px] text-warning ml-1">{t('admin.bar.exitYearRange')}</span>
                 )}
                 {exitUnderwater && (

@@ -85,23 +85,23 @@ describe("L1 — engine metrics that feed the validation table", () => {
    */
   it("bank-view metrics snapshot (commercial path, realistic scenario)", () => {
     const m = computeModel({ ...BASE_CASE, viewMode: "bank" });
-    const pnl2031 = m.scenarios.realistic.pnl.find((p) => p.year === 2031);
+    const pnl2032 = m.scenarios.realistic.pnl.find((p) => p.year === 2032);
 
     // Inline DSCR — same computation the exporter uses (Coverage-sheet basis,
     // NOT keyMetrics.stabilisedDSCR which uses a different DS basis).
-    const totalDs2031 = pnl2031
-      ? pnl2031.termLoanInterest +
-        pnl2031.termLoanPrincipal +
-        pnl2031.wcInterestExpense
+    const totalDs2032 = pnl2032
+      ? pnl2032.termLoanInterest +
+        pnl2032.termLoanPrincipal +
+        pnl2032.wcInterestExpense
       : 0;
-    const dscr2031 =
-      totalDs2031 > 0 ? (pnl2031?.ebitda ?? 0) / totalDs2031 : 0;
+    const dscr2032 =
+      totalDs2032 > 0 ? (pnl2032?.ebitda ?? 0) / totalDs2032 : 0;
 
     const metrics = {
       totalCAPEX: m.capex.portfolioTotal,
-      stabilisedRevenue2031: pnl2031?.totalRevenue ?? 0,
-      stabilisedEBITDA2031: pnl2031?.ebitda ?? 0,
-      stabilisedDSCR2031_coverageBasis: dscr2031,
+      stabilisedRevenue2032: pnl2032?.totalRevenue ?? 0,
+      stabilisedEBITDA2032: pnl2032?.ebitda ?? 0,
+      stabilisedDSCR2032_coverageBasis: dscr2032,
       // IRR / MOIC live inside the Coverage sheet computation; keyMetrics
       // exposes them at the model level.
       leveredEquityIRR: m.scenarios.realistic.equityIRR,
@@ -129,10 +129,10 @@ describe("L1 — engine metrics that feed the validation table", () => {
     const internal = computeModel({ ...BASE_CASE, viewMode: "internal" });
 
     const bankEbitda = bank.scenarios.realistic.pnl.find(
-      (p) => p.year === 2031
+      (p) => p.year === 2032
     )?.ebitda;
     const internalEbitda = internal.scenarios.realistic.pnl.find(
-      (p) => p.year === 2031
+      (p) => p.year === 2032
     )?.ebitda;
 
     expect(bankEbitda).toBeDefined();
@@ -178,9 +178,9 @@ describe("L2 — exported XLSX structural shape", () => {
     expect(labels[0]).toBe("Total CAPEX");
     expect(labels[1]).toBe("Total loan (80% LTC)");
     expect(labels[2]).toBe("Structural equity at close");
-    expect(labels[3]).toBe("Stabilised revenue (2031)");
-    expect(labels[4]).toBe("Total OpEx (2031)");
-    expect(labels[5]).toBe("Stabilised EBITDA (2031)");
+    expect(labels[3]).toBe("Stabilised revenue (2032)");
+    expect(labels[4]).toBe("Total OpEx (2032)");
+    expect(labels[5]).toBe("Stabilised EBITDA (2032)");
     expect(labels[6]).toMatch(/Annual debt service/);
     expect(labels[7]).toMatch(/DSCR first full DS year/);
     expect(labels[8]).toMatch(/Stabilised DSCR/);
@@ -433,7 +433,7 @@ describe("L3 — OPEX formula integrity", () => {
     expect(opexSectionRow).toBeGreaterThan(0);
     const firstPropRow = opexSectionRow + 1;
 
-    // Column G = year 2031 (stabilised) — must be a plain number > 0 (engine-seeded, no formula)
+    // Column G = year 2032 (stabilised) — must be a plain number > 0 (engine-seeded, no formula)
     const stabilisedCell = pnl.getRow(firstPropRow).getCell("G").value;
     expect(typeof stabilisedCell).toBe("number");
     expect(stabilisedCell as number).toBeGreaterThan(0);

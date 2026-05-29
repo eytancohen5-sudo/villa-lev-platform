@@ -149,7 +149,7 @@ export default function BankPage() {
     ?? model.scenarios.realistic.pnl;
 
   const km = model.keyMetrics;
-  const pnl = activePnl.filter((p) => p.year >= 2028);
+  const pnl = activePnl.filter((p) => p.year >= 2029);
 
   const isGated = !activePnl.some(p => (p.netCashFlowPostVAT ?? 0) >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD);
 
@@ -162,9 +162,9 @@ export default function BankPage() {
   // Stabilised year for the active scenario — drives the Stabilised Ops panel.
   const activeStab = activeScenarioOutput.stabilisedYear;
 
-  // Post-ramp 2030 DSCR from the active scenario — more meaningful to a lender.
-  const dscr2030 =
-    activePnl?.find((p) => p.year === 2030)?.dscr ??
+  // Post-ramp 2031 DSCR from the active scenario — more meaningful to a lender.
+  const dscr2031 =
+    activePnl?.find((p) => p.year === 2031)?.dscr ??
     activeScenarioOutput.minDSCRLoanLife;
 
   // Coverage ratios — scenario-responsive.
@@ -173,11 +173,11 @@ export default function BankPage() {
   const plcr = activeScenarioOutput.plcr;
 
   // ── Ramp-year revenue haircut ──────────────────────────────────────────────
-  // Dynamic: Y1 (2028) and Y2 (2029) from the active scenario PnL vs. its
+  // Dynamic: Y1 (2029) and Y2 (2030) from the active scenario PnL vs. its
   // stabilised year. Updates automatically when scenario pill changes.
   const stabRev = activeStab?.totalRevenue ?? 0;
-  const pnlY1   = activePnl.find((p) => p.year === 2028);
-  const pnlY2   = activePnl.find((p) => p.year === 2029);
+  const pnlY1   = activePnl.find((p) => p.year === 2029);
+  const pnlY2   = activePnl.find((p) => p.year === 2030);
   const year1HaircutPct = stabRev > 0 && pnlY1
     ? Math.round((1 - pnlY1.totalRevenue / stabRev) * 100) : 0;
   const year2HaircutPct = stabRev > 0 && pnlY2
@@ -197,8 +197,8 @@ export default function BankPage() {
       </div>
       <div className="flex gap-3 flex-shrink-0">
         {[
-          { year: 2028, label: t('bank.chart.year1Label'), pct: year1HaircutPct, amt: year1HaircutAmt },
-          { year: 2029, label: t('bank.chart.year2Label'), pct: year2HaircutPct, amt: year2HaircutAmt },
+          { year: 2029, label: t('bank.chart.year1Label'), pct: year1HaircutPct, amt: year1HaircutAmt },
+          { year: 2030, label: t('bank.chart.year2Label'), pct: year2HaircutPct, amt: year2HaircutAmt },
         ].map(({ year, label, pct, amt }) => (
           <div key={year} className="rounded-lg bg-white border border-surface-tertiary px-4 py-2.5 text-center min-w-[100px]">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{label}</div>
@@ -276,7 +276,7 @@ export default function BankPage() {
   // Drive DSCR chart from model.scenarios so it reflects the active financing path.
   // dscrByYear.realistic/upside/downside are always commercial — they don't switch.
   const dscrChart = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2028)
+    .filter((p) => p.year >= 2029)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
@@ -705,10 +705,10 @@ export default function BankPage() {
                 sublabel={formatCurrency(km.portfolioValue, true, locale)}
               />
               <MetricCell
-                value={formatMultiple(dscr2030)}
+                value={formatMultiple(dscr2031)}
                 label={t('term.dscr')}
                 sublabel={t('bank.kpi.postRamp2030')}
-                valueClass={dscr2030 >= 1.25 ? 'text-positive' : 'text-warning'}
+                valueClass={dscr2031 >= 1.25 ? 'text-positive' : 'text-warning'}
               />
             </div>
           </div>
@@ -1257,7 +1257,7 @@ export default function BankPage() {
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.allPathsChartSub')}</p>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={model.dscrByYear.filter((d) => d.year >= 2028).map((d) => ({
+            <LineChart data={model.dscrByYear.filter((d) => d.year >= 2029).map((d) => ({
               year: d.year,
               Commercial: Number(d.realistic.toFixed(2)),
               Grant: Number(d.grant.toFixed(2)),

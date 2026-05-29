@@ -22,7 +22,7 @@
 //     servicesTotal = 52,494
 //   Shared overhead: 30,000 + 10,000 + 15,000 + 3,000 + 9,000 + 1,000
 //                    + 35,000 + 30,000 + 25,000 = 158,000
-//   Pre-opening amort (2028–2032): 275,000 / 5 = 55,000
+//   Pre-opening amort (2029–2033): 275,000 / 5 = 55,000
 //
 //   EXPECTED TOTAL ≈ 237,944.16 + 52,494 + 158,000 + 55,000 = 503,438.16
 
@@ -55,7 +55,7 @@ describe('computePortfolioOpex — seed defaults', () => {
     // staffTotal  ≈ 237,944  (Greek holiday bonus formula: contractMonths×14/12 for all roles)
     // services    =  52,494  (Pool R&M = 17 × €1,500; Landscape 12K; Maintenance 17×882)
     // overhead    = 158,000
-    // preOpening  =  55,000  (2031 is within 2028-2032 amort window)
+    // preOpening  =  55,000  (2031 is within 2029-2033 amort window)
     // EXPECTED    ≈ 503,438
     const EXPECTED_TOTAL = 237944.16 + 52494 + 158000 + 55000; // 503,438.16
     const result = computePortfolioOpexForTest(2031, BASE_CASE);
@@ -92,10 +92,10 @@ describe('computePortfolioOpex — seed defaults', () => {
 
   // ── Test 3: pre-opening amort drops to 0 after window ───────────────────────
   it('drops pre-opening amortisation to 0 after the amortisation window expires', () => {
-    const startYear   = BASE_CASE.portfolioOpex!.preOpeningStartYear;   // 2028
+    const startYear   = BASE_CASE.portfolioOpex!.preOpeningStartYear;   // 2029
     const amortYears  = BASE_CASE.portfolioOpex!.preOpeningAmortYears;  // 5
-    const lastAmortYear  = startYear + amortYears - 1;                  // 2032
-    const firstZeroYear  = startYear + amortYears;                      // 2033
+    const lastAmortYear  = startYear + amortYears - 1;                  // 2033
+    const firstZeroYear  = startYear + amortYears;                      // 2034
 
     expect(computePortfolioOpexForTest(lastAmortYear, BASE_CASE).preOpeningAmort).toBeGreaterThan(0);
     expect(computePortfolioOpexForTest(firstZeroYear, BASE_CASE).preOpeningAmort).toBe(0);

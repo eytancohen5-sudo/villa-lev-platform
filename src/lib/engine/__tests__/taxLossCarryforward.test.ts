@@ -12,9 +12,9 @@
 // per Art. 24, Law 4172/2013):
 //   2026: generated=43,200, utilised=0,  pool=43,200  (pre-opening interest only)
 //   2027: generated=95,550, utilised=0,  pool=138,750 (adds WC interest)
-//   2028: operational loss generated (depreciation + interest > EBITDA at 75% occ)
-//   2029: further operational loss generated (revenue ramp)
-//   2030+: pool drains as EBITDA stabilises and exceeds depreciation + interest
+//   2029: operational loss generated (depreciation + interest > EBITDA at 75% occ)
+//   2030: further operational loss generated (revenue ramp)
+//   2031+: pool drains as EBITDA stabilises and exceeds depreciation + interest
 //   CIT resumes in the year pool reaches 0 (exact year depends on revenue ramp)
 
 import { describe, it, expect } from 'vitest';
@@ -96,38 +96,38 @@ describe('Pass 2B — pre-opening loss accumulation', () => {
 // ── Test 2: Pool drains in operational years ──────────────────────────────────
 
 describe('Pass 2B — pool drainage in operational years', () => {
-  it('2028 (opening year): taxLossUtilised === 0 (pool absorbs or grows, no utilisation)', () => {
-    // With depreciation (Art. 24), the 2028 opening year may have
+  it('2029 (opening year): taxLossUtilised === 0 (pool absorbs or grows, no utilisation)', () => {
+    // With depreciation (Art. 24), the 2029 opening year may have
     // rawTaxableBeforePool < 0 (operational loss) or > 0 (small profit).
     // In either case, taxLossUtilised must be 0 because:
     //   - If rawTaxable < 0: this year generates a new loss (utilised stays 0)
     //   - If rawTaxable > 0 but < pool: utilised may be > 0 if pool drains partially
     // We test the invariant: pool is monotonically non-decreasing until drainage begins.
     const pnl = realisticPnL();
-    const row2028 = rowFor(pnl, 2028);
-
-    // Pool after 2028 must be >= pool after 2027 (new operational loss adds to pool).
-    const row2027 = rowFor(pnl, 2027);
-    expect(row2028.taxLossPoolBalance ?? 0).toBeGreaterThanOrEqual(
-      (row2027.taxLossPoolBalance ?? 0) - 1, // allow float epsilon
-    );
-    // taxLossUtilised is 0 in 2028 (opening year — not enough taxable profit even
-    // after adding depreciation to the pool if it's a loss year).
-    expect(row2028.taxLossUtilised).toBe(0);
-  });
-
-  it('2029: taxLossUtilised === 0, pool >= 2028 pool (still accumulating)', () => {
-    const pnl = realisticPnL();
-    const row2028 = rowFor(pnl, 2028);
     const row2029 = rowFor(pnl, 2029);
 
-    expect(row2029.taxLossUtilised).toBe(0);
+    // Pool after 2029 must be >= pool after 2027 (new operational loss adds to pool).
+    const row2027 = rowFor(pnl, 2027);
     expect(row2029.taxLossPoolBalance ?? 0).toBeGreaterThanOrEqual(
-      (row2028.taxLossPoolBalance ?? 0) - 1, // allow float epsilon
+      (row2027.taxLossPoolBalance ?? 0) - 1, // allow float epsilon
+    );
+    // taxLossUtilised is 0 in 2029 (opening year — not enough taxable profit even
+    // after adding depreciation to the pool if it's a loss year).
+    expect(row2029.taxLossUtilised).toBe(0);
+  });
+
+  it('2030: taxLossUtilised === 0, pool >= 2029 pool (still accumulating)', () => {
+    const pnl = realisticPnL();
+    const row2029 = rowFor(pnl, 2029);
+    const row2030 = rowFor(pnl, 2030);
+
+    expect(row2030.taxLossUtilised).toBe(0);
+    expect(row2030.taxLossPoolBalance ?? 0).toBeGreaterThanOrEqual(
+      (row2029.taxLossPoolBalance ?? 0) - 1, // allow float epsilon
     );
   });
 
-  it('pool reaches zero by end of the horizon (2036)', () => {
+  it('pool reaches zero by end of the horizon (2037)', () => {
     // The carryforward pool (however large due to operational losses from
     // depreciation) must be drained before the 5-year expiry window closes.
     // Operational years with positive taxable profit absorb the pool.
@@ -137,7 +137,7 @@ describe('Pass 2B — pool drainage in operational years', () => {
     expect(lastRow.taxLossPoolBalance).toBeCloseTo(0, 0);
   });
 
-  it('pool is zero by 2036 and CIT is non-zero in the final years', () => {
+  it('pool is zero by 2037 and CIT is non-zero in the final years', () => {
     const pnl = realisticPnL();
     const row2036 = rowFor(pnl, HORIZON_END_YEAR);
 
@@ -159,7 +159,7 @@ describe('Pass 2B — pool drainage in operational years', () => {
 // ── Test 3: Normal CIT resumes after drain ─────────────────────────────────────
 
 describe('Pass 2B — normal CIT resumes post-drain', () => {
-  it('HORIZON_END_YEAR (2036): pool=0, citPayable is a non-trivial negative number', () => {
+  it('HORIZON_END_YEAR (2037): pool=0, citPayable is a non-trivial negative number', () => {
     // By the end of the horizon, the pool must be fully drained and CIT resumes.
     // Exact drain year depends on depreciation magnitude and revenue ramp.
     const pnl = realisticPnL();
@@ -272,11 +272,11 @@ describe('Pass 2B — CFADS consistency (engine contract)', () => {
 // operational year (2028 onward), which is the fundamental debt-coverage
 // assertion. Note: cumulativeNCF accumulates netCashFlowPostVAT — which
 // includes pre-opening capital costs and debt service principal repayment —
-// so it is negative across the entire 11-year horizon. The correct monotonicity
+// so it is negative across the entire 12-year horizon. The correct monotonicity
 // assertion is on CFADS, not cumulativeNCF.
 
 describe('Pass 2B — CFADS positivity across operational years', () => {
-  it('CFADS is positive for every year from FIRST_OPERATIONAL_YEAR (2029) onward', () => {
+  it('CFADS is positive for every year from FIRST_OPERATIONAL_YEAR (2030) onward', () => {
     const pnl = realisticPnL();
     const operationalRows = pnl.filter((r) => r.year >= FIRST_OPERATIONAL_YEAR);
 
@@ -285,11 +285,11 @@ describe('Pass 2B — CFADS positivity across operational years', () => {
     }
   });
 
-  it('CFADS in 2030 is higher than 2029 (carryforward reduces CIT, boosting CFADS)', () => {
+  it('CFADS in 2031 is higher than 2030 (carryforward reduces CIT, boosting CFADS)', () => {
     const pnl = realisticPnL();
-    const cfads2029 = rowFor(pnl, 2029).cfads ?? 0;
     const cfads2030 = rowFor(pnl, 2030).cfads ?? 0;
-    expect(cfads2030).toBeGreaterThan(cfads2029);
+    const cfads2031 = rowFor(pnl, 2031).cfads ?? 0;
+    expect(cfads2031).toBeGreaterThan(cfads2030);
   });
 
   it('cumulativeNCF is swept consistently — each year equals prior year plus netCashFlowPostVAT', () => {
@@ -308,20 +308,20 @@ describe('Pass 2B — CFADS positivity across operational years', () => {
 describe('Pass 2B — 5-year expiry enforcement', () => {
   // With corporateLossCarryForwardYears: 1, a loss vintage from year Y expires
   // before year Y+2 (condition: vintage.year + 1 < row.year, i.e. expires in Y+2).
-  // With depreciation (Art. 24), operational years 2028/2029 may also generate
+  // With depreciation (Art. 24), operational years 2029/2030 may also generate
   // new vintages. Under a 1-year window, those vintages expire quickly.
 
   it('1-year carryforward: pool eventually reaches 0 and stays 0', () => {
     // With a 1-year window, a vintage from year Y expires before row.year = Y+2.
-    // Even with operational losses in 2028-2031, by 2033 all pre-2032 vintages
-    // are expired (2031+1=2032 < 2033 → 2031 vintage gone by 2033).
+    // Even with operational losses in 2029-2032, by 2034 all pre-2033 vintages
+    // are expired (2032+1=2033 < 2034 → 2032 vintage gone by 2034).
     const pnl = realisticPnL(withTax({ corporateLossCarryForwardYears: 1 }));
 
-    const row2033 = rowFor(pnl, 2033);
-    expect(row2033.taxLossPoolBalance).toBeCloseTo(0, 0);
+    const row2034 = rowFor(pnl, 2034);
+    expect(row2034.taxLossPoolBalance).toBeCloseTo(0, 0);
   });
 
-  it('1-year carryforward: pool is 0 in 2036 (final year)', () => {
+  it('1-year carryforward: pool is 0 in 2037 (final year)', () => {
     const pnl = realisticPnL(withTax({ corporateLossCarryForwardYears: 1 }));
     const lastRow = pnl[pnl.length - 1];
     expect(lastRow.taxLossPoolBalance).toBeCloseTo(0, 0);

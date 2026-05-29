@@ -14,7 +14,8 @@ import { AllocationEditor } from "@/components/AllocationEditor";
 import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, PoolSlot, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
-import { resolvePortfolio } from "@/lib/engine/defaults";
+import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+const { OPENING_YEAR } = PROJECT_CONSTANTS;
 import { computePortfolioOpex, computeOptimaCapResult } from "@/lib/engine/model";
 import Link from "next/link";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
@@ -1883,7 +1884,7 @@ export default function AssumptionsPage() {
                 <ToggleRow label={t('field.wcActive')} value={a.workingCapital.active} path="workingCapital.active" note="Toggle off to model without WC" />
                 <AssumptionRow label={t('field.wcFacility')} value={a.workingCapital.facilitySize} path="workingCapital.facilitySize" format="currency" note="Revolving facility" />
                 <AssumptionRow label={t('field.wcSpread')} value={a.workingCapital.spreadOverTermRate} path="workingCapital.spreadOverTermRate" format="percent" note="Above term-loan rate" />
-                <AssumptionRow label={t('field.wcPreOpening')} value={a.workingCapital.preOpeningTotalDraw} path="workingCapital.preOpeningTotalDraw" format="currency" note="Q3-2027 → Q2-2028" />
+                <AssumptionRow label={t('field.wcPreOpening')} value={a.workingCapital.preOpeningTotalDraw} path="workingCapital.preOpeningTotalDraw" format="currency" note="Q1-Q3 2029 (4 construction tranches)" />
                 <AssumptionRow label={t('field.wcSeasonal')} value={a.workingCapital.seasonalDrawPerCycle} path="workingCapital.seasonalDrawPerCycle" format="currency" note="Drawn Q4, repaid Q3 next year" />
                 <AssumptionRow label={t('field.wcY2Buffer')} value={a.workingCapital.y2RampBufferTopup} path="workingCapital.y2RampBufferTopup" format="currency" note="Extra Y2 ramp buffer" />
                 <ToggleRow label={t('field.wcSelfLiquidating')} value={a.workingCapital.selfLiquidating} path="workingCapital.selfLiquidating" note="Repay outstanding each Q3" />
@@ -1936,7 +1937,7 @@ export default function AssumptionsPage() {
             const switchToManual = () => {
               const byYear: Record<number, number> = {};
               for (let i = 0; i < 9; i++) {
-                byYear[2028 + i] = computeProgressionOtaShare(i);
+                byYear[OPENING_YEAR + i] = computeProgressionOtaShare(i);
               }
               setAssumption('tax.channelMixMode', 'manual', 'Channel mix mode → Manual');
               setAssumption('tax.otaShareByYear', byYear, 'Initialize manual channel mix');
@@ -1983,7 +1984,7 @@ export default function AssumptionsPage() {
                   <table className="w-full mb-4">
                     <tbody>
                       <AssumptionRow label={t('field.otaCommissionRate')} value={a.tax.otaCommissionRate} path="tax.otaCommissionRate" format="percent" note="Airbnb / Booking.com platform fee" />
-                      <AssumptionRow label={t('field.otaShare')} value={otaShareBase} path="tax.otaShare" format="percent" note="OTA share in Year 1 (2028) — direct = 1 − this" />
+                      <AssumptionRow label={t('field.otaShare')} value={otaShareBase} path="tax.otaShare" format="percent" note={`OTA share in Year 1 (${OPENING_YEAR}) — direct = 1 − this`} />
                       <AssumptionRow label={t('field.otaShareDecline')} value={decline} path="tax.otaShareDeclinePerYear" format="percent" note="Direct channel grows by this each year" />
                       <AssumptionRow label={t('field.otaShareCap')} value={cap ?? 0} path="tax.otaShareCap" format="percent" note="Direct booking never exceeds this % (0 = no cap)" />
                     </tbody>
@@ -2016,7 +2017,7 @@ export default function AssumptionsPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {Array.from({ length: 9 }, (_, i) => ({ year: 2028 + i, idx: i })).map(({ year, idx }) => {
+                        {Array.from({ length: 9 }, (_, i) => ({ year: OPENING_YEAR + i, idx: i })).map(({ year, idx }) => {
                           const progressionOta = computeProgressionOtaShare(idx);
                           const manualOta = a.tax.otaShareByYear?.[year];
                           const otaShare = mode === 'manual' ? (manualOta ?? progressionOta) : progressionOta;
@@ -2096,8 +2097,8 @@ export default function AssumptionsPage() {
               <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueRealistic.eventsPerYear} path="revenueRealistic.eventsPerYear" />
               <AssumptionRow label={t('field.profitPerEvent')} value={a.revenueRealistic.netProfitPerEvent} path="revenueRealistic.netProfitPerEvent" format="currency" />
               <AssumptionRow label={t('field.ancillaryProfit')} value={a.revenueRealistic.ancillaryBaseProfit} path="revenueRealistic.ancillaryBaseProfit" format="currency" note="Chef, boat, car rentals" />
-              <AssumptionRow label={t('field.ancillaryGrowth')} value={a.revenueRealistic.ancillaryGrowthRate} path="revenueRealistic.ancillaryGrowthRate" format="percent" note="+10%/yr from 2028" />
-              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueRealistic.ancillaryGrowthYears} path="revenueRealistic.ancillaryGrowthYears" note="Years of compounding from 2028, then flat" />
+              <AssumptionRow label={t('field.ancillaryGrowth')} value={a.revenueRealistic.ancillaryGrowthRate} path="revenueRealistic.ancillaryGrowthRate" format="percent" note="+10%/yr from 2029" />
+              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueRealistic.ancillaryGrowthYears} path="revenueRealistic.ancillaryGrowthYears" note="Years of compounding from 2029, then flat" />
             </tbody>
           </table>
 
@@ -2110,7 +2111,7 @@ export default function AssumptionsPage() {
               <AssumptionRow label={t('field.dblSuiteADR')} value={a.revenueUpside.suiteDoubleADR} path="revenueUpside.suiteDoubleADR" format="currency" note="Upside scenario" />
               <AssumptionRow label={t('field.suiteNights')} value={a.revenueUpside.suiteBaseNights} path="revenueUpside.suiteBaseNights" note="Upside scenario" />
               <AssumptionRow label={t('field.eventsPerYear')} value={a.revenueUpside.eventsPerYear} path="revenueUpside.eventsPerYear" note="Upside scenario" />
-              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Upside scenario — years of compounding from 2028, then flat" />
+              <AssumptionRow label={t('field.ancillaryGrowthYears')} value={a.revenueUpside.ancillaryGrowthYears} path="revenueUpside.ancillaryGrowthYears" note="Upside scenario — years of compounding from 2029, then flat" />
             </tbody>
           </table>
         </div>
@@ -2146,7 +2147,7 @@ export default function AssumptionsPage() {
             <p className="text-[10px] text-text-tertiary mt-2">
               Engine computes <span className="font-mono bg-amber-50 px-1 rounded">max(floor, rate × revenue/unit)</span> per year.
               Floor is set per template in the Templates tab.
-              Year 2028 (opening, pre-revenue): floor only.
+              Year {OPENING_YEAR} (opening, pre-revenue): floor only.
             </p>
           </div>
 

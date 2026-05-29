@@ -18,29 +18,30 @@ export const PROJECT_CONSTANTS = {
   GRACE_END_YEAR: 2028,
   /**
    * Opening year — partial season at year1RampFactor.
-   * OPENING_YEAR = GRACE_END_YEAR (construction completes end of 2028, villa opens).
+   * Construction starts March 2029 in 4 tranches; hotel opens Summer 2029.
+   * OPENING_YEAR diverges from GRACE_END_YEAR (2028) from 2026-05-29.
    * Used as the base for ancillary growth accumulation.
    */
-  OPENING_YEAR: 2028,
+  OPENING_YEAR: 2029,
   /** First full ramp year (post-opening, year2RampFactor applies). */
-  FIRST_OPERATIONAL_YEAR: 2029,
+  FIRST_OPERATIONAL_YEAR: 2030,
   /** Stabilised year — DSCR, EBITDA, and LCR metrics anchor here. */
-  STABILISED_YEAR: 2031,
-  /** Last year of the modeled horizon (11-year projection: 2026–2036). */
-  HORIZON_END_YEAR: 2036,
+  STABILISED_YEAR: 2032,
+  /** Last year of the modeled horizon (12-year projection: 2026–2037). */
+  HORIZON_END_YEAR: 2037,
   /**
    * Earliest permitted exit year — clamp lower bound for the exit-year slider.
    * NOTE: same numeric value as NIGHTS_GROWTH_BASE_YEAR today but represents a
    * different business concept. Change independently if the exit policy shifts.
    */
-  MIN_EXIT_YEAR: 2030,
+  MIN_EXIT_YEAR: 2031,
   /**
    * Base year for nights-growth accumulation in computeNights.
    * Growth compounds from this year forward.
    * NOTE: same numeric value as MIN_EXIT_YEAR today but represents a different
    * concept. Change independently if the construction ramp shifts.
    */
-  NIGHTS_GROWTH_BASE_YEAR: 2030,
+  NIGHTS_GROWTH_BASE_YEAR: 2031,
   /**
    * TEPIX III program ceiling per business (HDB program rules).
    * Source: tepix/milestones.yaml meta.program.loan_amount_range_eur.max
@@ -643,9 +644,9 @@ export const BASE_CASE: ModelAssumptions = {
   },
   financingPath: 'commercial',
   exitEbitdaMultiple: 10,
-  // Default exit at the end of the modeled horizon (2036 = Y10 of operations).
+  // Default exit at the end of the modeled horizon (2037 = Y11 of operations).
   // Editable; engine clamps to [first stabilised year, last modeled year].
-  exitYear: 2036,
+  exitYear: 2037,
   // Standard Greek/EU commercial real-estate covenant. Editable in the BP
   // export; drives the Pass/Fail flag on the Coverage sheet.
   dscrCovenantThreshold: 1.25,
@@ -795,7 +796,7 @@ export const BASE_CASE: ModelAssumptions = {
     ],
     preOpeningTotal: 275000,
     preOpeningAmortYears: 5,
-    preOpeningStartYear: 2028,
+    preOpeningStartYear: 2029,
     includePreOpeningInStabilised: true,
     poolCount: 17,
     poolCostPerUnit: 1500,
