@@ -113,7 +113,7 @@ export const en: TranslationDictionary = {
   'kpi.grantAmount': 'Grant Received',
   'kpi.grantAmountSub': '% of eligible CapEx',
   'dash.heroDscr': 'DSCR Trajectory — All Financing Paths',
-  'dash.heroDscrSub': '2028–2036 · Grace ends 2028 · Full debt service from 2029 · Covenant ≥1.25× · Comfort ≥1.5×',
+  'dash.heroDscrSub': '2029–2037 · Grace ends 2028 · Full debt service from 2029 · Covenant ≥1.25× · Comfort ≥1.5×',
   'bank.dscrChartSub': '2029 is the first full amortisation year — grace period ends 2028. Revenue targets in 2029–2030 are set conservatively below today\'s Villa Lev actuals, which already exceed our stabilised projections.',
   'bank.allPathsChartSub': '2029 is the first full amortisation year — grace period ends 2028. Revenue targets in 2029–2030 are set conservatively below today\'s Villa Lev actuals, which already exceed our stabilised projections.',
   'bank.revenueEbitdaSub': 'The model is deliberately set below current Villa Lev actuals — see track record above.',

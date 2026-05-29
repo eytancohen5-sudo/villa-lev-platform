@@ -153,14 +153,14 @@ export default function LexiconPage() {
           </Formula>
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">Ramp Factor:</p>
-            <Variable name="Year 1 (2028)" desc="70% of mature revenue — partial opening season" />
-            <Variable name="Year 2 (2029)" desc="90% — building brand recognition" />
-            <Variable name="Year 3+ (2030+)" desc="100% — stabilised operations" />
+            <Variable name="Year 1 (2029)" desc="70% of mature revenue — partial opening season" />
+            <Variable name="Year 2 (2030)" desc="90% — building brand recognition" />
+            <Variable name="Year 3+ (2031+)" desc="100% — stabilised operations" />
           </div>
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">Nights Growth:</p>
             <Formula>
-              Nights(year) = min(Cap, Base Nights + max(0, year - 2030) &times; Growth/yr)
+              Nights(year) = min(Cap, Base Nights + max(0, year - 2031) &times; Growth/yr)
             </Formula>
             <Variable name="Base Nights" desc="Starting occupancy in mature year (default: 95 villa, 100 suite)" />
             <Variable name="Growth" desc="+3 nights per year from 2030" />
@@ -169,9 +169,9 @@ export default function LexiconPage() {
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">Ancillary Revenue:</p>
             <Formula>
-              Ancillary(year) = Base Profit &times; (1 + Growth Rate)<sup>min(year - 2028, Growth Years)</sup>
+              Ancillary(year) = Base Profit &times; (1 + Growth Rate)<sup>min(year - 2029, Growth Years)</sup>
             </Formula>
-            <Variable name="Growth Years" desc="Years of compounding from 2028 before the trajectory flatlines (default: 5)" />
+            <Variable name="Growth Years" desc="Years of compounding from 2029 before the trajectory flatlines (default: 5)" />
           </div>
         </Section>
 
@@ -186,10 +186,10 @@ export default function LexiconPage() {
           </Formula>
           <div className="mt-3 space-y-1">
             <p className="font-medium text-text-primary">FF&E Reserve schedule (% of revenue, floored at property minimum):</p>
-            <Variable name="Year 1 (2028)" desc="Floor only — no revenue-% component in opening year" />
-            <Variable name="Year 2 (2029)" desc="max(floor, 2% of revenue)" />
-            <Variable name="Year 3 (2030)" desc="max(floor, 3% of revenue)" />
-            <Variable name="Year 4+ (2031+)" desc="max(floor, 4% of revenue) — capped" />
+            <Variable name="Year 1 (2029)" desc="Floor only — no revenue-% component in opening year" />
+            <Variable name="Year 2 (2030)" desc="max(floor, 2% of revenue)" />
+            <Variable name="Year 3 (2031)" desc="max(floor, 3% of revenue)" />
+            <Variable name="Year 4+ (2032+)" desc="max(floor, 4% of revenue) — capped" />
           </div>
         </Section>
 

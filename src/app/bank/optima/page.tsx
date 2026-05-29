@@ -14,6 +14,8 @@ import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
+import { LiveTrackRecord } from "@/components/LiveTrackRecord";
+import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import Link from "next/link";
 
 type TabSide = 'A' | 'B';
@@ -130,17 +132,17 @@ export default function OptimaPage() {
   const optimaLoanAmount =
     optimaLoanAmountFromScenario > 0 ? optimaLoanAmountFromScenario : totalCapex * 0.75;
 
-  // ── Portfolio "About the project" variables ──
-  // Reads live store state (templates + projects) so plot counts / GIA are always current.
-  const portfolio = resolvePortfolio(templates, projects);
-  const totalPlots = portfolio.reduce((s, p) => s + p.count, 0);
-  const totalVillas = portfolio.reduce((s, p) => s + p.count * p.villaUnits, 0);
-  const totalStdSuites = portfolio.reduce((s, p) => s + p.count * p.standardSuites, 0);
-  const totalDblSuites = portfolio.reduce((s, p) => s + p.count * p.doubleSuites, 0);
-  const totalSuites = totalStdSuites + totalDblSuites;
-  const totalGIA = portfolio.reduce((s, p) => s + p.count * (p.constructionArea ?? 0), 0);
-  const totalKeysMaxSplit = computeTotalKeysMaxSplit(portfolio);
-  const totalBedrooms = computeTotalBedrooms(portfolio);
+  // ── Portfolio base (resolved from CAPEX model plots) ──
+  // Source of truth: portfolioProjects (model.capex.properties) — the exact plots driving the
+  // Optima loan. Joined with template-resolved data to get display fields (villaUnits, GIA…).
+  const allResolvedPortfolio = resolvePortfolio(templates, projects);
+  const resolvedById = Object.fromEntries(allResolvedPortfolio.map(p => [p.id, p]));
+  const portfolio = portfolioProjects
+    .map(capexProp => {
+      const resolved = resolvedById[capexProp.id];
+      return resolved ? { ...resolved, count: capexProp.count } : null;
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
 
   // ── Per-tab data computation ──
   // This function derives all display values for a given sub-project side.
@@ -221,6 +223,26 @@ export default function OptimaPage() {
 
   const tabData = getTabData(activeTab);
 
+  // ── Tab-scoped "About the project" variables ──
+  // Only shows plots that are allocated to the ACTIVE tab.
+  // baseIdOf strips per-unit suffixes (__u0, __u1…) back to the property root id.
+  const baseIdOf = (uid: string) => uid.includes('__u') ? uid.split('__u')[0] : uid;
+  const tabUnitCountById = tabData.tabProjects.reduce<Record<string, number>>(
+    (acc, u) => { const b = baseIdOf(u.id); acc[b] = (acc[b] ?? 0) + 1; return acc; },
+    {}
+  );
+  const tabPortfolio = portfolio
+    .map(p => { const c = tabUnitCountById[p.id] ?? 0; return c > 0 ? { ...p, count: c } : null; })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
+  const tabTotalPlots = tabPortfolio.reduce((s, p) => s + p.count, 0);
+  const tabTotalVillas = tabPortfolio.reduce((s, p) => s + p.count * p.villaUnits, 0);
+  const tabTotalStdSuites = tabPortfolio.reduce((s, p) => s + p.count * p.standardSuites, 0);
+  const tabTotalDblSuites = tabPortfolio.reduce((s, p) => s + p.count * p.doubleSuites, 0);
+  const tabTotalSuites = tabTotalStdSuites + tabTotalDblSuites;
+  const tabTotalGIA = tabPortfolio.reduce((s, p) => s + p.count * (p.constructionArea ?? 0), 0);
+  const tabTotalKeysMaxSplit = computeTotalKeysMaxSplit(tabPortfolio);
+  const tabTotalBedrooms = computeTotalBedrooms(tabPortfolio);
+
   const dscrPass = tabData.tabDSCR >= dscrCovenant;
 
   const tabLabels: Record<TabSide, string> = {
@@ -258,8 +280,8 @@ export default function OptimaPage() {
       </div>
       <div className="flex gap-3 flex-shrink-0">
         {[
-          { year: 2028, label: t('bank.chart.year1Label'), pct: year1HaircutPct, amt: year1HaircutAmt },
-          { year: 2029, label: t('bank.chart.year2Label'), pct: year2HaircutPct, amt: year2HaircutAmt },
+          { year: 2029, label: t('bank.chart.year1Label'), pct: year1HaircutPct, amt: year1HaircutAmt },
+          { year: 2030, label: t('bank.chart.year2Label'), pct: year2HaircutPct, amt: year2HaircutAmt },
         ].map(({ year, label, pct, amt }) => (
           <div key={year} className="rounded-lg bg-white border border-surface-tertiary px-4 py-2.5 text-center min-w-[100px]">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{label}</div>
@@ -356,97 +378,6 @@ export default function OptimaPage() {
         )}
       </div>
 
-      {/* ── Section 1: About the project (shared portfolio context, above tab selector) ── */}
-      <div className="mb-6 print:mb-4">
-        <div className="flex items-baseline justify-between mb-3 px-1">
-          <h2 className="text-sm font-semibold text-text-primary">
-            {t('bank.about.title')}
-          </h2>
-        </div>
-        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden print:border-0 print:shadow-none">
-          <div className="px-6 py-5 border-b border-surface-tertiary">
-            <p className="text-sm text-text-secondary leading-relaxed">
-              <span className="font-semibold text-text-primary">Villa Lev Group</span>
-              {' '}{t('bank.about.isDeveloping')}{' '}
-              <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>
-              {' '}
-              <span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>
-              {' '}
-              <span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>
-              {' '}{t('bank.about.inventoryIntro')}{' '}
-              <span className="font-semibold text-text-primary">{totalBedrooms} {t('bank.about.bedroomsAcross')}</span>
-              {' '}
-              <span className="font-semibold text-text-primary">{totalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>
-              {' '}{t('bank.about.anchorPrefix')}{' '}
-              <a
-                href="https://www.airbnb.com/rooms/49627193?guests=1&adults=1&s=67&unique_share_id=20f5564b-2002-4925-a2c1-17be7c330dea"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
-              >
-                Villa Lev Antiparos
-              </a>
-              {' '}{t('bank.about.anchorSuffix')}
-            </p>
-          </div>
-
-          {/* Per-plot portfolio breakdown */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-surface-secondary/40 border-b border-surface-tertiary">
-                  <th className="text-left py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colPlot')}</th>
-                  <th className="text-center py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colCount')}</th>
-                  <th className="text-left py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colType')}</th>
-                  <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colKeysPerPlot')}</th>
-                  <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colBedrooms')}</th>
-                  <th className="text-right py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colGiaPerPlot')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {portfolio.map((p) => (
-                  <tr key={p.id} className="border-b border-surface-secondary/50">
-                    <td className="py-2.5 px-4 font-medium text-text-primary">{p.name}</td>
-                    <td className="py-2.5 px-3 text-center text-text-secondary">×{p.count}</td>
-                    <td className="py-2.5 px-3 text-text-secondary">
-                      {p.villaUnits > 0 ? t('bank.about.typeLuxuryVilla') : t('bank.about.typeHotelRooms')}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-text-secondary">
-                      {p.villaUnits > 0
-                        ? <>{1} {t('bank.about.villaUnitMixWhole')} / {keysForPlot(p)} {t('bank.about.villaUnitMixMaxSplit')}</>
-                        : <>{p.standardSuites} {t('bank.about.unitStd')} · {p.doubleSuites} {t('bank.about.unitDbl')} = {p.standardSuites + p.doubleSuites}</>
-                      }
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-text-secondary">
-                      {bedroomsForPlot(p)}
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
-                      ~{Math.round(p.constructionArea ?? 0).toLocaleString()} m²
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/20">
-                  <td className="py-2.5 px-4 font-semibold text-text-primary">{t('bank.about.totalRow')}</td>
-                  <td className="py-2.5 px-3 text-center font-semibold text-text-primary">{totalPlots}</td>
-                  <td className="py-2.5 px-3" />
-                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-text-secondary">
-                    {totalKeysMaxSplit} {t('bank.about.totalKeysLabel')}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-semibold">
-                    {totalBedrooms} {t('bank.about.totalBedroomsLabel')}
-                  </td>
-                  <td className="py-2.5 px-4 text-right font-mono font-semibold text-text-primary">
-                    ~{Math.round(totalGIA).toLocaleString()} m²
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </div>
-      </div>
-
       {/* ── Tab selector ── */}
       <div className="flex border-b border-surface-tertiary mb-6 print:hidden" role="tablist">
         {(['A', 'B'] as TabSide[]).map((side) => (
@@ -499,6 +430,110 @@ export default function OptimaPage() {
           {t('bank.optima.noProjectsAssigned')}
         </div>
       )}
+
+      {/* ── About this sub-project ── */}
+      {tabPortfolio.length > 0 && (
+        <div className="mb-6 print:mb-4">
+          <div className="flex items-baseline justify-between mb-3 px-1">
+            <h2 className="text-sm font-semibold text-text-primary">
+              {t('bank.about.title')}
+            </h2>
+          </div>
+          <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden print:border-0 print:shadow-none">
+            <div className="px-6 py-5 border-b border-surface-tertiary">
+              <p className="text-sm text-text-secondary leading-relaxed">
+                <span className="font-semibold text-text-primary">Villa Lev Group</span>
+                {' '}{t('bank.about.isDeveloping')}{' '}
+                <span className="font-semibold text-text-primary">{tabTotalPlots} {t('bank.about.plotsIn')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{tabTotalVillas} {t('bank.about.villaDesc')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{tabTotalSuites} {t('bank.about.suiteDesc')}</span>
+                {' '}{t('bank.about.inventoryIntro')}{' '}
+                <span className="font-semibold text-text-primary">{tabTotalBedrooms} {t('bank.about.bedroomsAcross')}</span>
+                {' '}
+                <span className="font-semibold text-text-primary">{tabTotalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>
+                {' '}{t('bank.about.anchorPrefix')}{' '}
+                <a
+                  href="https://www.airbnb.com/rooms/49627193?guests=1&adults=1&s=67&unique_share_id=20f5564b-2002-4925-a2c1-17be7c330dea"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
+                >
+                  Villa Lev Antiparos
+                </a>
+                {' '}{t('bank.about.anchorSuffix')}
+              </p>
+            </div>
+
+            {/* Per-plot breakdown — only plots in the active tab */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-surface-secondary/40 border-b border-surface-tertiary">
+                    <th className="text-left py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colPlot')}</th>
+                    <th className="text-center py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colCount')}</th>
+                    <th className="text-left py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colType')}</th>
+                    <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colKeysPerPlot')}</th>
+                    <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colBedrooms')}</th>
+                    <th className="text-right py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colGiaPerPlot')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tabPortfolio.map((p) => (
+                    <tr key={p.id} className="border-b border-surface-secondary/50">
+                      <td className="py-2.5 px-4 font-medium text-text-primary">{p.name}</td>
+                      <td className="py-2.5 px-3 text-center text-text-secondary">×{p.count}</td>
+                      <td className="py-2.5 px-3 text-text-secondary">
+                        {p.villaUnits > 0 ? t('bank.about.typeLuxuryVilla') : t('bank.about.typeHotelRooms')}
+                      </td>
+                      <td className="py-2.5 px-3 text-right text-text-secondary">
+                        {p.villaUnits > 0
+                          ? <>{1} {t('bank.about.villaUnitMixWhole')} / {keysForPlot(p)} {t('bank.about.villaUnitMixMaxSplit')}</>
+                          : <>{p.standardSuites} {t('bank.about.unitStd')} · {p.doubleSuites} {t('bank.about.unitDbl')} = {p.standardSuites + p.doubleSuites}</>
+                        }
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono text-text-secondary">
+                        {bedroomsForPlot(p)}
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
+                        ~{Math.round(p.constructionArea ?? 0).toLocaleString()} m²
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/20">
+                    <td className="py-2.5 px-4 font-semibold text-text-primary">{t('bank.about.totalRow')}</td>
+                    <td className="py-2.5 px-3 text-center font-semibold text-text-primary">{tabTotalPlots}</td>
+                    <td className="py-2.5 px-3" />
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-text-secondary">
+                      {tabTotalKeysMaxSplit} {t('bank.about.totalKeysLabel')}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold">
+                      {tabTotalBedrooms} {t('bank.about.totalBedroomsLabel')}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono font-semibold text-text-primary">
+                      ~{Math.round(tabTotalGIA).toLocaleString()} m²
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Conservatism Evidence ── */}
+      <div id="live-track-record" className="mb-6 print:hidden">
+        <LiveTrackRecord />
+      </div>
+      <div className="mb-6 print:hidden">
+        <ConservatismTriangle
+          bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
+          bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
+        />
+      </div>
 
       {/* Term Sheet strip */}
       <div className="mb-6" id="optima-term-sheet">

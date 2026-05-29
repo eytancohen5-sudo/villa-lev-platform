@@ -1891,7 +1891,7 @@ export default function PresentationPage() {
             {/* Box 2: Stabilised Operations */}
             <div className="bg-brand-700 text-white rounded-xl px-6 py-5">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-brand-200 mb-3">
-                Stabilised Operations (2031+)
+                Stabilised Operations (2032+)
               </p>
               <div className="space-y-2">
                 {[

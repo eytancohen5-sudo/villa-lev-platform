@@ -695,8 +695,8 @@ export async function exportBusinessPlan(
     },
     {
       // No Assumptions column — write engine value directly.
-      name: 'Construction director',
-      engineCatName: 'Construction director',
+      name: 'Developer management fee (construction, 2 yrs)',
+      engineCatName: 'Developer management fee (construction, 2 yrs)',
       formula: () => null,
     },
     {
@@ -774,7 +774,7 @@ export async function exportBusinessPlan(
   // edit the fee and see total CAPEX, equity, and IRR recompute live.
   {
     const devFeeAmount = (a.developerConstructionFeePerYear ?? 0) * 2;
-    C.getCell(`A${cr}`).value = 'Developer construction management fee (2 yrs)';
+    C.getCell(`A${cr}`).value = 'Construction director';
     C.getCell(`A${cr}`).font = FONT.italic;
     // Per-property columns: 0 (portfolio-level cost, not attributable per plot)
     propRows.forEach((_, i) => {
@@ -1155,8 +1155,8 @@ export async function exportBusinessPlan(
     PnL.getCell(`A${pr2}`).font = FONT.italic;
     years.forEach((y, i) => {
       const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-      // Only applies in operational years (engine: year > HORIZON_START_YEAR + 1 = 2027)
-      const seniorFee = y > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
+      // Only applies in operational years (engine: year > HORIZON_START_YEAR + 2 = 2028)
+      const seniorFee = y > 2028 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
       c.value = seniorFee;
       c.numFmt = FMT.euro;
       c.fill = STYLE.inputFill;
@@ -1179,7 +1179,7 @@ export async function exportBusinessPlan(
       const pnlY = py(y);
       const engineTotalOpex = pnlY?.totalOpex ?? 0;
       const propertyOpexAllY = (pnlY?.propertyBreakdown ?? []).reduce((s, p) => s + p.totalOpex, 0);
-      const seniorFloorY = isBankViewExport && y > 2027
+      const seniorFloorY = isBankViewExport && y > 2028
         ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
       const residual = engineTotalOpex - propertyOpexAllY - seniorFloorY;
       c.value = residual;
@@ -1243,7 +1243,7 @@ export async function exportBusinessPlan(
     // Strip the senior floor in BOTH views — it is already captured in totalOpexRow
     // via the portfolio-overhead residual row (which absorbs seniorMgmtFee from the
     // engine's propertyOpex computation regardless of view mode).
-    const seniorFloor = y > 2027 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
+    const seniorFloor = y > 2028 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
     c.value = pyVal(y, 'opCoTotalFee') - seniorFloor;
     c.numFmt = FMT.euro;
     c.fill = STYLE.inputFill;

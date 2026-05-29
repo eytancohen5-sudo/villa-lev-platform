@@ -244,7 +244,7 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
           ? p.licensesPermitsCost
           : (p.legalFees ?? 0) + (p.architectFees ?? 0) + (p.civilEngineerFees ?? 0),
     },
-    { name: 'Construction director',        depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
+    { name: 'Developer management fee (construction, 2 yrs)', depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
     {
       name: 'Contingency (10% of building + FF&E)',
       depreciationRate: 0.05, // same rate as building (20-year life)
@@ -260,7 +260,7 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
           : (useLegacyAcqLegal ? (a.acquisitionLegalPerPlot ?? 0) : 0),
     },
     {
-      name: 'Developer management fee (construction, 2 yrs)',
+      name: 'Construction director',
       depreciationRate: 0, // non-depreciable service cost
       getPerUnit: () => totalPlots > 0 ? devMgmtFee / totalPlots : 0,
     },
@@ -303,13 +303,13 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
 
   // ── Construction VAT cashflow (ADR-0015) ────────────────────────────────
   // VAT-liable categories at 24% Greek rate (Art. 93, Law 2859/2000).
-  // Exempt: Land acquisition, Licenses & permits, Developer management fee.
+  // Exempt: Land acquisition, Licenses & permits, Construction director.
   // Pools/wellness and Acquisition legal & DD are VAT-liable (construction services).
   // Custom extra-capex lines (name contains '::') are excluded — VAT treatment unknown.
   const VAT_EXEMPT_CATEGORIES = new Set([
     'Land acquisition',
     'Licenses & permits',
-    'Developer management fee (construction, 2 yrs)',
+    'Construction director',
   ]);
   const VAT_RATE = 0.24;
   // All 4 construction tranches fall within 2029 (mobilization + 3 milestones, March–July 2029).
@@ -1175,7 +1175,7 @@ function computeScenario(
 
       // FF&E Reserve: max(ffeReserveFloor, rate% × revenuePerUnit).
       // Rate schedule driven by a.ffeSchedule (editable); defaults to 2/3/4%.
-      // Opening year (2028): floor only (rate=0). Pre-opening: zero.
+      // Opening year (2029): floor only (rate=0). Pre-opening: zero.
       const ffeReserveFloor = prop.opex.ffeReserveFloor ?? 0;
       const ffe = a.ffeSchedule;
       const ffeReserveRatePct =
