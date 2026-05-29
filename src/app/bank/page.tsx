@@ -436,7 +436,10 @@ export default function BankPage() {
                 <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>
                 {' '}
                 {totalVillas > 0 && (
-                  <><span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>{' '}</>
+                  <>
+                    <span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>
+                    {totalSuites > 0 ? <>{' '}{t('bank.about.and')}{' '}</> : <>{'. '}</>}
+                  </>
                 )}
                 {totalSuites > 0 && (
                   <><span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>{' '}</>

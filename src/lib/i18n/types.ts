@@ -1528,6 +1528,7 @@ export interface TranslationDictionary {
   'bank.about.totalBedroomsLabel':   string;
   'bank.about.isDeveloping':         string;
   'bank.about.villaDesc':            string;
+  'bank.about.and':                  string;
   'bank.about.suiteDesc':            string;
   'bank.about.inventoryIntro':       string;
   'bank.about.bedroomsAcross':       string;

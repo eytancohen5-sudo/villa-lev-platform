@@ -15,7 +15,6 @@ import { useEuribor } from "@/lib/hooks/useEuribor";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
-import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import Link from "next/link";
 
 type TabSide = 'A' | 'B';
@@ -447,7 +446,10 @@ export default function OptimaPage() {
                 <span className="font-semibold text-text-primary">{tabTotalPlots} {t('bank.about.plotsIn')}</span>
                 {' '}
                 {tabTotalVillas > 0 && (
-                  <><span className="font-semibold text-text-primary">{tabTotalVillas} {t('bank.about.villaDesc')}</span>{' '}</>
+                  <>
+                    <span className="font-semibold text-text-primary">{tabTotalVillas} {t('bank.about.villaDesc')}</span>
+                    {tabTotalSuites > 0 ? <>{' '}{t('bank.about.and')}{' '}</> : <>{'. '}</>}
+                  </>
                 )}
                 {tabTotalSuites > 0 && (
                   <><span className="font-semibold text-text-primary">{tabTotalSuites} {t('bank.about.suiteDesc')}</span>{' '}</>
@@ -527,15 +529,8 @@ export default function OptimaPage() {
         </div>
       )}
 
-      {/* ── Conservatism Evidence ── */}
       <div id="live-track-record" className="mb-6 print:hidden">
         <LiveTrackRecord />
-      </div>
-      <div className="mb-6 print:hidden">
-        <ConservatismTriangle
-          bpStandardADR={assumptions.revenueRealistic.suiteStandardADR}
-          bpPremiumADR={assumptions.revenueRealistic.suiteDoubleADR}
-        />
       </div>
 
       {/* Term Sheet strip */}
