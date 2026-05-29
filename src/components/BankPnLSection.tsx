@@ -39,9 +39,21 @@ function getDefaultExpanded(): Record<string, boolean> {
   };
 }
 
-export function BankPnLSection() {
+export function BankPnLSection({
+  capexRatio,
+  subProjectLabel,
+  suppressCoverageRows,
+  annualDebtServiceOverride,
+}: {
+  capexRatio?: number;
+  subProjectLabel?: string;
+  suppressCoverageRows?: boolean;
+  annualDebtServiceOverride?: number;
+} = {}) {
   const { t, locale } = useTranslation();
   const { model, activeScenario } = useModelStore();
+  // Distinct storage key for optima context so expand state doesn't bleed between pages.
+  const storageKey = subProjectLabel !== undefined ? 'bank-pnl-expanded-optima' : 'bank-pnl-expanded';
   // useState must be unconditional (Rules of Hooks) — placed before any early return.
   // Each key maps to whether that section is expanded; default is all collapsed.
   // Hydrates from sessionStorage after mount so expand state survives scenario switches.
@@ -53,26 +65,26 @@ export function BankPnLSection() {
   useEffect(() => {
     // Hydrate from sessionStorage after mount only
     try {
-      const raw = sessionStorage.getItem('bank-pnl-expanded');
+      const raw = sessionStorage.getItem(storageKey);
       if (raw) {
         setExpanded(JSON.parse(raw));
       } else {
         // First visit — default cfads and finance expanded
         const defaults = getDefaultExpanded();
         setExpanded(defaults);
-        sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(defaults));
+        sessionStorage.setItem(storageKey, JSON.stringify(defaults));
       }
     } catch {
       // sessionStorage unavailable (private browsing, etc.)
       setExpanded(getDefaultExpanded());
     }
-  }, []); // empty deps: run once on mount
+  }, [storageKey]); // re-run if page context changes
 
   const toggleSection = (key: string) => {
     setExpanded(prev => {
       const next = { ...prev, [key]: !prev[key] };
       try {
-        sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(next));
+        sessionStorage.setItem(storageKey, JSON.stringify(next));
       } catch {
         // ignore
       }
@@ -206,8 +218,8 @@ export function BankPnLSection() {
   // ── Debt service block ────────────────────────────────────────────────────
   rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "debtService" });
   rows.push(
-    { label: t('pnl.debtService'),        getValue: (p) => p.debtService,        format: "currency", bold: true, outflow: true },
-    { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
+    { label: t('pnl.debtService'),        getValue: (p) => annualDebtServiceOverride !== undefined ? annualDebtServiceOverride : p.debtService,        format: "currency", bold: true, outflow: true },
+    { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - (annualDebtServiceOverride !== undefined ? annualDebtServiceOverride : p.debtService), format: "currency", bold: true },
     ...(opCoActive ? [
       { label: t('pnl.opcoIncentiveFee'), getValue: (p: AnnualPnL) => p.opCoIncentiveFee, format: "currency" as const, bold: true, outflow: true },
     ] as RowDef[] : []),
@@ -226,59 +238,61 @@ export function BankPnLSection() {
   );
 
   // ── Coverage ratios ───────────────────────────────────────────────────────
-  rows.push({ label: t('pnl.coverageSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "coverage" });
-  rows.push(
-    {
-      label: t('pnl.dscrBaseCase'),
-      getValue: (p) => p.dscr,
-      format: "multiple",
-      bold: true,
-      dscrRow: true,
-    },
-    {
-      label: t('pnl.dscrCfads'),
-      getValue: (p) => p.debtService > 0 ? (p.cfads ?? 0) / p.debtService : 0,
-      format: "multiple",
-      bold: true,
-      dscrRow: true,
-    },
-    {
-      label: t('pnl.dscrUpside'),
-      getValue: (p) => upside.find((u) => u.year === p.year)?.dscr ?? 0,
-      format: "multiple",
-      indent: true,
-      dscrRow: true,
-      detail: true,
-      section: "coverage",
-    },
-    {
-      label: t('pnl.dscrDownside'),
-      getValue: (p) => downside.find((d) => d.year === p.year)?.dscr ?? 0,
-      format: "multiple",
-      indent: true,
-      dscrRow: true,
-      detail: true,
-      section: "coverage",
-    },
-    {
-      label: t('pnl.dscrLoadedLabel'),
-      getValue: (p) => p.dscrLoaded,
-      format: "multiple",
-      indent: true,
-      dscrRow: true,
-      detail: true,
-      section: "coverage",
-    },
-    {
-      label: t('pnl.icrInterestCoverage'),
-      getValue: (p) => p.interestCoverageRatio,
-      format: "multiple",
-      indent: true,
-      dscrRow: true,
-      detail: true,
-      section: "coverage",
-    },
-  );
+  if (!suppressCoverageRows) {
+    rows.push({ label: t('pnl.coverageSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "coverage" });
+    rows.push(
+      {
+        label: t('pnl.dscrBaseCase'),
+        getValue: (p) => p.dscr,
+        format: "multiple",
+        bold: true,
+        dscrRow: true,
+      },
+      {
+        label: t('pnl.dscrCfads'),
+        getValue: (p) => p.debtService > 0 ? (p.cfads ?? 0) / p.debtService : 0,
+        format: "multiple",
+        bold: true,
+        dscrRow: true,
+      },
+      {
+        label: t('pnl.dscrUpside'),
+        getValue: (p) => upside.find((u) => u.year === p.year)?.dscr ?? 0,
+        format: "multiple",
+        indent: true,
+        dscrRow: true,
+        detail: true,
+        section: "coverage",
+      },
+      {
+        label: t('pnl.dscrDownside'),
+        getValue: (p) => downside.find((d) => d.year === p.year)?.dscr ?? 0,
+        format: "multiple",
+        indent: true,
+        dscrRow: true,
+        detail: true,
+        section: "coverage",
+      },
+      {
+        label: t('pnl.dscrLoadedLabel'),
+        getValue: (p) => p.dscrLoaded,
+        format: "multiple",
+        indent: true,
+        dscrRow: true,
+        detail: true,
+        section: "coverage",
+      },
+      {
+        label: t('pnl.icrInterestCoverage'),
+        getValue: (p) => p.interestCoverageRatio,
+        format: "multiple",
+        indent: true,
+        dscrRow: true,
+        detail: true,
+        section: "coverage",
+      },
+    );
+  }
 
   // ── Construction VAT timing (memo) ────────────────────────────────────────
   rows.push({ label: t('pnl.vatMemoSection'), getValue: () => "", format: "raw", separator: true });
@@ -294,7 +308,10 @@ export function BankPnLSection() {
     if (typeof val === "string") return val;
     if (val === 0) return "—";
     switch (row.format) {
-      case "currency": return formatCurrency(val, true, locale);
+      case "currency": {
+        const scale = (capexRatio !== undefined && !row.dscrRow) ? capexRatio : 1;
+        return formatCurrency(val * scale, true, locale);
+      }
       case "percent":  return formatPercent(val);
       case "multiple": return formatMultiple(val);
       default:         return String(val);
@@ -319,7 +336,7 @@ export function BankPnLSection() {
     const keys = rows.filter((r) => r.sectionKey).map((r) => r.sectionKey as string);
     const next = Object.fromEntries(keys.map((k) => [k, true]));
     setExpanded(next);
-    try { sessionStorage.setItem('bank-pnl-expanded', JSON.stringify(next)); } catch { /* ignore */ }
+    try { sessionStorage.setItem(storageKey, JSON.stringify(next)); } catch { /* ignore */ }
   };
 
   return (
@@ -337,6 +354,13 @@ export function BankPnLSection() {
           <p className="text-xs text-text-tertiary mt-0.5">
             {t('pnl.expandHint')}
           </p>
+          {subProjectLabel !== undefined && capexRatio !== undefined && (
+            <p className="text-xs text-[var(--color-text-tertiary)] italic pb-2">
+              {t('bank.pnl.subProjectNote')
+                .replace('{label}', subProjectLabel)
+                .replace('{pct}', String(Math.round(capexRatio * 100)))}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0 pt-0.5">
           {!anyExpanded ? (
@@ -348,7 +372,7 @@ export function BankPnLSection() {
             </button>
           ) : (
             <button
-              onClick={() => { setExpanded({}); try { sessionStorage.removeItem('bank-pnl-expanded'); } catch { /* ignore */ } }}
+              onClick={() => { setExpanded({}); try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ } }}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-surface-tertiary text-text-secondary hover:bg-surface-secondary/60 transition-colors"
             >
               {t('pnl.collapseAll')}

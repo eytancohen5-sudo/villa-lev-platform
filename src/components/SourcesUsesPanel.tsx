@@ -20,7 +20,7 @@ interface SourcesAndUsesPanelProps {
     equityRequired: number;
     grantAmount: number;
   };
-  capexCategories: Array<{ name: string; grandTotal: number }>;
+  capexCategories: Array<{ name: string; grandTotal?: number; total?: number }>;
   wc: {
     facilitySize: number;
     internalCashBuffer: number;
@@ -44,8 +44,8 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
     (km.grantAmount ?? 0);
 
   const usesTotal = capexCategories
-    .filter((c) => c.grandTotal > 0)
-    .reduce((s, c) => s + c.grandTotal, 0);
+    .filter((c) => (c.grandTotal ?? c.total ?? 0) > 0)
+    .reduce((s, c) => s + (c.grandTotal ?? c.total ?? 0), 0);
 
   // Stacked bar data
   const barData = [
@@ -188,11 +188,11 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
           </p>
           <div className="space-y-1.5">
             {capexCategories
-              .filter((c) => c.grandTotal > 0)
+              .filter((c) => (c.grandTotal ?? c.total ?? 0) > 0)
               .map((cat) => (
                 <div key={cat.name} className="flex items-center justify-between text-xs">
                   <span className="text-text-secondary truncate pr-2">{cat.name}</span>
-                  <span className="font-mono text-text-primary shrink-0">{fmtAmt(cat.grandTotal)}</span>
+                  <span className="font-mono text-text-primary shrink-0">{fmtAmt(cat.grandTotal ?? cat.total ?? 0)}</span>
                 </div>
               ))}
 

@@ -563,13 +563,13 @@ export default function OptimaPage() {
       {/* Sources & Uses (total portfolio) */}
       <SourcesUsesPanel
         km={{
-          loanAmount: optimaLoanAmount,
-          equityRequired: totalCapex - optimaLoanAmount,
+          loanAmount: tabData.tabLoan,
+          equityRequired: tabData.tabCapexTotal - tabData.tabLoan,
           grantAmount: 0,
         }}
-        capexCategories={optimaCapex.categories}
+        capexCategories={tabData.tabCapexRows}
         wc={{
-          facilitySize: optimaScenario?.wcMinimumFacility ?? 0,
+          facilitySize: (optimaScenario?.wcMinimumFacility ?? 0) * tabData.capexRatio,
           internalCashBuffer: assumptions.workingCapital.internalCashBuffer ?? 100000,
         }}
         locale={locale}
@@ -580,7 +580,12 @@ export default function OptimaPage() {
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("pnl.title")}
         </h3>
-        <BankPnLSection />
+        <BankPnLSection
+          capexRatio={tabData.capexRatio}
+          subProjectLabel={tabLabels[activeTab]}
+          suppressCoverageRows={true}
+          annualDebtServiceOverride={tabData.tabAnnualDS}
+        />
       </div>
 
       {/* Construction VAT Cashflow */}
