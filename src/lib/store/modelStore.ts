@@ -963,6 +963,7 @@ interface ModelStore {
   // Optima Bank sub-project allocation
   setOptimaSubProjectSide: (propertyId: string, side: 'A' | 'B') => void;
   setOptimaEuriborRate: (rate: number) => void;
+  setCapexLineAbsorption: (categoryName: string, included: boolean) => void;
 }
 
 // Revision 2 — resolve the displayName to stamp on a SavedConfiguration.
@@ -1601,6 +1602,26 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     };
     set({ assumptions: updated });
     // NOT calling saveAssumptionsToStorage — live rate is ephemeral
+    get().recompute();
+  },
+
+  setCapexLineAbsorption: (categoryName: string, included: boolean) => {
+    const { assumptions } = get();
+    const loan = assumptions.optimaLoan;
+    if (!loan) return;
+    const updated: ModelAssumptions = {
+      ...assumptions,
+      optimaLoan: {
+        ...loan,
+        absorb: {
+          ...loan.absorb,
+          lineOverrides: { ...(loan.absorb.lineOverrides ?? {}), [categoryName]: included },
+        },
+      },
+    };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
     get().recompute();
   },
 

@@ -2116,5 +2116,10 @@ export interface TranslationDictionary {
   'bank.optima.stabilisedSnapshot': string;
   'bank.optima.noProjectsAssigned': string;
   'bank.optima.unallocatedSplit': string;
+  'bank.optima.capexBreakdown': string;
+  'bank.optima.inConstruction': string;
+  'bank.optima.constructionBase': string;
+  'bank.optima.constructionBasis': string;
+  'bank.optima.budgetTotal': string;
   'as.optimaTab': string;
 }

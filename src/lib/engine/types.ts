@@ -359,6 +359,10 @@ export interface OptimaLoanParams {
   absorb: {
     serviceProviders: boolean; // fold architect/civil/legal/construction-director into construction
     contingency: boolean;      // fold contingency into construction
+    /** Per-category overrides. Key = exact category name from computeCapex.
+     *  true = fold into construction; false = keep as separate line.
+     *  Takes precedence over the bulk serviceProviders/contingency flags. */
+    lineOverrides?: Record<string, boolean>;
   };
 }
 

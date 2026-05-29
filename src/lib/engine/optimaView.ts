@@ -23,7 +23,7 @@ import type { CapexBreakdown, OptimaLoanParams } from './types';
  *  Note: 'Land acquisition' does NOT match 'legal' — no false positive.
  *  Note: 'Building & excavation' does NOT match any of these — safe.
  */
-const SERVICE_PROVIDER_KEYWORDS = [
+export const SERVICE_PROVIDER_KEYWORDS = [
   'architect',
   'civil engineer',
   'legal',
@@ -32,10 +32,10 @@ const SERVICE_PROVIDER_KEYWORDS = [
 ];
 
 /** Category-name keywords that identify contingency costs to absorb. */
-const CONTINGENCY_KEYWORDS = ['contingency'];
+export const CONTINGENCY_KEYWORDS = ['contingency'];
 
 /** Category-name keywords that identify the construction line (destination). */
-const CONSTRUCTION_KEYWORDS = ['building', 'excavation', 'construction'];
+export const CONSTRUCTION_KEYWORDS = ['building', 'excavation', 'construction'];
 
 function matchesAny(name: string, keywords: string[]): boolean {
   const lower = name.toLowerCase();
@@ -65,7 +65,10 @@ export function optimaCapexView(
   const { categories } = capex;
 
   // Determine which category names are absorbed.
+  // lineOverrides take precedence over the bulk serviceProviders/contingency flags.
   const isAbsorbed = (name: string): boolean => {
+    const overrides = absorb.lineOverrides;
+    if (overrides && name in overrides) return overrides[name];
     if (absorb.serviceProviders && matchesAny(name, SERVICE_PROVIDER_KEYWORDS)) return true;
     if (absorb.contingency && matchesAny(name, CONTINGENCY_KEYWORDS)) return true;
     return false;

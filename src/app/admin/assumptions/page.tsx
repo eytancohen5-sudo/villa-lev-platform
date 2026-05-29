@@ -2663,7 +2663,7 @@ export default function AssumptionsPage() {
                       label="Absorb contingency"
                       value={a.optimaLoan.absorb.contingency}
                       path="optimaLoan.absorb.contingency"
-                      note="10% contingency line"
+                      note="Contingency (10% of building + FF&E) — absorbed into the construction line in the Optima Bank tab"
                     />
                   </tbody>
                 </table>

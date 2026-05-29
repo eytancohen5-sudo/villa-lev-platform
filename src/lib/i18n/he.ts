@@ -2109,5 +2109,10 @@ export const he: TranslationDictionary = {
   'bank.optima.stabilisedSnapshot': 'תמונת מצב פעילות יציבה',
   'bank.optima.noProjectsAssigned': 'אין נכסים המוקצים לתת-פרויקט זה — עברו ל-Admin → הנחות להקצאה.',
   'bank.optima.unallocatedSplit': 'לא הוגדרה הקצאת תת-פרויקטים — שני הלשוניות מציגים פיצול ברירת מחדל 50/50. הקצו כל נכס לתת-פרויקט א׳ או ב׳ ב-Admin → הנחות.',
+  'bank.optima.capexBreakdown': 'CAPEX Breakdown — Inclusion Control',
+  'bank.optima.inConstruction': 'In Construction',
+  'bank.optima.constructionBase': 'Construction base',
+  'bank.optima.constructionBasis': 'Construction basis (bank view)',
+  'bank.optima.budgetTotal': 'Total CAPEX budget',
   'as.optimaTab': 'Optima Bank',
 };
