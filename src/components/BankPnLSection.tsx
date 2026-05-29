@@ -354,13 +354,6 @@ export function BankPnLSection({
           <p className="text-xs text-text-tertiary mt-0.5">
             {t('pnl.expandHint')}
           </p>
-          {subProjectLabel !== undefined && capexRatio !== undefined && (
-            <p className="text-xs text-[var(--color-text-tertiary)] italic pb-2">
-              {t('bank.pnl.subProjectNote')
-                .replace('{label}', subProjectLabel)
-                .replace('{pct}', String(Math.round(capexRatio * 100)))}
-            </p>
-          )}
         </div>
         <div className="flex items-center gap-2 shrink-0 pt-0.5">
           {!anyExpanded ? (
@@ -405,6 +398,19 @@ export function BankPnLSection({
                 );
               })}
             </tr>
+            {subProjectLabel !== undefined && capexRatio !== undefined && (
+              <tr className="sticky top-[38px] z-30 bg-white">
+                <td className="sticky left-0 bg-white z-30 py-0.5 px-4" />
+                <td
+                  colSpan={years.length}
+                  className="py-0.5 px-2 text-[10px] text-text-tertiary italic text-right"
+                >
+                  {t('bank.pnl.subProjectNote')
+                    .replace('{label}', subProjectLabel)
+                    .replace('{pct}', String(Math.round(capexRatio * 100)))}
+                </td>
+              </tr>
+            )}
             <tr className="border-b border-surface-tertiary">
               <td className="py-1 px-4 text-xs text-text-tertiary sticky left-0 bg-white z-10">
                 {t('pnl.phase')}

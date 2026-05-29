@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -11,6 +11,7 @@ import { BankPnLSection } from "@/components/BankPnLSection";
 import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
+import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import { useEuribor } from "@/lib/hooks/useEuribor";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
@@ -51,8 +52,12 @@ export default function OptimaPage() {
     projects,
     setFinancingPathOverride,
     setOptimaEuriborRate,
+    capexUpliftEur,
   } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
+
+  const baselineLoanRef = useRef<number>(0);
+  const baseCapexRef = useRef<number>(0);
 
   // Override financing path to 'optima' for the duration of this page.
   useEffect(() => {
@@ -220,6 +225,11 @@ export default function OptimaPage() {
   }
 
   const tabData = getTabData(activeTab);
+
+  if (capexUpliftEur === null) {
+    baselineLoanRef.current = tabData.tabLoan;
+    baseCapexRef.current = model.capex.portfolioTotal;
+  }
 
   const dscrPass = tabData.tabDSCR >= dscrCovenant;
 
@@ -752,6 +762,19 @@ export default function OptimaPage() {
       {/* Construction VAT Cashflow */}
       <div className="mb-6">
         <ConstructionVatCashflow />
+      </div>
+
+      {/* CAPEX Sensitivity */}
+      <div className="mb-6 print:hidden" id="optima-capex-sensitivity">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">
+          {t("bank.optima.upliftTool")}
+        </h3>
+        <CapexUpliftControl
+          baseCapexEur={baseCapexRef.current}
+          baselineLoanEur={baselineLoanRef.current}
+          currentLoanEur={tabData.tabLoan}
+          currentDscr={tabData.tabDSCR}
+        />
       </div>
 
       {/* Cash-Flow Stress Test */}
