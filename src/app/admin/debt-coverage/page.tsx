@@ -25,6 +25,7 @@ import {
   ReferenceLine,
   Legend,
 } from "recharts";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { SectionHeader, StatusChip, KPICard } from "@/components/AdminUI";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 
@@ -90,7 +91,7 @@ export default function DebtCoveragePage() {
   const wcStabilisedAvg = stab?.wcAvgBalance ?? 0;
   const wcStabilisedInterest = stab?.wcInterestExpense ?? 0;
   const worstTrough = activePnL
-    .filter((p) => p.year >= 2029)
+    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
     .reduce((max, p) => Math.max(max, p.wcTroughBalance), 0);
   // VAT-bridge balances come directly from the engine (vatBridgeBalance per quarter,
   // derived from the static VAT_BRIDGE_CLOSING schedule in workingCapital.ts).
@@ -132,7 +133,7 @@ export default function DebtCoveragePage() {
   // DSCR trajectory chart — realistic/downside/upside use the active path's debt schedule.
   // Grant is kept as a fixed reference line (always grant debt, path-invariant).
   const dscrTrajectoryData = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2029)
+    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
@@ -179,7 +180,7 @@ export default function DebtCoveragePage() {
             {t("dash.heroDscrSub")}
           </p>
         </div>
-        <ResponsiveContainer width="100%" height={260}>
+        <ResponsiveContainer key={`dscr-trajectory-${activeScenario}-${assumptions.financingPath}`} width="100%" height={260}>
           <LineChart data={dscrTrajectoryData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
             <XAxis dataKey="year" tick={{ fontSize: 12 }} />
@@ -505,7 +506,7 @@ export default function DebtCoveragePage() {
       {(activeScenarioOutput?.dsraTarget ?? 0) > 0 && (() => {
         const dsraTarget = activeScenarioOutput.dsraTarget ?? 0;
         const dsraChartData = activePnL
-          .filter((p) => p.year >= 2029)
+          .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
           .map((p) => ({
             year: p.year,
             balance: Math.round(p.dsraBalance ?? 0),

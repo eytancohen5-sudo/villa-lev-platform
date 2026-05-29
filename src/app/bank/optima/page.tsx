@@ -13,7 +13,7 @@ import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
-import { resolvePortfolio } from "@/lib/engine/defaults";
+import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import BankControlBar from "@/components/BankControlBar";
@@ -360,7 +360,7 @@ export default function OptimaPage() {
   ) : null;
 
   const dscrChartData = (optimaScenario?.pnl ?? [])
-    .filter((p) => p.year >= 2029)
+    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
     .map((p) => ({
       year: p.year,
       DSCR: Number(p.dscr.toFixed(2)),
@@ -910,7 +910,7 @@ export default function OptimaPage() {
             {t('bank.section.repaymentCapacity')}
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer key={`dscr-optima-${activeScenario}`} width="100%" height={280}>
             <LineChart data={dscrChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />

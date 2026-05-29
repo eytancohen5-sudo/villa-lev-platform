@@ -24,7 +24,7 @@ import {
 } from "@/lib/data/currentVillaActuals";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import { computeCapTable } from "@/lib/engine/capTable";
-import { resolvePortfolio } from "@/lib/engine/defaults";
+import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { SectionHeader, KPICard, StatusChip } from "@/components/AdminUI";
 
@@ -109,7 +109,7 @@ export default function DashboardPage() {
   };
 
   const dscrDashboardData = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2029)
+    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
@@ -609,7 +609,7 @@ export default function DashboardPage() {
             </span>
           </div>
           <p className="text-xs text-text-tertiary mb-4">{t('dash.heroDscrSub')}</p>
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer key={`dscr-dashboard-${activeScenario}-${assumptions.financingPath}`} width="100%" height={240}>
             <LineChart data={dscrDashboardData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
