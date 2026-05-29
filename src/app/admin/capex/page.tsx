@@ -1,8 +1,9 @@
 "use client";
 
 import { useModelStore } from "@/lib/store/modelStore";
-import { formatCurrency } from "@/lib/hooks/useModel";
+import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { optimaCapexView, SERVICE_PROVIDER_KEYWORDS, CONTINGENCY_KEYWORDS, CONSTRUCTION_KEYWORDS } from "@/lib/engine/optimaView";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { CAPEX_TOUR } from "@/lib/tours/configs";
@@ -13,6 +14,7 @@ export default function CapexPage() {
   const templates = useModelStore(s => s.templates);
   const projects = useModelStore(s => s.projects);
   const assumptions = useModelStore(s => s.assumptions);
+  const setCapexLineAbsorption = useModelStore(s => s.setCapexLineAbsorption);
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(CAPEX_TOUR.storageKey);
   if (!model) return <PageSkeleton variant="table" />;
 
@@ -163,6 +165,135 @@ export default function CapexPage() {
           </div>
         ))}
       </div>
+
+      {/* Optima Bank eligibility controls — admin-only, reflected read-only in /bank/optima */}
+      {assumptions.optimaLoan && (() => {
+        const optimaLoan = assumptions.optimaLoan!;
+        const optimaCapex = optimaCapexView(model.capex, optimaLoan.absorb);
+        const totalCapex = model.capex.portfolioTotal;
+        const constructionCatName = model.capex.categories.find(c =>
+          CONSTRUCTION_KEYWORDS.some(kw => c.name.toLowerCase().includes(kw))
+        )?.name;
+        const constructionCat = optimaCapex.categories.find(c => c.name === constructionCatName);
+        const constructionTotal = constructionCat?.grandTotal ?? 0;
+
+        function isLineAbsorbed(catName: string): boolean {
+          const { lineOverrides, serviceProviders, contingency } = optimaLoan.absorb;
+          if (lineOverrides && catName in lineOverrides) return lineOverrides[catName];
+          const lower = catName.toLowerCase();
+          if (serviceProviders && SERVICE_PROVIDER_KEYWORDS.some(kw => lower.includes(kw))) return true;
+          if (contingency && CONTINGENCY_KEYWORDS.some(kw => lower.includes(kw))) return true;
+          return false;
+        }
+
+        return (
+          <div className="mt-8">
+            <div className="mb-3">
+              <h2 className="font-semibold text-base text-text-primary">{t('admin.optima.eligibilityTitle')}</h2>
+              <p className="text-xs text-text-tertiary mt-1">{t('admin.optima.eligibilityIntro')}</p>
+            </div>
+            <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-surface-secondary/40">
+                      <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
+                        {t('capex.costCategory')}
+                      </th>
+                      <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
+                        {t('capex.total')}
+                      </th>
+                      <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
+                        % of total
+                      </th>
+                      <th className="text-center py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">
+                        {t('bank.optima.inConstruction')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {model.capex.categories.filter(cat => cat.grandTotal > 0).map((cat, i) => {
+                      const isConstrBase = cat.name === constructionCatName;
+                      const absorbed = !isConstrBase && isLineAbsorbed(cat.name);
+                      return (
+                        <tr key={cat.name} className={`border-t border-surface-secondary/60 ${i % 2 === 0 ? '' : 'bg-surface-secondary/10'}`}>
+                          <td className="py-2.5 px-5 text-text-secondary whitespace-nowrap">{cat.name}</td>
+                          <td className="text-right py-2.5 px-5 font-mono text-sm font-medium text-text-primary">
+                            {formatCurrency(cat.grandTotal, false, locale)}
+                          </td>
+                          <td className="text-right py-2.5 px-5 font-mono text-sm text-text-secondary">
+                            {totalCapex > 0 ? formatPercent(cat.grandTotal / totalCapex, 0) : '—'}
+                          </td>
+                          <td className="text-center py-2.5 px-5">
+                            {isConstrBase ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-700">
+                                {t('bank.optima.constructionBase')}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setCapexLineAbsorption(cat.name, !absorbed)}
+                                className={[
+                                  "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-colors cursor-pointer",
+                                  absorbed
+                                    ? "bg-positive/15 text-positive hover:bg-positive/25"
+                                    : "bg-surface-tertiary text-text-tertiary hover:bg-surface-secondary hover:text-text-secondary",
+                                ].join(" ")}
+                              >
+                                {absorbed ? (
+                                  <>
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                                      <path d="M1.5 4L3 5.5L6.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                    {t('bank.optima.inConstruction')}
+                                  </>
+                                ) : (
+                                  <>
+                                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                                      <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                                    </svg>
+                                    {t('bank.optima.excluded')}
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/30 font-semibold">
+                      <td className="py-3.5 px-5 text-text-primary">{t('capex.totalCapex')}</td>
+                      <td className="text-right py-3.5 px-5 font-mono text-brand-600">{formatCurrency(totalCapex, false, locale)}</td>
+                      <td className="text-right py-3.5 px-5 font-mono text-text-secondary">100%</td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div className="px-5 py-4 border-t border-surface-tertiary/50 bg-brand-50 grid grid-cols-2 gap-6">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary mb-1">
+                    {t('bank.optima.constructionBasis')}
+                  </div>
+                  <div className="font-mono text-lg font-semibold text-brand-700">
+                    {formatCurrency(constructionTotal, false, locale)}
+                  </div>
+                  <div className="text-xs text-text-tertiary mt-0.5">
+                    {totalCapex > 0 ? formatPercent(constructionTotal / totalCapex, 0) : '—'} of total
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-text-tertiary mb-1">
+                    {t('bank.optima.budgetTotal')}
+                  </div>
+                  <div className="font-mono text-lg font-semibold text-text-primary">
+                    {formatCurrency(totalCapex, false, locale)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={CAPEX_TOUR} />
     </div>

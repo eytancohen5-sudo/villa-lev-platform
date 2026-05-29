@@ -2119,6 +2119,9 @@ export interface TranslationDictionary {
   'bank.optima.capexBreakdown': string;
   'bank.optima.inConstruction': string;
   'bank.optima.constructionBase': string;
+  'bank.optima.excluded': string;
+  'admin.optima.eligibilityTitle': string;
+  'admin.optima.eligibilityIntro': string;
   'bank.optima.constructionBasis': string;
   'bank.optima.budgetTotal': string;
   // ── CAPEX uplift sensitivity tool (ephemeral, /bank/optima only) ──

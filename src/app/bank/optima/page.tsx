@@ -43,7 +43,7 @@ function MetricCell({
 
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, setCapexLineAbsorption, capexUpliftEur, clearCapexUplift } = useModelStore();
+  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, capexUpliftEur, clearCapexUplift } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
 
   // Refs to capture baseline values before any uplift is applied (Fix 4).
@@ -500,35 +500,20 @@ export default function OptimaPage() {
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-700">
                             {t("bank.optima.constructionBase")}
                           </span>
+                        ) : absorbed ? (
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-positive/15 text-positive">
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                              <path d="M1.5 4L3 5.5L6.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            {t("bank.optima.inConstruction")}
+                          </span>
                         ) : (
-                          <div className="inline-flex items-center gap-2">
-                            <button
-                              onClick={() => setCapexLineAbsorption(cat.name, !absorbed)}
-                              title={absorbed ? "Click to exclude from construction line" : "Click to include in construction line"}
-                              className={[
-                                "inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full transition-colors cursor-pointer",
-                                absorbed
-                                  ? "bg-positive/15 text-positive hover:bg-positive/25"
-                                  : "bg-surface-tertiary text-text-tertiary hover:bg-surface-secondary hover:text-text-secondary",
-                              ].join(" ")}
-                            >
-                              {absorbed ? (
-                                <>
-                                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                                    <path d="M1.5 4L3 5.5L6.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                  </svg>
-                                  {t("bank.optima.inConstruction")}
-                                </>
-                              ) : (
-                                <>
-                                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
-                                    <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
-                                  </svg>
-                                  Excluded
-                                </>
-                              )}
-                            </button>
-                          </div>
+                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary">
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                              <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
+                            </svg>
+                            {t("bank.optima.excluded")}
+                          </span>
                         )}
                       </td>
                     </tr>
