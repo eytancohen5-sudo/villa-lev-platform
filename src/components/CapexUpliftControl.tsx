@@ -26,10 +26,17 @@ export function CapexUpliftControl({
   currentDscr,
 }: CapexUpliftControlProps) {
   const { t, locale } = useTranslation();
-  const { setCapexUplift, clearCapexUplift, capexUpliftEur } = useModelStore();
+  const { setCapexUplift, clearCapexUplift, capexUpliftEur, capexUpliftMode, setCapexUpliftMode } = useModelStore();
 
-  const [mode, setMode] = useState<Mode>('abs');
-  const [inputValue, setInputValue] = useState('');
+  // mode is owned by the store so it survives tab remounts
+  const mode = capexUpliftMode;
+
+  // seed inputValue from store on mount (recovers value after tab switch)
+  const [inputValue, setInputValue] = useState(() => {
+    if (capexUpliftEur === null || capexUpliftEur <= 0) return '';
+    if (capexUpliftMode === 'abs') return (capexUpliftEur / 1_000).toString();
+    return ((capexUpliftEur / baseCapexEur) * 100).toString();
+  });
 
   function handleInput(raw: string) {
     setInputValue(raw);
@@ -43,7 +50,7 @@ export function CapexUpliftControl({
   }
 
   function handleModeSwitch(next: Mode) {
-    setMode(next);
+    setCapexUpliftMode(next);
     setInputValue('');
     clearCapexUplift();
   }

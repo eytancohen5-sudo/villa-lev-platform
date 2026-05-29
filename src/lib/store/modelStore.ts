@@ -811,7 +811,10 @@ interface ModelStore {
   // null = inactive; positive number = EUR uplift applied to construction cost.
   // Never persisted. Cleared when the optima page unmounts (via bank/layout.tsx).
   capexUpliftEur: number | null;
+  // Default changed to 'pct' per Eytan 2026-05-29; ADR-0024 originally defaulted to 'abs'.
+  capexUpliftMode: 'abs' | 'pct';
   setCapexUplift: (upliftEur: number) => void;
+  setCapexUpliftMode: (mode: 'abs' | 'pct') => void;
   clearCapexUplift: () => void;
 
   // Templates & Projects
@@ -1046,9 +1049,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
 
   capexUpliftEur: null,
+  capexUpliftMode: 'pct',
   setCapexUplift: (upliftEur: number) => {
     set({ capexUpliftEur: upliftEur });
     get().recompute();
+  },
+  setCapexUpliftMode: (mode) => {
+    set({ capexUpliftMode: mode });
   },
   clearCapexUplift: () => {
     set({ capexUpliftEur: null });
