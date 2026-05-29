@@ -162,10 +162,9 @@ export default function BankPage() {
   // Stabilised year for the active scenario — drives the Stabilised Ops panel.
   const activeStab = activeScenarioOutput.stabilisedYear;
 
-  // Post-ramp 2031 DSCR from the active scenario — more meaningful to a lender.
-  const dscr2031 =
-    activePnl?.find((p) => p.year === 2031)?.dscr ??
-    activeScenarioOutput.minDSCRLoanLife;
+  // Minimum DSCR over the loan life from the active scenario — more meaningful to a lender.
+  const minDscrValue = activeScenarioOutput.minDSCRLoanLife;
+  const minDscrYear = activePnl?.find((p) => Math.abs((p.dscr ?? 0) - minDscrValue) < 0.001)?.year ?? null;
 
   // Coverage ratios — scenario-responsive.
   const icrStabilised = activeScenarioOutput.icrStabilised;
@@ -722,10 +721,10 @@ export default function BankPage() {
                 sublabel={formatCurrency(km.portfolioValue, true, locale)}
               />
               <MetricCell
-                value={formatMultiple(dscr2031)}
+                value={formatMultiple(minDscrValue)}
                 label={t('term.dscr')}
-                sublabel={t('bank.kpi.postRamp2030')}
-                valueClass={dscr2031 >= 1.25 ? 'text-positive' : 'text-warning'}
+                sublabel={minDscrYear ? `min · ${minDscrYear}` : undefined}
+                valueClass={minDscrValue >= 1.25 ? 'text-positive' : 'text-warning'}
               />
             </div>
           </div>

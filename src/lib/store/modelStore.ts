@@ -1056,6 +1056,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
   setCapexUpliftMode: (mode) => {
     set({ capexUpliftMode: mode });
+    get().recompute();
   },
   clearCapexUplift: () => {
     set({ capexUpliftEur: null });

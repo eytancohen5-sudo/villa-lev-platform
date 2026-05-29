@@ -52,7 +52,6 @@ export function CapexUpliftControl({
   function handleModeSwitch(next: Mode) {
     setCapexUpliftMode(next);
     setInputValue('');
-    clearCapexUplift();
   }
 
   const isActive = capexUpliftEur !== null && capexUpliftEur > 0;
