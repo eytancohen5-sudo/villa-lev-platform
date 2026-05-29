@@ -8,6 +8,7 @@ import { optimaCapexView } from "@/lib/engine/optimaView";
 import { computeOptimaCapResult } from "@/lib/engine/model";
 import type { OptimaCapResult } from "@/lib/engine/model";
 import { BankPnLSection } from "@/components/BankPnLSection";
+import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
 import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
@@ -55,6 +56,7 @@ export default function OptimaPage() {
     setOptimaEuriborRate,
   } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
+  const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
 
   // Override financing path to 'optima' for the duration of this page.
   useEffect(() => {
@@ -676,15 +678,29 @@ export default function OptimaPage() {
             } ${t("bank.kpi.ofCapex")}`}
             valueClass="text-brand-600"
           />
-          <MetricCell
-            value={
-              tabData.tabAnnualDS > 0
-                ? formatCurrency(tabData.tabAnnualDS, true, locale)
-                : "—"
-            }
-            label={t("kpi.annualDS")}
-            sublabel={t("bank.optima.loanTerm")}
-          />
+          {(() => {
+            const pv = model.keyMetrics.portfolioValue * tabData.capexRatio;
+            const ltv = pv > 0 ? tabData.tabLoan / pv : 0;
+            const coverage = ltv > 0 ? 1 / ltv : 0;
+            return (
+              <div className="text-center px-2 flex flex-col items-center">
+                <div className="kpi-value text-text-primary">{coverage > 0 ? formatMultiple(coverage) : "—"}</div>
+                <div className="text-sm font-medium text-text-tertiary mt-0.5">{ltv > 0 ? formatPercent(ltv, 0) : "—"}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mt-2">{t("kpi.ltvAtCompletion")}</div>
+                <div className="text-xs text-text-tertiary mt-0.5">{t("bank.kpi.appraisedValue")}</div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setVillaSaleDrawerOpen(true)}
+                    className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+                  >
+                    <span>{t("collateral.saleMarketStudy")}</span>
+                    <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
           <MetricCell
@@ -836,11 +852,6 @@ export default function OptimaPage() {
         <BankStressTest />
       </div>
 
-      {/* Sub-project boundary disclaimer */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3 text-xs text-amber-900 leading-relaxed mb-6">
-        {t("bank.optima.splitDisclaimer")}
-      </div>
-
       {/* Footer */}
       <div className="text-center py-8 border-t border-surface-tertiary">
         <p className="text-xs text-text-tertiary">
@@ -850,6 +861,12 @@ export default function OptimaPage() {
           {t("bank.optima.capexNote")}
         </p>
       </div>
+
+      <VillaMarketDrawer
+        open={villaSaleDrawerOpen}
+        onClose={() => setVillaSaleDrawerOpen(false)}
+        initialTab="sale"
+      />
     </div>
   );
 }

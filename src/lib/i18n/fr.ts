@@ -1520,7 +1520,6 @@ export const fr = {
   // ── Optima Bank page (fr — added with CAPEX uplift sensitivity tool) ──
   'bank.optima.eyebrow': 'Optima Bank — Structure à Deux Sous-projets',
   'bank.optima.capexNote': 'Les honoraires de prestataires et les imprévus sont absorbés dans la ligne construction selon les règles d\'éligibilité Optima Bank (structure proposée par Optima, 2026-05-28). La vue admin conserve la ventilation complète.',
-  'bank.optima.splitDisclaimer': 'Les limites des sous-projets sont indicatives. La répartition physique des biens selon les exigences légales d\'Optima Bank sera confirmée avant soumission.',
   'bank.optima.subProjectA': 'Sous-projet A',
   'bank.optima.subProjectB': 'Sous-projet B',
   'bank.optima.loanTerm': '12 ans total / 2 ans de grâce / 10 ans d\'amortissement',

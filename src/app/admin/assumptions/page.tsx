@@ -2817,7 +2817,6 @@ export default function AssumptionsPage() {
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-1">
                   {t('bank.optima.subProjectAllocation')}
                 </h3>
-                <p className="text-xs text-text-tertiary mb-5">{t('bank.optima.splitDisclaimer')}</p>
                 <div className="space-y-2">
                   {projects.flatMap((proj) =>
                     Array.from({ length: proj.count }, (_, i) => {

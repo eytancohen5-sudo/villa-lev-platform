@@ -1101,6 +1101,14 @@ export interface TranslationDictionary {
   'bank.vatCashflow.withinCovenant': string;
   'bank.vatCashflow.lagNote': string;
   'bank.vatCashflow.postRefundNote': string;
+  'bank.vatCashflow.chart.illustrativeNote': string;
+  'bank.vatCashflow.chart.oldSchedule': string;
+  'bank.vatCashflow.chart.newSchedule': string;
+  'bank.vatCashflow.chart.covenantLabel': string;
+  'bank.vatCashflow.chart.oldPeakLabel': string;
+  'bank.vatCashflow.chart.newPeakLabel': string;
+  'bank.vatCashflow.chart.insightHeading': string;
+  'bank.vatCashflow.chart.insightBody': string;
   'bank.wc.title': string;
   'bank.wc.revolving': string;
   'bank.wc.bpsSpread': string;
@@ -2104,7 +2112,6 @@ export interface TranslationDictionary {
   // ── Optima Bank page (2026-05-28) ──
   'bank.optima.eyebrow': string;
   'bank.optima.capexNote': string;
-  'bank.optima.splitDisclaimer': string;
   'bank.optima.subProjectA': string;
   'bank.optima.subProjectB': string;
   'bank.optima.loanTerm': string;
