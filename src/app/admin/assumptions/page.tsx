@@ -2260,10 +2260,10 @@ export default function AssumptionsPage() {
                               <button
                                 type="button"
                                 onClick={() => setStaffAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors mr-1 ${hasStaffAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                className={`text-xs px-2 py-1 rounded-md border font-medium transition-colors mr-1 ${hasStaffAlloc ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-secondary bg-surface-secondary hover:bg-surface-tertiary hover:border-surface-tertiary'}`}
                                 title={t('as.portfolioOpex.allocateToggle')}
                               >
-                                %
+                                {hasStaffAlloc ? '% ✓' : '% Allocate'}
                               </button>
                               <button type="button" onClick={() => removePortfolioStaffRole(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
                             </td>
@@ -2387,10 +2387,10 @@ export default function AssumptionsPage() {
                               <button
                                 type="button"
                                 onClick={() => setServiceAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${hasServiceAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                className={`text-xs px-2 py-1 rounded-md border font-medium transition-colors ${hasServiceAlloc ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-secondary bg-surface-secondary hover:bg-surface-tertiary'}`}
                                 title={t('as.portfolioOpex.allocateToggle')}
                               >
-                                %
+                                {hasServiceAlloc ? '% ✓' : '% Allocate'}
                               </button>
                               <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
                             </td>
@@ -2471,10 +2471,10 @@ export default function AssumptionsPage() {
                               <button
                                 type="button"
                                 onClick={() => setOverheadAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${hasOverheadAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                className={`text-xs px-2 py-1 rounded-md border font-medium transition-colors ${hasOverheadAlloc ? 'border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-secondary bg-surface-secondary hover:bg-surface-tertiary'}`}
                                 title={t('as.portfolioOpex.allocateToggle')}
                               >
-                                %
+                                {hasOverheadAlloc ? '% ✓' : '% Allocate'}
                               </button>
                               <button type="button" onClick={() => removePortfolioOverhead(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
                             </td>
