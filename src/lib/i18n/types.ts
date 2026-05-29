@@ -1101,12 +1101,12 @@ export interface TranslationDictionary {
   'bank.vatCashflow.withinCovenant': string;
   'bank.vatCashflow.lagNote': string;
   'bank.vatCashflow.postRefundNote': string;
-  'bank.vatCashflow.chart.illustrativeNote': string;
-  'bank.vatCashflow.chart.oldSchedule': string;
-  'bank.vatCashflow.chart.newSchedule': string;
+  'bank.vatCashflow.chart.chartSubtitle': string;
+  'bank.vatCashflow.chart.capexBar': string;
+  'bank.vatCashflow.chart.vatBar': string;
+  'bank.vatCashflow.chart.refundBar': string;
+  'bank.vatCashflow.chart.floatLine': string;
   'bank.vatCashflow.chart.covenantLabel': string;
-  'bank.vatCashflow.chart.oldPeakLabel': string;
-  'bank.vatCashflow.chart.newPeakLabel': string;
   'bank.vatCashflow.chart.insightHeading': string;
   'bank.vatCashflow.chart.insightBody': string;
   'bank.wc.title': string;
