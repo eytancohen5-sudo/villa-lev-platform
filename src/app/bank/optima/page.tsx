@@ -240,7 +240,7 @@ export default function OptimaPage() {
     // Stabilised P&L scaled by CAPEX weight (revenue and EBITDA scale with asset share)
     const stabYear = optimaScenario?.stabilisedYear;
     const tabRevenue = stabYear ? stabYear.totalRevenue * capexRatio : 0;
-    const tabEbitda = stabYear ? stabYear.ebitda * capexRatio : 0;
+    const tabEbitda = stabYear ? stabYear.ebitdaPreOpCo * capexRatio : 0;
     const tabEbitdaMargin = stabYear?.ebitdaMargin ?? 0; // margin stays the same
     const tabDSCR =
       tabAnnualDS > 0 && tabEbitda > 0 ? tabEbitda / tabAnnualDS : 0;

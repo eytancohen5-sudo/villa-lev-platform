@@ -2881,7 +2881,7 @@ export default function AssumptionsPage() {
                       const loan = cr.subProjectLoans[side];
                       const annualDS = pmt(loan);
                       const capexRatio = capexTotal > 0 ? capex / capexTotal : 0.5;
-                      const ebitda = stabYear ? stabYear.ebitda * capexRatio : 0;
+                      const ebitda = stabYear ? stabYear.ebitdaPreOpCo * capexRatio : 0;
                       const dscr = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
                       const dscrOk = dscr >= dscrThreshold;
                       return (
@@ -2944,7 +2944,7 @@ export default function AssumptionsPage() {
                 const totalLoan = cr.subProjectLoans.A + cr.subProjectLoans.B;
                 const annualDS = pmt(totalLoan);
                 const stabYear = model.optimaScenario?.stabilisedYear;
-                const ebitda = stabYear ? stabYear.ebitda : 0;
+                const ebitda = stabYear ? stabYear.ebitdaPreOpCo : 0;
                 const portfolioDSCR = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
                 if (capexUpliftEur === null) {
                   baselineLoanRef.current = totalLoan;
