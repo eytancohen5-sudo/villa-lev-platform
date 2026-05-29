@@ -7,28 +7,34 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts'
 
-// All 4 construction tranches in 2029 (mobilization + 3 milestones, March–June 2029).
-// AADE refund arrives Q1-Q2 2030 (~2-quarter lag after 2029 completion).
+// Construction: Q1 2027 → Q1 2029  (ADR-0026: hotel opens Summer 2029)
+// Draw schedule: 35% in 2027 / 45% in 2028 / 20% in Q1-2029
+// Total construction VAT @ 24%: €728,554
+// AADE quarterly VAT filing — refund arrives 1 quarter after spend (optimistic)
+//
+// netFloat = cumulative VAT paid so far − cumulative VAT refunded so far.
+// With a 1-quarter lag the outstanding float never exceeds a single quarter's spend,
+// so peak is €145,711 (Q1-2029, the largest single tranche).
 const ROWS = [
-  { quarter: 'Q1-2029', vatPaid: 182_139, vatRefund: 0,       netFloat: 182_139 },
-  { quarter: 'Q2-2029', vatPaid: 364_278, vatRefund: 0,       netFloat: 546_416 },
-  { quarter: 'Q3-2029', vatPaid: 182_139, vatRefund: 0,       netFloat: 728_554 },
-  { quarter: 'Q4-2029', vatPaid: 0,       vatRefund: 0,       netFloat: 728_554 },
-  { quarter: 'Q1-2030', vatPaid: 0,       vatRefund: 364_277, netFloat: 364_277 },
-  { quarter: 'Q2-2030', vatPaid: 0,       vatRefund: 364_277, netFloat: 0       },
+  // 2027: 35% of €728,554 = €254,994 · 4 equal quarterly tranches
+  { quarter: 'Q1-2027', vatPaid:  63_749, vatRefund:       0, netFloat:  63_749 },
+  { quarter: 'Q2-2027', vatPaid:  63_749, vatRefund:  63_749, netFloat:  63_749 },
+  { quarter: 'Q3-2027', vatPaid:  63_749, vatRefund:  63_749, netFloat:  63_749 },
+  { quarter: 'Q4-2027', vatPaid:  63_747, vatRefund:  63_749, netFloat:  63_747 },
+  // 2028: 45% of €728,554 = €327,849 · 4 equal quarterly tranches
+  { quarter: 'Q1-2028', vatPaid:  81_962, vatRefund:  63_747, netFloat:  81_962 },
+  { quarter: 'Q2-2028', vatPaid:  81_962, vatRefund:  81_962, netFloat:  81_962 },
+  { quarter: 'Q3-2028', vatPaid:  81_962, vatRefund:  81_962, netFloat:  81_962 },
+  { quarter: 'Q4-2028', vatPaid:  81_963, vatRefund:  81_962, netFloat:  81_963 },
+  // 2029 Q1: 20% of €728,554 = €145,711 · final tranche, hotel opens Summer 2029
+  { quarter: 'Q1-2029', vatPaid: 145_711, vatRefund:  81_963, netFloat: 145_711 },
+  // Q2-2029: refund clears last tranche (1-quarter lag from Q1-2029 spend)
+  { quarter: 'Q2-2029', vatPaid:       0, vatRefund: 145_711, netFloat:       0 },
 ]
 
-// Pre-construction periods (zero activity) — extend back to 2027 so the chart
-// makes clear construction starts in 2029, not earlier. The 2026-2028 figures
-// in our earlier analysis were the hypothetical old schedule (ADR-0026: never executed).
-const PRE_CONSTRUCTION = [
-  '2027 Q1','2027 Q2','2027 Q3','2027 Q4',
-  '2028 Q1','2028 Q2','2028 Q3','2028 Q4',
-].map(period => ({ period, spend: 0, vat: 0, refund: 0 }))
-
-// Construction + refund periods derived from ROWS (stays in sync with the table).
-// spend = construction cost excl. VAT  (= vatPaid / 0.24, VAT rate 24%)
-const CONSTRUCTION_DATA = ROWS.map(r => {
+// Chart data — spend excl. VAT (€K), VAT paid (€K), AADE refund (€K).
+// All Y-axis values in thousands.  spend = vatPaid / 0.24 (VAT rate 24%).
+const CHART_DATA = ROWS.map(r => {
   const [q, yr] = r.quarter.split('-')
   return {
     period: `${yr} ${q}`,
@@ -37,8 +43,6 @@ const CONSTRUCTION_DATA = ROWS.map(r => {
     refund: Math.round(r.vatRefund / 1000),
   }
 })
-
-const CHART_DATA = [...PRE_CONSTRUCTION, ...CONSTRUCTION_DATA]
 
 // Table value formatter — module-level to avoid recreation on every render.
 const fmt = (n: number) => '€' + n.toLocaleString('en-GB')
