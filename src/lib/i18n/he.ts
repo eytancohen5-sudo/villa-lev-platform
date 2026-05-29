@@ -979,6 +979,8 @@ export const he: TranslationDictionary = {
   'pitch.capital.kvStabilisedDscr': 'DSCR מיוצב',
   'pitch.capital.kvNetCashFlow': 'תזרים מזומנים נטו (לאחר מע״מ)',
 
+  'pitch.timeline.opening': 'קיץ 2029',
+
   'pitch.ramp.eyebrowPrefix': 'התרחבות · 2029 – 2037 ·',
   'pitch.ramp.eyebrowSuffix': 'תרחיש',
   'pitch.ramp.title': 'שלוש שנות עלייה. ואז יציבות.',
@@ -1067,10 +1069,10 @@ export const he: TranslationDictionary = {
   'pitch.close.timeline1Body': 'אישור הלוואה',
   'pitch.close.timeline2Date': 'רבעון 2–4 ’26',
   'pitch.close.timeline2Body': 'היתרים ורכישת חלקות',
-  ‘pitch.close.timeline3Date’: ‘רבעון 1–3 ‘29’,
-  ‘pitch.close.timeline3Body’: ‘בנייה’,
-  ‘pitch.close.timeline4Date’: ‘קיץ ‘29’,
-  ‘pitch.close.timeline4Body’: ‘תפעולי’,
+  'pitch.close.timeline3Date': 'רבעון 1–3 ‘29',
+  'pitch.close.timeline3Body': 'בנייה',
+  'pitch.close.timeline4Date': 'קיץ ‘29',
+  'pitch.close.timeline4Body': 'תפעולי',
   'pitch.close.askLabel': 'הבקשה',
   'pitch.close.askBody': 'מסגרת אשראי מובטחת לתקופה של 10 שנים. LTV 80% כנגד שווי נכס מוגמר. בטחונות: קרקע + בנייה + רכוש קבוע בכל המגרשים.',
   'pitch.close.footer': 'Villa Lev Group · אגיוס גיאורגיוס, אנטיפארוס · חסוי',

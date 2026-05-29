@@ -845,6 +845,8 @@ export interface TranslationDictionary {
   'pitch.capital.kvAnnualDS': string;
   'pitch.capital.kvStabilisedDscr': string;
   'pitch.capital.kvNetCashFlow': string;
+  // Timeline
+  'pitch.timeline.opening': string;
   // Ramp
   'pitch.ramp.eyebrowPrefix': string;
   'pitch.ramp.eyebrowSuffix': string;
