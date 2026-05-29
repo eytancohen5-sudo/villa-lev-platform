@@ -244,7 +244,7 @@ export function computeCapex(a: ModelAssumptions): CapexBreakdown {
           ? p.licensesPermitsCost
           : (p.legalFees ?? 0) + (p.architectFees ?? 0) + (p.civilEngineerFees ?? 0),
     },
-    { name: 'Developer management fee (construction, 2 yrs)', depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
+    { name: 'Construction director salary', depreciationRate: 0.05, getPerUnit: (p: PropertyConfig) => p.constructionDirectorCost ?? 0 },
     {
       name: 'Contingency (10% of building + FF&E)',
       depreciationRate: 0.05, // same rate as building (20-year life)

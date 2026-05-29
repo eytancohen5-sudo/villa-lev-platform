@@ -16,6 +16,7 @@ import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import Link from "next/link";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from "recharts";
 
 type TabSide = 'A' | 'B';
 
@@ -293,6 +294,13 @@ export default function OptimaPage() {
       </div>
     </div>
   ) : null;
+
+  const dscrChartData = (optimaScenario?.pnl ?? [])
+    .filter((p) => p.year >= 2029)
+    .map((p) => ({
+      year: p.year,
+      DSCR: Number(p.dscr.toFixed(2)),
+    }));
 
   // Term Sheet cells — scoped to active sub-project
   const termSheetCells = [
@@ -751,6 +759,37 @@ export default function OptimaPage() {
         </div>
       )}
 
+      {/* DSCR over time */}
+      {dscrChartData.length > 0 && (
+        <div id="optima-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-text-primary mb-1">
+            {t('bank.section.repaymentCapacity')}
+          </h3>
+          <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={dscrChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0.75, "dataMax + 0.5"]} />
+              <Tooltip
+                formatter={(value) => `${Number(value).toFixed(2)}×`}
+                contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              <ReferenceLine y={dscrCovenant} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: t('bank.chart.covenantLabel'), position: 'insideTopLeft', fontSize: 10, fill: '#9E3B3B' }} />
+              <ReferenceLine
+                x={2029}
+                stroke="#8B6914"
+                strokeDasharray="3 3"
+                label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
+              />
+              <Line type="monotone" dataKey="DSCR" name="DSCR (Optima)" stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+          {rampHaircutNote}
+        </div>
+      )}
+
       {/* ── SHARED PORTFOLIO-LEVEL SECTIONS ── */}
 
       {/* Sources & Uses (total portfolio) */}
@@ -768,12 +807,11 @@ export default function OptimaPage() {
         locale={locale}
       />
 
-      {/* P&L Timeline — Section 2: ramp haircut callout sits above the table */}
+      {/* P&L Timeline */}
       <div className="mb-6" id="optima-pnl">
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("pnl.title")}
         </h3>
-        {rampHaircutNote}
         <BankPnLSection
           capexRatio={tabData.capexRatio}
           subProjectLabel={tabLabels[activeTab]}

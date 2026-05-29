@@ -340,7 +340,7 @@ export function BankPnLSection({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-clip">
+    <div className="bg-white rounded-2xl border border-surface-tertiary shadow-sm overflow-hidden">
       <div className="px-6 pt-5 pb-3 border-b border-surface-tertiary flex items-start justify-between gap-4 sticky top-[57px] z-20 bg-white">
         <div>
           <h3 className="text-sm font-semibold text-text-primary">
@@ -411,7 +411,7 @@ export function BankPnLSection({
                 </td>
               </tr>
             )}
-            <tr className="border-b border-surface-tertiary">
+            <tr className={`border-b border-surface-tertiary sticky z-20 bg-white ${subProjectLabel !== undefined && capexRatio !== undefined ? 'top-[58px]' : 'top-[38px]'}`}>
               <td className="py-1 px-4 text-xs text-text-tertiary sticky left-0 bg-white z-10">
                 {t('pnl.phase')}
               </td>

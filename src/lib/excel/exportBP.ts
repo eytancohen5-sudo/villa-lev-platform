@@ -695,8 +695,8 @@ export async function exportBusinessPlan(
     },
     {
       // No Assumptions column — write engine value directly.
-      name: 'Developer management fee (construction, 2 yrs)',
-      engineCatName: 'Developer management fee (construction, 2 yrs)',
+      name: 'Construction director salary',
+      engineCatName: 'Construction director salary',
       formula: () => null,
     },
     {

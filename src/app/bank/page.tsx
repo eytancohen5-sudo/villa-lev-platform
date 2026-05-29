@@ -701,8 +701,18 @@ export default function BankPage() {
               <MetricCell
                 value={formatPercent(km.ltv, 0)}
                 label={t('kpi.ltvAtCompletion')}
-                sublabel={t('bank.kpi.appraisedValue')}
+                sublabel={`${formatMultiple(km.assetCoverage)} · ${t('bank.kpi.appraisedValue')}`}
               />
+            </div>
+            <div className="mt-3 mb-4">
+              <button
+                type="button"
+                onClick={() => setVillaSaleDrawerOpen(true)}
+                className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+              >
+                <span>{t('collateral.saleMarketStudy')}</span>
+                <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+              </button>
             </div>
             <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
               <MetricCell
