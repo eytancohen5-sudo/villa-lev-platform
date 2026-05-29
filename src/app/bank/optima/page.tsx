@@ -35,7 +35,7 @@ function MetricCell({
   return (
     <div className="text-center px-2">
       <div className={`kpi-value ${valueClass ?? "text-text-primary"}`}>{value}</div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mt-2">
+      <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">
         {label}
       </div>
       {sublabel && (
@@ -686,8 +686,8 @@ export default function OptimaPage() {
               <div className="text-center px-2 flex flex-col items-center">
                 <div className="kpi-value text-text-primary">{coverage > 0 ? formatMultiple(coverage) : "—"}</div>
                 <div className="text-sm font-medium text-text-tertiary mt-0.5">{ltv > 0 ? formatPercent(ltv, 0) : "—"}</div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mt-2">{t("kpi.ltvAtCompletion")}</div>
-                <div className="text-xs text-text-tertiary mt-0.5">{t("bank.kpi.appraisedValue")}</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">{t("kpi.ltvAtCompletion")}</div>
+                <div className="text-xs text-text-tertiary mt-0.5">{formatCurrency(model.collateral.market.valuationPerM2, false, locale)}/m²</div>
                 <div className="mt-3">
                   <button
                     type="button"

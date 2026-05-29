@@ -29,12 +29,11 @@ npm run build
 
 # ── Step 2: Deploy to staging channel ─────────────────────
 echo "" >&2
-echo "── 2/3  Deploying to Firebase staging channel..." >&2
-DEPLOY_OUTPUT=$(firebase hosting:channel:deploy staging --expires 14d 2>&1)
+echo "── 2/3  Deploying to Firebase staging site..." >&2
+DEPLOY_OUTPUT=$(firebase deploy --only hosting:staging 2>&1)
 echo "$DEPLOY_OUTPUT" >&2
 
-# Extract staging URL from deploy output
-STAGING_URL=$(echo "$DEPLOY_OUTPUT" | grep -oE 'https://villa-lev-finance--staging[^[:space:]"]+' | head -1 || true)
+STAGING_URL="https://villa-lev-finance-staging.web.app"
 
 # ── Step 3: Write gate file ────────────────────────────────
 CURRENT_HEAD=$(git -C "$REPO_DIR" rev-parse HEAD)

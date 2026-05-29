@@ -57,7 +57,7 @@ function MetricCell({
   return (
     <div className="text-center px-2">
       <div className={`kpi-value ${valueClass ?? 'text-text-primary'}`}>{value}</div>
-      <div className="text-[10px] font-semibold uppercase tracking-[0.1em] text-text-tertiary mt-2">{label}</div>
+      <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">{label}</div>
       {sublabel && <div className="text-xs text-text-tertiary mt-0.5">{sublabel}</div>}
     </div>
   );
@@ -698,21 +698,22 @@ export default function BankPage() {
                 sublabel={`${formatPercent(km.loanAmount / km.totalCapex, 0)} ${t('bank.kpi.ofCapex')}`}
                 valueClass="text-brand-600"
               />
-              <MetricCell
-                value={formatPercent(km.ltv, 0)}
-                label={t('kpi.ltvAtCompletion')}
-                sublabel={`${formatMultiple(km.assetCoverage)} · ${t('bank.kpi.appraisedValue')}`}
-              />
-            </div>
-            <div className="mt-3 mb-4">
-              <button
-                type="button"
-                onClick={() => setVillaSaleDrawerOpen(true)}
-                className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
-              >
-                <span>{t('collateral.saleMarketStudy')}</span>
-                <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
-              </button>
+              <div className="text-center px-2 flex flex-col items-center">
+                <div className="kpi-value text-text-primary">{formatMultiple(km.assetCoverage)}</div>
+                <div className="text-sm font-medium text-text-tertiary mt-0.5">{formatPercent(km.ltv, 0)}</div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">{t('kpi.ltvAtCompletion')}</div>
+                <div className="text-xs text-text-tertiary mt-0.5">{formatCurrency(model.collateral.market.valuationPerM2, false, locale)}/m²</div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setVillaSaleDrawerOpen(true)}
+                    className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+                  >
+                    <span>{t('collateral.saleMarketStudy')}</span>
+                    <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
               <MetricCell
