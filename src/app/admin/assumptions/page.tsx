@@ -2873,6 +2873,14 @@ export default function AssumptionsPage() {
                     : 0;
                 const capexTotal = cr.subProjectTotalsPreCap.A + cr.subProjectTotalsPreCap.B;
                 const stabYear = model.optimaScenario?.stabilisedYear;
+                const minDscrEntry = (model.optimaScenario?.pnl ?? [])
+                  .filter((p) => p.dscr > 0)
+                  .reduce<{ dscr: number; year: number } | null>(
+                    (min, p) => (!min || p.dscr < min.dscr ? { dscr: p.dscr, year: p.year } : min),
+                    null
+                  );
+                const minDscr = minDscrEntry?.dscr ?? 0;
+                const minDscrYear = minDscrEntry?.year ?? null;
                 const dscrThreshold = a.dscrCovenantThreshold ?? 1.25;
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2880,9 +2888,7 @@ export default function AssumptionsPage() {
                       const capex = cr.subProjectTotalsPreCap[side];
                       const loan = cr.subProjectLoans[side];
                       const annualDS = pmt(loan);
-                      const capexRatio = capexTotal > 0 ? capex / capexTotal : 0.5;
-                      const ebitda = stabYear ? stabYear.ebitdaPreOpCo * capexRatio : 0;
-                      const dscr = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
+                      const dscr = minDscr;
                       const dscrOk = dscr >= dscrThreshold;
                       return (
                         <div
@@ -2919,7 +2925,7 @@ export default function AssumptionsPage() {
                               </span>
                             </div>
                             <div className="flex justify-between text-sm pt-2 border-t border-surface-secondary/50">
-                              <span className="text-text-tertiary">{t('term.dscr')} (stabilised)</span>
+                              <span className="text-text-tertiary">{t('term.dscr')} (min{minDscrYear ? ` · ${minDscrYear}` : ''})</span>
                               <span className={`font-mono font-bold ${dscrOk ? 'text-positive' : 'text-warning'}`}>
                                 {dscr > 0 ? formatMultiple(dscr) : '—'}
                               </span>
@@ -2943,9 +2949,7 @@ export default function AssumptionsPage() {
                     : 0;
                 const totalLoan = cr.subProjectLoans.A + cr.subProjectLoans.B;
                 const annualDS = pmt(totalLoan);
-                const stabYear = model.optimaScenario?.stabilisedYear;
-                const ebitda = stabYear ? stabYear.ebitdaPreOpCo : 0;
-                const portfolioDSCR = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
+                const portfolioDSCR = model.optimaScenario?.minDSCRLoanLife ?? 0;
                 if (capexUpliftEur === null) {
                   baselineLoanRef.current = totalLoan;
                   baseCapexRef.current = model.capex.portfolioTotal;

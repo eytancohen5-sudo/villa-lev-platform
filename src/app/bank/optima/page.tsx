@@ -208,6 +208,15 @@ export default function OptimaPage() {
     })
     .filter((p): p is NonNullable<typeof p> => p !== null);
 
+  // Min DSCR across loan life — computed here so getTabData can reference it.
+  const minDscrEntry = (optimaScenario?.pnl ?? [])
+    .filter((p) => p.dscr > 0)
+    .reduce<{ dscr: number; year: number } | null>(
+      (min, p) => (!min || p.dscr < min.dscr ? { dscr: p.dscr, year: p.year } : min),
+      null
+    );
+  const minDscrYear = minDscrEntry?.year ?? null;
+
   // ── Per-tab data computation ──
   // This function derives all display values for a given sub-project side.
   // Pure computation — no state mutations.
@@ -242,8 +251,7 @@ export default function OptimaPage() {
     const tabRevenue = stabYear ? stabYear.totalRevenue * capexRatio : 0;
     const tabEbitda = stabYear ? stabYear.ebitdaPreOpCo * capexRatio : 0;
     const tabEbitdaMargin = stabYear?.ebitdaMargin ?? 0; // margin stays the same
-    const tabDSCR =
-      tabAnnualDS > 0 && tabEbitda > 0 ? tabEbitda / tabAnnualDS : 0;
+    const tabDSCR = minDscrEntry?.dscr ?? 0;
     const tabICR =
       tabInterestAnnual > 0 && tabEbitda > 0 ? tabEbitda / tabInterestAnnual : 0;
     const tabNCF = stabYear ? stabYear.netCashFlowPostVAT * capexRatio : 0;
@@ -834,7 +842,7 @@ export default function OptimaPage() {
           <MetricCell
             value={tabData.tabDSCR > 0 ? formatMultiple(tabData.tabDSCR) : "—"}
             label={t("term.dscr")}
-            sublabel={t("inv.stabilisedOps")}
+            sublabel={minDscrYear ? `min · ${minDscrYear}` : t("inv.stabilisedOps")}
             valueClass={
               tabData.tabDSCR >= dscrCovenant ? "text-positive" : "text-warning"
             }
