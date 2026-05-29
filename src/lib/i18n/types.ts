@@ -1107,8 +1107,6 @@ export interface TranslationDictionary {
   'bank.vatCashflow.chart.refundBar': string;
   'bank.vatCashflow.chart.floatLine': string;
   'bank.vatCashflow.chart.covenantLabel': string;
-  'bank.vatCashflow.chart.insightHeading': string;
-  'bank.vatCashflow.chart.insightBody': string;
   'bank.wc.title': string;
   'bank.wc.revolving': string;
   'bank.wc.bpsSpread': string;

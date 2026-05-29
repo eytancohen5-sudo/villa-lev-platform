@@ -1251,8 +1251,6 @@ export const el: TranslationDictionary = {
   'bank.vatCashflow.chart.refundBar': 'Επιστροφή ΑΑΔΕ',
   'bank.vatCashflow.chart.floatLine': 'Καθαρή εκκρεμής επίπτωση ΦΠΑ',
   'bank.vatCashflow.chart.covenantLabel': 'Όριο ΚΚ',
-  'bank.vatCashflow.chart.insightHeading': 'Γιατί οι τριμηνιαίες δηλώσεις ΦΠΑ δεν μειώνουν την κορυφή 2029',
-  'bank.vatCashflow.chart.insightBody': 'Όλες οι δόσεις εκταμίευσης πέφτουν εντός 4 μηνών (Μάρτιος–Ιούνιος 2029). Ο χρόνος επεξεργασίας επιστροφής ΑΑΔΕ είναι ~3–4 μήνες, οπότε η πρώτη επιστροφή φτάνει τον Ιούλιο — μετά την καταβολή της τελευταίας δόσης. Το σύνολο του ΦΠΑ συσσωρεύεται πριν από οποιαδήποτε αντιστάθμιση.',
   'bank.collateral.sub': 'Γη + ολοκληρωμένη κατασκευή · Υποθήκη 1ης τάξης · αγοραία & αισιόδοξη αποτίμηση',
   'bank.section.loanMetrics': 'Μετρήσεις Δανείου',
   'bank.kpi.ofCapex': 'επί του CAPEX',

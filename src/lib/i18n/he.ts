@@ -1201,8 +1201,6 @@ export const he: TranslationDictionary = {
   'bank.vatCashflow.chart.refundBar': 'החזר רשות המסים',
   'bank.vatCashflow.chart.floatLine': 'יתרת מע"מ נטו פתוחה',
   'bank.vatCashflow.chart.covenantLabel': 'מגבלת WC',
-  'bank.vatCashflow.chart.insightHeading': 'מדוע הגשה רבעונית לרשות המסים אינה מקטינה את שיא 2029',
-  'bank.vatCashflow.chart.insightBody': 'כל תשלומי הבנייה נמצאים בחלון של 4 חודשים (מרץ–יוני 2029). עיבוד ההחזר של רשות המסים נמשך גם כ-3–4 חודשים, ולכן ההחזר הראשון מגיע ביולי — אחרי שהתשלום האחרון כבר שולם.',
   'bank.collateral.sub': 'קרקע + מבנה שהושלם · משכנתא מדרגה ראשונה · הערכת שוק ואופטימית',
   'bank.section.loanMetrics': 'מדדי הלוואה',
   'bank.kpi.ofCapex': 'מתוך CAPEX',
