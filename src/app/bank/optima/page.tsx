@@ -446,10 +446,13 @@ export default function OptimaPage() {
                 {' '}{t('bank.about.isDeveloping')}{' '}
                 <span className="font-semibold text-text-primary">{tabTotalPlots} {t('bank.about.plotsIn')}</span>
                 {' '}
-                <span className="font-semibold text-text-primary">{tabTotalVillas} {t('bank.about.villaDesc')}</span>
-                {' '}
-                <span className="font-semibold text-text-primary">{tabTotalSuites} {t('bank.about.suiteDesc')}</span>
-                {' '}{t('bank.about.inventoryIntro')}{' '}
+                {tabTotalVillas > 0 && (
+                  <><span className="font-semibold text-text-primary">{tabTotalVillas} {t('bank.about.villaDesc')}</span>{' '}</>
+                )}
+                {tabTotalSuites > 0 && (
+                  <><span className="font-semibold text-text-primary">{tabTotalSuites} {t('bank.about.suiteDesc')}</span>{' '}</>
+                )}
+                {t('bank.about.inventoryIntro')}{' '}
                 <span className="font-semibold text-text-primary">{tabTotalBedrooms} {t('bank.about.bedroomsAcross')}</span>
                 {' '}
                 <span className="font-semibold text-text-primary">{tabTotalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>

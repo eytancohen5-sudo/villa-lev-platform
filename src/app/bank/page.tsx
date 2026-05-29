@@ -435,10 +435,13 @@ export default function BankPage() {
                 {' '}{t('bank.about.isDeveloping')}{' '}
                 <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>
                 {' '}
-                <span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>
-                {' '}
-                <span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>
-                {' '}{t('bank.about.inventoryIntro')}{' '}
+                {totalVillas > 0 && (
+                  <><span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>{' '}</>
+                )}
+                {totalSuites > 0 && (
+                  <><span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>{' '}</>
+                )}
+                {t('bank.about.inventoryIntro')}{' '}
                 <span className="font-semibold text-text-primary">{totalBedrooms} {t('bank.about.bedroomsAcross')}</span>
                 {' '}
                 <span className="font-semibold text-text-primary">{totalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>
