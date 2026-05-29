@@ -43,7 +43,7 @@ function MetricCell({
 
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, capexUpliftEur, clearCapexUplift } = useModelStore();
+  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, setCapexLineAbsorption, capexUpliftEur, clearCapexUplift } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
 
   // Refs to capture baseline values before any uplift is applied (Fix 4).
@@ -501,19 +501,27 @@ export default function OptimaPage() {
                             {t("bank.optima.constructionBase")}
                           </span>
                         ) : absorbed ? (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-positive/15 text-positive">
+                          <button
+                            onClick={() => setCapexLineAbsorption(cat.name, false)}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-positive/15 text-positive hover:bg-positive/25 transition-colors cursor-pointer"
+                            title="Click to exclude from construction"
+                          >
                             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
                               <path d="M1.5 4L3 5.5L6.5 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                             </svg>
                             {t("bank.optima.inConstruction")}
-                          </span>
+                          </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary">
+                          <button
+                            onClick={() => setCapexLineAbsorption(cat.name, true)}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-surface-tertiary text-text-tertiary hover:bg-surface-secondary transition-colors cursor-pointer"
+                            title="Click to include in construction"
+                          >
                             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
                               <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.2"/>
                             </svg>
                             {t("bank.optima.excluded")}
-                          </span>
+                          </button>
                         )}
                       </td>
                     </tr>
