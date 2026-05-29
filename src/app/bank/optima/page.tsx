@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -10,9 +10,10 @@ import type { OptimaCapResult } from "@/lib/engine/model";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
-import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
+import { resolvePortfolio } from "@/lib/engine/defaults";
+import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import Link from "next/link";
 
 type TabSide = 'A' | 'B';
@@ -43,44 +44,29 @@ function MetricCell({
 
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, capexUpliftEur, clearCapexUplift } = useModelStore();
+  const {
+    model,
+    assumptions,
+    templates,
+    projects,
+    setFinancingPathOverride,
+    setOptimaEuriborRate,
+  } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
 
-  // Refs to capture baseline values before any uplift is applied (Fix 4).
-  const baselineLoanRef = useRef<number>(0);
-  const baseCapexRef = useRef<number>(0);
-
   // Override financing path to 'optima' for the duration of this page.
-  // The layout sets 'commercial' on mount; this overrides that.
-  // Also clear the ephemeral CAPEX uplift on unmount.
   useEffect(() => {
     setFinancingPathOverride("optima");
     return () => {
       setFinancingPathOverride("commercial");
-      clearCapexUplift();
     };
-  }, [setFinancingPathOverride, clearCapexUplift]);
+  }, [setFinancingPathOverride]);
 
   // Live Euribor feed (client-side, ECB SDMX)
   const euribor = useEuribor();
   useEffect(() => {
     if (euribor.rate !== null) setOptimaEuriborRate(euribor.rate);
   }, [euribor.rate, setOptimaEuriborRate]);
-
-  // Capture baseline loan + CAPEX whenever the uplift is null (Fix 4).
-  // This freezes the pre-uplift reference so the delta strip can compute
-  // "extra loan vs baseline" correctly without double-counting.
-  // We need to read tabData here but it is computed below the guard —
-  // use the portfolio-level optimaLoanAmount as a proxy for the baseline
-  // and store it; the page passes the per-tab fraction via tabData.tabLoan.
-  const modelCapexPortfolioTotal = model?.capex.portfolioTotal ?? 0;
-  useEffect(() => {
-    if (capexUpliftEur !== null) return;
-    // baseline per-tab loan is computed below in getTabData; we snapshot
-    // portfolioTotal here and let the JSX pass the resolved tabLoan value.
-    baseCapexRef.current = modelCapexPortfolioTotal;
-    // baselineLoanRef is updated in JSX-side via a stable snapshot — see mount below.
-  }, [capexUpliftEur, modelCapexPortfolioTotal]);
 
   if (!model) {
     return (
@@ -143,6 +129,18 @@ export default function OptimaPage() {
   )?.termLoanBalance ?? 0;
   const optimaLoanAmount =
     optimaLoanAmountFromScenario > 0 ? optimaLoanAmountFromScenario : totalCapex * 0.75;
+
+  // ── Portfolio "About the project" variables ──
+  // Reads live store state (templates + projects) so plot counts / GIA are always current.
+  const portfolio = resolvePortfolio(templates, projects);
+  const totalPlots = portfolio.reduce((s, p) => s + p.count, 0);
+  const totalVillas = portfolio.reduce((s, p) => s + p.count * p.villaUnits, 0);
+  const totalStdSuites = portfolio.reduce((s, p) => s + p.count * p.standardSuites, 0);
+  const totalDblSuites = portfolio.reduce((s, p) => s + p.count * p.doubleSuites, 0);
+  const totalSuites = totalStdSuites + totalDblSuites;
+  const totalGIA = portfolio.reduce((s, p) => s + p.count * (p.constructionArea ?? 0), 0);
+  const totalKeysMaxSplit = computeTotalKeysMaxSplit(portfolio);
+  const totalBedrooms = computeTotalBedrooms(portfolio);
 
   // ── Per-tab data computation ──
   // This function derives all display values for a given sub-project side.
@@ -223,19 +221,57 @@ export default function OptimaPage() {
 
   const tabData = getTabData(activeTab);
 
-  // Freeze baseline loan ref whenever there is no active uplift (Fix 4).
-  // This is a synchronous ref update (not state), so it has no render cost.
-  if (capexUpliftEur === null) {
-    baselineLoanRef.current = tabData.tabLoan;
-    baseCapexRef.current = model.capex.portfolioTotal;
-  }
-
   const dscrPass = tabData.tabDSCR >= dscrCovenant;
 
   const tabLabels: Record<TabSide, string> = {
     A: t("bank.optima.project1"),
     B: t("bank.optima.project2"),
   };
+
+  // ── Ramp-year revenue haircut (Section 2) ──
+  // Computed from optimaScenario PnL (or realistic fallback).
+  // Amounts are then scaled by tabData.capexRatio so the callout is
+  // proportional to the active sub-project.
+  const optimaPnl = optimaScenario?.pnl ?? model.scenarios.realistic.pnl;
+  const stabRev = optimaScenario?.stabilisedYear?.totalRevenue ?? 0;
+  const pnlY1 = optimaPnl.find((p) => p.year === 2028);
+  const pnlY2 = optimaPnl.find((p) => p.year === 2029);
+  const year1HaircutPct = stabRev > 0 && pnlY1
+    ? Math.round((1 - pnlY1.totalRevenue / stabRev) * 100) : 0;
+  const year2HaircutPct = stabRev > 0 && pnlY2
+    ? Math.round((1 - pnlY2.totalRevenue / stabRev) * 100) : 0;
+  // Scale amounts to the active sub-project share
+  const year1HaircutAmt = pnlY1
+    ? (stabRev - pnlY1.totalRevenue) * tabData.capexRatio : 0;
+  const year2HaircutAmt = pnlY2
+    ? (stabRev - pnlY2.totalRevenue) * tabData.capexRatio : 0;
+
+  const rampHaircutNote = stabRev > 0 ? (
+    <div className="mt-4 rounded-xl border border-brand-400/30 bg-brand-50/60 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+      <div className="flex-1 min-w-[200px]">
+        <p className="text-xs font-semibold text-text-primary leading-snug mb-1">
+          {t('bank.ramp.discountTitle')}
+        </p>
+        <p className="text-xs text-text-secondary leading-relaxed">
+          {t('bank.ramp.discountBody')}
+        </p>
+      </div>
+      <div className="flex gap-3 flex-shrink-0">
+        {[
+          { year: 2028, label: t('bank.chart.year1Label'), pct: year1HaircutPct, amt: year1HaircutAmt },
+          { year: 2029, label: t('bank.chart.year2Label'), pct: year2HaircutPct, amt: year2HaircutAmt },
+        ].map(({ year, label, pct, amt }) => (
+          <div key={year} className="rounded-lg bg-white border border-surface-tertiary px-4 py-2.5 text-center min-w-[100px]">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">{label}</div>
+            <div className="text-xl font-bold text-warning mt-0.5">-{pct}%</div>
+            <div className="text-[10px] font-mono text-text-tertiary mt-0.5">
+              {formatCurrency(amt, true, locale)} {t('bank.chart.belowStab')}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
 
   // Term Sheet cells — scoped to active sub-project
   const termSheetCells = [
@@ -318,6 +354,97 @@ export default function OptimaPage() {
             Live rate unavailable — using {((optimaLoan?.euriborRate ?? 0.025) * 100).toFixed(2)}%
           </span>
         )}
+      </div>
+
+      {/* ── Section 1: About the project (shared portfolio context, above tab selector) ── */}
+      <div className="mb-6 print:mb-4">
+        <div className="flex items-baseline justify-between mb-3 px-1">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {t('bank.about.title')}
+          </h2>
+        </div>
+        <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden print:border-0 print:shadow-none">
+          <div className="px-6 py-5 border-b border-surface-tertiary">
+            <p className="text-sm text-text-secondary leading-relaxed">
+              <span className="font-semibold text-text-primary">Villa Lev Group</span>
+              {' '}{t('bank.about.isDeveloping')}{' '}
+              <span className="font-semibold text-text-primary">{totalPlots} {t('bank.about.plotsIn')}</span>
+              {' '}
+              <span className="font-semibold text-text-primary">{totalVillas} {t('bank.about.villaDesc')}</span>
+              {' '}
+              <span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>
+              {' '}{t('bank.about.inventoryIntro')}{' '}
+              <span className="font-semibold text-text-primary">{totalBedrooms} {t('bank.about.bedroomsAcross')}</span>
+              {' '}
+              <span className="font-semibold text-text-primary">{totalKeysMaxSplit} {t('bank.about.rentableKeys')}</span>
+              {' '}{t('bank.about.anchorPrefix')}{' '}
+              <a
+                href="https://www.airbnb.com/rooms/49627193?guests=1&adults=1&s=67&unique_share_id=20f5564b-2002-4925-a2c1-17be7c330dea"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-brand-700 underline underline-offset-2 hover:text-brand-900 transition-colors"
+              >
+                Villa Lev Antiparos
+              </a>
+              {' '}{t('bank.about.anchorSuffix')}
+            </p>
+          </div>
+
+          {/* Per-plot portfolio breakdown */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-surface-secondary/40 border-b border-surface-tertiary">
+                  <th className="text-left py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colPlot')}</th>
+                  <th className="text-center py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colCount')}</th>
+                  <th className="text-left py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colType')}</th>
+                  <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colKeysPerPlot')}</th>
+                  <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colBedrooms')}</th>
+                  <th className="text-right py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colGiaPerPlot')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {portfolio.map((p) => (
+                  <tr key={p.id} className="border-b border-surface-secondary/50">
+                    <td className="py-2.5 px-4 font-medium text-text-primary">{p.name}</td>
+                    <td className="py-2.5 px-3 text-center text-text-secondary">×{p.count}</td>
+                    <td className="py-2.5 px-3 text-text-secondary">
+                      {p.villaUnits > 0 ? t('bank.about.typeLuxuryVilla') : t('bank.about.typeHotelRooms')}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-text-secondary">
+                      {p.villaUnits > 0
+                        ? <>{1} {t('bank.about.villaUnitMixWhole')} / {keysForPlot(p)} {t('bank.about.villaUnitMixMaxSplit')}</>
+                        : <>{p.standardSuites} {t('bank.about.unitStd')} · {p.doubleSuites} {t('bank.about.unitDbl')} = {p.standardSuites + p.doubleSuites}</>
+                      }
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono text-text-secondary">
+                      {bedroomsForPlot(p)}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
+                      ~{Math.round(p.constructionArea ?? 0).toLocaleString()} m²
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-surface-tertiary bg-surface-secondary/20">
+                  <td className="py-2.5 px-4 font-semibold text-text-primary">{t('bank.about.totalRow')}</td>
+                  <td className="py-2.5 px-3 text-center font-semibold text-text-primary">{totalPlots}</td>
+                  <td className="py-2.5 px-3" />
+                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-text-secondary">
+                    {totalKeysMaxSplit} {t('bank.about.totalKeysLabel')}
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono font-semibold">
+                    {totalBedrooms} {t('bank.about.totalBedroomsLabel')}
+                  </td>
+                  <td className="py-2.5 px-4 text-right font-mono font-semibold text-text-primary">
+                    ~{Math.round(totalGIA).toLocaleString()} m²
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* ── Tab selector ── */}
@@ -608,11 +735,12 @@ export default function OptimaPage() {
         locale={locale}
       />
 
-      {/* P&L Timeline */}
+      {/* P&L Timeline — Section 2: ramp haircut callout sits above the table */}
       <div className="mb-6" id="optima-pnl">
         <h3 className="text-sm font-semibold text-text-primary mb-3">
           {t("pnl.title")}
         </h3>
+        {rampHaircutNote}
         <BankPnLSection
           capexRatio={tabData.capexRatio}
           subProjectLabel={tabLabels[activeTab]}
@@ -624,19 +752,6 @@ export default function OptimaPage() {
       {/* Construction VAT Cashflow */}
       <div className="mb-6">
         <ConstructionVatCashflow />
-      </div>
-
-      {/* CAPEX Sensitivity (uplift tool — ephemeral, not persisted) */}
-      <div className="mb-6 print:hidden" id="optima-capex-sensitivity">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">
-          {t("bank.optima.upliftTool")}
-        </h3>
-        <CapexUpliftControl
-          baseCapexEur={baseCapexRef.current}
-          baselineLoanEur={baselineLoanRef.current}
-          currentLoanEur={tabData.tabLoan}
-          currentDscr={tabData.tabDSCR}
-        />
       </div>
 
       {/* Cash-Flow Stress Test */}

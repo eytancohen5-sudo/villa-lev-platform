@@ -11,6 +11,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
 import { AllocationEditor } from "@/components/AllocationEditor";
+import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, PoolSlot, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
 import { resolvePortfolio } from "@/lib/engine/defaults";
@@ -1313,11 +1314,27 @@ export default function AssumptionsPage() {
     removePortfolioOverhead,
     updatePortfolioOpexScalar,
     setOptimaSubProjectSide,
+    capexUpliftEur,
+    setFinancingPathOverride,
   } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
     "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra" | "optima"
   >("portfolio");
+
+  // CAPEX uplift baseline refs — frozen when no uplift is active
+  const baselineLoanRef = useRef<number>(0);
+  const baseCapexRef = useRef<number>(0);
+
+  // Set financing path to 'optima' while on the Optima tab so the engine
+  // applies the CAPEX uplift override correctly.
+  useEffect(() => {
+    if (tab !== 'optima') return;
+    setFinancingPathOverride('optima');
+    return () => {
+      setFinancingPathOverride('commercial');
+    };
+  }, [tab, setFinancingPathOverride]);
 
   const DEFAULT_OPTIMA_LOAN = {
     euriborRate: 0.025,
@@ -1901,49 +1918,146 @@ export default function AssumptionsPage() {
           </table>
 
           <SectionHeader title={t('as.otaDistribution')} />
-          <table className="w-full mb-4">
-            <tbody>
-              <AssumptionRow label={t('field.otaCommissionRate')} value={a.tax.otaCommissionRate} path="tax.otaCommissionRate" format="percent" note="Airbnb / Booking.com platform fee" />
-              <AssumptionRow label={t('field.otaShare')} value={a.tax.otaShare ?? 1.0} path="tax.otaShare" format="percent" note="% of guests via OTA in opening year (2028)" />
-              <AssumptionRow label={t('field.otaShareDecline')} value={a.tax.otaShareDeclinePerYear ?? 0} path="tax.otaShareDeclinePerYear" format="percent" note="OTA share shrinks by this amount each year as direct channel matures" />
-            </tbody>
-          </table>
 
-          {/* Read-only per-year preview — computed automatically from the 3 inputs above */}
-          <div className="mb-6 p-4 rounded-xl bg-amber-50/40 border border-amber-200/60">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-3">Computed Channel Mix (2028–2036)</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-[11px] text-text-tertiary text-right">
-                    <th className="text-left font-medium py-1 pr-3">{t('as.otaDistribution.yearHeader')}</th>
-                    <th className="font-medium py-1 px-2">{t('as.otaDistribution.otaShareHeader')}</th>
-                    <th className="font-medium py-1 px-2">Direct</th>
-                    <th className="font-medium py-1 pl-2 text-amber-700">{t('as.otaDistribution.effectiveHeader')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Array.from({ length: 9 }, (_, i) => 2028 + i).map((year) => {
-                    const commRate = a.tax.otaCommissionRate;
-                    const otaShareBase = a.tax.otaShare ?? 1.0;
-                    const decline = a.tax.otaShareDeclinePerYear ?? 0;
-                    const yearsSince = Math.max(0, year - 2028);
-                    const otaShare = Math.max(0, otaShareBase - yearsSince * decline);
-                    const effectiveRate = commRate * otaShare;
-                    return (
-                      <tr key={year} className="border-t border-amber-100">
-                        <td className="py-1 pr-3 font-mono text-text-secondary text-left">{year}</td>
-                        <td className="py-1 px-2 text-right font-mono text-[12px]">{formatPercent(otaShare)}</td>
-                        <td className="py-1 px-2 text-right font-mono text-[12px] text-text-tertiary">{formatPercent(1 - otaShare)}</td>
-                        <td className="py-1 pl-2 text-right font-mono text-amber-700 text-[12px]">{formatPercent(effectiveRate)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-[10px] text-text-tertiary mt-2">{t('as.otaDistribution.note')}</p>
-          </div>
+          {/* Mode toggle — Progression vs Manual */}
+          {(() => {
+            const mode = (a.tax.channelMixMode ?? 'progression') as 'progression' | 'manual';
+            const otaShareBase = a.tax.otaShare ?? 1.0;
+            const decline = a.tax.otaShareDeclinePerYear ?? 0;
+            const cap = a.tax.otaShareCap;
+            const commRate = a.tax.otaCommissionRate;
+
+            const computeProgressionOtaShare = (yearsSince: number) => {
+              const directGrown = Math.min(1, Math.max(0, (1 - otaShareBase) + yearsSince * decline));
+              const directCapped = cap !== undefined ? Math.min(cap, directGrown) : directGrown;
+              return Math.max(0, 1 - directCapped);
+            };
+
+            const switchToManual = () => {
+              const byYear: Record<number, number> = {};
+              for (let i = 0; i < 9; i++) {
+                byYear[2028 + i] = computeProgressionOtaShare(i);
+              }
+              setAssumption('tax.channelMixMode', 'manual', 'Channel mix mode → Manual');
+              setAssumption('tax.otaShareByYear', byYear, 'Initialize manual channel mix');
+            };
+
+            const switchToProgression = () => {
+              setAssumption('tax.channelMixMode', 'progression', 'Channel mix mode → Progression');
+              setAssumption('tax.otaShareByYear', undefined, 'Clear manual channel mix');
+            };
+
+            return (
+              <>
+                {/* Toggle buttons */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xs text-text-tertiary font-medium">Input mode:</span>
+                  <div className="flex rounded-lg border border-surface-tertiary overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={switchToProgression}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        mode === 'progression'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-white text-text-secondary hover:bg-amber-50'
+                      }`}
+                    >
+                      {t('as.otaDistribution.modeProgression')}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={switchToManual}
+                      className={`px-3 py-1.5 text-xs font-medium border-l border-surface-tertiary transition-colors ${
+                        mode === 'manual'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-white text-text-secondary hover:bg-amber-50'
+                      }`}
+                    >
+                      {t('as.otaDistribution.modeManual')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Progression mode inputs */}
+                {mode === 'progression' && (
+                  <table className="w-full mb-4">
+                    <tbody>
+                      <AssumptionRow label={t('field.otaCommissionRate')} value={a.tax.otaCommissionRate} path="tax.otaCommissionRate" format="percent" note="Airbnb / Booking.com platform fee" />
+                      <AssumptionRow label={t('field.otaShare')} value={otaShareBase} path="tax.otaShare" format="percent" note="OTA share in Year 1 (2028) — direct = 1 − this" />
+                      <AssumptionRow label={t('field.otaShareDecline')} value={decline} path="tax.otaShareDeclinePerYear" format="percent" note="Direct channel grows by this each year" />
+                      <AssumptionRow label={t('field.otaShareCap')} value={cap ?? 0} path="tax.otaShareCap" format="percent" note="Direct booking never exceeds this % (0 = no cap)" />
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Manual mode: just commission rate as a scalar */}
+                {mode === 'manual' && (
+                  <table className="w-full mb-4">
+                    <tbody>
+                      <AssumptionRow label={t('field.otaCommissionRate')} value={commRate} path="tax.otaCommissionRate" format="percent" note="Airbnb / Booking.com platform fee" />
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Channel mix table — Progression: read-only | Manual: editable direct % */}
+                <div className="mb-6 p-4 rounded-xl bg-amber-50/40 border border-amber-200/60">
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-3">
+                    Channel Mix — Operating Years
+                    {mode === 'manual' && <span className="ml-2 font-normal normal-case text-amber-600">(edit direct %)</span>}
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-[11px] text-text-tertiary text-right">
+                          <th className="text-left font-medium py-1 pr-3">{t('as.otaDistribution.yearHeader')}</th>
+                          <th className="font-medium py-1 px-2 text-blue-700">{t('as.otaDistribution.directHeader')}</th>
+                          <th className="font-medium py-1 px-2">{t('as.otaDistribution.otaShareHeader')}</th>
+                          <th className="font-medium py-1 pl-2 text-amber-700">{t('as.otaDistribution.effectiveHeader')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from({ length: 9 }, (_, i) => ({ year: 2028 + i, idx: i })).map(({ year, idx }) => {
+                          const progressionOta = computeProgressionOtaShare(idx);
+                          const manualOta = a.tax.otaShareByYear?.[year];
+                          const otaShare = mode === 'manual' ? (manualOta ?? progressionOta) : progressionOta;
+                          const directShare = 1 - otaShare;
+                          const effectiveRate = commRate * otaShare;
+                          const yearLabel = `Year ${idx + 1}`;
+
+                          return (
+                            <tr key={year} className="border-t border-amber-100">
+                              <td className="py-1 pr-3 font-mono text-text-secondary text-left text-[12px]">{yearLabel}</td>
+                              <td className="py-1 px-2 text-right">
+                                {mode === 'manual' ? (
+                                  <EditableCell
+                                    value={directShare}
+                                    format="percent"
+                                    label={`Direct booking % ${yearLabel}`}
+                                    onChange={(v) => {
+                                      const clamped = Math.min(1, Math.max(0, v));
+                                      const current = a.tax.otaShareByYear ?? {};
+                                      setAssumption('tax.otaShareByYear', { ...current, [year]: 1 - clamped }, `Direct % ${yearLabel}`);
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="font-mono text-[12px] text-blue-700 font-medium">{formatPercent(directShare)}</span>
+                                )}
+                              </td>
+                              <td className="py-1 px-2 text-right font-mono text-[12px]">{formatPercent(otaShare)}</td>
+                              <td className="py-1 pl-2 text-right font-mono text-amber-700 text-[12px]">{formatPercent(effectiveRate)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="text-[10px] text-text-tertiary mt-2">
+                    {mode === 'manual' ? t('as.otaDistribution.noteManual') : t('as.otaDistribution.note')}
+                  </p>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
@@ -2808,6 +2922,39 @@ export default function AssumptionsPage() {
                         </div>
                       );
                     })}
+                  </div>
+                );
+              })()}
+
+              {/* ── CAPEX Sensitivity ── */}
+              {(() => {
+                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
+                const rate = a.optimaLoan.euriborRate + a.optimaLoan.spreadBps / 10000;
+                const repayYrs = a.optimaLoan.repaymentYears ?? 10;
+                const pmt = (loan: number) =>
+                  loan > 0 && repayYrs > 0 && rate > 0
+                    ? (loan * rate) / (1 - Math.pow(1 + rate, -repayYrs))
+                    : 0;
+                const totalLoan = cr.subProjectLoans.A + cr.subProjectLoans.B;
+                const annualDS = pmt(totalLoan);
+                const stabYear = model.optimaScenario?.stabilisedYear;
+                const ebitda = stabYear ? stabYear.ebitda : 0;
+                const portfolioDSCR = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
+                if (capexUpliftEur === null) {
+                  baselineLoanRef.current = totalLoan;
+                  baseCapexRef.current = model.capex.portfolioTotal;
+                }
+                return (
+                  <div id="optima-capex-sensitivity">
+                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-4">
+                      {t("bank.optima.upliftTool")}
+                    </h3>
+                    <CapexUpliftControl
+                      baseCapexEur={baseCapexRef.current}
+                      baselineLoanEur={baselineLoanRef.current}
+                      currentLoanEur={totalLoan}
+                      currentDscr={portfolioDSCR}
+                    />
                   </div>
                 );
               })()}
