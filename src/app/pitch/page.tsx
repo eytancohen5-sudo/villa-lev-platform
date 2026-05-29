@@ -6,7 +6,6 @@ import { useModelStore, type ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
-import { ConservatismTriangle } from "@/components/ConservatismTriangle";
 import type { FinancingPath } from "@/lib/engine/types";
 import type { Locale } from "@/lib/i18n/types";
 import {
@@ -197,9 +196,6 @@ export default function PitchPage() {
   // the 2026 bar to avoid showing a stale projection as a confirmed datapoint.
   const { historicalYears, loading: snapshotLoading } = useSeasonSnapshot();
 
-  // BP per-villa assumptions in scope for the ConservatismTriangle on the
-  // Market Tailwind slide. Render is gated on `model` being ready so this is
-  // safe to read unconditionally here.
   const rev = assumptions.revenueRealistic;
 
   // Pre-compute derived data (all hooks must run before any early return)
@@ -460,18 +456,6 @@ export default function PitchPage() {
                 <div className="text-xs text-text-tertiary mt-1">{t("pitch.market.yoyLabel")}</div>
               </div>
             </div>
-          </div>
-
-          {/* BP-vs-market panel — Conservatism Triangle strip. Replaces the
-              prior 3-tier card grid (ADR 0003, 2026-05-22): Greek-only
-              headline, international comparables in the drawer drill-down,
-              villa intentionally absent (Villa Lev actuals are the truer
-              villa comparable). */}
-          <div className="mt-12 pt-10 border-t border-surface-tertiary">
-            <ConservatismTriangle
-              bpStandardADR={rev.suiteStandardADR}
-              bpPremiumADR={rev.suiteDoubleADR}
-            />
           </div>
         </Slide>
 

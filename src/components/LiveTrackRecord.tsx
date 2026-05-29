@@ -499,9 +499,6 @@ export function LiveTrackRecord({
   const [showDetail, setShowDetail] = useState(false);
 
   // ── Market comparables drawer ──
-  // Same drawer surfaced from ConservatismTriangle below. Opening from the
-  // strip lets a banker drill from the BP-vs-market deltas straight into the
-  // 2025 Greek Islands hotel set without scrolling further down the page.
   const [marketDrawerOpen, setMarketDrawerOpen] = useState(false);
   const [villaMarketDrawerOpen, setVillaMarketDrawerOpen] = useState(false);
   const [villaRentalDrawerOpen, setVillaRentalDrawerOpen] = useState(false);
@@ -552,12 +549,10 @@ export function LiveTrackRecord({
   // ── Market position rows (BP vs 2025 Greek Islands market study) ──
   // Single source of truth: pass `benchmarks=[]` so every tier falls back to
   // MARKET_2025_BACKSTOP. The 2026 booking.com capture was retired per Eytan
-  // 2026-05-22 — bankers want one consistent comparable basis with the
-  // ConservatismTriangle panel below (which also uses MARKET_2025_BACKSTOP)
-  // and the protected business-plan xlsx, all anchored to the same 2025
-  // Greek Islands Hotel Market Study. Villa row is filtered out for display
+  // 2026-05-22 — all anchored to the same 2025 Greek Islands Hotel Market Study
+  // and the protected business-plan xlsx. Villa row is filtered out for display
   // because Villa Lev's own live actuals (in the cushion cards above) are
-  // the truer villa-tier comparable — mirrors ConservatismTriangle.tsx:18.
+  // the truer villa-tier comparable.
   // Decision and re-introduction criteria: docs/adr/0004-revert-market-strip-to-2025-only.md.
   const marketPosition = computeMarketPositionWithFallback(
     {
@@ -887,8 +882,7 @@ export function LiveTrackRecord({
           today) with a tier-matched market figure (50/50 HIGH/MED blend).
           Villa tier intentionally omitted — Villa Lev's own actuals in
           the cushion cards above are the truer villa comparable. Anchored
-          to the same dataset ConservatismTriangle below uses, so the two
-          panels never contradict each other. */}
+          */}
       {/* Market strip always renders — it uses static MARKET_2025_BACKSTOP
           data and does not need a live Firestore read. */}
       <div className="mb-4">
@@ -935,9 +929,7 @@ export function LiveTrackRecord({
             {anyFresh && anyBackstop ? " · " : ""}
             {anyBackstop ? lr.marketFootnoteBackstop : ""}
           </p>
-          {/* "See the N comparables" → reuses the MarketComparablesDrawer
-              that ConservatismTriangle below also opens, so bankers reach
-              the same 2025 hotel set from either panel. */}
+          {/* "See the N comparables" → opens the MarketComparablesDrawer */}
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
