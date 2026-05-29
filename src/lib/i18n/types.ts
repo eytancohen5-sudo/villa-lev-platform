@@ -2111,4 +2111,5 @@ export interface TranslationDictionary {
   'bank.optima.pnlProjection': string;
   'bank.optima.stabilisedSnapshot': string;
   'bank.optima.noProjectsAssigned': string;
+  'bank.optima.unallocatedSplit': string;
 }

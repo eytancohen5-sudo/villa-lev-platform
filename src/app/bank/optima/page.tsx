@@ -80,6 +80,7 @@ export default function OptimaPage() {
 
   const optimaScenario = model.optimaScenario;
   const allocation = assumptions.optimaLoan?.subProjectAllocation ?? {};
+  const isUnallocated = Object.keys(allocation).length === 0;
   const portfolioProjects = model.capex.properties;
   const totalCapex = model.capex.portfolioTotal;
 
@@ -109,10 +110,11 @@ export default function OptimaPage() {
   // This function derives all display values for a given sub-project side.
   // Pure computation — no state mutations.
   function getTabData(side: TabSide) {
-    // Projects assigned to this side
-    const tabProjects = portfolioProjects.filter(
-      (p) => (allocation[p.id] ?? 'B') === side
-    );
+    // When no allocation is set the engine falls back to 50/50; show all
+    // properties in both tabs so the chips match the computed totals.
+    const tabProjects = isUnallocated
+      ? portfolioProjects
+      : portfolioProjects.filter((p) => (allocation[p.id] ?? 'B') === side);
 
     // Total CAPEX for this sub-project (all categories combined)
     // capResult.subProjectTotalsPreCap sums ALL translated categories, not just construction.
@@ -145,15 +147,21 @@ export default function OptimaPage() {
       tabInterestAnnual > 0 && tabEbitda > 0 ? tabEbitda / tabInterestAnnual : 0;
     const tabNCF = stabYear ? stabYear.netCashFlowPostVAT * capexRatio : 0;
 
-    // Per-tab CAPEX rows: filter each category's perProperty by side, then sum
-    const tabCapexRows = optimaCapex.categories
-      .map((cat) => {
-        const catTotal = cat.perProperty
-          .filter((pp) => (allocation[pp.id] ?? 'B') === side)
-          .reduce((s, pp) => s + pp.total, 0);
-        return { name: cat.name, total: catTotal };
-      })
-      .filter((r) => r.total > 0);
+    // Per-tab CAPEX rows.
+    // When unallocated: engine splits 50/50, so show grandTotal/2 per category.
+    // When allocated: filter each category's perProperty by the assigned side.
+    const tabCapexRows = isUnallocated
+      ? optimaCapex.categories
+          .map((cat) => ({ name: cat.name, total: cat.grandTotal / 2 }))
+          .filter((r) => r.total > 0)
+      : optimaCapex.categories
+          .map((cat) => {
+            const catTotal = cat.perProperty
+              .filter((pp) => (allocation[pp.id] ?? 'B') === side)
+              .reduce((s, pp) => s + pp.total, 0);
+            return { name: cat.name, total: catTotal };
+          })
+          .filter((r) => r.total > 0);
 
     return {
       tabProjects,
@@ -289,12 +297,21 @@ export default function OptimaPage() {
       {/* ── PER-TAB CONTENT ── */}
 
       {/* Projects in this sub-project */}
+      {isUnallocated && (
+        <div className="mb-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-relaxed">
+          {t('bank.optima.unallocatedSplit')}
+        </div>
+      )}
       {tabData.tabProjects.length > 0 ? (
         <div className="flex flex-wrap gap-2 mb-5">
           {tabData.tabProjects.map((p) => (
             <span
               key={p.id}
-              className="px-3 py-1 rounded-full bg-brand-50 text-brand-600 text-xs font-medium border border-brand-100"
+              className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                isUnallocated
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-brand-50 text-brand-600 border-brand-100'
+              }`}
             >
               {p.name}
             </span>
@@ -392,9 +409,7 @@ export default function OptimaPage() {
                 {tabData.tabCapexRows.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="text-center py-6 text-text-tertiary text-xs italic">
-                      {tabData.tabProjects.length === 0
-                        ? t('bank.optima.noProjectsAssigned')
-                        : t('common.loading')}
+                      {t('bank.optima.noProjectsAssigned')}
                     </td>
                   </tr>
                 ) : (
