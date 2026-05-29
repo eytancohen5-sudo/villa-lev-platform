@@ -16,6 +16,11 @@ import { useEuribor } from "@/lib/hooks/useEuribor";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
+import BankControlBar from "@/components/BankControlBar";
+import { PageTour, usePageTour } from "@/components/PageTour";
+import { BANK_TOUR } from "@/lib/tours/configs";
+import { PRESENTATION_LABEL } from "@/lib/presentationMeta";
+import { logPresenceActivity } from "@/lib/data/usePresence";
 import Link from "next/link";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from "recharts";
 
@@ -52,11 +57,68 @@ export default function OptimaPage() {
     assumptions,
     templates,
     projects,
+    activeScenario,
+    capTable,
+    waterfall,
     setFinancingPathOverride,
     setOptimaEuriborRate,
   } = useModelStore();
+  const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
+  const [docxLoading, setDocxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabSide>('A');
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
+
+  const handleDownloadXlsx = async () => {
+    if (!model || xlsxLoading) return;
+    setXlsxLoading(true);
+    void logPresenceActivity('excel_download');
+    try {
+      const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
+      const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
+      const blob = await exportBusinessPlan(
+        { ...assumptions, viewMode: 'bank', financingPath: 'optima' },
+        model,
+        exportScenario,
+        capTable,
+        waterfall,
+        locale,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `villa-lev-optima-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setXlsxLoading(false);
+    }
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!model || docxLoading) return;
+    setDocxLoading(true);
+    try {
+      const { exportBankPresentation } = await import('@/lib/docx/exportBankPresentation');
+      const blob = await exportBankPresentation(
+        { ...assumptions, viewMode: 'bank' },
+        model,
+        locale,
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `villa-lev-optima-presentation-${new Date().toISOString().slice(0, 10)}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } finally {
+      setDocxLoading(false);
+    }
+  };
 
   // Override financing path to 'optima' for the duration of this page.
   useEffect(() => {
@@ -337,20 +399,9 @@ export default function OptimaPage() {
   ];
 
   return (
+    <>
+    <BankControlBar />
     <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none animate-fade-in">
-
-      {/* ── Back to admin ── */}
-      <div className="flex items-center justify-between mb-6 print:hidden">
-        <Link
-          href={`/admin/assumptions?lang=${locale}`}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-text-tertiary hover:text-brand-600 transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M9 11L5 7l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          {t('common.back')} Admin
-        </Link>
-      </div>
 
       {/* ── Hero (shared) ── */}
       <div className="text-center mb-8 print:mb-4">
@@ -385,6 +436,83 @@ export default function OptimaPage() {
             Live rate unavailable — using {((optimaLoan?.euriborRate ?? 0.025) * 100).toFixed(2)}%
           </span>
         )}
+      </div>
+
+      {/* ── Quick Access ── */}
+      <div className="rounded-2xl border border-brand-200 bg-gradient-to-br from-brand-50/60 to-white p-6 mb-8 print:hidden">
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-500">
+            {t('bank.actions.heading')}
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+
+          {/* Tour */}
+          <button
+            onClick={() => { void logPresenceActivity('tour_start'); setTourOpen(true); }}
+            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" className="text-brand-500"/>
+                  <path d="M6 5.5l5 2.5-5 2.5V5.5z" fill="currentColor" className="text-brand-500"/>
+                </svg>
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{t('bank.tourDuration')}</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.tour.title')}</p>
+              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.tour.sub')}</p>
+            </div>
+          </button>
+
+          {/* Presentation */}
+          <a
+            href={`/presentation?lang=${locale}&from=bank`}
+            onClick={() => void logPresenceActivity('presentation_view')}
+            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+                <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
+                  <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                  <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
+                  <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
+                </svg>
+              </div>
+              <span className="text-[10px] font-semibold tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{PRESENTATION_LABEL}</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
+              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
+            </div>
+          </a>
+
+          {/* Excel */}
+          <button
+            onClick={handleDownloadXlsx}
+            disabled={!model || xlsxLoading}
+            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3" className="text-emerald-600"/>
+                  <path d="M4.5 5h7M4.5 8h7M4.5 11h4.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-emerald-500"/>
+                </svg>
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Excel</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-text-primary leading-tight">
+                {xlsxLoading ? t('bar.preparing') : t('bank.actions.model.title')}
+              </p>
+              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.model.sub')}</p>
+            </div>
+          </button>
+
+        </div>
       </div>
 
       {/* ── Tab selector ── */}
@@ -868,5 +996,7 @@ export default function OptimaPage() {
         initialTab="sale"
       />
     </div>
+    <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BANK_TOUR} />
+    </>
   );
 }
