@@ -18,7 +18,7 @@ import type { CapexBreakdown, OptimaLoanParams } from './types';
  *  Matched case-insensitively as substrings. Covers the actual names used
  *  in model.ts computeCapex categoryDefs:
  *    'Licenses & permits'      → matches 'licenses'
- *    'Construction director'   → matches 'construction director'
+ *    'Construction director'   → matches 'construction director'  (now maps to developerConstructionFeePerYear×2)
  *    'Acquisition legal & DD'  → matches 'legal'
  *  Note: 'Land acquisition' does NOT match 'legal' — no false positive.
  *  Note: 'Building & excavation' does NOT match any of these — safe.

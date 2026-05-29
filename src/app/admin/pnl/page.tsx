@@ -286,9 +286,9 @@ export default function PnLPage() {
                 </th>
                 {pnl.map((p) => {
                   const phaseTone =
-                    p.year <= 2027
+                    p.year <= 2028
                       ? 'border-t-4 border-earth-terracotta/60'
-                      : p.year <= 2029
+                      : p.year <= 2031
                         ? 'border-t-4 border-warning/60'
                         : 'border-t-4 border-positive/60';
                   return (
