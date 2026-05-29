@@ -809,11 +809,13 @@ interface ModelStore {
 
   // Ephemeral CAPEX uplift sensitivity for /bank/optima only.
   // null = inactive; positive number = EUR uplift applied to construction cost.
-  // Never persisted. Cleared when the optima page unmounts (via bank/layout.tsx).
+  // Never persisted to disk. Survives client-side navigation (Zustand singleton).
   capexUpliftEur: number | null;
+  // Base (pre-uplift) CAPEX total in EUR — stored so % back-calculation survives page remount.
+  capexUpliftBase: number | null;
   // Default changed to 'pct' per Eytan 2026-05-29; ADR-0024 originally defaulted to 'abs'.
   capexUpliftMode: 'abs' | 'pct';
-  setCapexUplift: (upliftEur: number) => void;
+  setCapexUplift: (upliftEur: number, baseEur?: number) => void;
   setCapexUpliftMode: (mode: 'abs' | 'pct') => void;
   clearCapexUplift: () => void;
 
@@ -1049,9 +1051,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
   },
 
   capexUpliftEur: null,
+  capexUpliftBase: null,
   capexUpliftMode: 'pct',
-  setCapexUplift: (upliftEur: number) => {
-    set({ capexUpliftEur: upliftEur });
+  setCapexUplift: (upliftEur: number, baseEur?: number) => {
+    set({
+      capexUpliftEur: upliftEur,
+      ...(baseEur !== undefined && { capexUpliftBase: baseEur }),
+    });
     get().recompute();
   },
   setCapexUpliftMode: (mode) => {
@@ -1059,7 +1065,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     get().recompute();
   },
   clearCapexUplift: () => {
-    set({ capexUpliftEur: null });
+    set({ capexUpliftEur: null, capexUpliftBase: null });
     get().recompute();
   },
 

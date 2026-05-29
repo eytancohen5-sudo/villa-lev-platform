@@ -26,16 +26,19 @@ export function CapexUpliftControl({
   currentDscr,
 }: CapexUpliftControlProps) {
   const { t, locale } = useTranslation();
-  const { setCapexUplift, clearCapexUplift, capexUpliftEur, capexUpliftMode, setCapexUpliftMode } = useModelStore();
+  const { setCapexUplift, clearCapexUplift, capexUpliftEur, capexUpliftBase, capexUpliftMode, setCapexUpliftMode } = useModelStore();
 
   // mode is owned by the store so it survives tab remounts
   const mode = capexUpliftMode;
 
-  // seed inputValue from store on mount (recovers value after tab switch)
+  // seed inputValue from store on mount (recovers value after tab switch or cross-page navigation)
+  // Use capexUpliftBase (stored) as the fallback if baseCapexEur prop is 0 on remount
   const [inputValue, setInputValue] = useState(() => {
     if (capexUpliftEur === null || capexUpliftEur <= 0) return '';
     if (capexUpliftMode === 'abs') return (capexUpliftEur / 1_000).toString();
-    return ((capexUpliftEur / baseCapexEur) * 100).toString();
+    const base = baseCapexEur > 0 ? baseCapexEur : (capexUpliftBase ?? 0);
+    if (base <= 0) return '';
+    return ((capexUpliftEur / base) * 100).toString();
   });
 
   function handleInput(raw: string) {
@@ -46,7 +49,8 @@ export function CapexUpliftControl({
       return;
     }
     const upliftEur = mode === 'abs' ? v * 1_000 : (baseCapexEur * v) / 100;
-    setCapexUplift(upliftEur);
+    // Pass baseCapexEur so the store can back-calculate % on cross-page remount
+    setCapexUplift(upliftEur, baseCapexEur > 0 ? baseCapexEur : undefined);
   }
 
   function handleModeSwitch(next: Mode) {
