@@ -149,7 +149,7 @@ export default function BankPage() {
     ?? model.scenarios.realistic.pnl;
 
   const km = model.keyMetrics;
-  const pnl = activePnl.filter((p) => p.year >= 2029);
+  const pnl = activePnl.filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR);
 
   const isGated = !activePnl.some(p => (p.netCashFlowPostVAT ?? 0) >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD);
 
@@ -276,7 +276,7 @@ export default function BankPage() {
   // Drive DSCR chart from model.scenarios so it reflects the active financing path.
   // dscrByYear.realistic/upside/downside are always commercial — they don't switch.
   const dscrChart = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= 2029)
+    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
@@ -931,7 +931,7 @@ export default function BankPage() {
             {t('bank.section.repaymentCapacity')}
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer key={`dscr-scenario-${activeScenario}-${financingPathOverride ?? 'none'}`} width="100%" height={280}>
             <LineChart data={dscrChart}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
               <XAxis dataKey="year" tick={{ fontSize: 12 }} />
@@ -1273,8 +1273,8 @@ export default function BankPage() {
             {t('dash.dscrTrajectory')}
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.allPathsChartSub')}</p>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={model.dscrByYear.filter((d) => d.year >= 2029).map((d) => ({
+          <ResponsiveContainer key={`dscr-allpaths-${activeScenario}-${financingPathOverride ?? 'none'}`} width="100%" height={280}>
+            <LineChart data={model.dscrByYear.filter((d) => d.year >= PROJECT_CONSTANTS.OPENING_YEAR).map((d) => ({
               year: d.year,
               Commercial: Number(d.realistic.toFixed(2)),
               Grant: Number(d.grant.toFixed(2)),
