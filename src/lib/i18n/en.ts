@@ -1214,7 +1214,7 @@ export const en: TranslationDictionary = {
   'bank.wc.selfLiquidating': 'self-liquidating (repaid end of each peak season)',
   'bank.wc.notIncluded': 'not included in the term loan amount above',
   'bank.wc.dual.vatBridgeLabel': '① Construction VAT bridge',
-  'bank.wc.dual.vatBridgeSub': 'Q1–Q3 2029 · 4 tranches · peak ~€650K · 100% AADE-recoverable · €273K refund Q1–Q2 2030',
+  'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · draw 35/45/20% · quarterly AADE refund, 1-quarter lag · peak float €145,711',
   'bank.wc.dual.opWcLabel': '② Operational working capital',
   'bank.wc.dual.opWcSub': 'from 2029 · seasonal draw ≤€200K · self-liquidating each peak season',
   'bank.wc.dual.sizingNote': 'Sized for the VAT bridge peak; same facility transitions to operational WC after construction',

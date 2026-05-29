@@ -1172,7 +1172,7 @@ export const he: TranslationDictionary = {
   'bank.wc.selfLiquidating': 'מתפרק עצמית (נפרע בסוף כל עונת שיא)',
   'bank.wc.notIncluded': 'לא כלול בסכום ההלוואה לעיל',
   'bank.wc.dual.vatBridgeLabel': '① גשר ΦΠΑ בנייה',
-  'bank.wc.dual.vatBridgeSub': 'Q1–Q3 2029 · 4 תשלומים · שיא ~€650K · 100% ניתן להחזר AADE · החזר €273K Q1–Q2 2030',
+  'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · משיכה 35/45/20% · החזר AADE רבעוני, פיגור רבעון אחד · שיא float €145,711',
   'bank.wc.dual.opWcLabel': '② הון חוזר תפעולי',
   'bank.wc.dual.opWcSub': 'מ-2029 · משיכה עונתית ≤€200K · מתפרק עצמית בכל עונת שיא',
   'bank.wc.dual.sizingNote': 'ממוקד לשיא גשר ΦΠΑ; אותה מסגרת עוברת להון חוזר תפעולי לאחר הבנייה',

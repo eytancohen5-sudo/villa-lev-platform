@@ -1222,7 +1222,7 @@ export const el: TranslationDictionary = {
   'bank.wc.selfLiquidating': 'αυτο-εκκαθαριζόμενο (αποπληρώνεται στο τέλος κάθε peak season)',
   'bank.wc.notIncluded': 'δεν περιλαμβάνεται στο παραπάνω ποσό δανείου',
   'bank.wc.dual.vatBridgeLabel': '① Construction VAT bridge',
-  'bank.wc.dual.vatBridgeSub': 'Q1–Q3 2029 · 4 δόσεις · peak ~€650K · 100% επιστρεπτέο ΑΑΔΕ · €273K επιστροφή Q1–Q2 2030',
+  'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · εκταμίευση 35/45/20% · τριμηνιαία επιστροφή ΑΑΔΕ, καθυστέρηση 1 τριμήνου · μέγιστο float €145.711',
   'bank.wc.dual.opWcLabel': '② Operational working capital',
   'bank.wc.dual.opWcSub': 'from 2029 · seasonal draw ≤€200K · self-liquidating each peak season',
   'bank.wc.dual.sizingNote': 'Sized for the VAT bridge peak; same facility transitions to operational WC after construction',
