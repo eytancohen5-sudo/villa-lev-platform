@@ -2109,4 +2109,5 @@ export const he: TranslationDictionary = {
   'bank.optima.stabilisedSnapshot': 'תמונת מצב פעילות יציבה',
   'bank.optima.noProjectsAssigned': 'אין נכסים המוקצים לתת-פרויקט זה — עברו ל-Admin → הנחות להקצאה.',
   'bank.optima.unallocatedSplit': 'לא הוגדרה הקצאת תת-פרויקטים — שני הלשוניות מציגים פיצול ברירת מחדל 50/50. הקצו כל נכס לתת-פרויקט א׳ או ב׳ ב-Admin → הנחות.',
+  'as.optimaTab': 'Optima Bank',
 };

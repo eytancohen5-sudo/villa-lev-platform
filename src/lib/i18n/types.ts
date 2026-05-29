@@ -2116,4 +2116,5 @@ export interface TranslationDictionary {
   'bank.optima.stabilisedSnapshot': string;
   'bank.optima.noProjectsAssigned': string;
   'bank.optima.unallocatedSplit': string;
+  'as.optimaTab': string;
 }

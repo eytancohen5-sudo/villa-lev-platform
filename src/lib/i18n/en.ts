@@ -2120,4 +2120,5 @@ export const en: TranslationDictionary = {
   'bank.optima.stabilisedSnapshot': 'Stabilised Operations Snapshot',
   'bank.optima.noProjectsAssigned': 'No properties assigned to this sub-project — go to Admin → Assumptions to allocate.',
   'bank.optima.unallocatedSplit': 'No sub-project allocation set — both tabs show a 50/50 default split by CAPEX value. Assign each property to Sub-project A or B in Admin → Assumptions.',
+  'as.optimaTab': 'Optima Bank',
 };

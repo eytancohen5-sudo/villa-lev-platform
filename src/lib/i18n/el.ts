@@ -2150,4 +2150,5 @@ export const el: TranslationDictionary = {
   'bank.optima.stabilisedSnapshot': 'Λειτουργίες σε Σταθερή Κατάσταση',
   'bank.optima.noProjectsAssigned': 'Δεν έχουν ανατεθεί ακίνητα σε αυτό το υπό-έργο — μεταβείτε στο Admin → Παραδοχές για κατανομή.',
   'bank.optima.unallocatedSplit': 'Δεν έχει οριστεί κατανομή — και οι δύο καρτέλες εμφανίζουν ισόποση κατανομή 50/50. Αναθέστε κάθε ακίνητο στο Υπο-έργο Α ή Β στο Admin → Παραδοχές.',
+  'as.optimaTab': 'Optima Bank',
 };

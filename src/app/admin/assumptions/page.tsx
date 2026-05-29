@@ -15,6 +15,7 @@ import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
 import { resolvePortfolio } from "@/lib/engine/defaults";
 import { computePortfolioOpex, computeOptimaCapResult } from "@/lib/engine/model";
+import Link from "next/link";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { getDb } from "@/lib/firebase";
 import {
@@ -1315,8 +1316,20 @@ export default function AssumptionsPage() {
   } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
-    "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra"
+    "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra" | "optima"
   >("portfolio");
+
+  const DEFAULT_OPTIMA_LOAN = {
+    euriborRate: 0.025,
+    spreadBps: 250,
+    totalTermYears: 12,
+    gracePeriodYears: 2,
+    repaymentYears: 10,
+    loanCoverageRate: 0.70,
+    splitThresholdEur: 6_000_000,
+    maxConstructionRatio: 0.60,
+    absorb: { serviceProviders: true, contingency: true },
+  };
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
   const [staffAllocExpanded, setStaffAllocExpanded] = useState<Record<number, boolean>>({});
   const [serviceAllocExpanded, setServiceAllocExpanded] = useState<Record<number, boolean>>({});
@@ -1506,6 +1519,7 @@ export default function AssumptionsPage() {
           [
             { id: "portfolio", label: "Portfolio" },
             { id: "templates", label: "Templates" },
+            { id: "optima", label: t('as.optimaTab') },
             { id: "financing", label: t('as.financingPaths') },
             { id: "general", label: t('as.general') },
             { id: "revenue", label: t('as.revenue') },
@@ -1816,75 +1830,17 @@ export default function AssumptionsPage() {
 
           </div>
 
-          {/* Optima sub-project allocation (shown whenever optimaLoan is configured) */}
-          {a.optimaLoan && (
-            <div className="mt-6 bg-white rounded-xl border border-surface-tertiary p-6">
-              <h3 className="font-display text-base text-text-primary mb-1">
-                {t('bank.optima.subProjectAllocation')}
-              </h3>
-              <p className="text-xs text-text-tertiary mb-4">
-                {t('bank.optima.splitDisclaimer')}
-              </p>
-
-              {/* Construction / Total ratio indicator (admin-only) */}
-              {(() => {
-                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
-                const rawPct = (cr.rawConstructionRatio * 100).toFixed(1);
-                const maxPct = (cr.maxRatio * 100).toFixed(0);
-                const withinLimit = !cr.applied;
-                return (
-                  <div className={[
-                    "mb-5 px-4 py-3 rounded-xl border text-sm flex items-center justify-between gap-4",
-                    withinLimit
-                      ? "bg-positive/[0.05] border-positive/30 text-positive"
-                      : "bg-amber-50 border-amber-300 text-amber-900",
-                  ].join(' ')}>
-                    <span className="font-medium">
-                      {t('bank.optima.constructionRatio')}: <span className="font-mono font-bold">{rawPct}%</span>
-                      <span className="text-xs font-normal ml-1 opacity-70">/ {maxPct}% max</span>
-                    </span>
-                    <span className={[
-                      "inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                      withinLimit
-                        ? "bg-positive/15 text-positive"
-                        : "bg-amber-200/60 text-amber-900",
-                    ].join(' ')}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                      {withinLimit ? t('bank.optima.withinLimit') : t('bank.optima.ratioExceeded')}
-                    </span>
-                  </div>
-                );
-              })()}
-
-              <div className="space-y-2">
-                {projects.map((proj) => {
-                  const side = (a.optimaLoan?.subProjectAllocation ?? {})[proj.id] ?? 'B';
-                  return (
-                    <div key={proj.id} className="flex items-center justify-between py-2 border-b border-surface-secondary/50 last:border-0">
-                      <span className="text-sm text-text-secondary">{proj.name}</span>
-                      <div className="flex gap-1">
-                        {(['A', 'B'] as const).map((s) => (
-                          <button
-                            key={s}
-                            type="button"
-                            onClick={() => setOptimaSubProjectSide(proj.id, s)}
-                            className={[
-                              "w-8 h-7 rounded text-xs font-bold transition-colors",
-                              side === s
-                                ? "bg-brand-600 text-white"
-                                : "bg-surface-secondary text-text-tertiary hover:bg-surface-tertiary"
-                            ].join(' ')}
-                          >
-                            {s === 'A' ? t('bank.optima.assignToA') : t('bank.optima.assignToB')}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* Optima Bank settings moved to dedicated Optima tab */}
+          <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50/40 px-4 py-3 flex items-center justify-between text-xs text-brand-700">
+            <span>Optima Bank sub-project allocation and loan parameters →</span>
+            <button
+              type="button"
+              onClick={() => setTab("optima")}
+              className="font-semibold hover:underline"
+            >
+              {t('as.optimaTab')} tab
+            </button>
+          </div>
 
           {/* Impact Summary */}
           <div className="mt-6 grid grid-cols-3 gap-4">
@@ -2590,6 +2546,273 @@ export default function AssumptionsPage() {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* ── OPTIMA BANK TAB ── */}
+      {tab === "optima" && (
+        <div className="space-y-5">
+
+          {/* Header strip */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-tertiary/60">
+            <p className="text-sm text-text-secondary">
+              Dual sub-project structure for Optima Bank. All settings feed directly into the bank-facing view.
+            </p>
+            <Link
+              href={`/bank/optima?lang=${locale}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 whitespace-nowrap shrink-0"
+            >
+              {t('admin.bar.optimaView')} →
+            </Link>
+          </div>
+
+          {/* Init guard — shown only when optimaLoan is null in an old scenario */}
+          {!a.optimaLoan ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center">
+              <p className="text-sm text-amber-800 mb-4">
+                Optima Bank settings are not initialised in this scenario.
+              </p>
+              <button
+                type="button"
+                onClick={() => setAssumption('optimaLoan', DEFAULT_OPTIMA_LOAN)}
+                className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+              >
+                Initialise Optima Bank settings
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* ── Loan Parameters ── */}
+              <div className="bg-white rounded-xl border border-surface-tertiary p-6">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-4">
+                  Loan Parameters
+                </h3>
+                <table className="w-full">
+                  <tbody>
+                    <AssumptionRow
+                      label="3M Euribor rate"
+                      value={a.optimaLoan.euriborRate}
+                      path="optimaLoan.euriborRate"
+                      format="percent"
+                      note="Live ECB rate — auto-updated on /bank/optima; edit here to override"
+                    />
+                    <AssumptionRow
+                      label="Bank spread (bps)"
+                      value={a.optimaLoan.spreadBps}
+                      path="optimaLoan.spreadBps"
+                      note={`Effective rate: ${((a.optimaLoan.euriborRate + a.optimaLoan.spreadBps / 10000) * 100).toFixed(2)}% (Euribor + spread)`}
+                    />
+                    <AssumptionRow
+                      label="Total term (years)"
+                      value={a.optimaLoan.totalTermYears}
+                      path="optimaLoan.totalTermYears"
+                    />
+                    <AssumptionRow
+                      label="Grace period (years)"
+                      value={a.optimaLoan.gracePeriodYears}
+                      path="optimaLoan.gracePeriodYears"
+                      note="Interest-only; starts Q4 2026"
+                    />
+                    <AssumptionRow
+                      label="Repayment period (years)"
+                      value={a.optimaLoan.repaymentYears ?? 10}
+                      path="optimaLoan.repaymentYears"
+                    />
+                    <AssumptionRow
+                      label="LTC coverage rate"
+                      value={a.optimaLoan.loanCoverageRate ?? 0.70}
+                      path="optimaLoan.loanCoverageRate"
+                      format="percent"
+                      note="Loan as % of total project CAPEX — Optima Bank standard: 70%"
+                    />
+                    <AssumptionRow
+                      label="Sub-project A cap (€)"
+                      value={a.optimaLoan.splitThresholdEur}
+                      path="optimaLoan.splitThresholdEur"
+                      format="currency"
+                      note="Maximum loan amount for Sub-project A"
+                    />
+                    <AssumptionRow
+                      label="Max construction ratio (admin indicator)"
+                      value={a.optimaLoan.maxConstructionRatio ?? 0.60}
+                      path="optimaLoan.maxConstructionRatio"
+                      format="percent"
+                      note="Informational only — does not cap the loan amount"
+                    />
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── CAPEX Absorption ── */}
+              <div className="bg-white rounded-xl border border-surface-tertiary p-6">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-1">
+                  CAPEX Absorption
+                </h3>
+                <p className="text-xs text-text-tertiary mb-4">
+                  Optima Bank absorbs ineligible cost lines into the construction line for bank-facing output. Admin view retains the full breakdown.
+                </p>
+                <table className="w-full">
+                  <tbody>
+                    <ToggleRow
+                      label="Absorb service providers"
+                      value={a.optimaLoan.absorb.serviceProviders}
+                      path="optimaLoan.absorb.serviceProviders"
+                      note="Architect, civil engineer, legal, construction director, licenses & permits"
+                    />
+                    <ToggleRow
+                      label="Absorb contingency"
+                      value={a.optimaLoan.absorb.contingency}
+                      path="optimaLoan.absorb.contingency"
+                      note="10% contingency line"
+                    />
+                  </tbody>
+                </table>
+              </div>
+
+              {/* ── Construction / Total ratio indicator ── */}
+              {(() => {
+                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
+                const rawPct = (cr.rawConstructionRatio * 100).toFixed(1);
+                const maxPct = (cr.maxRatio * 100).toFixed(0);
+                const withinLimit = !cr.applied;
+                return (
+                  <div className={[
+                    "px-4 py-3 rounded-xl border text-sm flex items-center justify-between gap-4",
+                    withinLimit
+                      ? "bg-positive/[0.05] border-positive/30 text-positive"
+                      : "bg-amber-50 border-amber-300 text-amber-900",
+                  ].join(' ')}>
+                    <span className="font-medium">
+                      {t('bank.optima.constructionRatio')}: <span className="font-mono font-bold">{rawPct}%</span>
+                      <span className="text-xs font-normal ml-1 opacity-70">/ {maxPct}% max</span>
+                    </span>
+                    <span className={[
+                      "inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                      withinLimit ? "bg-positive/15 text-positive" : "bg-amber-200/60 text-amber-900",
+                    ].join(' ')}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                      {withinLimit ? t('bank.optima.withinLimit') : t('bank.optima.ratioExceeded')}
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {/* ── Sub-project Allocation ── */}
+              <div className="bg-white rounded-xl border border-surface-tertiary p-6">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-1">
+                  {t('bank.optima.subProjectAllocation')}
+                </h3>
+                <p className="text-xs text-text-tertiary mb-5">{t('bank.optima.splitDisclaimer')}</p>
+                <div className="space-y-2">
+                  {projects.flatMap((proj) =>
+                    Array.from({ length: proj.count }, (_, i) => {
+                      // Single-unit projects keep the legacy key (proj.id) for backward compat.
+                      // Multi-unit projects use per-unit keys: "{id}__u{i}".
+                      const allocationKey = proj.count > 1 ? `${proj.id}__u${i}` : proj.id;
+                      const alloc = a.optimaLoan?.subProjectAllocation ?? {};
+                      // For multi-unit, fall back to the whole-project key for old saved scenarios.
+                      const side: 'A' | 'B' = alloc[allocationKey] ?? (proj.count > 1 ? alloc[proj.id] : undefined) ?? 'B';
+                      const label = proj.count > 1 ? `${proj.name} ${i + 1}` : proj.name;
+                      return (
+                        <div
+                          key={allocationKey}
+                          className="flex items-center justify-between py-2.5 border-b border-surface-secondary/50 last:border-0"
+                        >
+                          <div>
+                            <span className="text-sm text-text-primary font-medium">{label}</span>
+                            <span className="ml-2 text-xs text-text-tertiary">
+                              {side === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')}
+                            </span>
+                          </div>
+                          <div className="flex gap-1">
+                            {(['A', 'B'] as const).map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setOptimaSubProjectSide(allocationKey, s)}
+                                className={[
+                                  "w-10 h-8 rounded text-xs font-bold transition-colors",
+                                  side === s
+                                    ? "bg-brand-600 text-white shadow-sm"
+                                    : "bg-surface-secondary text-text-tertiary hover:bg-surface-tertiary",
+                                ].join(' ')}
+                              >
+                                {s === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* ── Sub-project KPI summary ── */}
+              {(() => {
+                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
+                const rate = a.optimaLoan.euriborRate + a.optimaLoan.spreadBps / 10000;
+                const repayYrs = a.optimaLoan.repaymentYears ?? 10;
+                const pmt = (loan: number) =>
+                  loan > 0 && repayYrs > 0 && rate > 0
+                    ? (loan * rate) / (1 - Math.pow(1 + rate, -repayYrs))
+                    : 0;
+                const capexTotal = cr.subProjectTotalsPreCap.A + cr.subProjectTotalsPreCap.B;
+                const stabYear = model.optimaScenario?.stabilisedYear;
+                const dscrThreshold = a.dscrCovenantThreshold ?? 1.25;
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {(['A', 'B'] as const).map((side) => {
+                      const capex = cr.subProjectTotalsPreCap[side];
+                      const loan = cr.subProjectLoans[side];
+                      const annualDS = pmt(loan);
+                      const capexRatio = capexTotal > 0 ? capex / capexTotal : 0.5;
+                      const ebitda = stabYear ? stabYear.ebitda * capexRatio : 0;
+                      const dscr = annualDS > 0 && ebitda > 0 ? ebitda / annualDS : 0;
+                      const dscrOk = dscr >= dscrThreshold;
+                      return (
+                        <div
+                          key={side}
+                          className="bg-white rounded-xl border border-surface-tertiary p-5"
+                        >
+                          <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-3">
+                            {side === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')}
+                            {' '}— Sub-project {side}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-text-tertiary">CAPEX</span>
+                              <span className="font-mono font-medium text-text-primary">
+                                {formatCurrency(capex, true, locale)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-text-tertiary">Loan ({((a.optimaLoan?.loanCoverageRate ?? 0.70) * 100).toFixed(0)}% LTC)</span>
+                              <span className="font-mono font-medium text-brand-600">
+                                {formatCurrency(loan, true, locale)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-text-tertiary">Annual DS</span>
+                              <span className="font-mono font-medium text-text-primary">
+                                {annualDS > 0 ? formatCurrency(annualDS, true, locale) : '—'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm pt-2 border-t border-surface-secondary/50">
+                              <span className="text-text-tertiary">{t('term.dscr')} (stabilised)</span>
+                              <span className={`font-mono font-bold ${dscrOk ? 'text-positive' : 'text-warning'}`}>
+                                {dscr > 0 ? formatMultiple(dscr) : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </>
+          )}
         </div>
       )}
 
