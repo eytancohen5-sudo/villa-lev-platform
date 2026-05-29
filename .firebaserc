@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "villa-lev-admin"
-  }
+  },
+  "targets": {
+    "villa-lev-admin": {
+      "hosting": {
+        "staging": [
+          "villa-lev-finance-staging"
+        ],
+        "production": [
+          "villa-lev-finance"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
