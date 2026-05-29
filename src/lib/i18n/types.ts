@@ -573,7 +573,6 @@ export interface TranslationDictionary {
   'field.civilEngineer': string;
   'field.contingencyRate': string;
   'field.opexContingencyRate': string;
-  'field.acqLegalPerPlot': string;
   'field.landscapingCost': string;
   'field.licensesPermits': string;
   'field.constructionDirector': string;

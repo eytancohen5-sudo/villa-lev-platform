@@ -1543,13 +1543,6 @@ export default function AssumptionsPage() {
             <table className="w-full">
               <tbody>
                 <AssumptionRow
-                  label={t('field.acqLegalPerPlot')}
-                  value={a.acquisitionLegalPerPlot}
-                  path="acquisitionLegalPerPlot"
-                  format="currency"
-                  note={`x${totalPlots} plots = ${formatCurrency(a.acquisitionLegalPerPlot * totalPlots, true, locale)}`}
-                />
-                <AssumptionRow
                   label={t('field.poolCostPerM2')}
                   value={a.poolConstructionCostPerM2 ?? 1_000}
                   path="poolConstructionCostPerM2"

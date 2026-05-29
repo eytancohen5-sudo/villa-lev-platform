@@ -121,8 +121,12 @@ function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; b
       lowLabel: '−10%', highLabel: '+10%',
     },
     {
-      label: 'Acquisition legal / plot',
-      vary: (a, s) => { a.acquisitionLegalPerPlot *= s === 'low' ? 0.8 : 1.2; return a; },
+      label: 'Acquisition legal rate',
+      vary: (a, s) => {
+        const f = s === 'low' ? 0.8 : 1.2;
+        a.portfolio.forEach((p) => { p.acquisitionLegalRate = (p.acquisitionLegalRate ?? 0.0734) * f; });
+        return a;
+      },
       lowLabel: '−20%', highLabel: '+20%',
     },
   ];

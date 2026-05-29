@@ -809,7 +809,6 @@ export const en: TranslationDictionary = {
   'field.switchToFlat': 'Use flat amount',
   'field.acqLegalBreakdown': '1.5% lawyer · 1% agent · 3.09% transfer tax · 1% notary · 0.5% registry · 0.25% misc',
   'field.opexContingencyRate': 'OPEX contingency',
-  'field.acqLegalPerPlot': 'Acquisition legal per plot',
   'field.numPropA': 'Number of Property A',
   'field.tepixCoverage': 'Coverage rate (%)',
   'field.tepixHdbShare': 'HDB share of loan (%)',

@@ -832,7 +832,6 @@ export const el: TranslationDictionary = {
   'field.civilEngineer': 'Πολιτικός μηχανικός',
   'field.contingencyRate': 'Ποσοστό απροβλέπτων',
   'field.opexContingencyRate': 'Απρόβλεπτα OPEX',
-  'field.acqLegalPerPlot': 'Νομικά απόκτησης ανά οικόπεδο',
   'field.numPropA': 'Αριθμός ακινήτων Α',
   'field.tepixCoverage': 'Ποσοστό κάλυψης (%)',
   'field.tepixHdbShare': 'Μερίδιο ΕΑΤ στο δάνειο (%)',

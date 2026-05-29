@@ -624,7 +624,6 @@ export const fr = {
   'field.civilEngineer': 'Ingénieur génie civil',
   'field.contingencyRate': 'Taux d\'imprévus',
   'field.opexContingencyRate': 'Imprévus OPEX',
-  'field.acqLegalPerPlot': 'Frais juridiques d\'acquisition par parcelle',
   'field.numPropA': 'Nombre de biens A',
   'field.tepixCoverage': 'Taux de couverture (%)',
   'field.tepixHdbShare': 'Part HDB du prêt (%)',

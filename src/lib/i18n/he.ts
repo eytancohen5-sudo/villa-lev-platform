@@ -781,7 +781,6 @@ export const he: TranslationDictionary = {
   'field.civilEngineer': 'מהנדס אזרחי',
   'field.contingencyRate': 'שיעור בלתי צפויות',
   'field.opexContingencyRate': 'בלתי צפויות תפעול',
-  'field.acqLegalPerPlot': 'עלות משפטית לרכישת מגרש',
   'field.numPropA': 'מספר נכסי A',
   'field.tepixCoverage': 'שיעור כיסוי (%)',
   'field.tepixHdbShare': 'חלק HDB מההלוואה (%)',
