@@ -1193,7 +1193,6 @@ export interface TranslationDictionary {
   'pnl.ncfToEquity': string;
   'pnl.vatMemoSection': string;
   'pnl.vatReceivable': string;
-  'pnl.vatMemoNote': string;
   'pnl.distributableToEquity': string;
   'pnl.yearByYear': string;
   'pnl.expandHint': string;

@@ -514,9 +514,6 @@ export function BankPnLSection({
           {t('bank.pnlFooterNote')}
           {" "}{t('pnl.cfadsNote')}
         </p>
-        <p className="text-xs text-amber-600/80 italic">
-          {t('pnl.vatMemoNote')}
-        </p>
       </div>
     </div>
   );

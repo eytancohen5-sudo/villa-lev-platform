@@ -990,7 +990,6 @@ export const fr = {
   'pnl.distributableToEquity': 'Distribuable aux actionnaires',
   'pnl.vatMemoSection': 'TVA construction — calendrier (mémo — hors NCF)',
   'pnl.vatReceivable': 'Créance TVA fin d\'année / remboursement reçu',
-  'pnl.vatMemoNote': 'TVA 100% récupérable — décalage de trésorerie uniquement. Négatif : trésorerie bloquée en attente de remboursement AADE. Positif (2030) : remboursement reçu.',
   // ── DSRA tile ──
   'dsra.sectionTitle': 'Debt Service Reserve Account',
   'dsra.sectionSub': 'Auto-sized to bridge years below DSCR target',
