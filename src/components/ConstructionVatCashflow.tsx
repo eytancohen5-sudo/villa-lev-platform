@@ -3,7 +3,7 @@
 import { useTranslation } from '@/lib/i18n/I18nProvider'
 import { useModelStore } from '@/lib/store/modelStore'
 import {
-  ResponsiveContainer, ComposedChart, Bar, Line,
+  ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts'
 
@@ -18,18 +18,27 @@ const ROWS = [
   { quarter: 'Q2-2030', vatPaid: 0,       vatRefund: 364_277, netFloat: 0       },
 ]
 
-// Chart data in €K — all values derived from ROWS so the chart stays in sync with the table.
-// capex = construction spend net of VAT (= vatPaid / 0.24 since VAT rate = 24%)
-const CHART_DATA = ROWS.map(r => {
+// Pre-construction periods (zero activity) — extend back to 2027 so the chart
+// makes clear construction starts in 2029, not earlier. The 2026-2028 figures
+// in our earlier analysis were the hypothetical old schedule (ADR-0026: never executed).
+const PRE_CONSTRUCTION = [
+  '2027 Q1','2027 Q2','2027 Q3','2027 Q4',
+  '2028 Q1','2028 Q2','2028 Q3','2028 Q4',
+].map(period => ({ period, spend: 0, vat: 0, refund: 0 }))
+
+// Construction + refund periods derived from ROWS (stays in sync with the table).
+// spend = construction cost excl. VAT  (= vatPaid / 0.24, VAT rate 24%)
+const CONSTRUCTION_DATA = ROWS.map(r => {
   const [q, yr] = r.quarter.split('-')
   return {
     period: `${yr} ${q}`,
-    capex:  r.vatPaid  > 0 ? Math.round(r.vatPaid  / 0.24 / 1000) : 0,
+    spend:  r.vatPaid > 0 ? Math.round(r.vatPaid / 0.24 / 1000) : 0,
     vat:    Math.round(r.vatPaid  / 1000),
     refund: Math.round(r.vatRefund / 1000),
-    float:  Math.round(r.netFloat / 1000),
   }
 })
+
+const CHART_DATA = [...PRE_CONSTRUCTION, ...CONSTRUCTION_DATA]
 
 // Table value formatter — module-level to avoid recreation on every render.
 const fmt = (n: number) => '€' + n.toLocaleString('en-GB')
@@ -56,10 +65,17 @@ export function ConstructionVatCashflow() {
 
       {/* dir="ltr" prevents chart mirroring in Hebrew locale */}
       <div dir="ltr" className="mb-6">
-        <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={CHART_DATA} margin={{ top: 8, right: 16, left: 4, bottom: 8 }}>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={CHART_DATA} margin={{ top: 8, right: 16, left: 4, bottom: 36 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-            <XAxis dataKey="period" tick={{ fontSize: 10 }} />
+            <XAxis
+              dataKey="period"
+              tick={{ fontSize: 9 }}
+              interval={0}
+              angle={-40}
+              textAnchor="end"
+              height={56}
+            />
             <YAxis
               tickFormatter={(v: number) => `€${v}K`}
               tick={{ fontSize: 9 }}
@@ -69,9 +85,9 @@ export function ConstructionVatCashflow() {
               formatter={(value, name) => [`€${Number(value)}K`, String(name)]}
               contentStyle={{ borderRadius: 8, border: '1px solid #EDE6D5', fontSize: 12 }}
             />
-            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
 
-            {/* Covenant threshold */}
+            {/* Covenant threshold (WC facility cap) */}
             <ReferenceLine
               y={COVENANT_K}
               stroke="#B45309"
@@ -79,33 +95,40 @@ export function ConstructionVatCashflow() {
               label={{ value: t('bank.vatCashflow.chart.covenantLabel'), position: 'insideTopRight', fontSize: 9, fill: '#B45309' }}
             />
 
-            {/* Stacked bars: construction spend (blue) + VAT on top (amber) = total invoice outflow */}
-            <Bar dataKey="capex"  name={t('bank.vatCashflow.chart.capexBar')}  stackId="spend" fill="#3B82F6" />
-            <Bar dataKey="vat"    name={t('bank.vatCashflow.chart.vatBar')}    stackId="spend" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-
-            {/* Green bars for AADE refund quarters */}
-            <Bar dataKey="refund" name={t('bank.vatCashflow.chart.refundBar')} fill="#10B981" radius={[4, 4, 4, 4]} />
-
-            {/* Red line: running net VAT float (outstanding obligation) */}
+            {/* Line 1 — construction spend excl. VAT (blue) */}
             <Line
               type="monotone"
-              dataKey="float"
-              name={t('bank.vatCashflow.chart.floatLine')}
-              stroke="#EF4444"
+              dataKey="spend"
+              name={t('bank.vatCashflow.chart.capexBar')}
+              stroke="#3B82F6"
               strokeWidth={2.5}
-              dot={{ r: 4, fill: '#EF4444' }}
+              dot={{ r: 3, fill: '#3B82F6' }}
+              activeDot={{ r: 5 }}
             />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
 
-      <div className="mb-5 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3">
-        <p className="text-xs font-semibold text-amber-800 mb-1">
-          {t('bank.vatCashflow.chart.insightHeading')}
-        </p>
-        <p className="text-xs text-amber-700 leading-relaxed">
-          {t('bank.vatCashflow.chart.insightBody')}
-        </p>
+            {/* Line 2 — VAT paid on that spend (amber) */}
+            <Line
+              type="monotone"
+              dataKey="vat"
+              name={t('bank.vatCashflow.chart.vatBar')}
+              stroke="#F59E0B"
+              strokeWidth={2.5}
+              dot={{ r: 3, fill: '#F59E0B' }}
+              activeDot={{ r: 5 }}
+            />
+
+            {/* Line 3 — AADE refund received (green) */}
+            <Line
+              type="monotone"
+              dataKey="refund"
+              name={t('bank.vatCashflow.chart.refundBar')}
+              stroke="#10B981"
+              strokeWidth={2.5}
+              dot={{ r: 3, fill: '#10B981' }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
 
       <div className="overflow-x-auto">
