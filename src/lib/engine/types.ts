@@ -397,6 +397,17 @@ export interface TaxAssumptions {
    */
   otaShareByYear?: Record<number, number>;
   /**
+   * Maximum direct-booking share (progression mode cap). E.g. 0.35 = direct never exceeds 35%.
+   * Applied to the auto-progression formula; ignored in manual mode.
+   */
+  otaShareCap?: number;
+  /**
+   * Channel mix input mode. 'progression' uses the 3-scalar formula with optional cap;
+   * 'manual' uses otaShareByYear for per-year overrides entered directly in the UI.
+   * Default: 'progression'.
+   */
+  channelMixMode?: 'progression' | 'manual';
+  /**
    * Number of years corporate tax losses can be carried forward.
    * Greek law default: 5 years (Law 4172/2013 Art. 27).
    */

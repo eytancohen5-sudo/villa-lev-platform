@@ -586,14 +586,19 @@ export const fr = {
   'field.citRate': 'Taux d\'impôt sur les sociétés',
   'field.vatRate': 'Taux de TVA net (effectif)',
   'as.otaDistribution': 'OTA Distribution', // TODO: translate
-  'as.otaDistribution.note': 'Effective rate = commission × OTA share. OTA share 1 = 100% via OTA; 0 = 100% direct.', // TODO: translate
-  'as.otaDistribution.yearHeader': 'Année', // TODO: translate
-  'as.otaDistribution.commissionHeader': 'Commission OTA', // TODO: translate
-  'as.otaDistribution.otaShareHeader': 'Part OTA', // TODO: translate
-  'as.otaDistribution.effectiveHeader': 'Taux effectif', // TODO: translate
-  'field.otaCommissionRate': 'OTA platform commission (scalar fallback)', // TODO: translate
-  'field.otaShare': 'OTA share — opening year', // TODO: translate
-  'field.otaShareDecline': 'Direct channel growth (per year)', // TODO: translate
+  'as.otaDistribution.note': 'Taux effectif = commission × part OTA. La part OTA diminue au fil des ans.', // TODO: translate
+  'as.otaDistribution.noteManual': 'Manuel — entrez le % de réservation directe par année.', // TODO: translate
+  'as.otaDistribution.yearHeader': 'Année',
+  'as.otaDistribution.commissionHeader': 'Commission OTA',
+  'as.otaDistribution.otaShareHeader': 'Part OTA',
+  'as.otaDistribution.directHeader': 'Direct',
+  'as.otaDistribution.effectiveHeader': 'Taux effectif',
+  'as.otaDistribution.modeProgression': 'Progression',
+  'as.otaDistribution.modeManual': 'Manuel',
+  'field.otaCommissionRate': 'Commission plateforme OTA', // TODO: translate
+  'field.otaShare': 'Part OTA — Année 1', // TODO: translate
+  'field.otaShareDecline': 'Croissance canal direct (par an)', // TODO: translate
+  'field.otaShareCap': 'Plafond réservation directe (max %)', // TODO: translate
   'field.villaADR': 'TJM villa — net mixte (€/nuit)',
   'field.villaNights': 'Nuitées villa / an (base, maturité)',
   'field.stdSuiteADR': 'TJM suite standard (€/nuit)',

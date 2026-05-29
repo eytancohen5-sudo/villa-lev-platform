@@ -1236,7 +1236,10 @@ function computeScenario(
     const otaShareBase    = a.tax.otaShare ?? 1.0;
     const otaShareDecline = a.tax.otaShareDeclinePerYear ?? 0;
     const yearsSinceOpening = Math.max(0, year - OPENING_YEAR);
-    const otaShareAuto = Math.max(0, otaShareBase - yearsSinceOpening * otaShareDecline);
+    const directShareGrown = Math.min(1, Math.max(0, (1 - otaShareBase) + yearsSinceOpening * otaShareDecline));
+    const directShareCap = a.tax.otaShareCap;
+    const directShareCapped = directShareCap !== undefined ? Math.min(directShareCap, directShareGrown) : directShareGrown;
+    const otaShareAuto = Math.max(0, 1 - directShareCapped);
     const otaShare = a.tax.otaShareByYear?.[year] ?? otaShareAuto;
     const effectiveOtaRate = commissionRate * otaShare;
     const grossRevenue = effectiveOtaRate > 0 && year > HORIZON_START_YEAR + 1

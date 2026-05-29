@@ -540,13 +540,18 @@ export interface TranslationDictionary {
   'field.vatRate': string;
   'as.otaDistribution': string;
   'as.otaDistribution.note': string;
+  'as.otaDistribution.noteManual': string;
   'as.otaDistribution.yearHeader': string;
   'as.otaDistribution.commissionHeader': string;
   'as.otaDistribution.otaShareHeader': string;
+  'as.otaDistribution.directHeader': string;
   'as.otaDistribution.effectiveHeader': string;
+  'as.otaDistribution.modeProgression': string;
+  'as.otaDistribution.modeManual': string;
   'field.otaCommissionRate': string;
   'field.otaShare': string;
   'field.otaShareDecline': string;
+  'field.otaShareCap': string;
   'field.villaADR': string;
   'field.villaNights': string;
   'field.stdSuiteADR': string;

@@ -1332,7 +1332,7 @@ export default function AssumptionsPage() {
     if (tab !== 'optima') return;
     setFinancingPathOverride('optima');
     return () => {
-      setFinancingPathOverride('commercial');
+      setFinancingPathOverride(null);
     };
   }, [tab, setFinancingPathOverride]);
 
@@ -2904,6 +2904,12 @@ export default function AssumptionsPage() {
                               <span className="text-text-tertiary">Loan ({((a.optimaLoan?.loanCoverageRate ?? 0.70) * 100).toFixed(0)}% LTC)</span>
                               <span className="font-mono font-medium text-brand-600">
                                 {formatCurrency(loan, true, locale)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-text-tertiary">EBITDA margin</span>
+                              <span className="font-mono font-medium text-text-primary">
+                                {stabYear ? formatPercent(stabYear.ebitdaMargin) : '—'}
                               </span>
                             </div>
                             <div className="flex justify-between text-sm">
