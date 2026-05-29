@@ -2121,5 +2121,13 @@ export interface TranslationDictionary {
   'bank.optima.constructionBase': string;
   'bank.optima.constructionBasis': string;
   'bank.optima.budgetTotal': string;
+  // ── CAPEX uplift sensitivity tool (ephemeral, /bank/optima only) ──
+  'bank.optima.upliftTool': string;
+  'bank.optima.upliftSub': string;
+  'bank.optima.upliftLabel': string;
+  'bank.optima.upliftModeAbs': string;
+  'bank.optima.upliftModePct': string;
+  'bank.optima.upliftExtraLoan': string;
+  'bank.optima.upliftNewEquity': string;
   'as.optimaTab': string;
 }

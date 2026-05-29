@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import {
   ModelAssumptions,
   ModelOutput,
+  CapexBreakdown,
   FinancingPath,
   PropertyTemplate,
   ProjectAllocation,
@@ -23,7 +24,8 @@ import {
   DEFAULT_PORTFOLIO_OPEX,
   ensurePortfolioOpex,
 } from '../engine/defaults';
-import { computeModel } from '../engine/model';
+import { computeModel, computeCapex } from '../engine/model';
+import { applyCapexUplift } from '../engine/capexUplift';
 import {
   CapTableStakeholder,
   WaterfallParams,
@@ -805,6 +807,13 @@ interface ModelStore {
   clearAllStressTestOverrides: () => void;
   deactivateStressTest: () => void;
 
+  // Ephemeral CAPEX uplift sensitivity for /bank/optima only.
+  // null = inactive; positive number = EUR uplift applied to construction cost.
+  // Never persisted. Cleared when the optima page unmounts (via bank/layout.tsx).
+  capexUpliftEur: number | null;
+  setCapexUplift: (upliftEur: number) => void;
+  clearCapexUplift: () => void;
+
   // Templates & Projects
   templates: PropertyTemplate[];
   projects: ProjectAllocation[];
@@ -1035,6 +1044,17 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     set({ stressTestOverrides: null });
     get().recompute();
   },
+
+  capexUpliftEur: null,
+  setCapexUplift: (upliftEur: number) => {
+    set({ capexUpliftEur: upliftEur });
+    get().recompute();
+  },
+  clearCapexUplift: () => {
+    set({ capexUpliftEur: null });
+    get().recompute();
+  },
+
   templates: [...BUILT_IN_TEMPLATES],
   projects: DEFAULT_PROJECTS.map((p) => ({ ...p })),
   savedConfigs: [],
@@ -1349,12 +1369,21 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         ) as unknown as ModelAssumptions;
       }
     }
+    // Apply ephemeral CAPEX uplift (Optima page only — never persisted).
+    // Only injected when the active path resolves to 'optima'.
+    let capexOverride: CapexBreakdown | undefined;
+    const activePath = (state.financingPathOverride ?? assumptions.financingPath) as FinancingPath;
+    if (activePath === 'optima' && state.capexUpliftEur !== null && state.capexUpliftEur > 0) {
+      const rawCapex = computeCapex(assumptions);
+      capexOverride = applyCapexUplift(rawCapex, state.capexUpliftEur);
+    }
+
     // Apply viewMode override (banker routes, admin toggle, banker
     // impersonation). When null we fall through to assumptions.viewMode
     // (which defaults to 'internal' via BASE_CASE).
     const computed = state.viewModeOverride
-      ? computeModel({ ...assumptions, viewMode: state.viewModeOverride })
-      : computeModel(assumptions);
+      ? computeModel({ ...assumptions, viewMode: state.viewModeOverride }, capexOverride)
+      : computeModel(assumptions, capexOverride);
     set({ assumptions: { ...state.assumptions, portfolio }, model: computed, loading: false, computeTimeMs: computed.computeTimeMs });
   },
 

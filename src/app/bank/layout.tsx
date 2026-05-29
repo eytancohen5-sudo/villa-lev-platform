@@ -8,7 +8,7 @@ import { usePresence } from "@/lib/data/usePresence";
 import { useReferenceScenarioAutoLoad } from "@/lib/hooks/useReferenceScenarioAutoLoad";
 
 export default function BankLayout({ children }: { children: React.ReactNode }) {
-  const { init, setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest } = useModelStore();
+  const { init, setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest, clearCapexUplift } = useModelStore();
   useReferenceScenarioAutoLoad();
   usePresence();
 
@@ -35,8 +35,9 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
       setViewModeOverride(null);
       setFinancingPathOverride(null);
       deactivateStressTest();
+      clearCapexUplift();
     };
-  }, [setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest]);
+  }, [setViewModeOverride, setFinancingPathOverride, initStressTestOverrides, deactivateStressTest, clearCapexUplift]);
 
   return (
     <BankGate>

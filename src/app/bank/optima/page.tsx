@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -10,6 +10,7 @@ import type { OptimaCapResult } from "@/lib/engine/model";
 import { BankPnLSection } from "@/components/BankPnLSection";
 import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
+import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { useEuribor } from "@/lib/hooks/useEuribor";
 import Link from "next/link";
@@ -42,23 +43,44 @@ function MetricCell({
 
 export default function OptimaPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, setCapexLineAbsorption } = useModelStore();
+  const { model, assumptions, setFinancingPathOverride, setOptimaEuriborRate, setCapexLineAbsorption, capexUpliftEur, clearCapexUplift } = useModelStore();
   const [activeTab, setActiveTab] = useState<TabSide>('A');
+
+  // Refs to capture baseline values before any uplift is applied (Fix 4).
+  const baselineLoanRef = useRef<number>(0);
+  const baseCapexRef = useRef<number>(0);
 
   // Override financing path to 'optima' for the duration of this page.
   // The layout sets 'commercial' on mount; this overrides that.
+  // Also clear the ephemeral CAPEX uplift on unmount.
   useEffect(() => {
     setFinancingPathOverride("optima");
     return () => {
       setFinancingPathOverride("commercial");
+      clearCapexUplift();
     };
-  }, [setFinancingPathOverride]);
+  }, [setFinancingPathOverride, clearCapexUplift]);
 
   // Live Euribor feed (client-side, ECB SDMX)
   const euribor = useEuribor();
   useEffect(() => {
     if (euribor.rate !== null) setOptimaEuriborRate(euribor.rate);
   }, [euribor.rate, setOptimaEuriborRate]);
+
+  // Capture baseline loan + CAPEX whenever the uplift is null (Fix 4).
+  // This freezes the pre-uplift reference so the delta strip can compute
+  // "extra loan vs baseline" correctly without double-counting.
+  // We need to read tabData here but it is computed below the guard —
+  // use the portfolio-level optimaLoanAmount as a proxy for the baseline
+  // and store it; the page passes the per-tab fraction via tabData.tabLoan.
+  const modelCapexPortfolioTotal = model?.capex.portfolioTotal ?? 0;
+  useEffect(() => {
+    if (capexUpliftEur !== null) return;
+    // baseline per-tab loan is computed below in getTabData; we snapshot
+    // portfolioTotal here and let the JSX pass the resolved tabLoan value.
+    baseCapexRef.current = modelCapexPortfolioTotal;
+    // baselineLoanRef is updated in JSX-side via a stable snapshot — see mount below.
+  }, [capexUpliftEur, modelCapexPortfolioTotal]);
 
   if (!model) {
     return (
@@ -219,6 +241,14 @@ export default function OptimaPage() {
   }
 
   const tabData = getTabData(activeTab);
+
+  // Freeze baseline loan ref whenever there is no active uplift (Fix 4).
+  // This is a synchronous ref update (not state), so it has no render cost.
+  if (capexUpliftEur === null) {
+    baselineLoanRef.current = tabData.tabLoan;
+    baseCapexRef.current = model.capex.portfolioTotal;
+  }
+
   const dscrPass = tabData.tabDSCR >= dscrCovenant;
 
   const tabLabels: Record<TabSide, string> = {
@@ -689,6 +719,19 @@ export default function OptimaPage() {
       {/* Construction VAT Cashflow */}
       <div className="mb-6">
         <ConstructionVatCashflow />
+      </div>
+
+      {/* CAPEX Sensitivity (uplift tool — ephemeral, not persisted) */}
+      <div className="mb-6 print:hidden" id="optima-capex-sensitivity">
+        <h3 className="text-sm font-semibold text-text-primary mb-3">
+          {t("bank.optima.upliftTool")}
+        </h3>
+        <CapexUpliftControl
+          baseCapexEur={baseCapexRef.current}
+          baselineLoanEur={baselineLoanRef.current}
+          currentLoanEur={tabData.tabLoan}
+          currentDscr={tabData.tabDSCR}
+        />
       </div>
 
       {/* Cash-Flow Stress Test */}

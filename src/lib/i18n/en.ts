@@ -2125,5 +2125,12 @@ export const en: TranslationDictionary = {
   'bank.optima.constructionBase': 'Construction base',
   'bank.optima.constructionBasis': 'Construction basis (bank view)',
   'bank.optima.budgetTotal': 'Total CAPEX budget',
+  'bank.optima.upliftTool': 'CAPEX Sensitivity',
+  'bank.optima.upliftSub': 'Model a construction cost overrun. Not saved.',
+  'bank.optima.upliftLabel': 'CAPEX uplift',
+  'bank.optima.upliftModeAbs': '€k absolute',
+  'bank.optima.upliftModePct': '% of base',
+  'bank.optima.upliftExtraLoan': 'Extra loan vs baseline',
+  'bank.optima.upliftNewEquity': 'Net new equity needed',
   'as.optimaTab': 'Optima Bank',
 };

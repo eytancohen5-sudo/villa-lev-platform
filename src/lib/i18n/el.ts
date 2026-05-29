@@ -2155,5 +2155,12 @@ export const el: TranslationDictionary = {
   'bank.optima.constructionBase': 'Construction base',
   'bank.optima.constructionBasis': 'Construction basis (bank view)',
   'bank.optima.budgetTotal': 'Total CAPEX budget',
+  'bank.optima.upliftTool': 'Ευαισθησία CAPEX',
+  'bank.optima.upliftSub': 'Προσομοίωση υπέρβασης κατασκευαστικού κόστους. Δεν αποθηκεύεται.',
+  'bank.optima.upliftLabel': 'Αύξηση CAPEX',
+  'bank.optima.upliftModeAbs': '€k απόλυτα',
+  'bank.optima.upliftModePct': '% βάσης',
+  'bank.optima.upliftExtraLoan': 'Επιπλέον δάνειο vs βάση',
+  'bank.optima.upliftNewEquity': 'Νέα καθαρή ίδια κεφάλαια',
   'as.optimaTab': 'Optima Bank',
 };

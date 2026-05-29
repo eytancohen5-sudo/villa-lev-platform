@@ -189,7 +189,7 @@ function computeCapexPerUnit(
   );
 }
 
-function computeCapex(a: ModelAssumptions): CapexBreakdown {
+export function computeCapex(a: ModelAssumptions): CapexBreakdown {
   const totalPlots = a.portfolio.reduce((sum, p) => sum + p.count, 0);
 
   // Acquisition legal accounting mode:
@@ -1995,10 +1995,10 @@ function computeScenario(
 // MAIN COMPUTE
 // ────────────────────────────────────────────
 
-export function computeModel(a: ModelAssumptions): ModelOutput {
+export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown): ModelOutput {
   const startTime = performance.now();
 
-  const capex = computeCapex(a);
+  const capex = capexOverride ?? computeCapex(a);
 
   const commercialDebt = computeDebtService(a, capex, 'commercial');
   const grantDebt = computeDebtService(a, capex, 'grant');
