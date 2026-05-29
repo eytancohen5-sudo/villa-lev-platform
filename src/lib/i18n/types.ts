@@ -497,6 +497,10 @@ export interface TranslationDictionary {
   'as.portfolioOpex.poolCostPerUnit': string;
   'as.portfolioOpex.poolPerPoolYear': string;
   'as.portfolioOpex.colAnnual': string;
+  'as.portfolioOpex.allocateToggle': string;
+  'as.portfolioOpex.allocateHeader': string;
+  'as.portfolioOpex.allocateHint': string;
+  'as.portfolioOpex.allocateNoProjects': string;
   'as.capexTab': string;
   'as.selectPath': string;
   'as.activeParams': string;
@@ -1150,6 +1154,7 @@ export interface TranslationDictionary {
   'bank.ramp.discountBody': string;
 
   // ── BankPnLSection full i18n (2026-05-23) ──
+  'bank.pnl.subProjectNote': string;
   'pnl.revenue': string;
   'pnl.gopPreMgmt': string;
   'pnl.opcoFeeBreakdown': string;

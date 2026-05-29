@@ -469,6 +469,9 @@ export interface StaffRole {
   yearRound: boolean;
   seasonalMonths?: number;  // calendar months for seasonal roles (mirrors monthsPaid for seasonal)
   headcount?: number;       // number of workers in this role, default 1 (applies to all role types)
+  /** Per-project allocation fractions (0–1). Key = PropertyConfig.id.
+   *  Absence or empty map = unallocated. Need not sum to 1. */
+  projectAllocations?: Record<string, number>;
 }
 
 export interface SharedServiceLine {
@@ -479,6 +482,9 @@ export interface SharedServiceLine {
   // instead of annualCost. Pool R&M is the exception: it uses PortfolioOpex.poolCount/poolCostPerUnit.
   unitCount?: number;    // number of units (e.g. pools) driving the cost
   costPerUnit?: number;  // €/unit/year
+  /** Per-project allocation fractions (0–1). Key = PropertyConfig.id.
+   *  Absence or empty map = unallocated. Need not sum to 1. */
+  projectAllocations?: Record<string, number>;
 }
 
 export interface PortfolioOpex {
@@ -503,6 +509,11 @@ export interface PortfolioOpexOutput {
   total: number;
   yearRoundFixed: number; // staffTotal + overheadTotal — bank "fixed cost spine"
   variable: number;       // servicesTotal
+  /** Allocated cost per project, keyed by PropertyConfig.id.
+   *  Sum of each line's resolvedCost × projectAllocations[id].
+   *  Undefined when no line carries any non-zero allocation.
+   *  Total of values MAY be less than `total` (unallocated remainder OK). */
+  allocatedByProject?: Record<string, number>;
 }
 
 // ── Model Input ──

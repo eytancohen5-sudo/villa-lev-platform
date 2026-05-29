@@ -852,6 +852,7 @@ export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumpt
     portfolioOpex: {
       ...d,
       ...(po ?? {}),
+      // projectAllocations is optional on each role/service/overhead — absence means unallocated. No backfill needed.
       staffRoles:   mergedRoles,
       sharedServices: po?.sharedServices?.length ? po.sharedServices : d.sharedServices,
       sharedOverhead: po?.sharedOverhead?.length ? po.sharedOverhead : d.sharedOverhead,

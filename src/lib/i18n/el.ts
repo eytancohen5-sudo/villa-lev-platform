@@ -757,6 +757,10 @@ export const el: TranslationDictionary = {
   'as.portfolioOpex.poolPerPoolYear': '(υλικά + υπηρεσία)',
  
   'as.portfolioOpex.colAnnual': 'Ετήσιο (με βαρύνσεις)',
+  'as.portfolioOpex.allocateToggle': 'Κατανομή',
+  'as.portfolioOpex.allocateHeader': 'Κατανομή ανά έργο',
+  'as.portfolioOpex.allocateHint': 'Εισάγετε % που αποδίδεται σε κάθε έργο. Δεν χρειάζεται να ισούται με 100%.',
+  'as.portfolioOpex.allocateNoProjects': 'Δεν υπάρχουν ορισμένα έργα',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Επιλέξτε την ενεργή δομή χρηματοδότησης. Ολόκληρο το μοντέλο επανυπολογίζεται βάσει της επιλεγμένης δομής.',
   'as.activeParams': 'Παράμετροι ενεργής δομής',
@@ -1278,6 +1282,7 @@ export const el: TranslationDictionary = {
   'bank.ramp.discountBody': 'Τα εισερχόμενα αιτήματα ήδη υπερβαίνουν τις διαθέσιμες χωρητικότητες — αυτές οι προβολές αντιπροσωπεύουν ένα σχεδόν χειρότερο σενάριο εναρκτήριας λειτουργίας.',
 
   // ── BankPnLSection full i18n (2026-05-23) ──
+  'bank.pnl.subProjectNote': 'Τιμές αναλογικά στο μερίδιο CAPEX {label} ({pct}%)',
   'pnl.revenue': 'Έσοδα',
   'pnl.gopPreMgmt': 'GOP / EBITDA προ αμοιβών διαχείρισης',
   'pnl.opcoFeeBreakdown': 'Ανάλυση αμοιβών OpCo',

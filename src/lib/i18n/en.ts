@@ -716,6 +716,10 @@ export const en: TranslationDictionary = {
   'as.portfolioOpex.poolCostPerUnit': '€/pool/yr',
   'as.portfolioOpex.poolPerPoolYear': '(materials + service)',
   'as.portfolioOpex.colAnnual': 'Annual (burdened)',
+  'as.portfolioOpex.allocateToggle': 'Allocate',
+  'as.portfolioOpex.allocateHeader': 'Project allocation',
+  'as.portfolioOpex.allocateHint': 'Enter % attributed to each project. Need not sum to 100%.',
+  'as.portfolioOpex.allocateNoProjects': 'No projects defined',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Select the active financing structure. The entire model recalculates based on the selected path.',
   'as.activeParams': 'Active Path Parameters',
@@ -1269,6 +1273,7 @@ export const en: TranslationDictionary = {
   'bank.ramp.discountBody': 'Inbound requests already exceed available inventory for this period — these projections represent a near-worst-case opening scenario.',
 
   // ── BankPnLSection full i18n (2026-05-23) ──
+  'bank.pnl.subProjectNote': 'Values proportional to {label} CAPEX share ({pct}%)',
   'pnl.revenue': 'Revenue',
   'pnl.gopPreMgmt': 'GOP / EBITDA pre-management fees',
   'pnl.opcoFeeBreakdown': 'OpCo fee breakdown',

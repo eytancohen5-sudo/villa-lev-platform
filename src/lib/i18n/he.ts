@@ -706,6 +706,10 @@ export const he: TranslationDictionary = {
   'as.portfolioOpex.poolCostPerUnit': '€/בריכה/שנה',
   'as.portfolioOpex.poolPerPoolYear': '(חומרים + שירות)',
   'as.portfolioOpex.colAnnual': 'שנתי (עם נטל)',
+  'as.portfolioOpex.allocateToggle': 'הקצאה',
+  'as.portfolioOpex.allocateHeader': 'הקצאה לפרויקט',
+  'as.portfolioOpex.allocateHint': 'הכניסו % המיוחס לכל פרויקט. אינו חייב לסכום ל-100%.',
+  'as.portfolioOpex.allocateNoProjects': 'לא הוגדרו פרויקטים',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'בחרו את מבנה המימון הפעיל. כל המודל מחושב מחדש על בסיס המסלול הנבחר.',
   'as.activeParams': 'פרמטרים של המסלול הפעיל',
@@ -1227,6 +1231,7 @@ export const he: TranslationDictionary = {
   'bank.ramp.discountBody': 'בקשות נכנסות כבר עולות על המלאי הזמין לתקופה זו — תחזיות אלו מייצגות תרחיש פתיחה קרוב לגרוע ביותר.',
 
   // ── BankPnLSection full i18n (2026-05-23) ──
+  'bank.pnl.subProjectNote': 'ערכים יחסיים לחלק ה-CAPEX של {label} ({pct}%)',
   'pnl.revenue': 'הכנסות',
   'pnl.gopPreMgmt': 'GOP / EBITDA לפני דמי ניהול',
   'pnl.opcoFeeBreakdown': 'פירוט עמלות OpCo',

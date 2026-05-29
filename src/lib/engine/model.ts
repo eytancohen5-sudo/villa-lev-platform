@@ -969,6 +969,61 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
       : 0;
 
   const total = staffTotal + servicesTotal + overheadTotal + preOpeningAmort;
+
+  // ── Per-project allocation accumulator ──────────────────────────────────
+  // Accumulate resolvedCost × fraction for each line that carries projectAllocations.
+  // Pre-opening amort is portfolio-wide (no per-project split).
+  const allocAccumulator: Record<string, number> = {};
+  let hasAnyAllocation = false;
+
+  // Staff roles
+  for (const role of po.staffRoles) {
+    if (!role.projectAllocations || Object.keys(role.projectAllocations).length === 0) continue;
+    const count = role.headcount ?? 1;
+    const baseMonths = role.yearRound
+      ? role.monthsPaid
+      : (role.seasonalMonths ?? role.monthsPaid);
+    const bonusM = baseMonths * (2 / 12);
+    const effectiveMonths = baseMonths + bonusM;
+    const resolvedCost = role.monthlyGross * effectiveMonths * role.burdenMultiplier * count + role.allowances * count;
+    for (const [projId, fraction] of Object.entries(role.projectAllocations)) {
+      if (!fraction) continue;
+      hasAnyAllocation = true;
+      allocAccumulator[projId] = (allocAccumulator[projId] ?? 0) + resolvedCost * fraction;
+    }
+  }
+
+  // Shared services
+  for (const s of po.sharedServices) {
+    if (!s.projectAllocations || Object.keys(s.projectAllocations).length === 0) continue;
+    let resolvedCost: number;
+    if (s.name === 'Pool R&M') {
+      resolvedCost = poolRMCost;
+    } else if (s.unitCount !== undefined && s.costPerUnit !== undefined) {
+      resolvedCost = s.unitCount * s.costPerUnit;
+    } else {
+      resolvedCost = s.annualCost;
+    }
+    for (const [projId, fraction] of Object.entries(s.projectAllocations)) {
+      if (!fraction) continue;
+      hasAnyAllocation = true;
+      allocAccumulator[projId] = (allocAccumulator[projId] ?? 0) + resolvedCost * fraction;
+    }
+  }
+
+  // Shared overhead
+  for (const line of po.sharedOverhead) {
+    if (!line.projectAllocations || Object.keys(line.projectAllocations).length === 0) continue;
+    const resolvedCost = line.annualCost;
+    for (const [projId, fraction] of Object.entries(line.projectAllocations)) {
+      if (!fraction) continue;
+      hasAnyAllocation = true;
+      allocAccumulator[projId] = (allocAccumulator[projId] ?? 0) + resolvedCost * fraction;
+    }
+  }
+
+  const allocatedByProject = hasAnyAllocation ? allocAccumulator : undefined;
+
   return {
     staffTotal,
     servicesTotal,
@@ -977,6 +1032,7 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
     total,
     yearRoundFixed: staffTotal + overheadTotal,
     variable: servicesTotal,
+    allocatedByProject,
   };
 }
 

@@ -10,6 +10,7 @@ import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { ASSUMPTIONS_TOUR } from "@/lib/tours/configs";
+import { AllocationEditor } from "@/components/AllocationEditor";
 import { FinancingPath, PropertyTemplate, VillaRoom, CustomLine, CustomCapexLine, PoolSlot, getPropertyDisplayType, computeTotalArea, computeVillaUnitArea, StaffRole, SharedServiceLine } from "@/lib/engine/types";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms } from "@/lib/engine/bedroomKeys";
 import { resolvePortfolio } from "@/lib/engine/defaults";
@@ -1317,6 +1318,9 @@ export default function AssumptionsPage() {
     "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra"
   >("portfolio");
   const [newTemplateId, setNewTemplateId] = useState<string | null>(null);
+  const [staffAllocExpanded, setStaffAllocExpanded] = useState<Record<number, boolean>>({});
+  const [serviceAllocExpanded, setServiceAllocExpanded] = useState<Record<number, boolean>>({});
+  const [overheadAllocExpanded, setOverheadAllocExpanded] = useState<Record<number, boolean>>({});
 
   // ── Reference scenario (admin-designated default) ──
   // Live-subscribe to appConfig/current. On first hydration where the
@@ -2250,54 +2254,77 @@ export default function AssumptionsPage() {
                       const effectiveMonths = baseMonths + bonusM; // = baseMonths × (14/12)
                       const holidayBonus = role.monthlyGross * (role.monthsPaid / 12) * 2;
                       const annualBurdened = role.monthlyGross * effectiveMonths * role.burdenMultiplier * count + role.allowances * count;
+                      const hasStaffAlloc = Object.values(role.projectAllocations ?? {}).some(v => v > 0);
                       return (
-                        <tr key={idx} className="border-b border-surface-secondary/40">
-                          <td className="py-1.5 pr-2">
-                            <input
-                              type="text"
-                              value={role.name}
-                              onChange={(e) => updatePortfolioStaffRole(idx, { ...role, name: e.target.value })}
-                              className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
-                            />
-                          </td>
-                          <td className="py-1.5 pr-2">
-                            <EditableCell value={role.monthlyGross} format="currency" label={role.name} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, monthlyGross: v })} />
-                          </td>
-                          <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-tertiary" title={t('as.portfolioOpex.colNetMonthlyTooltip')}>
-                            {formatCurrency(estimateGreekNetMonthly(role.monthlyGross), false, locale)}
-                          </td>
-                          <td className="py-1.5 pr-2">
-                            <EditableCell value={role.headcount ?? 1} format="number" label={t('as.portfolioOpex.colHeadcount')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, headcount: Math.max(1, Math.round(v)) })} />
-                          </td>
-                          <td className="py-1.5 pr-2">
-                            <EditableCell value={role.monthsPaid} format="number" label={t('as.portfolioOpex.colMonths')} onChange={(v) => {
-                              // Keep seasonalMonths in sync (holiday bonus is formula-derived from monthsPaid, no separate update needed)
-                              const update: Partial<typeof role> = { monthsPaid: v };
-                              if (!role.yearRound) update.seasonalMonths = v;
-                              updatePortfolioStaffRole(idx, { ...role, ...update });
-                            }} />
-                          </td>
-                          <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-secondary" title={t('as.portfolioOpex.colBonusTooltip')}>
-                            {formatCurrency(holidayBonus, false, locale)}
-                          </td>
-                          <td className="py-1.5 pr-2">
-                            <EditableCell value={role.burdenMultiplier} format="number" label={t('as.portfolioOpex.colBurden')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, burdenMultiplier: v })} />
-                          </td>
-                          <td className="py-1.5 pr-2">
-                            <EditableCell value={role.allowances} format="currency" label={t('as.portfolioOpex.colAllowances')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, allowances: v })} />
-                          </td>
-                          <td className="py-1.5 text-right font-mono text-xs text-text-secondary">
-                            {formatCurrency(annualBurdened, false, locale)}
-                          </td>
-                          <td className="py-1.5 pl-2">
-                            <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded ${role.yearRound ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
-                              {role.yearRound ? t('as.portfolioOpex.roleYearRound') : t('as.portfolioOpex.roleSeasonal')}
-                            </span>
-                          </td>
-                          <td className="py-1.5 pl-1">
-                            <button type="button" onClick={() => removePortfolioStaffRole(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
-                          </td>
-                        </tr>
+                        <>
+                          <tr key={idx} className="border-b border-surface-secondary/40">
+                            <td className="py-1.5 pr-2">
+                              <input
+                                type="text"
+                                value={role.name}
+                                onChange={(e) => updatePortfolioStaffRole(idx, { ...role, name: e.target.value })}
+                                className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                              />
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <EditableCell value={role.monthlyGross} format="currency" label={role.name} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, monthlyGross: v })} />
+                            </td>
+                            <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-tertiary" title={t('as.portfolioOpex.colNetMonthlyTooltip')}>
+                              {formatCurrency(estimateGreekNetMonthly(role.monthlyGross), false, locale)}
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <EditableCell value={role.headcount ?? 1} format="number" label={t('as.portfolioOpex.colHeadcount')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, headcount: Math.max(1, Math.round(v)) })} />
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <EditableCell value={role.monthsPaid} format="number" label={t('as.portfolioOpex.colMonths')} onChange={(v) => {
+                                // Keep seasonalMonths in sync (holiday bonus is formula-derived from monthsPaid, no separate update needed)
+                                const update: Partial<typeof role> = { monthsPaid: v };
+                                if (!role.yearRound) update.seasonalMonths = v;
+                                updatePortfolioStaffRole(idx, { ...role, ...update });
+                              }} />
+                            </td>
+                            <td className="py-1.5 pr-2 text-right font-mono text-xs text-text-secondary" title={t('as.portfolioOpex.colBonusTooltip')}>
+                              {formatCurrency(holidayBonus, false, locale)}
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <EditableCell value={role.burdenMultiplier} format="number" label={t('as.portfolioOpex.colBurden')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, burdenMultiplier: v })} />
+                            </td>
+                            <td className="py-1.5 pr-2">
+                              <EditableCell value={role.allowances} format="currency" label={t('as.portfolioOpex.colAllowances')} onChange={(v) => updatePortfolioStaffRole(idx, { ...role, allowances: v })} />
+                            </td>
+                            <td className="py-1.5 text-right font-mono text-xs text-text-secondary">
+                              {formatCurrency(annualBurdened, false, locale)}
+                            </td>
+                            <td className="py-1.5 pl-2">
+                              <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded ${role.yearRound ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'}`}>
+                                {role.yearRound ? t('as.portfolioOpex.roleYearRound') : t('as.portfolioOpex.roleSeasonal')}
+                              </span>
+                            </td>
+                            <td className="py-1.5 pl-1">
+                              <button
+                                type="button"
+                                onClick={() => setStaffAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors mr-1 ${hasStaffAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                title={t('as.portfolioOpex.allocateToggle')}
+                              >
+                                %
+                              </button>
+                              <button type="button" onClick={() => removePortfolioStaffRole(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                            </td>
+                          </tr>
+                          {staffAllocExpanded[idx] && (
+                            <tr key={`${idx}-alloc`}>
+                              <td colSpan={11} className="pb-3 pl-8 bg-surface-secondary/30">
+                                <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1 mt-1">{t('as.portfolioOpex.allocateHeader')}</p>
+                                <AllocationEditor
+                                  lineAllocations={role.projectAllocations ?? {}}
+                                  projects={a.portfolio}
+                                  onChange={(allocs) => updatePortfolioStaffRole(idx, { ...role, projectAllocations: allocs })}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })}
                   </tbody>
@@ -2336,72 +2363,95 @@ export default function AssumptionsPage() {
                       const hasUnitPricing = !isPool && line.unitCount !== undefined && line.costPerUnit !== undefined;
                       const poolTotal = (po.poolCount ?? 17) * (po.poolCostPerUnit ?? 1500);
                       const unitTotal = hasUnitPricing ? (line.unitCount! * line.costPerUnit!) : 0;
+                      const hasServiceAlloc = Object.values(line.projectAllocations ?? {}).some(v => v > 0);
                       return (
-                        <tr key={idx} className="border-b border-surface-secondary/40">
-                          <td className="py-1.5 pr-2">
-                            <input
-                              type="text"
-                              value={line.name}
-                              onChange={(e) => updatePortfolioService(idx, { ...line, name: e.target.value })}
-                              className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
-                            />
-                          </td>
-                          <td className="py-1.5 pr-2 text-xs text-text-tertiary">
-                            {isPool ? (
-                              <span className="flex items-center gap-1.5">
-                                <EditableCell
-                                  value={po.poolCount ?? 17}
-                                  format="number"
-                                  label={t('as.portfolioOpex.poolCount')}
-                                  onChange={(v) => updatePortfolioOpexScalar('poolCount', v)}
+                        <>
+                          <tr key={idx} className="border-b border-surface-secondary/40">
+                            <td className="py-1.5 pr-2">
+                              <input
+                                type="text"
+                                value={line.name}
+                                onChange={(e) => updatePortfolioService(idx, { ...line, name: e.target.value })}
+                                className="w-full px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                              />
+                            </td>
+                            <td className="py-1.5 pr-2 text-xs text-text-tertiary">
+                              {isPool ? (
+                                <span className="flex items-center gap-1.5">
+                                  <EditableCell
+                                    value={po.poolCount ?? 17}
+                                    format="number"
+                                    label={t('as.portfolioOpex.poolCount')}
+                                    onChange={(v) => updatePortfolioOpexScalar('poolCount', v)}
+                                  />
+                                  <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
+                                  <EditableCell
+                                    value={po.poolCostPerUnit ?? 1500}
+                                    format="currency"
+                                    label={t('as.portfolioOpex.poolCostPerUnit')}
+                                    onChange={(v) => updatePortfolioOpexScalar('poolCostPerUnit', v)}
+                                  />
+                                  <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
+                                </span>
+                              ) : hasUnitPricing ? (
+                                <span className="flex items-center gap-1.5">
+                                  <EditableCell
+                                    value={line.unitCount!}
+                                    format="number"
+                                    label={t('as.portfolioOpex.poolCount')}
+                                    onChange={(v) => updatePortfolioService(idx, { ...line, unitCount: Math.max(1, Math.round(v)), annualCost: Math.round(Math.max(1, Math.round(v)) * (line.costPerUnit ?? 0)) })}
+                                  />
+                                  <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
+                                  <EditableCell
+                                    value={line.costPerUnit!}
+                                    format="currency"
+                                    label={t('as.portfolioOpex.poolCostPerUnit')}
+                                    onChange={(v) => updatePortfolioService(idx, { ...line, costPerUnit: v, annualCost: Math.round((line.unitCount ?? 1) * v) })}
+                                  />
+                                  <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
+                                </span>
+                              ) : (
+                                line.sizingBasis ?? ''
+                              )}
+                            </td>
+                            <td className="py-1.5">
+                              {isPool ? (
+                                <span className="text-right font-mono text-xs text-text-secondary block">
+                                  {formatCurrency(poolTotal, false, locale)}
+                                </span>
+                              ) : hasUnitPricing ? (
+                                <span className="text-right font-mono text-xs text-text-secondary block">
+                                  {formatCurrency(unitTotal, false, locale)}
+                                </span>
+                              ) : (
+                                <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
+                              )}
+                            </td>
+                            <td className="py-1.5 pl-1 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setServiceAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${hasServiceAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                title={t('as.portfolioOpex.allocateToggle')}
+                              >
+                                %
+                              </button>
+                              <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                            </td>
+                          </tr>
+                          {serviceAllocExpanded[idx] && (
+                            <tr key={`${idx}-alloc`}>
+                              <td colSpan={4} className="pb-3 pl-8 bg-surface-secondary/30">
+                                <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1 mt-1">{t('as.portfolioOpex.allocateHeader')}</p>
+                                <AllocationEditor
+                                  lineAllocations={line.projectAllocations ?? {}}
+                                  projects={a.portfolio}
+                                  onChange={(allocs) => updatePortfolioService(idx, { ...line, projectAllocations: allocs })}
                                 />
-                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
-                                <EditableCell
-                                  value={po.poolCostPerUnit ?? 1500}
-                                  format="currency"
-                                  label={t('as.portfolioOpex.poolCostPerUnit')}
-                                  onChange={(v) => updatePortfolioOpexScalar('poolCostPerUnit', v)}
-                                />
-                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
-                              </span>
-                            ) : hasUnitPricing ? (
-                              <span className="flex items-center gap-1.5">
-                                <EditableCell
-                                  value={line.unitCount!}
-                                  format="number"
-                                  label={t('as.portfolioOpex.poolCount')}
-                                  onChange={(v) => updatePortfolioService(idx, { ...line, unitCount: Math.max(1, Math.round(v)), annualCost: Math.round(Math.max(1, Math.round(v)) * (line.costPerUnit ?? 0)) })}
-                                />
-                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolsAt')}</span>
-                                <EditableCell
-                                  value={line.costPerUnit!}
-                                  format="currency"
-                                  label={t('as.portfolioOpex.poolCostPerUnit')}
-                                  onChange={(v) => updatePortfolioService(idx, { ...line, costPerUnit: v, annualCost: Math.round((line.unitCount ?? 1) * v) })}
-                                />
-                                <span className="text-text-tertiary">{t('as.portfolioOpex.poolPerPoolYear')}</span>
-                              </span>
-                            ) : (
-                              line.sizingBasis ?? ''
-                            )}
-                          </td>
-                          <td className="py-1.5">
-                            {isPool ? (
-                              <span className="text-right font-mono text-xs text-text-secondary block">
-                                {formatCurrency(poolTotal, false, locale)}
-                              </span>
-                            ) : hasUnitPricing ? (
-                              <span className="text-right font-mono text-xs text-text-secondary block">
-                                {formatCurrency(unitTotal, false, locale)}
-                              </span>
-                            ) : (
-                              <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioService(idx, { ...line, annualCost: v })} />
-                            )}
-                          </td>
-                          <td className="py-1.5 pl-1">
-                            <button type="button" onClick={() => removePortfolioService(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
-                          </td>
-                        </tr>
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })}
                   </tbody>
@@ -2437,32 +2487,55 @@ export default function AssumptionsPage() {
                     {po.sharedOverhead.map((line, idx) => {
                       const isBanking = line.name.includes('Banking') || line.name.includes('Payment');
                       const isInsurance = line.name.includes('Insurance');
+                      const hasOverheadAlloc = Object.values(line.projectAllocations ?? {}).some(v => v > 0);
                       return (
-                        <tr key={idx} className="border-b border-surface-secondary/40">
-                          <td className="py-1.5 pr-2">
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={line.name}
-                                onChange={(e) => updatePortfolioOverhead(idx, { ...line, name: e.target.value })}
-                                className="flex-1 px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
-                              />
-                              {isBanking && (
-                                <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.bankingTooltip')}>?</span>
-                              )}
-                              {isInsurance && (
-                                <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.insuranceTooltip')}>?</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-1.5 pr-2 text-xs text-text-tertiary">{line.sizingBasis ?? ''}</td>
-                          <td className="py-1.5">
-                            <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioOverhead(idx, { ...line, annualCost: v })} />
-                          </td>
-                          <td className="py-1.5 pl-1">
-                            <button type="button" onClick={() => removePortfolioOverhead(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
-                          </td>
-                        </tr>
+                        <>
+                          <tr key={idx} className="border-b border-surface-secondary/40">
+                            <td className="py-1.5 pr-2">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={line.name}
+                                  onChange={(e) => updatePortfolioOverhead(idx, { ...line, name: e.target.value })}
+                                  className="flex-1 px-1 py-0.5 rounded border border-transparent hover:border-surface-tertiary focus:border-blue-300 focus:outline-none text-sm bg-transparent"
+                                />
+                                {isBanking && (
+                                  <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.bankingTooltip')}>?</span>
+                                )}
+                                {isInsurance && (
+                                  <span className="text-[10px] text-text-tertiary bg-surface-secondary rounded px-1 py-0.5 cursor-help" title={t('as.portfolioOpex.insuranceTooltip')}>?</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-1.5 pr-2 text-xs text-text-tertiary">{line.sizingBasis ?? ''}</td>
+                            <td className="py-1.5">
+                              <EditableCell value={line.annualCost} format="currency" label={line.name} onChange={(v) => updatePortfolioOverhead(idx, { ...line, annualCost: v })} />
+                            </td>
+                            <td className="py-1.5 pl-1 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setOverheadAllocExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                                className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${hasOverheadAlloc ? 'border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100' : 'border-surface-tertiary text-text-tertiary hover:text-text-secondary hover:border-surface-tertiary'}`}
+                                title={t('as.portfolioOpex.allocateToggle')}
+                              >
+                                %
+                              </button>
+                              <button type="button" onClick={() => removePortfolioOverhead(idx)} className="text-negative text-xs hover:underline">&#x2715;</button>
+                            </td>
+                          </tr>
+                          {overheadAllocExpanded[idx] && (
+                            <tr key={`${idx}-alloc`}>
+                              <td colSpan={4} className="pb-3 pl-8 bg-surface-secondary/30">
+                                <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1 mt-1">{t('as.portfolioOpex.allocateHeader')}</p>
+                                <AllocationEditor
+                                  lineAllocations={line.projectAllocations ?? {}}
+                                  projects={a.portfolio}
+                                  onChange={(allocs) => updatePortfolioOverhead(idx, { ...line, projectAllocations: allocs })}
+                                />
+                              </td>
+                            </tr>
+                          )}
+                        </>
                       );
                     })}
                   </tbody>
