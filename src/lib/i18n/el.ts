@@ -758,8 +758,8 @@ export const el: TranslationDictionary = {
  
   'as.portfolioOpex.colAnnual': 'Ετήσιο (με βαρύνσεις)',
   'as.portfolioOpex.allocateToggle': 'Κατανομή',
-  'as.portfolioOpex.allocateHeader': 'Κατανομή ανά έργο',
-  'as.portfolioOpex.allocateHint': 'Εισάγετε % που αποδίδεται σε κάθε έργο. Δεν χρειάζεται να ισούται με 100%.',
+  'as.portfolioOpex.allocateHeader': 'Κατανομή ανά υποέργο',
+  'as.portfolioOpex.allocateHint': 'Εισάγετε % που αποδίδεται σε κάθε υποέργο. Δεν χρειάζεται να ισούται με 100%.',
   'as.portfolioOpex.allocateNoProjects': 'Δεν υπάρχουν ορισμένα έργα',
   'as.capexTab': 'CAPEX',
   'as.selectPath': 'Επιλέξτε την ενεργή δομή χρηματοδότησης. Ολόκληρο το μοντέλο επανυπολογίζεται βάσει της επιλεγμένης δομής.',
