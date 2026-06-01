@@ -1,6 +1,7 @@
 "use client";
 
 import { useModelStore } from "@/lib/store/modelStore";
+import type { GraceMode } from "@/lib/engine/types";
 import {
   formatCurrency,
   formatPercent,
@@ -16,7 +17,7 @@ import { FINANCING_TOUR } from "@/lib/tours/configs";
 
 export default function FinancingPage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, activeScenario } = useModelStore();
+  const { model, assumptions, activeScenario, setGraceMode, setAssumption, financingPathOverride } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(FINANCING_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="grid" />;
@@ -24,7 +25,7 @@ export default function FinancingPage() {
   const activeScenarioOutput = model.scenarios[activeScenario];
   const activePnL = activeScenarioOutput.pnl;
   const km = model.keyMetrics;
-  const activePath = assumptions.financingPath;
+  const activePath = financingPathOverride ?? assumptions.financingPath;
 
   const pathLabel =
     activePath === "grant"
@@ -33,7 +34,9 @@ export default function FinancingPage() {
         ? t("path.rrf")
         : activePath === "tepix-loan"
           ? t("path.tepixLoan")
-          : t("path.commercial");
+          : activePath === "optima"
+            ? t("bank.bar.optima")
+            : t("path.commercial");
 
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
@@ -64,6 +67,8 @@ export default function FinancingPage() {
         : activePath === "grant"
           ? assumptions.grant.gracePeriodYears
           : assumptions.commercialLoan.gracePeriodYears;
+
+  const graceMode = (assumptions.commercialLoan?.graceMode ?? 'standard') as GraceMode;
 
   const covenant = assumptions.dscrCovenantThreshold;
   const stabDscr = activeScenarioOutput.stabilisedYear?.dscr ?? 0;
@@ -180,6 +185,80 @@ export default function FinancingPage() {
         </div>
       </div>
       </div>{/* end section-termsheet-financing */}
+
+      {/* Grace structure — commercial, grant, and optima paths */}
+      {(['commercial', 'grant', 'optima'] as string[]).includes(activePath) && (
+        <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mt-4 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary shrink-0 w-36">
+              {t('bank.graceMode.label')}
+            </span>
+            <div className="flex gap-1">
+              {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setGraceMode(m)}
+                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    graceMode === m
+                      ? 'bg-brand-600 text-white'
+                      : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
+                  }`}
+                >
+                  {t(`bank.graceMode.${m.replace('-','_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Description for selected mode */}
+          <p className="text-[12px] text-text-secondary leading-relaxed">
+            {graceMode === 'rolling'
+              ? t('bank.graceMode.rolling.desc')
+              : t('bank.graceMode.two_phase.desc')}
+          </p>
+          {graceMode === 'rolling' && (
+            <div className="border-t border-surface-tertiary pt-3 space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-text-secondary w-36 shrink-0">
+                  {t('bank.graceMode.plotsStart')}
+                </span>
+                <select
+                  value={assumptions.commercialLoan?.plotsStartYear ?? 2026}
+                  onChange={e => setAssumption('commercialLoan.plotsStartYear', Number(e.target.value), 'Plots start year')}
+                  className="text-xs border border-surface-tertiary rounded px-2 py-1.5 bg-surface-primary text-text-primary"
+                >
+                  {[2025, 2026, 2027, 2028, 2029].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select
+                  value={assumptions.commercialLoan?.plotsStartQ ?? 1}
+                  onChange={e => setAssumption('commercialLoan.plotsStartQ', Number(e.target.value) as 1 | 2 | 3 | 4, 'Plots start Q')}
+                  className="text-xs border border-surface-tertiary rounded px-2 py-1.5 bg-surface-primary text-text-primary"
+                >
+                  {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-text-secondary w-36 shrink-0">
+                  {t('bank.graceMode.constructionStart')}
+                </span>
+                <select
+                  value={assumptions.commercialLoan?.constructionStartYear ?? 2027}
+                  onChange={e => setAssumption('commercialLoan.constructionStartYear', Number(e.target.value), 'Construction start year')}
+                  className="text-xs border border-surface-tertiary rounded px-2 py-1.5 bg-surface-primary text-text-primary"
+                >
+                  {[2025, 2026, 2027, 2028, 2029, 2030].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select
+                  value={assumptions.commercialLoan?.constructionStartQ ?? 1}
+                  onChange={e => setAssumption('commercialLoan.constructionStartQ', Number(e.target.value) as 1 | 2 | 3 | 4, 'Construction start Q')}
+                  className="text-xs border border-surface-tertiary rounded px-2 py-1.5 bg-surface-primary text-text-primary"
+                >
+                  {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Section 2 — Financing Comparison table */}
       <div id="section-financing-comparison" className="scroll-mt-24">
@@ -302,6 +381,11 @@ export default function FinancingPage() {
                       <tr key={key} className="border-b border-surface-secondary/50">
                         <td className="py-2.5 pr-4 text-text-secondary">
                           {(t as (k: string) => string)(`finComp.${row.key}`) || row.metric}
+                          {key === 'annualDebtService' && graceMode !== 'standard' && (
+                            <div className="text-[10px] text-text-tertiary mt-0.5 leading-snug">
+                              {(t as (k: string) => string)('finComp.annualDebtServiceNote')}
+                            </div>
+                          )}
                         </td>
                         <td className={cellCls("commercial")}>{formatVal(row.commercial)}</td>
                         <td className={cellCls("rrf")}>{formatVal(row.rrf)}</td>
@@ -337,6 +421,16 @@ export default function FinancingPage() {
                       </tr>
                     );
                   })}
+                  {/* Min DSCR (loan life) — worst-year coverage across the repayment period */}
+                  <tr className="border-b border-surface-secondary/50">
+                    <td className="py-2.5 pr-4 text-text-secondary">
+                      {(t as (k: string) => string)('finComp.minDSCRLoanLife')}
+                    </td>
+                    <td className={`${cellCls("commercial")} ${dscrColor(comm?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(comm?.minDSCRLoanLife ?? 0)}</td>
+                    <td className={`${cellCls("rrf")} ${dscrColor(rrfSc?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(rrfSc?.minDSCRLoanLife ?? 0)}</td>
+                    <td className={`${cellCls("grant")} ${dscrColor(grantSc?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(grantSc?.minDSCRLoanLife ?? 0)}</td>
+                    <td className={`${cellCls("tepix-loan")} ${dscrColor(tepix?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(tepix?.minDSCRLoanLife ?? 0)}</td>
+                  </tr>
 
                   {/* ── Band 3: Equity Returns ── */}
                   <BandSep label={t("finComp.equityIRR")} />
