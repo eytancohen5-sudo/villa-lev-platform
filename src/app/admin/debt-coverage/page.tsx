@@ -26,6 +26,7 @@ import {
   Legend,
 } from "recharts";
 import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+import type { GraceMode } from "@/lib/engine/types";
 import { SectionHeader, StatusChip, KPICard } from "@/components/AdminUI";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 
@@ -58,7 +59,9 @@ function MiniStat({
 
 export default function DebtCoveragePage() {
   const { t, locale } = useTranslation();
-  const { model, assumptions, activeScenario } = useModelStore();
+  const { model, assumptions, activeScenario, setAssumption, financingPathOverride } = useModelStore();
+  const graceMode = (assumptions.commercialLoan?.graceMode ?? 'standard') as GraceMode;
+  const effectivePath = financingPathOverride ?? assumptions.financingPath;
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(DEBT_COVERAGE_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="grid" />;
@@ -116,13 +119,15 @@ export default function DebtCoveragePage() {
     llcr >= 1.5 ? "positive" : llcr >= 1.25 ? undefined : "warning";
 
   const pathLabel =
-    assumptions.financingPath === "grant"
+    effectivePath === "grant"
       ? t("path.grant")
-      : assumptions.financingPath === "rrf"
+      : effectivePath === "rrf"
         ? t("path.rrf")
-        : assumptions.financingPath === "tepix-loan"
+        : effectivePath === "tepix-loan"
           ? t("path.tepixLoan")
-          : t("path.commercial");
+          : effectivePath === "optima"
+            ? t("bank.bar.optima")
+            : t("path.commercial");
 
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
@@ -165,6 +170,35 @@ export default function DebtCoveragePage() {
         </div>
       </div>
 
+      {/* Grace structure toggle (ADR-0027) — commercial path only */}
+      {effectivePath === 'commercial' && <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mb-6">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary shrink-0 w-36">
+            {t('bank.graceMode.label')}
+          </span>
+          <div className="flex gap-1">
+            {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => setAssumption('commercialLoan.graceMode', m, 'Grace structure')}
+                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                  graceMode === m
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
+                }`}
+              >
+                {t(`bank.graceMode.${m.replace('-', '_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="text-[12px] text-text-secondary leading-relaxed mt-3">
+          {graceMode === 'rolling'
+            ? t('bank.graceMode.rolling.desc')
+            : t('bank.graceMode.two_phase.desc')}
+        </p>
+      </div>}
+
       {/* Section 1 — DSCR Trajectory Chart */}
       <div id="section-dscr-hero" className="bg-white rounded-xl border border-surface-tertiary p-5 scroll-mt-24">
         <div className="mb-3">
@@ -180,7 +214,7 @@ export default function DebtCoveragePage() {
             {t("dash.heroDscrSub")}
           </p>
         </div>
-        <ResponsiveContainer key={`dscr-trajectory-${activeScenario}-${assumptions.financingPath}`} width="100%" height={260}>
+        <ResponsiveContainer key={`dscr-trajectory-${activeScenario}-${assumptions.financingPath}-${graceMode}`} width="100%" height={260}>
           <LineChart data={dscrTrajectoryData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
             <XAxis dataKey="year" tick={{ fontSize: 12 }} />

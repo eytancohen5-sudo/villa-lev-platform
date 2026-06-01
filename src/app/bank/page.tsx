@@ -11,11 +11,11 @@ import { SourcesUsesPanel } from "@/components/SourcesUsesPanel";
 import { BankStressTest } from "@/components/BankStressTest";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
 import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+import type { GraceMode } from "@/lib/engine/types";
 import { DistributionCovenantBadge } from "@/components/DistributionCovenantBadge";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import BankControlBar from "@/components/BankControlBar";
 import BankSensitivityTab from "@/components/BankSensitivityTab";
-import { PRESENTATION_LABEL } from "@/lib/presentationMeta";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { logPresenceActivity } from "@/lib/data/usePresence";
 import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
@@ -72,67 +72,13 @@ export default function BankPage() {
     activeScenario,
     financingPathOverride,
     templates,
-    capTable,
-    waterfall,
+    setAssumption,
   } = useModelStore();
   const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
-  const [xlsxLoading, setXlsxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
-  const [docxLoading, setDocxLoading] = useState(false);
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
   const { isAdmin } = useEffectiveAuth();
   const { entries: connectedUsers } = useConnectionsLog(isAdmin);
-
-  const handleDownloadXlsx = async () => {
-    if (!model || xlsxLoading) return;
-    setXlsxLoading(true);
-    void logPresenceActivity('excel_download');
-    try {
-      const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
-      const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-      const blob = await exportBusinessPlan(
-        { ...assumptions, viewMode: 'bank' },
-        model,
-        exportScenario,
-        capTable,
-        waterfall,
-        locale,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `villa-lev-business-plan-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } finally {
-      setXlsxLoading(false);
-    }
-  };
-
-  const handleDownloadDocx = async () => {
-    if (!model || docxLoading) return;
-    setDocxLoading(true);
-    try {
-      const { exportBankPresentation } = await import('@/lib/docx/exportBankPresentation');
-      const blob = await exportBankPresentation(
-        { ...assumptions, viewMode: 'bank' },
-        model,
-        locale,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `villa-lev-bank-presentation-${new Date().toISOString().slice(0, 10)}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } finally {
-      setDocxLoading(false);
-    }
-  };
 
   if (!model) return (
     <div className="flex items-center justify-center h-96 text-text-tertiary">
@@ -149,7 +95,7 @@ export default function BankPage() {
     ?? model.scenarios.realistic.pnl;
 
   const km = model.keyMetrics;
-  const pnl = activePnl.filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR);
+  const pnl = activePnl.filter((p) => p.year >= 2026);
 
   const isGated = !activePnl.some(p => (p.netCashFlowPostVAT ?? 0) >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD);
 
@@ -254,6 +200,13 @@ export default function BankPage() {
         : activePath === "grant"
           ? assumptions.grant.gracePeriodYears
           : assumptions.commercialLoan.gracePeriodYears;
+  const graceMode = (assumptions.commercialLoan?.graceMode ?? 'standard') as GraceMode;
+  const graceDisplay =
+    activePath !== 'commercial' || graceMode === 'standard'
+      ? `${grace}y grace`
+      : graceMode === 'two-phase'
+        ? t('bank.graceMode.two_phase')
+        : t('bank.graceMode.rolling');
   const termSheetCovenant = assumptions.dscrCovenantThreshold ?? 1.25;
 
   const grantAmount = km.grantAmount;
@@ -272,18 +225,41 @@ export default function BankPage() {
     "Net Cash Flow": Math.round(p.netCashFlow),
   }));
 
+  const bankPaymentCapacityData = (activePnl ?? [])
+    .filter((p) => p.year >= 2026)
+    .map((p) => ({
+      year: p.year,
+      cfads: Math.round(p.cfads),
+      fundingGap: Math.max(0, Math.round(p.debtService - p.cfads)),
+      debtService: Math.round(p.debtService),
+      interest: Math.round(p.termLoanInterest),
+    }));
+
+  const bankDsraTarget = activeScenarioOutput.dsraTarget ?? 0;
+  const bankDsraData = bankDsraTarget > 0
+    ? (activePnl ?? [])
+        .filter((p) => p.year >= 2026)
+        .map((p) => ({
+          year: p.year,
+          balance: Math.round(p.dsraBalance ?? 0),
+          draw: Math.round(p.dsraDraw ?? 0),
+          replenishment: Math.round(p.dsraReplenishment ?? 0),
+        }))
+    : [];
+
   // Drive DSCR chart from model.scenarios so it reflects the active financing path.
   // dscrByYear.realistic/upside/downside are always commercial — they don't switch.
   const dscrChart = model.scenarios.realistic.pnl
-    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
+    .filter((p) => p.year >= 2026)
     .map((p) => {
       const up   = model.scenarios.upside.pnl.find((u) => u.year === p.year);
       const down = model.scenarios.downside.pnl.find((d) => d.year === p.year);
+      const hasDs = p.dscr > 0;
       return {
         year: p.year,
-        Conservative: Number(p.dscr.toFixed(2)),
-        'Realistic':  Number((up?.dscr ?? 0).toFixed(2)),
-        Downside:     Number((down?.dscr ?? 0).toFixed(2)),
+        Conservative: hasDs ? Number(p.dscr.toFixed(2))          : null,
+        'Realistic':  hasDs ? Number((up?.dscr ?? 0).toFixed(2)) : null,
+        Downside:     hasDs ? Number((down?.dscr ?? 0).toFixed(2)) : null,
       };
     });
 
@@ -372,50 +348,43 @@ export default function BankPage() {
               </div>
             </button>
 
-            {/* Bank Presentation — PDF viewer */}
-            <a
-              href={`/presentation?lang=${locale}&from=bank`}
-              onClick={() => void logPresenceActivity('presentation_view')}
-              className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
+            {/* Coming Soon — Excel & Presentation flip card */}
+            <div
+              className="group/flip col-span-2 cursor-default"
+              style={{ perspective: '800px' }}
             >
-              <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                  <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
-                    <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                    <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                    <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
-                  </svg>
+              <div
+                className="relative h-full transition-transform duration-500 ease-in-out motion-reduce:transition-none group-hover/flip:[transform:rotateY(180deg)]"
+                style={{ transformStyle: 'preserve-3d' }}
+              >
+                {/* Front */}
+                <div
+                  className="absolute inset-0 flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5"
+                  style={{ backfaceVisibility: 'hidden' }}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" className="text-amber-500"/>
+                        <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"/>
+                      </svg>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{t('bank.actions.comingSoon.badge')}</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.comingSoon.title')}</p>
+                    <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.comingSoon.sub')}</p>
+                  </div>
                 </div>
-                <span className="text-[10px] font-semibold tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{PRESENTATION_LABEL}</span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
-                <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
-              </div>
-            </a>
-
-            {/* Download the Model */}
-            <button
-              onClick={handleDownloadXlsx}
-              disabled={!model || xlsxLoading}
-              className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors shrink-0">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3" className="text-emerald-600"/>
-                    <path d="M4.5 5h7M4.5 8h7M4.5 11h4.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-emerald-500"/>
-                  </svg>
+                {/* Back */}
+                <div
+                  className="absolute inset-0 flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-5"
+                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+                >
+                  <p className="text-sm text-amber-800 text-center leading-relaxed">{t('bank.actions.comingSoon.back')}</p>
                 </div>
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Excel</span>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-text-primary leading-tight">
-                  {xlsxLoading ? t('bar.preparing') : t('bank.actions.model.title')}
-                </p>
-                <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.model.sub')}</p>
-              </div>
-            </button>
+            </div>
 
           </div>
         </div>
@@ -531,9 +500,9 @@ export default function BankPage() {
           };
           const cells: Cell[] = [
             { label: t('dash.termsheet.loan'), value: formatCurrency(km.loanAmount, true, locale), sub: `${(km.ltv * 100).toFixed(0)}% ${t('dash.termsheet.loanSub')}` },
-            { label: t('dash.termsheet.term'), value: `${term}y · ${grace}y`, sub: t('dash.termsheet.termSub') },
+            { label: t('dash.termsheet.term'), value: `${term}y · ${graceDisplay}`, sub: t('dash.termsheet.termSub') },
             { label: t('dash.termsheet.rate'), value: `${(rate * 100).toFixed(2)}%`, sub: pathLabel },
-            { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}` },
+            { label: t('dash.termsheet.annualDS'), value: formatCurrency(km.annualDS, true, locale), sub: `${t('kpi.assetCoverage')} ${formatMultiple(km.assetCoverage)}${activePath === 'commercial' && graceMode !== 'standard' ? ` · ${t('finComp.annualDebtServiceNote')}` : ''}` },
             {
               label: t('dash.termsheet.dscrCovenant'),
               value: formatMultiple(stabDscr),
@@ -612,7 +581,7 @@ export default function BankPage() {
                         {formatCurrency(km.loanAmount, true, locale)}
                       </div>
                       <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
-                        {(rate * 100).toFixed(2)}% · {term}y · {grace}y grace
+                        {(rate * 100).toFixed(2)}% · {term}y · {graceDisplay}
                       </div>
                       <div className="text-[10px] text-text-tertiary mt-1 leading-snug">
                         {t('bank.creditAsk.facility1.purpose')}
@@ -663,6 +632,35 @@ export default function BankPage() {
             </div>
           );
         })()}
+
+        {/* Grace structure toggle — commercial path only (ADR-0027) */}
+        {activePath === 'commercial' && <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mb-6 print:hidden">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary shrink-0 w-36">
+                {t('bank.graceMode.label')}
+              </span>
+              <div className="flex gap-1">
+                {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setAssumption('commercialLoan.graceMode', m, 'Grace structure')}
+                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                      graceMode === m
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
+                    }`}
+                  >
+                    {t(`bank.graceMode.${m.replace('-', '_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[12px] text-text-secondary leading-relaxed mt-3">
+              {graceMode === 'rolling'
+                ? t('bank.graceMode.rolling.desc')
+                : t('bank.graceMode.two_phase.desc')}
+            </p>
+          </div>}
 
         {/* 3b. Operating Track Record — proof of operator */}
         <div id="live-track-record" className="mb-6 print:hidden">
@@ -924,36 +922,119 @@ export default function BankPage() {
           ))}
         </div>
 
-        {/* 9. Debt Service Coverage Ratio (DSCR) Chart */}
-        <div id="bank-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">
-            {t('bank.section.repaymentCapacity')}
-          </h3>
-          <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
-          <ResponsiveContainer key={`dscr-scenario-${activeScenario}-${financingPathOverride ?? 'none'}`} width="100%" height={280}>
-            <LineChart data={dscrChart}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0.75, "dataMax + 0.5"]} />
-              <Tooltip
-                formatter={(value) => `${Number(value).toFixed(2)}×`}
-                contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: t('bank.chart.covenantLabel'), position: 'insideTopLeft', fontSize: 10, fill: '#9E3B3B' }} />
-              <ReferenceLine
-                x={2029}
-                stroke="#8B6914"
-                strokeDasharray="3 3"
-                label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
-              />
-              <Line type="monotone" dataKey="Conservative" name={t('scenario.realistic')} stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Realistic" name={t('scenario.upside')} stroke="#6B7A3D" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} />
-              <Line type="monotone" dataKey="Downside" name={t('scenario.downside')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-          {rampHaircutNote}
+        {/* 9. DSCR + Payment Capacity charts — Row 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div id="bank-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-text-primary mb-1">
+              {t('bank.section.repaymentCapacity')}
+            </h3>
+            <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
+            <ResponsiveContainer key={`dscr-scenario-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={300}>
+              <LineChart data={dscrChart}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0.75, "dataMax + 0.5"]} />
+                <Tooltip
+                  formatter={(value) => value != null ? `${Number(value).toFixed(2)}×` : '—'}
+                  contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <ReferenceLine y={1.25} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: t('bank.chart.covenantLabel'), position: 'insideTopLeft', fontSize: 10, fill: '#9E3B3B' }} />
+                <ReferenceLine
+                  x={2029}
+                  stroke="#8B6914"
+                  strokeDasharray="3 3"
+                  label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
+                />
+                <Line type="monotone" dataKey="Conservative" name={t('scenario.realistic')} stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey="Realistic" name={t('scenario.upside')} stroke="#6B7A3D" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey="Downside" name={t('scenario.downside')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false} />
+              </LineChart>
+            </ResponsiveContainer>
+            {rampHaircutNote}
+          </div>
+
+          <div id="bank-payment-capacity-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+            <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dash.annualDSChart')}</h3>
+            <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dash.dsChart.sub')}</p>
+            <ResponsiveContainer key={`pc-bank-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={300}>
+              <ComposedChart data={bankPaymentCapacityData}>
+                <defs>
+                  <linearGradient id="dsObligationBank" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9E3B3B" stopOpacity={0.12} />
+                    <stop offset="95%" stopColor="#9E3B3B" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} domain={['auto', 'dataMax']} />
+                <Tooltip
+                  content={({ active, payload, label }) => {
+                    if (!active || !payload?.length) return null;
+                    const cfadsVal = Number(payload.find((p) => p.dataKey === 'cfads')?.value ?? 0);
+                    const dsVal = Number(payload.find((p) => p.dataKey === 'debtService')?.value ?? 0);
+                    const impliedDscr = dsVal > 0 ? (cfadsVal / dsVal).toFixed(2) : '—';
+                    return (
+                      <div style={{ background: 'white', border: '1px solid #EDE6D5', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                        {payload.map((p) => (
+                          <div key={p.dataKey as string} style={{ color: p.color, marginBottom: 2 }}>
+                            {p.name}: {formatCurrency(Number(p.value), false, locale)}
+                          </div>
+                        ))}
+                        <div style={{ color: '#6B7280', borderTop: '1px solid #EDE6D5', marginTop: 4, paddingTop: 4 }}>
+                          DSCR: {impliedDscr}×
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
+                <Area type="monotone" dataKey="debtService" name={t('pnl.debtService')} stroke="#9E3B3B" strokeWidth={2} fill="url(#dsObligationBank)" dot={false} />
+                <Line type="monotone" dataKey="fundingGap" name={t('dash.dsChart.fundingGap')} stroke="#C4754B" strokeWidth={2.5} dot={false} />
+                <Line type="monotone" dataKey="interest" name={t('pnl.termLoanInterest')} stroke="#6B7280" strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
         </div>
+
+        {/* 9b. DSRA chart — Row 2, conditional */}
+        {bankDsraTarget > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div id="bank-dsra-summary" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dsra.sectionTitle')}</h3>
+              <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dsra.chartSub')}</p>
+              {bankDsraData.some((d) => d.draw > 0 || d.replenishment > 0) ? (
+                <ResponsiveContainer key={`dsra-bank-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={280}>
+                  <ComposedChart data={bankDsraData} margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="bankDsraGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#C4A55E" stopOpacity={0.22} />
+                        <stop offset="95%" stopColor="#C4A55E" stopOpacity={0.04} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                    <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                    <Tooltip formatter={(v) => formatCurrency(Number(v), false, locale)} contentStyle={{ borderRadius: 8, border: '1px solid #EDE6D5', fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <ReferenceLine y={bankDsraTarget} stroke="#8B6914" strokeDasharray="5 4" label={{ value: t('dsra.target'), position: 'insideTopRight', fontSize: 9, fill: '#8B6914' }} />
+                    <Area type="monotone" dataKey="balance" name={t('dsra.legend.balance')} stroke="#C4A55E" strokeWidth={2.2} fill="url(#bankDsraGrad2)" />
+                    <Bar dataKey="replenishment" name={t('dsra.legend.replenish')} yAxisId="right" barSize={16} fill="#6B7A3D" />
+                    <Bar dataKey="draw" name={t('dsra.legend.draw')} yAxisId="right" barSize={16} fill="#9E3B3B" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center gap-2 h-20 text-xs text-positive font-medium">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6.5" stroke="#6B7A3D" /><path d="M4 7l2.5 2.5L10 4.5" stroke="#6B7A3D" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  {t('dsra.noActivity')}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 10. Revenue & EBITDA Chart */}
         <div id="bank-revenue-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
@@ -1272,8 +1353,8 @@ export default function BankPage() {
             {t('dash.dscrTrajectory')}
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.allPathsChartSub')}</p>
-          <ResponsiveContainer key={`dscr-allpaths-${activeScenario}-${financingPathOverride ?? 'none'}`} width="100%" height={280}>
-            <LineChart data={model.dscrByYear.filter((d) => d.year >= PROJECT_CONSTANTS.OPENING_YEAR).map((d) => ({
+          <ResponsiveContainer key={`dscr-allpaths-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={280}>
+            <LineChart data={model.dscrByYear.filter((d) => d.year >= 2026).map((d) => ({
               year: d.year,
               Commercial: Number(d.realistic.toFixed(2)),
               Grant: Number(d.grant.toFixed(2)),
