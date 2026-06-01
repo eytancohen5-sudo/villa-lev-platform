@@ -277,6 +277,8 @@ export interface DSRAParams {
 
 // ── Financing Parameters ──
 
+export type GraceMode = 'standard' | 'rolling' | 'two-phase';
+
 export interface CommercialLoanParams {
   loanCoverageRate: number;
   interestRate: number;
@@ -287,6 +289,13 @@ export interface CommercialLoanParams {
   interest2026: number;
   interest2027: number;
   interest2028: number;
+  graceMode?: GraceMode;
+  // Rolling grace-mode: configurable disbursement start for each tranche group.
+  // Optional for backward compat — engine falls back to 2026/Q1 and 2027/Q1.
+  plotsStartYear?: number;
+  plotsStartQ?: 1 | 2 | 3 | 4;
+  constructionStartYear?: number;
+  constructionStartQ?: 1 | 2 | 3 | 4;
 }
 
 export interface GrantParams {
@@ -866,6 +875,7 @@ export interface FinancingComparison {
   rrf: string | number;
   grant: string | number;
   tepixLoan: string | number;
+  optima?: string | number;
 }
 
 export interface ModelOutput {

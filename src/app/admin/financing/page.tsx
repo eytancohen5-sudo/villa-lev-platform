@@ -269,24 +269,25 @@ export default function FinancingPage() {
       <div className="bg-white rounded-xl border border-surface-tertiary p-5">
         <div className="overflow-x-auto">
           {(() => {
-            // Equity return values read directly from path scenario outputs (not financingComparison)
-            const comm  = model.commercialScenario;
-            const rrfSc = model.rrfScenario;
+            const comm    = model.commercialScenario;
+            const rrfSc   = model.rrfScenario;
             const grantSc = model.grantScenario;
-            const tepix = model.tepixLoanScenario;
+            const tepix   = model.tepixLoanScenario;
+            const optima  = model.optimaScenario;
 
-            // Best saving path — highest equitySavingVsCommercial
             const savingRow = model.financingComparison.find((r) => r.key === "equitySavingVsCommercial");
             const savings = {
               rrf:       typeof savingRow?.rrf       === "number" ? savingRow.rrf       : 0,
               grant:     typeof savingRow?.grant     === "number" ? savingRow.grant     : 0,
               tepixLoan: typeof savingRow?.tepixLoan === "number" ? savingRow.tepixLoan : 0,
+              optima:    typeof savingRow?.optima    === "number" ? savingRow.optima    : 0,
             };
-            const maxSaving = Math.max(savings.rrf, savings.grant, savings.tepixLoan);
+            const maxSaving = Math.max(savings.rrf, savings.grant, savings.tepixLoan, savings.optima);
             const bestSavingPath =
               maxSaving <= 0 ? null :
               savings.grant     === maxSaving ? "grant" :
-              savings.tepixLoan === maxSaving ? "tepix-loan" : "rrf";
+              savings.tepixLoan === maxSaving ? "tepix-loan" :
+              savings.optima    === maxSaving ? "optima" : "rrf";
 
             const dscrColor = (v: string | number) => {
               if (typeof v !== "number") return "";
@@ -295,14 +296,66 @@ export default function FinancingPage() {
               if (v > 0) return "text-warning font-semibold";
               return "";
             };
-            const irrColor = (v: number) =>
-              v >= 0.15 ? "text-positive" : v >= 0.10 ? "text-brand-600" : "text-warning";
-            const moicColor = (v: number) =>
-              v >= 4 ? "text-positive" : v >= 2.5 ? "text-brand-600" : "text-warning";
+            const irrColor  = (v: number) => v >= 0.15 ? "text-positive" : v >= 0.10 ? "text-brand-600" : "text-warning";
+            const moicColor = (v: number) => v >= 4 ? "text-positive" : v >= 2.5 ? "text-brand-600" : "text-warning";
+
+            const rowByKey = Object.fromEntries(model.financingComparison.map((r) => [r.key, r]));
+            const formatVal = (val: string | number | undefined, isDscr = false) =>
+              val == null ? "—" :
+              typeof val === "number" ? (isDscr ? formatMultiple(val) : formatCurrency(val, true, locale)) : val;
+
+            const cellCls = (pathKey: string, extra?: string) =>
+              `text-right py-2.5 px-3 data-cell ${colClass(pathKey)} ${extra ?? ""}`.trim();
+
+            const eqR = rowByKey["equityRequired"];
+            const gcR = rowByKey["graceInterestCarry"];
+
+            // Column definitions — order will be sorted so active path is first.
+            type ColDef = {
+              pathKey: string;
+              label: string;
+              dataKey: 'commercial' | 'rrf' | 'grant' | 'tepixLoan' | 'optima';
+              scenario: typeof comm | undefined;
+              eqAtClose: number;
+              inactiveClass: string;
+              inactiveStyle?: React.CSSProperties;
+            };
+            const allCols: ColDef[] = [
+              {
+                pathKey: 'commercial', label: t('path.commercialShort'), dataKey: 'commercial',
+                scenario: comm, eqAtClose: ((eqR?.commercial as number) ?? 0) + ((gcR?.commercial as number) ?? 0),
+                inactiveClass: 'text-text-tertiary', inactiveStyle: undefined,
+              },
+              {
+                pathKey: 'rrf', label: t('path.rrfShort'), dataKey: 'rrf',
+                scenario: rrfSc, eqAtClose: ((eqR?.rrf as number) ?? 0) + ((gcR?.rrf as number) ?? 0),
+                inactiveClass: 'text-text-tertiary', inactiveStyle: undefined,
+              },
+              {
+                pathKey: 'grant', label: t('path.grantShort'), dataKey: 'grant',
+                scenario: grantSc, eqAtClose: ((eqR?.grant as number) ?? 0) + ((gcR?.grant as number) ?? 0),
+                inactiveClass: 'text-positive', inactiveStyle: undefined,
+              },
+              {
+                pathKey: 'tepix-loan', label: t('path.tepixLoanShort'), dataKey: 'tepixLoan',
+                scenario: tepix, eqAtClose: ((eqR?.tepixLoan as number) ?? 0) + ((gcR?.tepixLoan as number) ?? 0),
+                inactiveClass: '', inactiveStyle: { color: '#7B5EA7' },
+              },
+              {
+                pathKey: 'optima', label: t('bank.bar.optima'), dataKey: 'optima',
+                scenario: optima, eqAtClose: ((eqR?.optima as number) ?? 0) + ((gcR?.optima as number) ?? 0),
+                inactiveClass: '', inactiveStyle: { color: '#1565C0' },
+              },
+            ];
+            // Active path always first; rest in original order.
+            const cols = [
+              ...allCols.filter(c => c.pathKey === activePath),
+              ...allCols.filter(c => c.pathKey !== activePath),
+            ];
 
             const BandSep = ({ label }: { label: string }) => (
               <tr className="bg-surface-secondary/60">
-                <td colSpan={5} className="py-1.5 pl-4 pr-4 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
+                <td colSpan={cols.length + 1} className="py-1.5 pl-4 pr-4 text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">
                   {label}
                 </td>
               </tr>
@@ -310,25 +363,6 @@ export default function FinancingPage() {
 
             const capStructureKeys = ["totalLoanDrawn", "grantReceived", "equityRequired", "graceInterestCarry", "annualDebtService"];
             const bankMetricKeys   = ["stabilisedDSCR", "effectiveDSCRStabilised", "dsraTarget"];
-            const rowByKey = Object.fromEntries(model.financingComparison.map((r) => [r.key, r]));
-
-            const formatVal = (val: string | number, isDscr = false) =>
-              typeof val === "number"
-                ? isDscr ? formatMultiple(val) : formatCurrency(val, true, locale)
-                : val;
-
-            const cellCls = (pathKey: string, extra?: string) =>
-              `text-right py-2.5 px-3 data-cell ${colClass(pathKey)} ${extra ?? ""}`.trim();
-
-            // Total equity at close per path (equityRequired + graceInterestCarry)
-            const eqR = rowByKey["equityRequired"];
-            const gcR = rowByKey["graceInterestCarry"];
-            const eqAtClose = {
-              commercial: ((eqR?.commercial as number) ?? 0) + ((gcR?.commercial as number) ?? 0),
-              rrf:        ((eqR?.rrf        as number) ?? 0) + ((gcR?.rrf        as number) ?? 0),
-              grant:      ((eqR?.grant      as number) ?? 0) + ((gcR?.grant      as number) ?? 0),
-              tepixLoan:  ((eqR?.tepixLoan  as number) ?? 0) + ((gcR?.tepixLoan  as number) ?? 0),
-            };
 
             return (
               <table className="w-full text-sm">
@@ -337,39 +371,24 @@ export default function FinancingPage() {
                     <th className="text-left py-2 pr-4 text-text-tertiary font-medium text-xs uppercase tracking-wider">
                       {t("common.metric")}
                     </th>
-                    {/* Commercial */}
-                    <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass("commercial")}`}>
-                      <span className={activePath === "commercial" ? "bg-brand-500 text-white rounded px-2 py-0.5" : "text-text-tertiary"}>
-                        {t("path.commercialShort")}
-                      </span>
-                    </th>
-                    {/* RRF */}
-                    <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass("rrf")}`}>
-                      <span className={activePath === "rrf" ? "bg-brand-500 text-white rounded px-2 py-0.5" : "text-text-tertiary"}>
-                        {t("path.rrfShort")}
-                      </span>
-                    </th>
-                    {/* Grant */}
-                    <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass("grant")}`}>
-                      <span className={activePath === "grant" ? "bg-brand-500 text-white rounded px-2 py-0.5" : "text-positive"}>
-                        {t("path.grantShort")}
-                      </span>
-                      {bestSavingPath === "grant" && km.grantAmount > 0 && (
-                        <span className="text-[9px] text-positive font-semibold uppercase tracking-wider block mt-0.5">Recommended</span>
-                      )}
-                    </th>
-                    {/* TEPIX */}
-                    <th className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass("tepix-loan")}`}>
-                      <span
-                        className={activePath === "tepix-loan" ? "bg-brand-500 text-white rounded px-2 py-0.5" : ""}
-                        style={activePath !== "tepix-loan" ? { color: "#7B5EA7" } : {}}
-                      >
-                        {t("path.tepixLoanShort")}
-                      </span>
-                      {bestSavingPath === "tepix-loan" && km.grantAmount > 0 && (
-                        <span className="text-[9px] font-semibold uppercase tracking-wider block mt-0.5" style={{ color: "#7B5EA7" }}>Recommended</span>
-                      )}
-                    </th>
+                    {cols.map(col => (
+                      <th key={col.pathKey} className={`text-right py-2 px-3 text-xs uppercase tracking-wider font-medium ${colClass(col.pathKey)}`}>
+                        <span
+                          className={activePath === col.pathKey ? "bg-brand-500 text-white rounded px-2 py-0.5" : col.inactiveClass}
+                          style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                        >
+                          {col.label}
+                        </span>
+                        {bestSavingPath === col.pathKey && km.grantAmount > 0 && (
+                          <span
+                            className="text-[9px] font-semibold uppercase tracking-wider block mt-0.5"
+                            style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                          >
+                            Recommended
+                          </span>
+                        )}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
@@ -387,20 +406,30 @@ export default function FinancingPage() {
                             </div>
                           )}
                         </td>
-                        <td className={cellCls("commercial")}>{formatVal(row.commercial)}</td>
-                        <td className={cellCls("rrf")}>{formatVal(row.rrf)}</td>
-                        <td className={cellCls("grant", "text-positive font-medium")}>{formatVal(row.grant)}</td>
-                        <td className={cellCls("tepix-loan")} style={{ color: "#7B5EA7" }}>{formatVal(row.tepixLoan)}</td>
+                        {cols.map(col => (
+                          <td
+                            key={col.pathKey}
+                            className={cellCls(col.pathKey, activePath !== col.pathKey ? col.inactiveClass : '')}
+                            style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                          >
+                            {formatVal(row[col.dataKey])}
+                          </td>
+                        ))}
                       </tr>
                     );
                   })}
                   {/* Total equity at close */}
                   <tr className="border-b border-surface-secondary/50 bg-surface-secondary/20 font-medium">
                     <td className="py-2.5 pr-4 text-text-primary">{t('finComp.totalEquityAtClose')}</td>
-                    <td className={cellCls("commercial")}>{formatCurrency(eqAtClose.commercial, true, locale)}</td>
-                    <td className={cellCls("rrf")}>{formatCurrency(eqAtClose.rrf, true, locale)}</td>
-                    <td className={cellCls("grant", "text-positive font-medium")}>{formatCurrency(eqAtClose.grant, true, locale)}</td>
-                    <td className={cellCls("tepix-loan")} style={{ color: "#7B5EA7" }}>{formatCurrency(eqAtClose.tepixLoan, true, locale)}</td>
+                    {cols.map(col => (
+                      <td
+                        key={col.pathKey}
+                        className={cellCls(col.pathKey, activePath !== col.pathKey ? col.inactiveClass : '')}
+                        style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                      >
+                        {formatCurrency(col.eqAtClose, true, locale)}
+                      </td>
+                    ))}
                   </tr>
 
                   {/* ── Band 2: Bank Metrics ── */}
@@ -414,46 +443,71 @@ export default function FinancingPage() {
                         <td className="py-2.5 pr-4 text-text-secondary">
                           {(t as (k: string) => string)(`finComp.${row.key}`) || row.metric}
                         </td>
-                        <td className={`${cellCls("commercial")} ${isDscr ? dscrColor(row.commercial) : ""}`}>{formatVal(row.commercial, isDscr)}</td>
-                        <td className={`${cellCls("rrf")} ${isDscr ? dscrColor(row.rrf) : ""}`}>{formatVal(row.rrf, isDscr)}</td>
-                        <td className={`${cellCls("grant")} ${isDscr ? dscrColor(row.grant) : "text-positive font-medium"}`}>{formatVal(row.grant, isDscr)}</td>
-                        <td className={`${cellCls("tepix-loan")} ${isDscr ? dscrColor(row.tepixLoan) : ""}`} style={{ color: isDscr ? undefined : "#7B5EA7" }}>{formatVal(row.tepixLoan, isDscr)}</td>
+                        {cols.map(col => {
+                          const val = row[col.dataKey];
+                          return (
+                            <td
+                              key={col.pathKey}
+                              className={`${cellCls(col.pathKey)} ${isDscr ? dscrColor(val ?? 0) : (activePath !== col.pathKey ? col.inactiveClass : '')}`}
+                              style={!isDscr && activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                            >
+                              {formatVal(val, isDscr)}
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}
-                  {/* Min DSCR (loan life) — worst-year coverage across the repayment period */}
+                  {/* Min DSCR (loan life) */}
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">
                       {(t as (k: string) => string)('finComp.minDSCRLoanLife')}
                     </td>
-                    <td className={`${cellCls("commercial")} ${dscrColor(comm?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(comm?.minDSCRLoanLife ?? 0)}</td>
-                    <td className={`${cellCls("rrf")} ${dscrColor(rrfSc?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(rrfSc?.minDSCRLoanLife ?? 0)}</td>
-                    <td className={`${cellCls("grant")} ${dscrColor(grantSc?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(grantSc?.minDSCRLoanLife ?? 0)}</td>
-                    <td className={`${cellCls("tepix-loan")} ${dscrColor(tepix?.minDSCRLoanLife ?? 0)}`}>{formatMultiple(tepix?.minDSCRLoanLife ?? 0)}</td>
+                    {cols.map(col => {
+                      const v = col.scenario?.minDSCRLoanLife ?? 0;
+                      return (
+                        <td key={col.pathKey} className={`${cellCls(col.pathKey)} ${dscrColor(v)}`}>
+                          {formatMultiple(v)}
+                        </td>
+                      );
+                    })}
                   </tr>
 
                   {/* ── Band 3: Equity Returns ── */}
                   <BandSep label={t("finComp.equityIRR")} />
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">{t('finComp.equityIRR')}</td>
-                    <td className={`${cellCls("commercial")} ${irrColor(comm?.equityIRR ?? 0)}`}>{formatPercent(comm?.equityIRR ?? 0)}</td>
-                    <td className={`${cellCls("rrf")} ${irrColor(rrfSc?.equityIRR ?? 0)}`}>{formatPercent(rrfSc?.equityIRR ?? 0)}</td>
-                    <td className={`${cellCls("grant")} ${irrColor(grantSc?.equityIRR ?? 0)} text-positive`}>{formatPercent(grantSc?.equityIRR ?? 0)}</td>
-                    <td className={`${cellCls("tepix-loan")} ${irrColor(tepix?.equityIRR ?? 0)}`} style={{ color: "#7B5EA7" }}>{formatPercent(tepix?.equityIRR ?? 0)}</td>
+                    {cols.map(col => {
+                      const v = col.scenario?.equityIRR ?? 0;
+                      return (
+                        <td key={col.pathKey} className={`${cellCls(col.pathKey)} ${irrColor(v)}`}>
+                          {formatPercent(v)}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">{t('finComp.moic')}</td>
-                    <td className={`${cellCls("commercial")} ${moicColor(comm?.totalMOIC ?? 0)}`}>{formatMultiple(comm?.totalMOIC ?? 0)}</td>
-                    <td className={`${cellCls("rrf")} ${moicColor(rrfSc?.totalMOIC ?? 0)}`}>{formatMultiple(rrfSc?.totalMOIC ?? 0)}</td>
-                    <td className={`${cellCls("grant")} ${moicColor(grantSc?.totalMOIC ?? 0)} text-positive`}>{formatMultiple(grantSc?.totalMOIC ?? 0)}</td>
-                    <td className={`${cellCls("tepix-loan")} ${moicColor(tepix?.totalMOIC ?? 0)}`} style={{ color: "#7B5EA7" }}>{formatMultiple(tepix?.totalMOIC ?? 0)}</td>
+                    {cols.map(col => {
+                      const v = col.scenario?.totalMOIC ?? 0;
+                      return (
+                        <td key={col.pathKey} className={`${cellCls(col.pathKey)} ${moicColor(v)}`}>
+                          {formatMultiple(v)}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr className="border-b border-surface-secondary/50">
                     <td className="py-2.5 pr-4 text-text-secondary">{t('finComp.payback')}</td>
-                    <td className={cellCls("commercial")}>{comm?.equityPaybackYears != null ? `${comm.equityPaybackYears}y` : "—"}</td>
-                    <td className={cellCls("rrf")}>{rrfSc?.equityPaybackYears != null ? `${rrfSc.equityPaybackYears}y` : "—"}</td>
-                    <td className={`${cellCls("grant")} text-positive font-medium`}>{grantSc?.equityPaybackYears != null ? `${grantSc.equityPaybackYears}y` : "—"}</td>
-                    <td className={cellCls("tepix-loan")} style={{ color: "#7B5EA7" }}>{tepix?.equityPaybackYears != null ? `${tepix.equityPaybackYears}y` : "—"}</td>
+                    {cols.map(col => (
+                      <td
+                        key={col.pathKey}
+                        className={cellCls(col.pathKey, activePath !== col.pathKey ? col.inactiveClass : '')}
+                        style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                      >
+                        {col.scenario?.equityPaybackYears != null ? `${col.scenario.equityPaybackYears}y` : "—"}
+                      </td>
+                    ))}
                   </tr>
 
                   {/* ── Band 4: vs Commercial Baseline ── */}
@@ -463,10 +517,15 @@ export default function FinancingPage() {
                       <td className="py-2.5 pr-4 text-text-secondary">
                         {(t as (k: string) => string)("finComp.equitySavingVsCommercial") || savingRow.metric}
                       </td>
-                      <td className={cellCls("commercial")}>—</td>
-                      <td className={cellCls("rrf")}>{formatVal(savingRow.rrf)}</td>
-                      <td className={`${cellCls("grant")} text-positive font-medium`}>{formatVal(savingRow.grant)}</td>
-                      <td className={cellCls("tepix-loan")} style={{ color: "#7B5EA7" }}>{formatVal(savingRow.tepixLoan)}</td>
+                      {cols.map(col => (
+                        <td
+                          key={col.pathKey}
+                          className={cellCls(col.pathKey, col.pathKey !== 'commercial' && activePath !== col.pathKey ? col.inactiveClass : '')}
+                          style={col.pathKey !== 'commercial' && activePath !== col.pathKey ? col.inactiveStyle : undefined}
+                        >
+                          {col.pathKey === 'commercial' ? '—' : formatVal(savingRow[col.dataKey])}
+                        </td>
+                      ))}
                     </tr>
                   )}
                 </tbody>

@@ -2481,6 +2481,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: rrfDebt.loanAmount,
       grant: grantDebt.loanAmount,
       tepixLoan: tepixLoanDebt.loanAmount,
+      optima: optimaDebt.loanAmount,
     },
     {
       key: 'grantReceived',
@@ -2489,6 +2490,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: 0,
       grant: grantDebt.grantAmount,
       tepixLoan: 0,
+      optima: 0,
     },
     {
       key: 'equityRequired',
@@ -2497,6 +2499,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: rrfDebt.equityRequired,
       grant: grantDebt.equityRequired,
       tepixLoan: tepixLoanDebt.equityRequired,
+      optima: optimaDebt.equityRequired,
     },
     {
       key: 'graceInterestCarry',
@@ -2505,6 +2508,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: rrfRealistic.gracePeriodInterestTotal,
       grant: grantScenario.gracePeriodInterestTotal,
       tepixLoan: tepixLoanRealistic.gracePeriodInterestTotal,
+      optima: optimaScenario.gracePeriodInterestTotal,
     },
     {
       key: 'annualDebtService',
@@ -2513,6 +2517,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: rrfDebt.annualDS,
       grant: grantDebt.annualDS,
       tepixLoan: tepixLoanDebt.annualDS,
+      optima: optimaDebt.annualDS,
     },
     {
       key: 'stabilisedDSCR',
@@ -2521,6 +2526,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: rrfRealistic.stabilisedYear?.dscr ?? 0,
       grant: grantScenario.stabilisedYear?.dscr ?? 0,
       tepixLoan: tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
+      optima: optimaScenario.stabilisedYear?.dscr ?? 0,
     },
     {
       key: 'supplementaryLoan',
@@ -2529,6 +2535,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       rrf: '—',
       grant: '—',
       tepixLoan: tepixLoanDebt.supplementaryLoan ?? 0,
+      optima: '—',
     },
     {
       key: 'equitySavingVsCommercial',
@@ -2536,11 +2543,11 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
       commercial: '—',
       rrf: commercialDebt.equityRequired - rrfDebt.equityRequired,
       grant: commercialDebt.equityRequired - grantDebt.equityRequired,
-      tepixLoan:
-        commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
+      tepixLoan: commercialDebt.equityRequired - tepixLoanDebt.equityRequired,
+      optima: commercialDebt.equityRequired - optimaDebt.equityRequired,
     },
     // DSRA rows — appended when at least one path needs a reserve
-    ...([commercialRealistic, rrfRealistic, grantScenario, tepixLoanRealistic].some(
+    ...([commercialRealistic, rrfRealistic, grantScenario, tepixLoanRealistic, optimaScenario].some(
       s => (s.dsraTarget ?? 0) > 0
     ) ? [
       {
@@ -2550,6 +2557,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
         rrf: rrfRealistic.dsraTarget ?? 0,
         grant: grantScenario.dsraTarget ?? 0,
         tepixLoan: tepixLoanRealistic.dsraTarget ?? 0,
+        optima: optimaScenario.dsraTarget ?? 0,
       },
       {
         key: 'effectiveDSCRStabilised' as const,
@@ -2558,6 +2566,7 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
         rrf: rrfRealistic.stabilisedYear?.effectiveDSCR ?? rrfRealistic.stabilisedYear?.dscr ?? 0,
         grant: grantScenario.stabilisedYear?.effectiveDSCR ?? grantScenario.stabilisedYear?.dscr ?? 0,
         tepixLoan: tepixLoanRealistic.stabilisedYear?.effectiveDSCR ?? tepixLoanRealistic.stabilisedYear?.dscr ?? 0,
+        optima: optimaScenario.stabilisedYear?.effectiveDSCR ?? optimaScenario.stabilisedYear?.dscr ?? 0,
       },
     ] : []),
   ];
