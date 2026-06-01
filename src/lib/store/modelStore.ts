@@ -238,6 +238,7 @@ const SAVE_PROMPT_DISABLED_KEY = 'villa-lev-save-prompt-disabled';
 const LAST_SAVED_CONFIG_KEY = 'villa-lev-last-saved-config';
 const CAP_TABLE_STORAGE_KEY = 'villa-lev-cap-table';
 const WATERFALL_STORAGE_KEY = 'villa-lev-waterfall';
+const CAPEX_UPLIFT_STORAGE_KEY = 'villa-lev-capex-uplift';
 const HISTORY_MAX = 200;
 
 // ── Server-side scenario sync (Firestore) ──
@@ -545,6 +546,23 @@ function loadWaterfallFromStorage(): WaterfallParams | null {
 function saveWaterfallToStorage(w: WaterfallParams) {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(WATERFALL_STORAGE_KEY, JSON.stringify(w)); } catch { /* full */ }
+}
+function loadCapexUpliftFromStorage(): { eur: number | null; base: number | null; mode: 'abs' | 'pct' } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(CAPEX_UPLIFT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return { eur: parsed.eur ?? null, base: parsed.base ?? null, mode: parsed.mode ?? 'pct' };
+  } catch { return null; }
+}
+function saveCapexUpliftToStorage(eur: number | null, base: number | null, mode: 'abs' | 'pct') {
+  if (typeof window === 'undefined') return;
+  if (eur === null || eur <= 0) {
+    try { localStorage.removeItem(CAPEX_UPLIFT_STORAGE_KEY); } catch { /* ok */ }
+  } else {
+    try { localStorage.setItem(CAPEX_UPLIFT_STORAGE_KEY, JSON.stringify({ eur, base, mode })); } catch { /* full */ }
+  }
 }
 
 function clearPersistedState() {
@@ -864,6 +882,7 @@ interface ModelStore {
   // Core actions
   setAssumption: (path: string, value: unknown, label?: string) => void;
   setFinancingPath: (path: FinancingPath) => void;
+  setGraceMode: (mode: import('../engine/types').GraceMode) => void;
   setActiveScenario: (scenario: ScenarioName) => void;
   toggleGrant: (enabled: boolean) => void;
   toggleRRF: (enabled: boolean) => void;
@@ -977,6 +996,7 @@ interface ModelStore {
   // Optima Bank sub-project allocation
   setOptimaSubProjectSide: (propertyId: string, side: 'A' | 'B') => void;
   setOptimaEuriborRate: (rate: number) => void;
+  setOptimaSpreadBps: (bps: number) => void;
   setCapexLineAbsorption: (categoryName: string, included: boolean) => void;
 }
 
@@ -1058,14 +1078,19 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       capexUpliftEur: upliftEur,
       ...(baseEur !== undefined && { capexUpliftBase: baseEur }),
     });
+    const s = get();
+    saveCapexUpliftToStorage(upliftEur, baseEur ?? s.capexUpliftBase, s.capexUpliftMode);
     get().recompute();
   },
   setCapexUpliftMode: (mode) => {
     set({ capexUpliftMode: mode });
+    const s = get();
+    saveCapexUpliftToStorage(s.capexUpliftEur, s.capexUpliftBase, mode);
     get().recompute();
   },
   clearCapexUplift: () => {
     set({ capexUpliftEur: null, capexUpliftBase: null });
+    saveCapexUpliftToStorage(null, null, get().capexUpliftMode);
     get().recompute();
   },
 
@@ -1319,6 +1344,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     get().recompute();
   },
 
+  setGraceMode: (mode) => {
+    get().setAssumption('commercialLoan.graceMode', mode, 'Grace structure');
+  },
+
   toggleGrant: (enabled: boolean) => {
     const state = get();
     const updated: ModelAssumptions = {
@@ -1387,7 +1416,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     // Only injected when the active path resolves to 'optima'.
     let capexOverride: CapexBreakdown | undefined;
     const activePath = (state.financingPathOverride ?? assumptions.financingPath) as FinancingPath;
-    if (activePath === 'optima' && state.capexUpliftEur !== null && state.capexUpliftEur > 0) {
+    if (state.capexUpliftEur !== null && state.capexUpliftEur > 0) {
       const rawCapex = computeCapex(assumptions);
       capexOverride = applyCapexUplift(rawCapex, state.capexUpliftEur);
     }
@@ -1411,6 +1440,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const savedScenario = loadScenarioFromStorage();
     const savedCapTable = loadCapTableFromStorage();
     const savedWaterfall = loadWaterfallFromStorage();
+    const savedCapexUplift = loadCapexUpliftFromStorage();
 
     // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
@@ -1482,6 +1512,11 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ...(savedScenario ? { activeScenario: savedScenario } : {}),
       ...(savedCapTable ? { capTable: savedCapTable } : {}),
       ...(savedWaterfall ? { waterfall: { ...DEFAULT_WATERFALL, ...savedWaterfall } } : {}),
+      ...(savedCapexUplift ? {
+        capexUpliftEur: savedCapexUplift.eur,
+        capexUpliftBase: savedCapexUplift.base,
+        capexUpliftMode: savedCapexUplift.mode,
+      } : {}),
     });
     get().recompute();
     // Persist backfilled templates (ensureRoomAreas may have added new fields
@@ -1645,6 +1680,20 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     };
     set({ assumptions: updated });
     // NOT calling saveAssumptionsToStorage — live rate is ephemeral
+    get().recompute();
+  },
+
+  setOptimaSpreadBps: (bps: number) => {
+    const { assumptions } = get();
+    const loan = assumptions.optimaLoan;
+    if (!loan) return;
+    const updated: ModelAssumptions = {
+      ...assumptions,
+      optimaLoan: { ...loan, spreadBps: bps },
+    };
+    set({ assumptions: updated, activeConfigId: null });
+    saveAssumptionsToStorage(updated);
+    bumpEditCounter(get, set);
     get().recompute();
   },
 

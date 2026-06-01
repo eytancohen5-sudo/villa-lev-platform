@@ -61,6 +61,7 @@ export interface TranslationDictionary {
   'path.tepixLoan': string;
   'path.tepixLoanShort': string;
   'path.tepixLoanDesc': string;
+  'path.optimaShort': string;
 
   // ── Scenarios ──
   'scenario.realistic': string;
@@ -620,6 +621,9 @@ export interface TranslationDictionary {
   'dash.driftAlertTuneIn': string;
   'dash.capitalStructureChart': string;
   'dash.annualDSChart': string;
+  'dash.dsChart.sub': string;
+  'dash.dsChart.ncf': string;
+  'dash.dsChart.fundingGap': string;
   'dash.stabilisedDSCRChart': string;
   'dash.dscrTrajectory': string;
   'dash.heroDscr': string;
@@ -652,6 +656,7 @@ export interface TranslationDictionary {
   'sens.wcSensitivity': string;
   'sens.facility': string;
   'sens.wcY2Trough': string;
+  'sens.capexSensitivity': string;
 
   // ── Investor ──
   'inv.portfolioExpansion': string;
@@ -1039,6 +1044,10 @@ export interface TranslationDictionary {
   'bank.bar.upside': string;
   'bank.bar.downside': string;
   'bank.bar.breakeven': string;
+  'bank.bar.optimaRate': string;
+  'bank.bar.optimaSpread': string;
+  'bank.bar.optimaEuribor': string;
+  'bank.bar.optimaEffective': string;
 
   // ── bank/page.tsx hero & section headings (2026-05-23) ──
   'bank.hero.eyebrow': string;
@@ -1085,6 +1094,10 @@ export interface TranslationDictionary {
   'bank.actions.presentation.download': string;
   'bank.actions.model.title': string;
   'bank.actions.model.sub': string;
+  'bank.actions.comingSoon.badge': string;
+  'bank.actions.comingSoon.title': string;
+  'bank.actions.comingSoon.sub': string;
+  'bank.actions.comingSoon.back': string;
   'bank.section.termsheet': string;
   'bank.termsheet.securityLabel': string;
   'bank.termsheet.securityValue': string;
@@ -1191,6 +1204,15 @@ export interface TranslationDictionary {
   'pnl.icrInterestCoverage': string;
   'pnl.equityReturnSection': string;
   'pnl.ncfToEquity': string;
+  'pnl.equityInjected': string;
+  'pnl.equityPosition': string;
+  'pnl.equityStructural': string;
+  'pnl.equityGraceReserve': string;
+  'pnl.equityDsraAtClose': string;
+  'pnl.equityAtClose': string;
+  'pnl.shareholderLoan': string;
+  'pnl.equityTotalOutOfPocket': string;
+  'equity.atCloseTitle': string;
   'pnl.vatMemoSection': string;
   'pnl.vatReceivable': string;
   'pnl.distributableToEquity': string;
@@ -1809,7 +1831,10 @@ export interface TranslationDictionary {
   'finComp.grantReceived': string;
   'finComp.equityRequired': string;
   'finComp.annualDebtService': string;
+  'finComp.annualDebtServiceNote': string;
   'finComp.stabilisedDSCR': string;
+  'finComp.effectiveDSCRStabilised': string;
+  'finComp.dsraTarget': string;
   'finComp.supplementaryLoan': string;
   'finComp.equitySavingVsCommercial': string;
   'finComp.graceInterestCarry': string;
@@ -1817,6 +1842,7 @@ export interface TranslationDictionary {
   'finComp.moic': string;
   'finComp.payback': string;
   'finComp.totalEquityAtClose': string;
+  'finComp.minDSCRLoanLife': string;
 
   // ── Bank fee disclosure (2026-05-25) ──
   'bank.dscr.mgmtFeeNote': string;
@@ -2136,7 +2162,7 @@ export interface TranslationDictionary {
   'admin.optima.eligibilityIntro': string;
   'bank.optima.constructionBasis': string;
   'bank.optima.budgetTotal': string;
-  // ── CAPEX uplift sensitivity tool (ephemeral, /bank/optima only) ──
+  // ── CAPEX uplift sensitivity tool ──
   'bank.optima.upliftTool': string;
   'bank.optima.upliftSub': string;
   'bank.optima.upliftLabel': string;
@@ -2144,5 +2170,17 @@ export interface TranslationDictionary {
   'bank.optima.upliftModePct': string;
   'bank.optima.upliftExtraLoan': string;
   'bank.optima.upliftNewEquity': string;
+  'bank.optima.upliftSaved': string;
+  'bank.optima.upliftDscrVsBase': string;
   'as.optimaTab': string;
+  // ── Grace structure toggle (commercial path, /bank view) ──
+  'bank.graceMode.label': string;
+  'bank.graceMode.standard': string;
+  'bank.graceMode.standard.desc': string;
+  'bank.graceMode.two_phase': string;
+  'bank.graceMode.two_phase.desc': string;
+  'bank.graceMode.rolling': string;
+  'bank.graceMode.rolling.desc': string;
+  'bank.graceMode.plotsStart': string;
+  'bank.graceMode.constructionStart': string;
 }
