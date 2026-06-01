@@ -170,8 +170,8 @@ export default function DebtCoveragePage() {
         </div>
       </div>
 
-      {/* Grace structure toggle (ADR-0027) — commercial path only */}
-      {effectivePath === 'commercial' && <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mb-6">
+      {/* Grace structure toggle — commercial, grant, and optima paths support draw structure */}
+      {(['commercial', 'grant', 'optima'] as string[]).includes(effectivePath) && <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mb-6">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary shrink-0 w-36">
             {t('bank.graceMode.label')}

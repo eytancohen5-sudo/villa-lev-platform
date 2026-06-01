@@ -393,6 +393,10 @@ interface DebtServiceResult {
   graceInterestCarry: number;
   // Calendar year in which the grace period ends (HORIZON_START_YEAR + gracePeriodYears).
   graceEndYear: number;
+  // First year in which ANY tranche starts amortising. Drives dscrWindowStart.
+  // For multi-tranche rolling mode this is earlier than graceEndYear + 1 (the
+  // first tranche amortises before the last one does). Defaults to graceEndYear + 1.
+  firstAmortYear?: number;
 }
 
 function computeTotalLand(a: ModelAssumptions): number {
@@ -410,18 +414,158 @@ function computeDebtService(
   if (path === 'commercial') {
     const loanAmount = totalCost * a.commercialLoan.loanCoverageRate;
     const equity = totalCost - loanAmount;
-    const annualDS = pmt(
-      a.commercialLoan.interestRate,
-      a.commercialLoan.repaymentTermYears,
-      loanAmount
-    );
+    const rate = a.commercialLoan.interestRate;
+    const repaymentTermYears = a.commercialLoan.repaymentTermYears;
+    const annualDS = pmt(rate, repaymentTermYears, loanAmount);
+    const graceMode = a.commercialLoan.graceMode ?? 'standard';
+
+    if (graceMode === 'rolling') {
+      // Rolling: per-tranche grace from disbursement quarter.
+      // T1 = plots (single tranche); T2-T5 = construction (4 × 25%, one per semester).
+      // Disbursement start quarters are configurable; defaults: plots Q1-2026, constr Q1-2027.
+      const plotsLoan    = PHASE1_LAND_PERMITS * a.commercialLoan.loanCoverageRate;
+      const constLoan    = loanAmount - plotsLoan;
+      const constQuarter = constLoan / 4;
+
+      const pYear = a.commercialLoan.plotsStartYear        ?? HORIZON_START_YEAR;
+      const pQ    = a.commercialLoan.plotsStartQ           ?? 1;
+      const cYear = a.commercialLoan.constructionStartYear  ?? HORIZON_START_YEAR + 1;
+      const cQ    = a.commercialLoan.constructionStartQ     ?? 1;
+
+      // Quarter arithmetic: add N quarters to (baseYear, baseQ), wrapping correctly.
+      function addQtrs(baseYear: number, baseQ: number, n: number) {
+        const total = (baseQ - 1) + n;
+        return { year: baseYear + Math.floor(total / 4), q: (total % 4) + 1 };
+      }
+
+      const t2 = addQtrs(cYear, cQ, 0); // T2: construction start
+      const t3 = addQtrs(cYear, cQ, 2); // T3: +1 semester
+      const t4 = addQtrs(cYear, cQ, 4); // T4: +2 semesters
+      const t5 = addQtrs(cYear, cQ, 6); // T5: +3 semesters
+
+      // Each tranche: amortStartYear = disbYear + 3 (consistent with standard model:
+      // loan drawn 2026 → amortises from 2029 = +3).
+      const tranches = [
+        { loan: plotsLoan,    disbYear: pYear,    disbQ: pQ,   amortStart: pYear    + 3 },
+        { loan: constQuarter, disbYear: t2.year,  disbQ: t2.q, amortStart: t2.year  + 3 },
+        { loan: constQuarter, disbYear: t3.year,  disbQ: t3.q, amortStart: t3.year  + 3 },
+        { loan: constQuarter, disbYear: t4.year,  disbQ: t4.q, amortStart: t4.year  + 3 },
+        { loan: constQuarter, disbYear: t5.year,  disbQ: t5.q, amortStart: t5.year  + 3 },
+      ];
+
+      // Debt service for one tranche in a given year:
+      //   disbYear: partial-year IO scaled by quarter (Q1=100%, Q2=75%, Q3=50%, Q4=25%)
+      //   grace years: full-year IO
+      //   amortising: PMT annuity
+      function trancheDS(tr: typeof tranches[0], year: number): number {
+        if (year < tr.disbYear) return 0;
+        if (year === tr.disbYear) return tr.loan * rate * (5 - tr.disbQ) / 4;
+        if (year < tr.amortStart) return tr.loan * rate;
+        return pmt(rate, repaymentTermYears, tr.loan);
+      }
+
+      const rollingGetDS = (year: number): number =>
+        tranches.reduce((sum, tr) => sum + trancheDS(tr, year), 0);
+
+      // graceEndYear = max(amortStart − 1) across all tranches
+      // = last year any tranche is still in IO
+      const commGraceEndYear = Math.max(...tranches.map(tr => tr.amortStart - 1));
+
+      // graceInterestCarry = DS for each pre-operational year
+      // (from first disbYear up to but NOT including OPENING_YEAR = 2029)
+      const firstDisbYear = Math.min(...tranches.map(tr => tr.disbYear));
+      let rollingGraceInterestCarry = 0;
+      for (let yr = firstDisbYear; yr < OPENING_YEAR; yr++) {
+        rollingGraceInterestCarry += rollingGetDS(yr);
+      }
+
+      // firstAmortYear = the earliest year any tranche starts amortising.
+      // This drives dscrWindowStart so 2029-2030 are included in DSCR measurement
+      // even though the last tranche (T5) is still IO until 2031.
+      const firstAmortYear = Math.min(...tranches.map(t => t.amortStart));
+
+      return {
+        annualDS,
+        loanAmount,
+        equityRequired: equity,
+        grantAmount: 0,
+        effectiveInterestRate: rate,
+        repaymentTermYears,
+        graceEndYear: commGraceEndYear,
+        graceInterestCarry: rollingGraceInterestCarry,
+        firstAmortYear,
+        getDS: rollingGetDS,
+      };
+    }
+
+    if (graceMode === 'two-phase') {
+      // Option A: two blocks — Phase 1 (plots) and Phase 2 (full construction),
+      // each drawn at its own configurable start quarter with its own 2-year grace.
+      // amortStart = disbYear + 3 (consistent with standard convention).
+      const p1Year = a.commercialLoan.plotsStartYear        ?? HORIZON_START_YEAR;
+      const p1Q    = a.commercialLoan.plotsStartQ           ?? 1;
+      const p2Year = a.commercialLoan.constructionStartYear  ?? HORIZON_START_YEAR + 1;
+      const p2Q    = a.commercialLoan.constructionStartQ     ?? 1;
+
+      const phase1Loan = PHASE1_LAND_PERMITS * a.commercialLoan.loanCoverageRate;
+      const phase2Loan = loanAmount - phase1Loan;
+
+      const phase1AmortStart = p1Year + 3;
+      const phase2AmortStart = p2Year + 3;
+
+      const phase1AnnualDS = pmt(rate, repaymentTermYears, phase1Loan);
+      const phase2AnnualDS = pmt(rate, repaymentTermYears, phase2Loan);
+      const combinedDS = phase1AnnualDS + phase2AnnualDS; // = annualDS by PMT linearity
+
+      // IO in disbursement year: partial-year factor (5-Q)/4
+      function blockIO(loan: number, disbYear: number, disbQ: number, year: number, amortStart: number): number {
+        if (year < disbYear) return 0;
+        if (year === disbYear) return loan * rate * (5 - disbQ) / 4; // partial year
+        if (year < amortStart) return loan * rate;                    // full-year IO
+        return 0;
+      }
+      function blockAmort(loan: number, amortStart: number, year: number): number {
+        return year >= amortStart ? pmt(rate, repaymentTermYears, loan) : 0;
+      }
+
+      const twoPhaseGetDS = (year: number): number =>
+        blockIO(phase1Loan, p1Year, p1Q, year, phase1AmortStart) +
+        blockAmort(phase1Loan, phase1AmortStart, year) +
+        blockIO(phase2Loan, p2Year, p2Q, year, phase2AmortStart) +
+        blockAmort(phase2Loan, phase2AmortStart, year);
+
+      // graceEndYear = last IO year for the later phase
+      const tp2GraceEnd = Math.max(phase1AmortStart, phase2AmortStart) - 1;
+
+      // graceInterestCarry = pre-operational IO (before OPENING_YEAR)
+      let tpGraceCarry = 0;
+      const tpFirstYear = Math.min(p1Year, p2Year);
+      for (let yr = tpFirstYear; yr < OPENING_YEAR; yr++) {
+        tpGraceCarry += twoPhaseGetDS(yr);
+      }
+
+      return {
+        annualDS: combinedDS,
+        loanAmount,
+        equityRequired: equity,
+        grantAmount: 0,
+        effectiveInterestRate: rate,
+        repaymentTermYears,
+        graceEndYear: tp2GraceEnd,
+        graceInterestCarry: tpGraceCarry,
+        firstAmortYear: Math.min(phase1AmortStart, phase2AmortStart),
+        getDS: twoPhaseGetDS,
+      };
+    }
+
+    // 'standard' (default) — byte-for-byte identical to original code
     const commGracePeriodYears = a.commercialLoan.gracePeriodYears ?? 2;
     const commGraceEndYear = HORIZON_START_YEAR + commGracePeriodYears;
     const commGetDS = (year: number) => {
       if (year === HORIZON_START_YEAR) return a.commercialLoan.interest2026;
       if (year === HORIZON_START_YEAR + 1) return a.commercialLoan.interest2027;
       if (year === commGraceEndYear) return a.commercialLoan.interest2028;
-      if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
+      if (year > commGraceEndYear) return annualDS;
       return 0;
     };
     const commGraceInterestCarry =
@@ -435,8 +579,8 @@ function computeDebtService(
       loanAmount,
       equityRequired: equity,
       grantAmount: 0,
-      effectiveInterestRate: a.commercialLoan.interestRate,
-      repaymentTermYears: a.commercialLoan.repaymentTermYears,
+      effectiveInterestRate: rate,
+      repaymentTermYears,
       graceEndYear: commGraceEndYear,
       graceInterestCarry: commGraceInterestCarry,
       getDS: commGetDS,
@@ -468,6 +612,99 @@ function computeDebtService(
       a.commercialLoan.repaymentTermYears,
       remainingLoan
     );
+    const graceMode = a.commercialLoan.graceMode ?? 'standard';
+    const rate = a.commercialLoan.interestRate;
+    const repaymentTermYears = a.commercialLoan.repaymentTermYears;
+
+    if (graceMode === 'rolling') {
+      // Staged draw: plots tranche (phase1Loan) + 4 construction tranches (phase2Loan/4 each).
+      // Same timing and amortStart convention as commercial rolling, grant-adjusted principal.
+      const constQuarter = phase2Loan / 4;
+      const pYear = a.commercialLoan.plotsStartYear        ?? HORIZON_START_YEAR;
+      const pQ    = a.commercialLoan.plotsStartQ           ?? 1;
+      const cYear = a.commercialLoan.constructionStartYear  ?? HORIZON_START_YEAR + 1;
+      const cQ    = a.commercialLoan.constructionStartQ     ?? 1;
+      function gAddQtrs(baseYear: number, baseQ: number, n: number) {
+        const total = (baseQ - 1) + n;
+        return { year: baseYear + Math.floor(total / 4), q: (total % 4) + 1 };
+      }
+      const t2 = gAddQtrs(cYear, cQ, 0);
+      const t3 = gAddQtrs(cYear, cQ, 2);
+      const t4 = gAddQtrs(cYear, cQ, 4);
+      const t5 = gAddQtrs(cYear, cQ, 6);
+      const gTranches = [
+        { loan: phase1Loan,   disbYear: pYear,    disbQ: pQ,   amortStart: pYear    + 3 },
+        { loan: constQuarter, disbYear: t2.year,  disbQ: t2.q, amortStart: t2.year  + 3 },
+        { loan: constQuarter, disbYear: t3.year,  disbQ: t3.q, amortStart: t3.year  + 3 },
+        { loan: constQuarter, disbYear: t4.year,  disbQ: t4.q, amortStart: t4.year  + 3 },
+        { loan: constQuarter, disbYear: t5.year,  disbQ: t5.q, amortStart: t5.year  + 3 },
+      ];
+      function gTrDS(tr: typeof gTranches[0], year: number): number {
+        if (year < tr.disbYear) return 0;
+        if (year === tr.disbYear) return tr.loan * rate * (5 - tr.disbQ) / 4;
+        if (year < tr.amortStart) return tr.loan * rate;
+        return pmt(rate, repaymentTermYears, tr.loan);
+      }
+      const gRollingGetDS = (year: number): number =>
+        gTranches.reduce((sum, tr) => sum + gTrDS(tr, year), 0);
+      const gGraceEndYear = Math.max(...gTranches.map(tr => tr.amortStart - 1));
+      const gFirstDisbYear = Math.min(...gTranches.map(tr => tr.disbYear));
+      let gRollingCarry = 0;
+      for (let yr = gFirstDisbYear; yr < OPENING_YEAR; yr++) gRollingCarry += gRollingGetDS(yr);
+      return {
+        annualDS,
+        loanAmount: remainingLoan,
+        equityRequired: equity,
+        grantAmount: grantAmt,
+        effectiveInterestRate: rate,
+        repaymentTermYears,
+        graceEndYear: gGraceEndYear,
+        graceInterestCarry: gRollingCarry,
+        firstAmortYear: Math.min(...gTranches.map(t => t.amortStart)),
+        getDS: gRollingGetDS,
+      };
+    }
+
+    if (graceMode === 'two-phase') {
+      // Block draw: phase1Loan (plots) and phase2Loan (construction after grant) drawn as two blocks.
+      const p1Year = a.commercialLoan.plotsStartYear        ?? HORIZON_START_YEAR;
+      const p1Q    = a.commercialLoan.plotsStartQ           ?? 1;
+      const p2Year = a.commercialLoan.constructionStartYear  ?? HORIZON_START_YEAR + 1;
+      const p2Q    = a.commercialLoan.constructionStartQ     ?? 1;
+      const p1AmortStart = p1Year + 3;
+      const p2AmortStart = p2Year + 3;
+      const p1AnnualDS = pmt(rate, repaymentTermYears, phase1Loan);
+      const p2AnnualDS = pmt(rate, repaymentTermYears, phase2Loan);
+      function gBlockIO(loan: number, dYear: number, dQ: number, year: number, amortStart: number): number {
+        if (year < dYear) return 0;
+        if (year === dYear) return loan * rate * (5 - dQ) / 4;
+        if (year < amortStart) return loan * rate;
+        return 0;
+      }
+      const gTwoPhaseGetDS = (year: number): number =>
+        gBlockIO(phase1Loan, p1Year, p1Q, year, p1AmortStart) +
+        (year >= p1AmortStart ? p1AnnualDS : 0) +
+        gBlockIO(phase2Loan, p2Year, p2Q, year, p2AmortStart) +
+        (year >= p2AmortStart ? p2AnnualDS : 0);
+      const gTpGraceEnd = Math.max(p1AmortStart, p2AmortStart) - 1;
+      const gTpFirstYear = Math.min(p1Year, p2Year);
+      let gTpCarry = 0;
+      for (let yr = gTpFirstYear; yr < OPENING_YEAR; yr++) gTpCarry += gTwoPhaseGetDS(yr);
+      return {
+        annualDS: p1AnnualDS + p2AnnualDS,
+        loanAmount: remainingLoan,
+        equityRequired: equity,
+        grantAmount: grantAmt,
+        effectiveInterestRate: rate,
+        repaymentTermYears,
+        graceEndYear: gTpGraceEnd,
+        graceInterestCarry: gTpCarry,
+        firstAmortYear: Math.min(p1AmortStart, p2AmortStart),
+        getDS: gTwoPhaseGetDS,
+      };
+    }
+
+    // standard: use configured interest values for backward compatibility.
     const grantGracePeriodYears =
       a.grant.gracePeriodYears ?? a.commercialLoan.gracePeriodYears ?? 2;
     const grantGraceEndYear = HORIZON_START_YEAR + grantGracePeriodYears;
@@ -475,7 +712,7 @@ function computeDebtService(
       if (year === HORIZON_START_YEAR) return a.grant.interest2026 ?? 50625;
       if (year === HORIZON_START_YEAR + 1) return a.grant.interest2027 ?? 110544;
       if (year === grantGraceEndYear) return a.grant.interest2028 ?? 114109;
-      if (year >= FIRST_OPERATIONAL_YEAR) return annualDS;
+      if (year > grantGraceEndYear) return annualDS;
       return 0;
     };
     const grantGraceInterestCarry =
@@ -489,8 +726,8 @@ function computeDebtService(
       loanAmount: remainingLoan,
       equityRequired: equity,
       grantAmount: grantAmt,
-      effectiveInterestRate: a.commercialLoan.interestRate,
-      repaymentTermYears: a.commercialLoan.repaymentTermYears,
+      effectiveInterestRate: rate,
+      repaymentTermYears,
       graceEndYear: grantGraceEndYear,
       graceInterestCarry: grantGraceInterestCarry,
       getDS: grantGetDS,
@@ -525,7 +762,7 @@ function computeDebtService(
       if (year === HORIZON_START_YEAR) return a.commercialLoan.interest2026;
       if (year === HORIZON_START_YEAR + 1) return a.commercialLoan.interest2027;
       if (year === rrfGraceEndYear) return a.commercialLoan.interest2028;
-      if (year >= FIRST_OPERATIONAL_YEAR) return computedDS || annualDS;
+      if (year > rrfGraceEndYear) return computedDS || annualDS;
       return 0;
     };
     const rrfGraceInterestCarry =
@@ -737,16 +974,87 @@ function computeDebtService(
     const equityRequired = capex.portfolioTotal - loanAmount;
 
     const optimaGraceEndYear = HORIZON_START_YEAR + op.gracePeriodYears;
-
-    // Grace-period interest: interest-only on full loan at effectiveRate.
     const graceInterestPerYear = loanAmount * effectiveRate;
+    const graceMode = a.commercialLoan.graceMode ?? 'standard';
+
+    // ── Staged draw (rolling): subA drawn at signing + subB in 4 tranches, each
+    //    with its own grace period. Later tranches start amortising in 2030-2031,
+    //    producing a stepped DS profile and higher DSCR in early operational years.
+    if (graceMode === 'rolling') {
+      const oRepayYears = op.repaymentYears;
+      const cYear = a.commercialLoan.constructionStartYear ?? HORIZON_START_YEAR + 1;
+      const cQ    = a.commercialLoan.constructionStartQ    ?? 1;
+      function oAddQtrs(baseYear: number, baseQ: number, n: number) {
+        const total = (baseQ - 1) + n;
+        return { year: baseYear + Math.floor(total / 4), q: (total % 4) + 1 };
+      }
+      const ot2 = oAddQtrs(cYear, cQ, 0);
+      const ot3 = oAddQtrs(cYear, cQ, 2);
+      const ot4 = oAddQtrs(cYear, cQ, 4);
+      const ot5 = oAddQtrs(cYear, cQ, 6);
+      const subBQuarter = subB / 4;
+      const oTranches = [
+        { loan: subA,         disbYear: HORIZON_START_YEAR, disbQ: 1,     amortStart: HORIZON_START_YEAR + op.gracePeriodYears + 1 },
+        { loan: subBQuarter,  disbYear: ot2.year,           disbQ: ot2.q, amortStart: ot2.year + op.gracePeriodYears + 1 },
+        { loan: subBQuarter,  disbYear: ot3.year,           disbQ: ot3.q, amortStart: ot3.year + op.gracePeriodYears + 1 },
+        { loan: subBQuarter,  disbYear: ot4.year,           disbQ: ot4.q, amortStart: ot4.year + op.gracePeriodYears + 1 },
+        { loan: subBQuarter,  disbYear: ot5.year,           disbQ: ot5.q, amortStart: ot5.year + op.gracePeriodYears + 1 },
+      ];
+      function oTrDS(tr: typeof oTranches[0], year: number): number {
+        if (year < tr.disbYear) return 0;
+        if (year === tr.disbYear) return tr.loan * effectiveRate * (5 - tr.disbQ) / 4;
+        if (year < tr.amortStart) return tr.loan * effectiveRate;
+        return pmt(effectiveRate, oRepayYears, tr.loan);
+      }
+      const oRollingGetDS = (year: number): number =>
+        oTranches.reduce((sum, tr) => sum + oTrDS(tr, year), 0);
+      const oGraceEndYear = Math.max(...oTranches.map(tr => tr.amortStart - 1));
+      const oFirstDisb = Math.min(...oTranches.map(tr => tr.disbYear));
+      let oRollingCarry = 0;
+      for (let yr = oFirstDisb; yr < OPENING_YEAR; yr++) oRollingCarry += oRollingGetDS(yr);
+      return {
+        annualDS,
+        loanAmount,
+        equityRequired,
+        grantAmount: 0,
+        effectiveInterestRate: effectiveRate,
+        repaymentTermYears: op.repaymentYears,
+        graceEndYear: oGraceEndYear,
+        graceInterestCarry: oRollingCarry,
+        firstAmortYear: Math.min(...oTranches.map(t => t.amortStart)),
+        getDS: oRollingGetDS,
+      };
+    }
+
+    // ── Block draw (two-phase): full loan committed from construction start,
+    //    interest on full amount throughout grace period (no ramp).
+    if (graceMode === 'two-phase') {
+      const oBlockGetDS = (year: number): number => {
+        if (year >= HORIZON_START_YEAR && year <= optimaGraceEndYear) return graceInterestPerYear;
+        if (year > optimaGraceEndYear) return annualDS;
+        return 0;
+      };
+      const oBlockCarry = op.gracePeriodYears === 0
+        ? 0
+        : oBlockGetDS(HORIZON_START_YEAR) +
+          oBlockGetDS(HORIZON_START_YEAR + 1) +
+          oBlockGetDS(optimaGraceEndYear);
+      return {
+        annualDS,
+        loanAmount,
+        equityRequired,
+        grantAmount: 0,
+        effectiveInterestRate: effectiveRate,
+        repaymentTermYears: op.repaymentYears,
+        graceEndYear: optimaGraceEndYear,
+        graceInterestCarry: oBlockCarry,
+        getDS: oBlockGetDS,
+      };
+    }
+
+    // ── Standard (default): ramp draw 20 % → 60 % → 100 % of grace interest.
     const optimaGetDS = (year: number): number => {
       if (year >= HORIZON_START_YEAR && year <= optimaGraceEndYear) {
-        // Scale interest-only linearly across the grace years.
-        // In the first grace year the loan is not yet fully drawn (land phase),
-        // so we mirror the commercial path convention: a fraction of the
-        // full-draw interest-only amount. For simplicity we apply a flat
-        // proportional draw analogous to the commercial path.
         if (year === HORIZON_START_YEAR) return graceInterestPerYear * 0.20;
         if (year === HORIZON_START_YEAR + 1) return graceInterestPerYear * 0.60;
         if (year === optimaGraceEndYear) return graceInterestPerYear;
@@ -1102,7 +1410,7 @@ function computeScenario(
   const opCo = a.opCoFee;
   const opCoEnabled = !!opCo?.enabled;
 
-  const graceEndYear = HORIZON_START_YEAR + (a.commercialLoan.gracePeriodYears ?? 2);
+  const graceEndYear = debtResult.graceEndYear;
   const preAmortSchedule = buildAmortSchedule(
     debtResult.loanAmount,
     debtResult.effectiveInterestRate,
@@ -1730,10 +2038,13 @@ function computeScenario(
     debtResult.loanAmount +
     debtResult.grantAmount;
 
-  const gracePeriodInterestTotal =
-    debtResult.getDS(HORIZON_START_YEAR) + debtResult.getDS(HORIZON_START_YEAR + 1) + debtResult.getDS(graceEndYear);
+  const gracePeriodInterestTotal = debtResult.graceInterestCarry;
 
-  const dscrWindowStart = graceEndYear + 1;
+  // For rolling (two-phase) mode, the first tranche starts amortising before
+  // the last one does — include those earlier years in the DSCR window so the
+  // benefit of staggered amortisation is visible. For all other modes,
+  // dscrWindowStart = graceEndYear + 1 (first year after full grace).
+  const dscrWindowStart = debtResult.firstAmortYear ?? graceEndYear + 1;
   const operationalDscrs = pnl
     .filter((p) => p.year >= dscrWindowStart && p.dscr > 0)
     .map((p) => p.dscr);

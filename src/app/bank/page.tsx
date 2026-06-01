@@ -633,34 +633,7 @@ export default function BankPage() {
           );
         })()}
 
-        {/* Grace structure toggle — commercial path only (ADR-0027) */}
-        {activePath === 'commercial' && <div className="bg-white rounded-xl border border-surface-tertiary px-5 py-4 mb-6 print:hidden">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary shrink-0 w-36">
-                {t('bank.graceMode.label')}
-              </span>
-              <div className="flex gap-1">
-                {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setAssumption('commercialLoan.graceMode', m, 'Grace structure')}
-                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                      graceMode === m
-                        ? 'bg-brand-600 text-white'
-                        : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
-                    }`}
-                  >
-                    {t(`bank.graceMode.${m.replace('-', '_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="text-[12px] text-text-secondary leading-relaxed mt-3">
-              {graceMode === 'rolling'
-                ? t('bank.graceMode.rolling.desc')
-                : t('bank.graceMode.two_phase.desc')}
-            </p>
-          </div>}
+        {/* Loan draw structure toggle lives in admin panel only */}
 
         {/* 3b. Operating Track Record — proof of operator */}
         <div id="live-track-record" className="mb-6 print:hidden">
