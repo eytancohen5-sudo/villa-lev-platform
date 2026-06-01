@@ -21,16 +21,15 @@ export function BankGate({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setMounted(true);
-
     // 1. If name was already entered this session, skip immediately.
-    if (getBankName()) { setReady(true); return; }
+    if (getBankName()) { setReady(true); setMounted(true); return; }
 
     // 2. If the user is already signed in with a non-anonymous account (e.g.
     //    the admin using Google auth navigates to /bank), skip the name prompt.
-    //    We await authStateReady() so we don't race the IndexedDB restore.
+    //    We await authStateReady() before setting mounted so we never flash the
+    //    name-entry form for an authenticated admin.
     const auth = getAuthInstance();
-    if (!auth) return;
+    if (!auth) { setMounted(true); return; }
     const checkExistingAuth = async () => {
       try {
         if (typeof (auth as { authStateReady?: () => Promise<void> }).authStateReady === "function") {
@@ -44,6 +43,9 @@ export function BankGate({ children }: { children: React.ReactNode }) {
         try { sessionStorage.setItem(BANK_NAME_KEY, displayName.slice(0, 120)); } catch { /* private mode */ }
         setReady(true);
       }
+      // Always set mounted last — component renders null until this point,
+      // so the name-entry form never flashes for an authenticated admin.
+      setMounted(true);
     };
     void checkExistingAuth();
   }, []);
