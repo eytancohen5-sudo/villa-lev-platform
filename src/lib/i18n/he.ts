@@ -2390,15 +2390,16 @@ export const he: TranslationDictionary = {
   // ── CAPEX Comparison page ──
   'nav.capexComparison': 'השוואת CAPEX',
   'admin.capexComparison.title': 'השוואת CAPEX — אמיתי מול מוצהר',
-  'admin.capexComparison.pageIntro': 'הזן העלאה וירטואלית להשוואת ה-CAPEX המוצהר (לבנק) מול ה-CAPEX האמיתי. הנתונים אינם נשמרים.',
+  'admin.capexComparison.pageIntro': 'תצוגה בשלוש עמודות: CAPEX מוצהר (לבנק), CAPEX אמיתי (מה שנבנה), תוצאה אמיתית (עלות אמיתית + הלוואה מוצהרת). אפמרי — לא נשמר.',
   'admin.capexComparison.disclaimer': 'היפותטי — לא נשמר בתרחיש',
   'admin.capexComparison.inputLabel': 'העלאה וירטואלית',
   'admin.capexComparison.modeAbs': '€k',
   'admin.capexComparison.modePct': '% מ-CAPEX האמיתי',
   'admin.capexComparison.colTrue': 'CAPEX אמיתי',
   'admin.capexComparison.colStated': 'CAPEX מוצהר',
-  'admin.capexComparison.colDelta': 'הפרש',
   'admin.capexComparison.colBankNote': 'לבנק',
+  'admin.capexComparison.colReal': 'תוצאה אמיתית',
+  'admin.capexComparison.colRealNote': 'היברידי לאחר אישור',
   'admin.capexComparison.rowCapexTotal': 'סה"כ CAPEX',
   'admin.capexComparison.rowEquityRequired': 'הון עצמי נדרש',
   'admin.capexComparison.rowLoan': 'סה"כ הלוואה',
@@ -2408,6 +2409,7 @@ export const he: TranslationDictionary = {
   'admin.capexComparison.rowDscr': 'DSCR מייצב',
   'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'IRR על ההון',
+  'admin.capexComparison.irrHybridNote': 'נדרש חישוב מחדש של תזרים — ראה DSCR והון עצמי למעלה',
   'admin.capexComparison.inactiveHint': 'הזן העלאה כדי להפעיל את ההשוואה.',
 
   // ── Events disclosure (Gap 5) ──

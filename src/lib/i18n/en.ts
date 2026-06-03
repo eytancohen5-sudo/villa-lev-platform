@@ -2418,15 +2418,16 @@ export const en: TranslationDictionary = {
   // ── CAPEX Comparison page ──
   'nav.capexComparison': 'CAPEX Comparison',
   'admin.capexComparison.title': 'CAPEX Comparison — True vs. Stated',
-  'admin.capexComparison.pageIntro': 'Enter a virtual uplift to see how stated CAPEX (bank-facing) compares to true CAPEX. Figures are ephemeral — nothing is saved.',
+  'admin.capexComparison.pageIntro': 'Three-column view: Stated CAPEX (bank-facing), True CAPEX (what gets built), Real outcome (true cost + stated loan). Ephemeral — not saved.',
   'admin.capexComparison.disclaimer': 'Hypothetical — not saved to scenario',
   'admin.capexComparison.inputLabel': 'Virtual uplift',
   'admin.capexComparison.modeAbs': '€k',
   'admin.capexComparison.modePct': '% of true CAPEX',
   'admin.capexComparison.colTrue': 'True CAPEX',
   'admin.capexComparison.colStated': 'Stated CAPEX',
-  'admin.capexComparison.colDelta': 'Delta',
   'admin.capexComparison.colBankNote': 'Bank-facing',
+  'admin.capexComparison.colReal': 'Real outcome',
+  'admin.capexComparison.colRealNote': 'Post-approval hybrid',
   'admin.capexComparison.rowCapexTotal': 'Total CAPEX',
   'admin.capexComparison.rowEquityRequired': 'Equity required',
   'admin.capexComparison.rowLoan': 'Total loan drawn',
@@ -2436,6 +2437,7 @@ export const en: TranslationDictionary = {
   'admin.capexComparison.rowDscr': 'Stabilised DSCR',
   'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'Equity IRR',
+  'admin.capexComparison.irrHybridNote': 'Hybrid IRR requires a full cash-flow re-run — see equity & DSCR above',
   'admin.capexComparison.inactiveHint': 'Enter an uplift above to activate the comparison.',
 
   // ── Events disclosure (Gap 5) ──

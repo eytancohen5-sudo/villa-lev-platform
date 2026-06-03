@@ -1693,6 +1693,16 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const prevUid = cur.currentUserUid;
     const isAccountSwitch =
       prevUid !== null && uid !== null && prevUid !== uid;
+
+    // Auto-resolve currentUser / userHasSetName from Firebase identity so
+    // bumpEditCounter never opens the name-attribution modal for a user whose
+    // identity is already known (Google sign-in, email, or AuthGate name).
+    const resolvedName = resolveOwnerDisplayName({ currentUserDisplayName: displayName, currentUserEmail: email });
+    const identityExtra = resolvedName !== 'Unknown'
+      ? { currentUser: resolvedName, userHasSetName: true, nameModalOpen: false }
+      : {};
+    if (resolvedName !== 'Unknown') saveUserToStorage(resolvedName);
+
     if (isAccountSwitch) {
       const filtered = cur.savedConfigs.filter((c) => !!c.userId);
       if (filtered.length !== cur.savedConfigs.length) {
@@ -1701,6 +1711,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
           currentUserDisplayName: displayName,
           currentUserEmail: email,
           savedConfigs: filtered,
+          ...identityExtra,
         });
         saveToStorage(filtered);
         return;
@@ -1710,6 +1721,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       currentUserUid: uid,
       currentUserDisplayName: displayName,
       currentUserEmail: email,
+      ...identityExtra,
     });
   },
 

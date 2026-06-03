@@ -2430,15 +2430,16 @@ export const el: TranslationDictionary = {
   // ── CAPEX Comparison page ──
   'nav.capexComparison': 'Σύγκριση CAPEX',
   'admin.capexComparison.title': 'Σύγκριση CAPEX — Πραγματικό vs. Δηλωθέν',
-  'admin.capexComparison.pageIntro': 'Εισάγετε εικονική αύξηση για σύγκριση δηλωθέντος και πραγματικού CAPEX. Τα στοιχεία δεν αποθηκεύονται.',
+  'admin.capexComparison.pageIntro': 'Τρεις στήλες: Δηλωθέν CAPEX (για τράπεζα), Πραγματικό CAPEX (κατασκευή), Πραγματικό αποτέλεσμα (αληθινό κόστος + δηλωθέν δάνειο). Δεν αποθηκεύεται.',
   'admin.capexComparison.disclaimer': 'Υποθετικό — δεν αποθηκεύεται',
   'admin.capexComparison.inputLabel': 'Εικονική αύξηση',
   'admin.capexComparison.modeAbs': '€k',
   'admin.capexComparison.modePct': '% πραγματικού CAPEX',
   'admin.capexComparison.colTrue': 'Πραγματικό CAPEX',
   'admin.capexComparison.colStated': 'Δηλωθέν CAPEX',
-  'admin.capexComparison.colDelta': 'Διαφορά',
   'admin.capexComparison.colBankNote': 'Για τράπεζα',
+  'admin.capexComparison.colReal': 'Πραγματικό αποτέλεσμα',
+  'admin.capexComparison.colRealNote': 'Υβριδικό μετά έγκριση',
   'admin.capexComparison.rowCapexTotal': 'Σύνολο CAPEX',
   'admin.capexComparison.rowEquityRequired': 'Ίδια κεφάλαια',
   'admin.capexComparison.rowLoan': 'Σύνολο δανείου',
@@ -2448,6 +2449,7 @@ export const el: TranslationDictionary = {
   'admin.capexComparison.rowDscr': 'Σταθεροποιημένο DSCR',
   'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'IRR Ιδίων Κεφαλαίων',
+  'admin.capexComparison.irrHybridNote': 'Απαιτείται πλήρης επανυπολογισμός ταμειακών ροών — βλ. DSCR και ίδια κεφάλαια',
   'admin.capexComparison.inactiveHint': 'Εισάγετε αύξηση για να ενεργοποιήσετε τη σύγκριση.',
 
   // ── Events disclosure (Gap 5) ──

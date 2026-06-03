@@ -2409,8 +2409,9 @@ export interface TranslationDictionary {
   'admin.capexComparison.modePct': string;
   'admin.capexComparison.colTrue': string;
   'admin.capexComparison.colStated': string;
-  'admin.capexComparison.colDelta': string;
   'admin.capexComparison.colBankNote': string;
+  'admin.capexComparison.colReal': string;
+  'admin.capexComparison.colRealNote': string;
   'admin.capexComparison.rowCapexTotal': string;
   'admin.capexComparison.rowEquityRequired': string;
   'admin.capexComparison.rowLoan': string;
@@ -2420,6 +2421,7 @@ export interface TranslationDictionary {
   'admin.capexComparison.rowDscr': string;
   'admin.capexComparison.rowMinDscr': string;
   'admin.capexComparison.rowIrr': string;
+  'admin.capexComparison.irrHybridNote': string;
   'admin.capexComparison.inactiveHint': string;
 
   // ── Events disclosure (Gap 5) ──
