@@ -311,7 +311,7 @@ export default function SensitivityPage() {
       year,
       cells: exitMultiples.map((mult) => {
         const modified = { ...assumptions, exitYear: year, exitEbitdaMultiple: mult };
-        const result = computeModel(modified).scenarios.realistic;
+        const result = computeModel(modified).scenarios[activeScenario];
         return {
           mult,
           irr: result.equityIRR,
