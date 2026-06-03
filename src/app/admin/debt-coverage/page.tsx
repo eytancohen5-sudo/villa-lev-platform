@@ -75,8 +75,7 @@ export default function DebtCoveragePage() {
   const stab = activeScenarioOutput.stabilisedYear;
 
   const minDSCRLoanLife = activeScenarioOutput.minDSCRLoanLife;
-  const dscrPostRamp =
-    activePnL.find((p) => p.year === 2030)?.dscr ?? activeScenarioOutput.minDSCRLoanLife;
+  const avgDSCRLoanLife = activeScenarioOutput.avgDSCRLoanLife ?? 0;
   const dscrCovenantHeadroom = activeScenarioOutput.dscrCovenantHeadroom;
   const icrStabilised = activeScenarioOutput.icrStabilised;
   const llcr = activeScenarioOutput.llcr;
@@ -310,17 +309,17 @@ export default function DebtCoveragePage() {
         <KPICard
           label={t("kpi.covHeadroom")}
           value={(() => {
-            if (dscrPostRamp <= 0) return "—";
+            if (avgDSCRLoanLife <= 0) return "—";
             const covenant = assumptions?.dscrCovenantThreshold ?? 1.25;
-            const deltaPct = (dscrPostRamp - covenant) / covenant;
+            const deltaPct = (avgDSCRLoanLife - covenant) / covenant;
             const sign = deltaPct >= 0 ? "+" : "−";
             return `${sign}${(Math.abs(deltaPct) * 100).toFixed(1)}%`;
           })()}
           sublabel={t("kpi.covHeadroomSub")}
           tone={
-            dscrPostRamp - (assumptions?.dscrCovenantThreshold ?? 1.25) >= 0.2
+            avgDSCRLoanLife - (assumptions?.dscrCovenantThreshold ?? 1.25) >= 0.2
               ? "positive"
-              : dscrPostRamp >= (assumptions?.dscrCovenantThreshold ?? 1.25)
+              : avgDSCRLoanLife >= (assumptions?.dscrCovenantThreshold ?? 1.25)
                 ? undefined
                 : "warning"
           }
