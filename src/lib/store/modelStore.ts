@@ -26,6 +26,7 @@ import {
 } from '../engine/defaults';
 import { computeModel, computeCapex } from '../engine/model';
 import { applyCapexUplift } from '../engine/capexUplift';
+import { applyCapexAbsorption, isAbsorptionActive, type CapexAbsorptionConfig } from '../engine/capexAbsorption';
 import {
   CapTableStakeholder,
   WaterfallParams,
@@ -239,6 +240,7 @@ const LAST_SAVED_CONFIG_KEY = 'villa-lev-last-saved-config';
 const CAP_TABLE_STORAGE_KEY = 'villa-lev-cap-table';
 const WATERFALL_STORAGE_KEY = 'villa-lev-waterfall';
 const CAPEX_UPLIFT_STORAGE_KEY = 'villa-lev-capex-uplift';
+const CAPEX_ABSORPTION_STORAGE_KEY = 'villa-lev-capex-absorption';
 const HISTORY_MAX = 200;
 
 // ── Server-side scenario sync (Firestore) ──
@@ -547,21 +549,50 @@ function saveWaterfallToStorage(w: WaterfallParams) {
   if (typeof window === 'undefined') return;
   try { localStorage.setItem(WATERFALL_STORAGE_KEY, JSON.stringify(w)); } catch { /* full */ }
 }
-function loadCapexUpliftFromStorage(): { eur: number | null; base: number | null; mode: 'abs' | 'pct' } | null {
+type PerPathLoans = { commercial: number; rrf: number; grant: number; tepixLoan: number; optima: number };
+
+function loadCapexUpliftFromStorage(): { eur: number | null; base: number | null; mode: 'abs' | 'pct'; baselineLoans: PerPathLoans | null } | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(CAPEX_UPLIFT_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return { eur: parsed.eur ?? null, base: parsed.base ?? null, mode: parsed.mode ?? 'pct' };
+    // If an uplift was saved without baseline loans (pre-fix format), discard it.
+    // Without baselines we can't compute a correct delta — force the user to re-enter.
+    if (parsed.eur && parsed.eur > 0 && !parsed.baselineLoans) {
+      try { localStorage.removeItem(CAPEX_UPLIFT_STORAGE_KEY); } catch { /* ok */ }
+      return null;
+    }
+    return { eur: parsed.eur ?? null, base: parsed.base ?? null, mode: parsed.mode ?? 'pct', baselineLoans: parsed.baselineLoans ?? null };
   } catch { return null; }
 }
-function saveCapexUpliftToStorage(eur: number | null, base: number | null, mode: 'abs' | 'pct') {
+function saveCapexUpliftToStorage(eur: number | null, base: number | null, mode: 'abs' | 'pct', baselineLoans?: PerPathLoans | null) {
   if (typeof window === 'undefined') return;
   if (eur === null || eur <= 0) {
     try { localStorage.removeItem(CAPEX_UPLIFT_STORAGE_KEY); } catch { /* ok */ }
   } else {
-    try { localStorage.setItem(CAPEX_UPLIFT_STORAGE_KEY, JSON.stringify({ eur, base, mode })); } catch { /* full */ }
+    try { localStorage.setItem(CAPEX_UPLIFT_STORAGE_KEY, JSON.stringify({ eur, base, mode, baselineLoans: baselineLoans ?? null })); } catch { /* full */ }
+  }
+}
+
+function loadCapexAbsorptionFromStorage(): { serviceProviders: boolean; contingency: boolean } {
+  if (typeof window === 'undefined') return { serviceProviders: false, contingency: false };
+  try {
+    const raw = localStorage.getItem(CAPEX_ABSORPTION_STORAGE_KEY);
+    if (!raw) return { serviceProviders: false, contingency: false };
+    const parsed = JSON.parse(raw);
+    return {
+      serviceProviders: parsed.serviceProviders === true,
+      contingency: parsed.contingency === true,
+    };
+  } catch { return { serviceProviders: false, contingency: false }; }
+}
+function saveCapexAbsorptionToStorage(config: { serviceProviders: boolean; contingency: boolean }) {
+  if (typeof window === 'undefined') return;
+  if (!config.serviceProviders && !config.contingency) {
+    try { localStorage.removeItem(CAPEX_ABSORPTION_STORAGE_KEY); } catch { /* ok */ }
+  } else {
+    try { localStorage.setItem(CAPEX_ABSORPTION_STORAGE_KEY, JSON.stringify(config)); } catch { /* full */ }
   }
 }
 
@@ -756,6 +787,13 @@ export interface SavedConfiguration {
     scenarioId: string;
     copiedAt: number;
   } | null;
+  capexUpliftEur?: number | null;
+  capexUpliftBase?: number | null;
+  capexUpliftMode?: 'abs' | 'pct';
+  capexUpliftBaselineLoans?: PerPathLoans | null;
+  capexAbsorptionServiceProviders?: boolean;
+  capexAbsorptionContingency?: boolean;
+  activeScenario?: ScenarioName;
 }
 
 export interface ConfirmOpts {
@@ -831,11 +869,23 @@ interface ModelStore {
   capexUpliftEur: number | null;
   // Base (pre-uplift) CAPEX total in EUR — stored so % back-calculation survives page remount.
   capexUpliftBase: number | null;
+  // Per-path baseline loans captured before any uplift is applied — survives remount via localStorage.
+  capexUpliftBaselineLoans: { commercial: number; rrf: number; grant: number; tepixLoan: number; optima: number } | null;
   // Default changed to 'pct' per Eytan 2026-05-29; ADR-0024 originally defaulted to 'abs'.
   capexUpliftMode: 'abs' | 'pct';
   setCapexUplift: (upliftEur: number, baseEur?: number) => void;
   setCapexUpliftMode: (mode: 'abs' | 'pct') => void;
   clearCapexUplift: () => void;
+  /** Capture per-path baseline loans. Only stores when no uplift is active — safe to call in useEffect on every model recompute. */
+  captureCapexBaselines: (loans: { commercial: number; rrf: number; grant: number; tepixLoan: number; optima: number }) => void;
+
+  // ── CapEx Absorption (Financing Paths page) ──────────────────────
+  // Toggles that absorb specific CapEx categories into the construction
+  // line for bank-facing output. Persisted to localStorage.
+  capexAbsorptionServiceProviders: boolean;
+  capexAbsorptionContingency: boolean;
+  setCapexAbsorptionServiceProviders: (value: boolean) => void;
+  setCapexAbsorptionContingency: (value: boolean) => void;
 
   // Templates & Projects
   templates: PropertyTemplate[];
@@ -1072,6 +1122,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
 
   capexUpliftEur: null,
   capexUpliftBase: null,
+  capexUpliftBaselineLoans: null,
   capexUpliftMode: 'pct',
   setCapexUplift: (upliftEur: number, baseEur?: number) => {
     set({
@@ -1079,18 +1130,42 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ...(baseEur !== undefined && { capexUpliftBase: baseEur }),
     });
     const s = get();
-    saveCapexUpliftToStorage(upliftEur, baseEur ?? s.capexUpliftBase, s.capexUpliftMode);
+    // s.capexUpliftBaselineLoans was already populated in-memory by captureCapexBaselines (useEffect).
+    // Saving it here persists it to localStorage alongside the uplift.
+    saveCapexUpliftToStorage(upliftEur, baseEur ?? s.capexUpliftBase, s.capexUpliftMode, s.capexUpliftBaselineLoans);
     get().recompute();
   },
   setCapexUpliftMode: (mode) => {
     set({ capexUpliftMode: mode });
     const s = get();
-    saveCapexUpliftToStorage(s.capexUpliftEur, s.capexUpliftBase, mode);
+    saveCapexUpliftToStorage(s.capexUpliftEur, s.capexUpliftBase, mode, s.capexUpliftBaselineLoans);
     get().recompute();
   },
   clearCapexUplift: () => {
-    set({ capexUpliftEur: null, capexUpliftBase: null });
-    saveCapexUpliftToStorage(null, null, get().capexUpliftMode);
+    set({ capexUpliftEur: null, capexUpliftBase: null, capexUpliftBaselineLoans: null });
+    saveCapexUpliftToStorage(null, null, get().capexUpliftMode, null);
+    get().recompute();
+  },
+  captureCapexBaselines: (loans) => {
+    if (get().capexUpliftEur !== null) return; // only capture when no uplift active
+    // In-memory only — persisted to localStorage by setCapexUplift when the uplift is later set,
+    // since saveCapexUpliftToStorage removes the key when eur === null.
+    set({ capexUpliftBaselineLoans: loans });
+  },
+
+  // ── CapEx Absorption ──────────────────────────────────────────
+  capexAbsorptionServiceProviders: false,
+  capexAbsorptionContingency: false,
+  setCapexAbsorptionServiceProviders: (value) => {
+    set({ capexAbsorptionServiceProviders: value });
+    const s = get();
+    saveCapexAbsorptionToStorage({ serviceProviders: value, contingency: s.capexAbsorptionContingency });
+    get().recompute();
+  },
+  setCapexAbsorptionContingency: (value) => {
+    set({ capexAbsorptionContingency: value });
+    const s = get();
+    saveCapexAbsorptionToStorage({ serviceProviders: s.capexAbsorptionServiceProviders, contingency: value });
     get().recompute();
   },
 
@@ -1412,13 +1487,23 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         ) as unknown as ModelAssumptions;
       }
     }
-    // Apply ephemeral CAPEX uplift (Optima page only — never persisted).
-    // Only injected when the active path resolves to 'optima'.
+    // Apply ephemeral CAPEX overrides (absorption toggles + optional manual uplift).
+    // Absorption: specific categories moved into the construction line for bank-facing output.
+    // Uplift: blanket manual override still used by dashboard/assumptions controls.
     let capexOverride: CapexBreakdown | undefined;
     const activePath = (state.financingPathOverride ?? assumptions.financingPath) as FinancingPath;
-    if (state.capexUpliftEur !== null && state.capexUpliftEur > 0) {
+    const absorptionConfig: CapexAbsorptionConfig = {
+      serviceProviders: state.capexAbsorptionServiceProviders,
+      contingency: state.capexAbsorptionContingency,
+    };
+    const hasAbsorption = isAbsorptionActive(absorptionConfig);
+    const hasUplift = state.capexUpliftEur !== null && state.capexUpliftEur > 0;
+    if (hasAbsorption || hasUplift) {
       const rawCapex = computeCapex(assumptions);
-      capexOverride = applyCapexUplift(rawCapex, state.capexUpliftEur);
+      let working = rawCapex;
+      if (hasAbsorption) working = applyCapexAbsorption(working, absorptionConfig);
+      if (hasUplift) working = applyCapexUplift(working, state.capexUpliftEur!);
+      capexOverride = working;
     }
 
     // Apply viewMode override (banker routes, admin toggle, banker
@@ -1427,7 +1512,30 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const computed = state.viewModeOverride
       ? computeModel({ ...assumptions, viewMode: state.viewModeOverride }, capexOverride)
       : computeModel(assumptions, capexOverride);
-    set({ assumptions: { ...state.assumptions, portfolio }, model: computed, loading: false, computeTimeMs: computed.computeTimeMs });
+
+    // Capture per-path baseline loans whenever no override (uplift or absorption) is active.
+    // Done synchronously inside recompute so baselines are available regardless of which
+    // page the user is on when they first activate the sensitivity.
+    let baselineLoansUpdate: Partial<typeof state> = {};
+    const noOverrideActive = (state.capexUpliftEur === null || state.capexUpliftEur <= 0)
+      && !state.capexAbsorptionServiceProviders
+      && !state.capexAbsorptionContingency;
+    if (noOverrideActive) {
+      const loanRow = computed.financingComparison.find(r => r.key === 'totalLoanDrawn');
+      if (loanRow) {
+        baselineLoansUpdate = {
+          capexUpliftBaselineLoans: {
+            commercial: typeof loanRow.commercial === 'number' ? loanRow.commercial : 0,
+            rrf:        typeof loanRow.rrf        === 'number' ? loanRow.rrf        : 0,
+            grant:      typeof loanRow.grant      === 'number' ? loanRow.grant      : 0,
+            tepixLoan:  typeof loanRow.tepixLoan  === 'number' ? loanRow.tepixLoan  : 0,
+            optima:     typeof loanRow.optima     === 'number' ? loanRow.optima     : 0,
+          },
+        };
+      }
+    }
+
+    set({ assumptions: { ...state.assumptions, portfolio }, model: computed, loading: false, computeTimeMs: computed.computeTimeMs, ...baselineLoansUpdate });
   },
 
   init: () => {
@@ -1441,6 +1549,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
     const savedCapTable = loadCapTableFromStorage();
     const savedWaterfall = loadWaterfallFromStorage();
     const savedCapexUplift = loadCapexUpliftFromStorage();
+    const savedCapexAbsorption = loadCapexAbsorptionFromStorage();
 
     // Merge: use saved version of built-in templates if modified, otherwise use default built-in
     const allTemplates = [
@@ -1516,7 +1625,10 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         capexUpliftEur: savedCapexUplift.eur,
         capexUpliftBase: savedCapexUplift.base,
         capexUpliftMode: savedCapexUplift.mode,
+        capexUpliftBaselineLoans: savedCapexUplift.baselineLoans,
       } : {}),
+      capexAbsorptionServiceProviders: savedCapexAbsorption.serviceProviders,
+      capexAbsorptionContingency: savedCapexAbsorption.contingency,
     });
     get().recompute();
     // Persist backfilled templates (ensureRoomAreas may have added new fields
@@ -2272,6 +2384,13 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ownerDisplayName,
       published: opts?.published ?? true,
       copiedFrom: null,
+      capexUpliftEur: state.capexUpliftEur,
+      capexUpliftBase: state.capexUpliftBase,
+      capexUpliftMode: state.capexUpliftMode,
+      capexUpliftBaselineLoans: state.capexUpliftBaselineLoans,
+      capexAbsorptionServiceProviders: state.capexAbsorptionServiceProviders,
+      capexAbsorptionContingency: state.capexAbsorptionContingency,
+      activeScenario: state.activeScenario,
     };
     const configs = [...state.savedConfigs, config];
     set({
@@ -2343,6 +2462,14 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ownerDisplayName,
       published: existing.published ?? false,
       copiedFrom: existing.copiedFrom ?? null,
+      // Explicit re-snapshot — do not rely on ...existing spread (capex/scenario may have changed since load)
+      capexUpliftEur: state.capexUpliftEur,
+      capexUpliftBase: state.capexUpliftBase,
+      capexUpliftMode: state.capexUpliftMode,
+      capexUpliftBaselineLoans: state.capexUpliftBaselineLoans,
+      capexAbsorptionServiceProviders: state.capexAbsorptionServiceProviders,
+      capexAbsorptionContingency: state.capexAbsorptionContingency,
+      activeScenario: state.activeScenario,
     };
     const configs = state.savedConfigs.map((c) => (c.id === id ? updated : c));
     set({
@@ -2484,6 +2611,33 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       saveAssumptionsToStorage(targetAssumptions);
       saveProjectsToStorage(targetProjects);
       saveLastSavedConfig({ id, name: source.name });
+      // Hydrate capex sensitivity + active scenario from saved doc — safe fallbacks for legacy docs
+      const loadedScenario = source.activeScenario ?? 'realistic';
+      set({
+        capexUpliftEur: source.capexUpliftEur ?? null,
+        capexUpliftBase: source.capexUpliftBase ?? null,
+        capexUpliftMode: source.capexUpliftMode ?? 'pct',
+        capexUpliftBaselineLoans: source.capexUpliftBaselineLoans ?? null,
+        capexAbsorptionServiceProviders: source.capexAbsorptionServiceProviders ?? false,
+        capexAbsorptionContingency: source.capexAbsorptionContingency ?? false,
+        activeScenario: loadedScenario,
+      });
+      saveScenarioToStorage(loadedScenario);
+      // Only persist to localStorage when the loaded scenario has active sensitivity settings
+      if (source.capexUpliftEur != null && source.capexUpliftEur > 0) {
+        saveCapexUpliftToStorage(
+          source.capexUpliftEur,
+          source.capexUpliftBase ?? null,
+          source.capexUpliftMode ?? 'pct',
+          source.capexUpliftBaselineLoans ?? null,
+        );
+      }
+      if (source.capexAbsorptionServiceProviders || source.capexAbsorptionContingency) {
+        saveCapexAbsorptionToStorage({
+          serviceProviders: source.capexAbsorptionServiceProviders ?? false,
+          contingency: source.capexAbsorptionContingency ?? false,
+        });
+      }
       get().recompute();
       return;
     }
@@ -2524,6 +2678,7 @@ export const useModelStore = create<ModelStore>((set, get) => ({
         scenarioId: source.id,
         copiedAt: Date.now(),
       },
+      // TODO: extend copy-on-load branch with capex sensitivity fields once isForeign can be true (see capex save fix 2026-06)
     };
     const configs = [...state.savedConfigs, copy];
     set({

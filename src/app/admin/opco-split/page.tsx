@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   formatCurrency,
@@ -13,11 +13,7 @@ import { PageSkeleton } from "@/components/Skeleton";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { OPCO_SPLIT_TOUR } from "@/lib/tours/configs";
 import { SectionHeader } from "@/components/AdminUI";
-import type { ModelAssumptions, ModelOutput, ScenarioOutput } from "@/lib/engine/types";
-import {
-  DEFAULT_GRANT_AMOUNT,
-  DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
-} from "@/lib/engine/founderWaterfall";
+import type { ModelAssumptions, ScenarioOutput } from "@/lib/engine/types";
 import {
   BarChart,
   Bar,
@@ -28,6 +24,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 
 // ── Inline translation object ─────────────────────────────────────────
 // Used by subcomponents that don't have access to the useTranslation hook.
@@ -86,11 +83,11 @@ const _T = ({
     yearRowEbitdaPre: 'EBITDA pre-fees',
     yearRowPropcoEbitda: 'PropCo EBITDA',
     chartTitle: 'OpCo fee composition by year',
-    chartBarBase: 'Base management fee (Bucket 2A)',
-    chartBarIncentive: 'Incentive fee (Bucket 2B)',
+    chartBarBase: 'Base management fee',
+    chartBarIncentive: 'Incentive fee',
     tipText: 'Tip: change the financing path or scenario from the top bar to see how the same fee schedule plays out under different revenue assumptions. Use ROIC and DSCR delta on the Dashboard to judge whether bank covenants still pass after the split.',
     explainerHeading1: 'How the split works.',
-    explainerBody1: 'When enabled, OpCo earns a guaranteed senior floor (in OpEx, senior to debt service) plus a tiered junior fee on the post-DS residual: Tier 1 rate up to the breakpoint, Tier 2 rate above it. DSCR is computed on ebitdaPreOpCo / DS in all views — junior is never in the numerator.',
+    explainerBody1: 'When enabled, OpCo earns a guaranteed floor (paid junior to debt service — accrues when cash insufficient) plus a tiered junior fee on the post-DS residual: Tier 1 rate up to the breakpoint, Tier 2 rate above it. DS is unambiguously senior to all OpCo fees. DSCR = ebitdaPreOpCo / DS — floor and junior are never in the numerator.',
     explainerHeading2: 'All metrics below are PropCo\'s',
     explainerBody2: '— DSCR, NCF, equity IRR all reflect the cash flow that survives to the asset owner after OpCo fees are paid. The IRR cost of split card quantifies how much equity return moves from PropCo to OpCo.',
     // EntityDiagram
@@ -109,7 +106,7 @@ const _T = ({
     opcoOwnsBrand: 'Brand IP + operational know-how',
     opcoProvides: 'Provides:',
     opcoProvidesMgmt: 'Mgmt services · brand · dev supervision',
-    opcoReceives: 'Receives: 4 fee buckets from PropCo (see below)',
+    opcoReceives: 'Receives: 3 fee buckets from PropCo (see below)',
     investorsTitle: 'Investors',
     investorsDesc: 'Cap-table holders',
     investorsHold: 'Hold:',
@@ -126,49 +123,21 @@ const _T = ({
     feeColRate: 'Rate',
     feeColAmount: 'Amount',
     feeColWhen: 'When',
-    bucket1ATitle: 'Bucket 1A — Developer equity',
-    bucket1ASub: 'Sourcing · construction mgmt · €1M bank collateral',
-    bucket1ARate: '25% promote (equity)',
-    bucket1AAmount: '— (equity only)',
-    bucket1AWhen: 'Inception · no PropCo cash outflow',
-    bucket1BTitle: 'Bucket 1B — Grant advisory fee',
-    bucket1BRateNote: '10% of grant · 50% cash / 50% equity',
-    bucket1BWhen: 'At grant approval · cash spread over 3 yr',
-    bucket1BGrantOnly: 'Active on Grant path only',
-    bucket2ATitle: 'Bucket 2A — Base management fee',
-    bucket2ASub: 'Brand + operational management combined',
-    bucket2ARate: '5% of gross revenue',
-    bucket2AWhen: 'Annual · 2029 → exit',
-    bucket2BTitle: 'Bucket 2B — Incentive fee',
-    bucket2BSub: '10% of GOP above 8% hurdle · junior to DS · max 50% of residual NCF',
-    bucket2BRate: '% of GOP above hurdle, capped at 50% residual',
-    bucket2BWhen: 'Annual · 2029 → exit',
-    // WaterfallMechanicsBox
-    wStep1Label: 'Bank gets paid',
-    wStep1Detail: 'Annual debt service — interest + amortisation — senior and first',
-    wStep2Label: 'OpCo fees deducted (Buckets 2A + 2B)',
-    wStep2Detail: 'Base management fee + incentive fee subtracted from NCF before splitting',
-    wStep3Label: 'Bucket 1B advisory fee (Grant path only)',
-    wStep3Detail: 'Deferred cash advisory fee spread over 3 years post-disbursement',
-    wStep4Label: 'Tax paid',
-    wStep4Detail: 'Corporate income tax on taxable income',
-    wStep5Label: 'Distributable pool split pari-passu (investors + founder together)',
-    wStep5Detail: 'All equity holders — investors and Eytan\'s co-invest — receive their pro-rata cash share simultaneously from the same pool. No party is paid first.',
-    wStep6Label: 'Developer promote (Bucket 1A) and ratchet sit on top — not in front',
-    wStep6Detail: 'Eytan holds a 25% promote (free carry, granted at inception) and a performance ratchet. These increase his overall slice of the same pool but do not create a priority over investors. The ratchet only vests once investors have achieved an 8% IRR.',
-    wStep7Label: 'At exit — ratchet excluded from sale proceeds',
-    wStep7Detail: 'Exit proceeds are split pari-passu + developer equity + grant bonus. The performance ratchet (Layer C) does not apply to the terminal sale — only to annual operating distributions.',
-    // CapStructureSummary
-    csFounderEquity: 'Founder promoter equity',
-    csFounderEquitySub: "Eytan's free carry — no cash required",
-    csCoinvest: 'Co-invest (pari-passu)',
-    csCoinvestSub: "Eytan's cash — pari-passu with investors until exit",
-    csOtherInvestors: 'Other investors (pari-passu)',
-    csOtherInvestorsSub: '8% pref · 70/30 above',
-    csBankLoan: 'Bank loan',
-    csGrant: 'Grant',
-    csGrantInactive: 'Not in current path',
-    csTotalCapex: 'Total CapEx',
+    bucketBuildingTitle: 'Development management fee',
+    bucketBuildingSub: 'OpCo manages site sourcing, permitting, contractor oversight, and construction delivery on behalf of PropCo · absorbed into project CapEx',
+    bucketBuildingRate: '€5K/month',
+    bucketBuildingWhen: 'Construction phase · 2026 → 2028',
+    bucketBaseTitle: 'Base management fee',
+    bucketBaseSub: 'Brand + operational management combined',
+    bucketBaseRate: '5% of gross revenue',
+    bucketBaseWhen: 'Annual · 2029 → exit',
+    bucketIncentiveTitle: 'Incentive fee',
+    bucketIncentiveSub: '10% of GOP above 8% hurdle · junior to DS · max 50% of residual NCF',
+    bucketIncentiveRate: '% of GOP above hurdle, capped at 50% residual',
+    bucketIncentiveWhen: 'Annual · 2029 → exit',
+    deferToggleLabel: 'Defer 2029 opening-year floor to 2030',
+    deferToggleSub: '2029 senior floor = €0; carries flat to 2030 (no interest). Admin view only.',
+    rulesDefer2029Carry: '1-year carry: 2029 floor deferred flat to 2030',
   },
   el: {
     pageTitle: 'Διαχωρισμός OpCo / PropCo',
@@ -223,13 +192,14 @@ const _T = ({
     yearRowEbitdaPre: 'EBITDA πριν αμοιβές',
     yearRowPropcoEbitda: 'EBITDA PropCo',
     chartTitle: 'Σύνθεση αμοιβών OpCo ανά έτος',
-    chartBarBase: 'Βασική αμοιβή διαχείρισης (Κάδος 2Α)',
-    chartBarIncentive: 'Αμοιβή κινήτρου (Κάδος 2Β)',
+    chartBarBase: 'Βασική αμοιβή διαχείρισης',
+    chartBarIncentive: 'Αμοιβή κινήτρου',
     tipText: 'Αλλάξτε τη διαδρομή χρηματοδότησης ή σενάριο για να δείτε τον αντίκτυπο. Χρησιμοποιήστε ROIC και DSCR delta στο Dashboard.',
     deferToggleLabel: 'Αναβολή senior αμοιβής 2029',
     deferToggleSub: 'Μηδενισμός του senior ορίου στο 2029 (πρώτο έτος DS) και προσθήκη στο 2030. Επηρεάζει ΛΑΧ, ΔΚΕΧ και LLCR. Μόνο σε προβολή διαχειριστή.',
+    rulesDefer2029Carry: '1-year carry: 2029 floor αναβολή flat στο 2030',
     explainerHeading1: 'Πώς λειτουργεί ο διαχωρισμός.',
-    explainerBody1: 'Όταν είναι ενεργός, η OpCo κερδίζει εγγυημένο senior floor (στα OpEx, ανώτερο της εξυπηρέτησης χρέους) και κλιμακωτή junior αμοιβή επί του υπολοίπου μετά DS. DSCR υπολογίζεται ως ebitdaPreOpCo / DS και στις δύο προβολές.',
+    explainerBody1: 'Όταν είναι ενεργός, η OpCo κερδίζει εγγυημένο floor (junior έναντι DS — συσσωρεύεται όταν το ταμείο δεν επαρκεί) και κλιμακωτή junior αμοιβή επί του υπολοίπου μετά DS. Η DS είναι αδιαμφισβήτητα ανώτερη όλων των αμοιβών OpCo. DSCR = ebitdaPreOpCo / DS.',
     explainerHeading2: 'Όλοι οι δείκτες αφορούν την PropCo',
     explainerBody2: '— DSCR, NCF, IRR ιδίων κεφαλαίων αντικατοπτρίζουν τις ταμειακές ροές που απομένουν στον ιδιοκτήτη μετά τις αμοιβές OpCo. Το κόστος IRR διαχωρισμού ποσοτικοποιεί πόση απόδοση μεταφέρεται από την PropCo στην OpCo.',
     propcoTitle: 'PropCo (Ελληνική ΑΕ)',
@@ -247,7 +217,7 @@ const _T = ({
     opcoOwnsBrand: 'Brand IP + λειτουργική εμπειρία',
     opcoProvides: 'Παρέχει:',
     opcoProvidesMgmt: 'Υπηρεσίες διαχείρισης · brand · εποπτεία',
-    opcoReceives: 'Λαμβάνει: 4 κάδους αμοιβών από PropCo',
+    opcoReceives: 'Λαμβάνει: 3 κάδους αμοιβών από PropCo',
     investorsTitle: 'Επενδυτές',
     investorsDesc: 'Κάτοχοι cap-table',
     investorsHold: 'Κατέχουν:',
@@ -263,47 +233,18 @@ const _T = ({
     feeColRate: 'Επιτόκιο',
     feeColAmount: 'Ποσό',
     feeColWhen: 'Πότε',
-    bucket1ATitle: 'Κάδος 1Α — Μετοχές προγραμματιστή',
-    bucket1ASub: 'Απόκτηση · διαχείριση κατασκευής · €1Μ εγγύηση τράπεζας',
-    bucket1ARate: '25% promote (μετοχές)',
-    bucket1AAmount: '— (μόνο μετοχές)',
-    bucket1AWhen: 'Έναρξη · χωρίς εκροή μετρητών PropCo',
-    bucket1BTitle: 'Κάδος 1Β — Αμοιβή συμβουλευτικής επιχορήγησης',
-    bucket1BRateNote: '10% επιχορήγησης · 50% μετρητά / 50% μετοχές',
-    bucket1BWhen: 'Κατά έγκριση · μετρητά σε 3 έτη',
-    bucket1BGrantOnly: 'Ενεργό μόνο στο μονοπάτι επιχορήγησης',
-    bucket2ATitle: 'Κάδος 2Α — Βασική αμοιβή διαχείρισης',
-    bucket2ASub: 'Brand + λειτουργική διαχείριση συνδυασμένα',
-    bucket2ARate: '5% ακαθάριστων εσόδων',
-    bucket2AWhen: 'Ετήσιο · 2029 → έξοδος',
-    bucket2BTitle: 'Κάδος 2Β — Αμοιβή κινήτρου',
-    bucket2BSub: '10% GOP πάνω από 8% όριο · junior έναντι DS · μέγιστο 50% υπολειπόμενου NCF',
-    bucket2BRate: '% GOP πάνω από όριο, ανώτατο 50% υπολειπόμενου',
-    bucket2BWhen: 'Ετήσιο · 2029 → έξοδος',
-    wStep1Label: 'Πληρώνεται η τράπεζα',
-    wStep1Detail: 'Ετήσια εξυπηρέτηση χρέους — τόκοι + απόσβεση — πρώτα και πρωτοβάθμια',
-    wStep2Label: 'Αφαιρούνται αμοιβές OpCo (Κάδοι 2Α + 2Β)',
-    wStep2Detail: 'Βασική αμοιβή + αμοιβή κινήτρου αφαιρούνται από NCF πριν διανομή',
-    wStep3Label: 'Αμοιβή συμβουλευτικής Κάδου 1Β (μόνο μονοπάτι επιχορήγησης)',
-    wStep3Detail: 'Αναβληθείσα αμοιβή μετρητών σε 3 χρόνια μετά εκταμίευση',
-    wStep4Label: 'Πληρώνεται φόρος',
-    wStep4Detail: 'Φόρος εισοδήματος νομικών προσώπων επί φορολογητέου εισοδήματος',
-    wStep5Label: 'Διανομή ταμείου pari-passu (επενδυτές + ιδρυτής ταυτόχρονα)',
-    wStep5Detail: 'Όλοι οι μέτοχοι — επενδυτές και η προσωπική συμμετοχή του Eytan — λαμβάνουν ταυτόχρονα αναλογικά από το ίδιο ταμείο. Κανείς δεν πληρώνεται πρώτος.',
-    wStep6Label: 'Promote προγραμματιστή (Κάδος 1Α) και ratchet πάνω — όχι πριν',
-    wStep6Detail: 'Ο Eytan κατέχει 25% promote (ελεύθερη συμμετοχή) και ratchet απόδοσης. Αυτά αυξάνουν το μερίδιό του από το κοινό ταμείο, χωρίς να δίνουν προτεραιότητα έναντι των επενδυτών. Το ratchet αποκτάται μόνο μετά την επίτευξη 8% IRR από τους επενδυτές.',
-    wStep7Label: 'Κατά την έξοδο — ratchet εξαιρείται από τα έσοδα πώλησης',
-    wStep7Detail: 'Έσοδα εξόδου κατανέμονται βάσει pari-passu + developer equity + grant bonus μόνο. Το ratchet (Στρώμα Γ) δεν εφαρμόζεται στην τερματική πώληση.',
-    csFounderEquity: 'Μετοχές promote ιδρυτή',
-    csFounderEquitySub: 'Ελεύθερη συμμετοχή Eytan — δεν απαιτείται μετρητά',
-    csCoinvest: 'Συν-επένδυση (pari-passu)',
-    csCoinvestSub: 'Μετρητά Eytan — pari-passu με επενδυτές',
-    csOtherInvestors: 'Άλλοι επενδυτές (pari-passu)',
-    csOtherInvestorsSub: '8% προτεραιότητα · 70/30 πάνω',
-    csBankLoan: 'Τραπεζικό δάνειο',
-    csGrant: 'Επιχορήγηση',
-    csGrantInactive: 'Μη ενεργό στο τρέχον μονοπάτι',
-    csTotalCapex: 'Συνολικό CapEx',
+    bucketBuildingTitle: 'Αμοιβή διαχείρισης ανάπτυξης',
+    bucketBuildingSub: 'Η OpCo διαχειρίζεται εύρεση χώρου, αδειοδότηση, εποπτεία εργολάβων και παράδοση κατασκευής για λογαριασμό της PropCo · απορροφάται στο CapEx έργου',
+    bucketBuildingRate: '€5K/μήνα',
+    bucketBuildingWhen: 'Φάση κατασκευής · 2026 → 2028',
+    bucketBaseTitle: 'Βασική αμοιβή διαχείρισης',
+    bucketBaseSub: 'Brand + λειτουργική διαχείριση συνδυασμένα',
+    bucketBaseRate: '5% ακαθάριστων εσόδων',
+    bucketBaseWhen: 'Ετήσιο · 2029 → έξοδος',
+    bucketIncentiveTitle: 'Αμοιβή κινήτρου',
+    bucketIncentiveSub: '10% GOP πάνω από 8% όριο · junior έναντι DS · μέγιστο 50% υπολειπόμενου NCF',
+    bucketIncentiveRate: '% GOP πάνω από όριο, ανώτατο 50% υπολειπόμενου',
+    bucketIncentiveWhen: 'Ετήσιο · 2029 → έξοδος',
   },
   he: {
     pageTitle: 'פיצול OpCo / PropCo',
@@ -358,13 +299,14 @@ const _T = ({
     yearRowEbitdaPre: 'EBITDA לפני עמלות',
     yearRowPropcoEbitda: 'EBITDA של PropCo',
     chartTitle: 'הרכב עמלות OpCo לפי שנה',
-    chartBarBase: 'דמי ניהול בסיסיים (דלי 2A)',
-    chartBarIncentive: 'עמלת תמריץ (דלי 2B)',
+    chartBarBase: 'דמי ניהול בסיסיים',
+    chartBarIncentive: 'עמלת תמריץ',
     tipText: 'טיפ: שנו מסלול מימון או תרחיש לראות השפעה. השתמשו ב-ROIC ו-DSCR delta בלוח המחוונים.',
     deferToggleLabel: 'דחיית עמלת הסיניור לשנת 2029',
     deferToggleSub: 'מאפס את רצפת הסיניור ב-2029 (שנת DS ראשונה) ומוסיף אותה ל-2030. זורם דרך P&L,‏ DSCR ו-LLCR. רק בתצוגת מנהל.',
+    rulesDefer2029Carry: 'גלגול שנה אחת: רצפת 2029 נדחית flat ל-2030',
     explainerHeading1: 'כיצד הפיצול עובד.',
-    explainerBody1: 'כאשר מופעל, OpCo מרוויחה רצפה בכירה מובטחת (ב-OpEx, בכירה לשירות חוב) ועמלה זוטרה מדורגת על היתרה לאחר DS. DSCR מחושב כ-ebitdaPreOpCo / DS בשתי הצפיות.',
+    explainerBody1: 'כאשר מופעל, OpCo מרוויחה רצפה מובטחת (זוטרה לשירות חוב — נצברת כשהמזומנים אינם מספיקים) ועמלה זוטרה מדורגת על היתרה לאחר DS. DS בכירה ללא עוררין לכל עמלות OpCo. DSCR = ebitdaPreOpCo / DS.',
     explainerHeading2: 'כל המדדים הם של PropCo',
     explainerBody2: '— DSCR, NCF, IRR הון משקפים את תזרים המזומנים שנותר לבעלים לאחר עמלות OpCo. כרטיס עלות IRR של פיצול מכמת כמה תשואה עוברת מ-PropCo ל-OpCo.',
     propcoTitle: 'PropCo (SPV יוונית)',
@@ -382,7 +324,7 @@ const _T = ({
     opcoOwnsBrand: 'Brand IP + ידע תפעולי',
     opcoProvides: 'מספקת:',
     opcoProvidesMgmt: 'שירותי ניהול · brand · פיקוח',
-    opcoReceives: 'מקבלת: 4 דליי עמלות מ-PropCo',
+    opcoReceives: 'מקבלת: 3 דליי עמלות מ-PropCo',
     investorsTitle: 'משקיעים',
     investorsDesc: 'מחזיקי cap-table',
     investorsHold: 'מחזיקים:',
@@ -398,47 +340,18 @@ const _T = ({
     feeColRate: 'שיעור',
     feeColAmount: 'סכום',
     feeColWhen: 'מתי',
-    bucket1ATitle: 'דלי 1A — הון מפתח',
-    bucket1ASub: 'רכישה · ניהול בנייה · €1M בטוחה לבנק',
-    bucket1ARate: '25% promote (הון)',
-    bucket1AAmount: '— (הון בלבד)',
-    bucket1AWhen: 'הקמה · ללא יציאת מזומן מ-PropCo',
-    bucket1BTitle: 'דלי 1B — עמלת ייעוץ מענק',
-    bucket1BRateNote: '10% מהמענק · 50% מזומן / 50% הון',
-    bucket1BWhen: 'עם אישור מענק · מזומן ב-3 שנים',
-    bucket1BGrantOnly: 'פעיל רק במסלול מענק',
-    bucket2ATitle: 'דלי 2A — דמי ניהול בסיסיים',
-    bucket2ASub: 'Brand + ניהול תפעולי משולב',
-    bucket2ARate: '5% הכנסות ברוטו',
-    bucket2AWhen: 'שנתי · 2029 ← יציאה',
-    bucket2BTitle: 'דלי 2B — עמלת תמריץ',
-    bucket2BSub: '10% GOP מעל רף 8% · junior לשירות חוב · מקסימום 50% NCF שיורי',
-    bucket2BRate: '% GOP מעל רף, מוגבל ל-50% שיורי',
-    bucket2BWhen: 'שנתי · 2029 ← יציאה',
-    wStep1Label: 'הבנק מקבל תשלום',
-    wStep1Detail: 'שירות חוב שנתי — ריבית + פירעון — בכיר וראשון',
-    wStep2Label: 'עמלות OpCo מנוכות (דליים 2A + 2B)',
-    wStep2Detail: 'דמי ניהול + עמלת תמריץ מנוכים מ-NCF לפני חלוקה',
-    wStep3Label: 'עמלת ייעוץ דלי 1B (מסלול מענק בלבד)',
-    wStep3Detail: 'עמלת מזומן נדחית ב-3 שנים לאחר ניצול',
-    wStep4Label: 'מס משולם',
-    wStep4Detail: 'מס הכנסה חברות על הכנסה חייבת',
-    wStep5Label: 'חלוקת הקרן pari-passu (משקיעים + יזם יחד בו זמנית)',
-    wStep5Detail: 'כל בעלי ההון — משקיעים ושותפות Eytan — מקבלים את חלקם היחסי מאותה קרן בו זמנית. אף צד אינו מקבל תשלום ראשון.',
-    wStep6Label: 'Promote מפתח (דלי 1A) ו-ratchet מעל — לא לפני',
-    wStep6Detail: 'Eytan מחזיק 25% promote (carry חינמי שהוענק בתחילה) ו-ratchet ביצועים. אלה מגדילים את חלקו מאותה קרן משותפת, אך אינם יוצרים עדיפות על פני המשקיעים. ה-ratchet מתממש רק לאחר שהמשקיעים הגיעו ל-8% IRR.',
-    wStep7Label: 'ביציאה — ratchet מוחרג מתמורת המכירה',
-    wStep7Detail: 'תמורת יציאה מחולקת על בסיס pari-passu + developer equity + grant bonus בלבד. ה-ratchet (שכבה C) אינו חל על המכירה הטרמינלית.',
-    csFounderEquity: 'הון promote של יזם',
-    csFounderEquitySub: 'carry חינמי של Eytan — לא נדרש מזומן',
-    csCoinvest: 'השקעה משותפת (pari-passu)',
-    csCoinvestSub: 'מזומן Eytan — pari-passu עם משקיעים',
-    csOtherInvestors: 'משקיעים אחרים (pari-passu)',
-    csOtherInvestorsSub: '8% עדיפות · 70/30 מעל',
-    csBankLoan: 'הלוואת בנק',
-    csGrant: 'מענק',
-    csGrantInactive: 'לא פעיל במסלול הנוכחי',
-    csTotalCapex: 'סה״כ CapEx',
+    bucketBuildingTitle: 'דמי ניהול פיתוח',
+    bucketBuildingSub: 'OpCo מנהלת איתור אתר, רישוי, פיקוח על קבלנים ומסירת הבנייה עבור PropCo · נספגת ב-CapEx של הפרויקט',
+    bucketBuildingRate: '€5K לחודש',
+    bucketBuildingWhen: 'שלב בנייה · 2026 → 2028',
+    bucketBaseTitle: 'דמי ניהול בסיסיים',
+    bucketBaseSub: 'Brand + ניהול תפעולי משולב',
+    bucketBaseRate: '5% הכנסות ברוטו',
+    bucketBaseWhen: 'שנתי · 2029 ← יציאה',
+    bucketIncentiveTitle: 'עמלת תמריץ',
+    bucketIncentiveSub: '10% GOP מעל רף 8% · junior לשירות חוב · מקסימום 50% NCF שיורי',
+    bucketIncentiveRate: '% GOP מעל רף, מוגבל ל-50% שיורי',
+    bucketIncentiveWhen: 'שנתי · 2029 ← יציאה',
   },
 });
 // fr falls back to en. Using unknown intermediate because the object
@@ -573,13 +486,13 @@ function CurrencyInput({
 }
 
 export default function OpCoSplitPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-opco-split"); }, [track]);
   const { locale, t } = useTranslation();
   const { model, assumptions, activeScenario, setAssumption, capTable } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(OPCO_SPLIT_TOUR.storageKey);
 
   if (!model) return <PageSkeleton variant="grid" />;
-
-  const founderCashInvested = capTable.find((sh) => sh.isPromoter)?.cashIn ?? 0;
 
   const opCo = assumptions.opCoFee;
   const opCoOn = !!opCo?.enabled;
@@ -655,24 +568,11 @@ export default function OpCoSplitPage() {
       {/* Expanded fee streams */}
       <SectionHeader title={t('opco.feeStreams')} />
       <FeeStreamsTable
-        assumptions={assumptions}
         stab={stab}
-        opCoStabilisedFee={opCoStabilisedFee}
-        scenario={scenario}
+        buildingPhaseFee={assumptions.developerConstructionFeePerYear ?? 0}
+        opCoFloor={assumptions.opCoFloor ?? assumptions.opCoSeniorFloor ?? 0}
+        totalPlots={assumptions.portfolio.reduce((s, p) => s + p.count, 0)}
         locale={locale}
-      />
-
-      {/* Waterfall mechanics */}
-      <SectionHeader title={t('opco.waterfallMechanics')} />
-      <WaterfallMechanicsBox locale={locale} />
-
-      {/* Cap structure block — moved up from previous design */}
-      <SectionHeader title={t('opco.capStructure')} />
-      <CapStructureSummary
-        assumptions={assumptions}
-        keyMetrics={model.keyMetrics}
-        locale={locale}
-        founderCashInvested={founderCashInvested}
       />
 
       {/* Fee rates */}
@@ -697,6 +597,34 @@ export default function OpCoSplitPage() {
           onChange={(v) => setAssumption('opCoFee.juniorResidualThreshold', v)}
         />
       </div>
+
+      {/* Defer 2029 opening-year floor toggle — admin only */}
+      {opCoOn && (
+        <div className="rounded-xl border border-surface-tertiary bg-white p-4 mb-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-0.5 w-4 h-4 rounded border-surface-tertiary accent-brand-600 cursor-pointer"
+              checked={assumptions.opCoSeniorDefer2029 ?? false}
+              onChange={() =>
+                setAssumption(
+                  'opCoSeniorDefer2029',
+                  !(assumptions.opCoSeniorDefer2029 ?? false),
+                  'OpCo defer 2029'
+                )
+              }
+            />
+            <div>
+              <div className="text-sm font-medium text-text-primary">
+                {T[locale].deferToggleLabel}
+              </div>
+              <div className="text-xs text-text-tertiary mt-0.5">
+                {T[locale].deferToggleSub}
+              </div>
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* Rules summary */}
       <RulesSummaryBox assumptions={assumptions} locale={locale} />
@@ -1204,26 +1132,20 @@ function EntityDiagram({
 }
 
 function FeeStreamsTable({
-  assumptions,
   stab,
-  opCoStabilisedFee,
+  buildingPhaseFee,
+  opCoFloor,
+  totalPlots,
   locale,
 }: {
-  assumptions: ModelAssumptions;
   stab: ScenarioOutput["stabilisedYear"];
-  opCoStabilisedFee: number;
-  scenario: ScenarioOutput;
+  buildingPhaseFee: number;
+  opCoFloor: number;
+  totalPlots: number;
   locale: Locale;
 }) {
-  const isGrant = assumptions.financingPath === "grant";
-  // Bucket 1B — Grant advisory fee: 10% of grant (DEFAULT_GRANT_AMOUNT used by engine)
-  const grantAmount = isGrant ? DEFAULT_GRANT_AMOUNT : 0;
-  const grantAdvisoryGross = grantAmount * DEFAULT_GRANT_PROCUREMENT_FEE_PCT; // 10%
-  const grantAdvisoryCash = grantAdvisoryGross * 0.5; // 50% cash deferred to PropCo
-  // Bucket 2A — Senior floor at stabilisation (repurposed alias)
   const baseMgmtFee = stab?.opCoBaseFee ?? 0;
-  // Bucket 2B — Incentive fee at stabilisation
-  const incentiveFee = opCoStabilisedFee;
+  const incentiveFee = stab?.opCoIncentiveFee ?? 0;
 
   return (
     <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
@@ -1231,61 +1153,57 @@ function FeeStreamsTable({
         <thead>
           <tr className="bg-surface-secondary/40">
             <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{T[locale].feeColFee}</th>
-            <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{T[locale].feeColRate}</th>
             <th className="text-right py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{T[locale].feeColAmount}</th>
+            <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{T[locale].feeColRate}</th>
             <th className="text-left py-2.5 px-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{T[locale].feeColWhen}</th>
           </tr>
         </thead>
         <tbody className="text-sm">
-          {/* Bucket 1A */}
+          {/* Building phase — development management fee */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2.5 px-4 font-medium">
-              {T[locale].bucket1ATitle}
-              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucket1ASub}</div>
+            <td className="py-3 px-4 font-medium">
+              {T[locale].bucketBuildingTitle}
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucketBuildingSub}</div>
             </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket1ARate}</td>
-            <td className="py-2 px-4 text-right font-mono text-text-tertiary">{T[locale].bucket1AAmount}</td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket1AWhen}</td>
+            <td className="py-3 px-4 text-right">
+              <span className="font-mono font-semibold text-base text-text-primary">
+                {buildingPhaseFee > 0 ? <>{formatCurrency(buildingPhaseFee, true, locale)}/yr</> : "—"}
+              </span>
+            </td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">
+              {buildingPhaseFee > 0 ? `€${Number((buildingPhaseFee / 12 / 1000).toFixed(1))}K/month` : "—"}
+            </td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">{T[locale].bucketBuildingWhen}</td>
           </tr>
-          {/* Bucket 1B */}
-          <tr className={`border-t border-surface-secondary/40 ${isGrant ? "" : "opacity-40"}`}>
-            <td className="py-2.5 px-4 font-medium">
-              {T[locale].bucket1BTitle}
-              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">
-                {isGrant
-                  ? `50% cash (${formatCurrency(grantAdvisoryCash, true, locale)} deferred 3 yr) + 50% equity → Layer B`
-                  : T[locale].bucket1BGrantOnly}
-              </div>
-            </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket1BRateNote}</td>
-            <td className="py-2 px-4 text-right font-mono">
-              {isGrant ? formatCurrency(grantAdvisoryCash, true, locale) : "—"}
-            </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket1BWhen}</td>
-          </tr>
-          {/* Bucket 2A */}
+          {/* Base management fee */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2.5 px-4 font-medium">
-              {T[locale].bucket2ATitle}
-              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucket2ASub}</div>
+            <td className="py-3 px-4 font-medium">
+              {T[locale].bucketBaseTitle}
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucketBaseSub}</div>
             </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket2ARate}</td>
-            <td className="py-2 px-4 text-right font-mono">
-              {baseMgmtFee > 0 ? <>{formatCurrency(baseMgmtFee, true, locale)}/yr</> : "—"}
+            <td className="py-3 px-4 text-right">
+              <span className="font-mono font-semibold text-base text-text-primary">
+                {baseMgmtFee > 0 ? <>{formatCurrency(baseMgmtFee, true, locale)}/yr</> : "—"}
+              </span>
             </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket2AWhen}</td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">
+              {totalPlots > 0 ? `€${Math.round(opCoFloor / 1000)}K/plot × ${totalPlots} plots` : "—"}
+            </td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">{T[locale].bucketBaseWhen}</td>
           </tr>
-          {/* Bucket 2B */}
+          {/* Incentive fee */}
           <tr className="border-t border-surface-secondary/40">
-            <td className="py-2.5 px-4 font-medium">
-              {T[locale].bucket2BTitle}
-              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucket2BSub}</div>
+            <td className="py-3 px-4 font-medium">
+              {T[locale].bucketIncentiveTitle}
+              <div className="text-[11px] text-text-tertiary font-normal mt-0.5">{T[locale].bucketIncentiveSub}</div>
             </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket2BRate}</td>
-            <td className="py-2 px-4 text-right font-mono">
-              {incentiveFee > 0 ? <>{formatCurrency(incentiveFee, true, locale)}/yr</> : "—"}
+            <td className="py-3 px-4 text-right">
+              <span className="font-mono font-semibold text-base text-text-primary">
+                {incentiveFee > 0 ? <>{formatCurrency(incentiveFee, true, locale)}/yr</> : "—"}
+              </span>
             </td>
-            <td className="py-2 px-4 text-xs text-text-tertiary">{T[locale].bucket2BWhen}</td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">{T[locale].bucketIncentiveRate}</td>
+            <td className="py-3 px-4 text-xs text-text-tertiary">{T[locale].bucketIncentiveWhen}</td>
           </tr>
         </tbody>
       </table>
@@ -1301,11 +1219,12 @@ function RulesSummaryBox({
   locale: Locale;
 }) {
   const opCo = assumptions.opCoFee;
-  const floor = assumptions.opCoSeniorFloor ?? 0;
+  const floor = assumptions.opCoFloor ?? assumptions.opCoSeniorFloor ?? 0;
   const villaCount = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
   const tier1Rate = opCo.juniorTier1Rate ?? 0.10;
   const tier2Rate = opCo.juniorTier2Rate ?? 0.15;
   const threshold = opCo.juniorResidualThreshold ?? 500_000;
+  const deferOn = assumptions.opCoSeniorDefer2029 ?? false;
 
   const rules = [
     {
@@ -1313,7 +1232,7 @@ function RulesSummaryBox({
       detail: (
         <>
           {`€${floor.toLocaleString()}/plot × ${villaCount} plots = €${((floor * villaCount) / 1000).toFixed(0)}K/yr`}
-          {' — paid SENIOR to debt service. Guaranteed regardless of performance.'}
+          {' — paid junior to debt service (after DS, accrues when cash insufficient).'}
         </>
       ),
     },
@@ -1327,11 +1246,13 @@ function RulesSummaryBox({
     },
     {
       label: T[locale].rulesDscrBasis,
-      detail: 'ebitdaPreOpCo ÷ DS — OpCo junior is subordinated to debt service in both views',
+      detail: 'ebitdaPreOpCo ÷ DS — DS is senior to all OpCo fees; floor and junior never in DSCR numerator',
     },
     {
-      label: T[locale].rulesNoCarryForward,
-      detail: 'Junior shortfall is forfeit for the year — no accrual or rollover',
+      label: deferOn ? T[locale].rulesDefer2029Carry : T[locale].rulesNoCarryForward,
+      detail: deferOn
+        ? 'Opening-year (2029) floor = €0; amount carries flat (no interest) into 2030. Junior shortfall is forfeit — no rollover.'
+        : 'Floor shortfall accrues to next year. Junior shortfall is forfeit — no rollover.',
     },
   ];
 
@@ -1357,84 +1278,3 @@ function RulesSummaryBox({
   );
 }
 
-function WaterfallMechanicsBox({ locale }: { locale: Locale }) {
-  const steps = [
-    { i: 1, label: T[locale].wStep1Label, detail: T[locale].wStep1Detail },
-    { i: 2, label: T[locale].wStep2Label, detail: T[locale].wStep2Detail },
-    { i: 3, label: T[locale].wStep3Label, detail: T[locale].wStep3Detail },
-    { i: 4, label: T[locale].wStep4Label, detail: T[locale].wStep4Detail },
-    { i: 5, label: T[locale].wStep5Label, detail: T[locale].wStep5Detail },
-    { i: 6, label: T[locale].wStep6Label, detail: T[locale].wStep6Detail },
-    { i: 7, label: T[locale].wStep7Label, detail: T[locale].wStep7Detail },
-  ];
-  return (
-    <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
-      <ol className="divide-y divide-surface-secondary/40">
-        {steps.map((s) => (
-          <li key={s.i} className="px-4 py-3 flex items-start gap-3">
-            <span className="font-display text-lg text-brand-700 w-6 text-center flex-shrink-0">{s.i}</span>
-            <div>
-              <div className="font-medium text-sm">{s.label}</div>
-              <div className="text-xs text-text-tertiary mt-0.5">{s.detail}</div>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </div>
-  );
-}
-
-function CapStructureSummary({
-  assumptions,
-  keyMetrics,
-  locale,
-  founderCashInvested,
-}: {
-  assumptions: ModelAssumptions;
-  keyMetrics: ModelOutput["keyMetrics"];
-  locale: Locale;
-  founderCashInvested: number;
-}) {
-  const grantRate = assumptions.grant?.grantRate ?? 0;
-  const isGrant = assumptions.financingPath === "grant";
-  const grantAmount = keyMetrics.grantAmount;
-  const totalPlots = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{T[locale].csFounderEquity}</div>
-        <div className="font-display text-2xl mt-1">25%</div>
-        <div className="text-xs text-text-tertiary mt-1">{T[locale].csFounderEquitySub}</div>
-      </div>
-      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{T[locale].csCoinvest}</div>
-        <div className="font-display text-2xl mt-1">{formatCurrency(founderCashInvested, true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">{T[locale].csCoinvestSub}</div>
-      </div>
-      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{T[locale].csOtherInvestors}</div>
-        <div className="font-display text-2xl mt-1">{formatCurrency(Math.max(0, keyMetrics.equityRequired - founderCashInvested), true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">{T[locale].csOtherInvestorsSub}</div>
-      </div>
-      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-warning">{T[locale].csBankLoan}</div>
-        <div className="font-display text-2xl mt-1">{formatCurrency(keyMetrics.loanAmount, true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">@ {formatPercent(assumptions.commercialLoan.interestRate)} · {assumptions.commercialLoan.repaymentTermYears}y amort post-grace</div>
-      </div>
-      <div className="rounded-xl border border-positive/30 bg-positive/5 p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-positive">{T[locale].csGrant}</div>
-        <div className="font-display text-2xl mt-1">
-          {isGrant ? formatCurrency(grantAmount, true, locale) : "—"}
-        </div>
-        <div className="text-xs text-text-tertiary mt-1">
-          {isGrant ? `${formatPercent(grantRate)} of eligible CapEx` : T[locale].csGrantInactive}
-        </div>
-      </div>
-      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
-        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{T[locale].csTotalCapex}</div>
-        <div className="font-display text-2xl mt-1">{formatCurrency(keyMetrics.totalCapex, true, locale)}</div>
-        <div className="text-xs text-text-tertiary mt-1">{totalPlots} {totalPlots === 1 ? T[locale].propcoPlot : T[locale].propcoPlots} + construction + FF&amp;E + soft costs</div>
-      </div>
-    </div>
-  );
-}

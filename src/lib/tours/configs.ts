@@ -611,7 +611,7 @@ export const TEAM_TOUR: TourConfig = {
         he: "התחזות (View-As)",
       },
       body: {
-        en: "From any page, the View-As dropdown in the sidebar lets an admin preview the model as an editor, viewer, or banker — so you can verify what each role sees BEFORE you send the invite. Impersonation as a banker takes you to the bank-facing view.",
+        en: "From any page, the View-As dropdown in the sidebar lets an admin preview the model as an editor, viewer, or banker — so you can verify what each role sees BEFORE you send the invite.",
         el: "Από οποιαδήποτε σελίδα, το View-As στο sidebar δείχνει την προβολή ως editor / viewer / banker — επιβεβαιώνετε τι βλέπει κάθε ρόλος ΠΡΙΝ στείλετε το invite.",
         fr: "Depuis n'importe quelle page, le View-As de la barre latérale permet de prévisualiser le modèle en tant qu'éditeur / lecteur / banquier — vérifiez avant d'envoyer l'invitation.",
         he: "מכל דף, ה-View-As בסרגל הצדדי מאפשר לראות את המודל כ-editor / viewer / banker — אמתו לפני שליחת ההזמנה.",
