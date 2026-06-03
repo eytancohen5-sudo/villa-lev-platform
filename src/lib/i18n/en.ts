@@ -88,6 +88,10 @@ export const en: TranslationDictionary = {
   'kpi.equityRequired': 'Equity Required',
   'kpi.graceInterestCarry': 'Interest Reserve (at close)',
   'kpi.graceInterestCarrySub': 'Grace-period 2026–2028 · returnable after grace ends',
+  'kpi.capexEquity': 'CapEx Equity',
+  'kpi.capexEquitySub': 'CapEx − loan − grant',
+  'kpi.totalEquityNeed': 'Total Equity Need',
+  'kpi.totalEquityNeedSub': 'CapEx equity + grace interest carry',
   'kpi.annualDS': 'Annual DS',
   'kpi.annualDSSub': 'Full amortisation from 2029',
   'kpi.netCashFlow': 'NCF (post-tax)',
@@ -159,6 +163,7 @@ export const en: TranslationDictionary = {
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',
   'bank.bar.optimaEffective': 'Effective',
+  'bank.bar.optimaLoanPct': 'Loan %',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Credit Application · Antiparos, Greece',
@@ -200,6 +205,9 @@ export const en: TranslationDictionary = {
   'financing.securityNote': 'Security: 1st-rank mortgage on land + structure',
   'financing.stabilisedDSCR': 'Stabilised DSCR:',
   'financing.activePathNote': 'Active path highlighted. Toggle path above to switch.',
+  'financing.commitmentFeeLabel': 'Commitment fee',
+  'financing.commitmentFeeRate': 'Rate (% p.a.)',
+  'financing.commitmentFeeTotal': 'Total across drawdown',
 
   // ── Debt Coverage page ──
   'dc.title': 'Debt Coverage',
@@ -223,6 +231,7 @@ export const en: TranslationDictionary = {
   'pnl.portfolioServices': 'Portfolio Services',
   'pnl.portfolioOverhead': 'Portfolio Overhead',
   'pnl.portfolioPreOpening': 'Pre-opening amort.',
+  'pnl.portfolioConstructionServices': 'Construction services (expensed)',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'DSRA Draw',
   'pnl.dsraBalance': 'DSRA Balance (EoP)',
@@ -318,6 +327,10 @@ export const en: TranslationDictionary = {
   'auth.error.popupBlocked': 'Your browser blocked the Google sign-in popup. Click the blocked popup icon in the address bar, choose "Always allow", then try again.',
   'auth.error.unauthorizedDomain': 'This site is not authorized for Google sign-in. Ask Eytan to add it in Firebase Console → Authentication → Authorized Domains.',
   'auth.error.unknown': 'Sign-in failed. Please try again.',
+  'auth.gate.nameRequired': 'Please enter your name.',
+  'auth.gate.incorrectCode': 'Incorrect access code.',
+  'auth.gate.signingIn': 'Signing in…',
+  'auth.gate.signInGoogle': 'Sign in with Google',
 
   // ── Team page ──
   'team.title': 'Team',
@@ -412,6 +425,8 @@ export const en: TranslationDictionary = {
   'pnl.yieldOnEquity': 'Yield Net CF post-tax / initial equity',
   'pnl.totalYieldOnEquity': 'Total yield (cumulative) / initial equity',
   'pnl.termLoanInterest': 'Term loan interest',
+  'pnl.commitmentFee': 'Commitment fee',
+  'pnl.commitmentFeeTooltip': 'Charged on the undrawn facility balance. Accrues during the construction draw period, independent of loan amortisation.',
   'pnl.termLoanPrincipal': 'Term loan principal',
   'pnl.termLoanBalance': 'Term loan closing balance',
   'pnl.icr': 'Interest coverage (ICR)',
@@ -419,6 +434,8 @@ export const en: TranslationDictionary = {
   'pnl.cit': 'Corporate income tax',
   'pnl.ebitdaMargin': 'EBITDA margin',
   'pnl.cfads': 'CFADS',
+  'pnl.financeSection': 'Finance costs',
+  'pnl.taxSection': 'Tax',
 
   'dash.section.dealSnapshot': 'Deal Snapshot',
   'dash.section.coverage': 'Coverage Ratios',
@@ -547,8 +564,8 @@ export const en: TranslationDictionary = {
   'kpi.llcrSub': 'NPV CFADS / loan, loan life',
   'kpi.plcr': 'PLCR',
   'kpi.plcrSub': 'NPV CFADS / loan, project life',
-  'kpi.covHeadroom': 'DSCR covenant headroom',
-  'kpi.covHeadroomSub': 'vs. 1.25× covenant',
+  'kpi.covHeadroom': 'DSCR Covenant Headroom',
+  'kpi.covHeadroomSub': 'vs. 1.25× (loan-life avg)',
   'kpi.equityYield': 'Equity yield (stabilised)',
   'kpi.equityYieldSub': 'NCF post-tax / initial equity, 2032',
   'kpi.cumYield': 'Cumulative yield (2037)',
@@ -813,6 +830,7 @@ export const en: TranslationDictionary = {
   'field.licensesPermits': 'Licenses & permits',
   'field.constructionDirector': 'Construction director',
   'field.interiorDesignerCost': 'Interior designer',
+  'field.devConstructionFeePerYear': 'Developer construction fee (per year)',
   'field.poolCostPerM2': 'Pool construction cost (€/m²)',
   'field.poolSlotQty': 'Count',
   'field.poolSlotWidth': 'Width (m)',
@@ -840,6 +858,8 @@ export const en: TranslationDictionary = {
   'field.tepixLandGap': 'Land gap (commercial)',
   'field.tepixCombinedDS': 'Combined annual debt service',
   'field.tepixCombinedStructure': 'Combined Loan Structure',
+  'field.tepixActivePathBanner': 'TEPIX III is your active financing path — these parameters are live in the model.',
+  'field.tepixInertBanner': 'TEPIX III parameters are stored but not active. Switch to TEPIX III above to apply them.',
   'comp.suppCommercialLoan': 'Supplementary commercial loan (€)',
 
   'dash.section.exitPath': 'Exit Path Comparison',
@@ -865,6 +885,7 @@ export const en: TranslationDictionary = {
   'sens.facility': 'Facility',
   'sens.wcY2Trough': 'Y2 Sep trough',
   'sens.capexSensitivity': 'Construction CAPEX Sensitivity (±% on cost/m²)',
+  'sens.dscrStabilised': 'DSCR (2030)',
 
   'inv.portfolioExpansion': 'Portfolio Expansion · Antiparos, Greece',
   'inv.capitalStructure': 'Capital Structure',
@@ -879,6 +900,7 @@ export const en: TranslationDictionary = {
   'common.path': 'Path',
   'common.metric': 'Metric',
   'common.loading': 'Loading...',
+  'common.noData': '—',
 
   'config.title': 'Configurations',
   'config.save': 'Save',
@@ -1127,6 +1149,7 @@ export const en: TranslationDictionary = {
   'dash.termsheet.pass': 'pass',
   'dash.termsheet.fail': 'fail',
   'dash.termsheet.min': 'Min',
+  'dash.termsheet.suppLoanNote': 'Suppl.',
 
   // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
   'dash.founder.section': 'Founder waterfall',
@@ -1225,6 +1248,7 @@ export const en: TranslationDictionary = {
   'bank.wc.revolving': 'revolving credit line',
   'bank.wc.bpsSpread': 'bps spread over term rate',
   'bank.wc.selfLiquidating': 'self-liquidating (repaid end of each peak season)',
+  'bank.wc.selfLiquidatingSuffix': ' · self-liquidating',
   'bank.wc.notIncluded': 'not included in the term loan amount above',
   'bank.wc.dual.vatBridgeLabel': '① Construction VAT bridge',
   'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · draw 35/45/20% · quarterly AADE refund, 1-quarter lag · peak float €145,711',
@@ -1572,7 +1596,7 @@ export const en: TranslationDictionary = {
   'presentation.s4.propA.desc': 'Two twin villas (3-bedroom + 4-bedroom), each with own entrance, private pool, and sea views. Target ADR €3,500/night net. Informed by four years of Villa Lev operating data.',
   'presentation.s4.propB.desc': 'Four boutique suites — 2 Standard (40m²) and 2 Double (65m²) — plus hamam/sauna/gym and indoor/outdoor events space designed for weddings and corporate retreats.',
   'presentation.s4.suiteTable.header': 'Suite Pricing',
-  'presentation.s4.events.note': 'Events and retreats income is not modelled in the Conservative case — it is unmodelled upside with proven demand (40+ wedding enquiries/yr at Villa Lev today).',
+  'presentation.s4.events.note': 'Events revenue (~€60K/yr at base) is modelled incremental income not yet demonstrated by the live villa. Demand pipeline exists (40+ wedding enquiries/yr) but no events have been held to date.',
   'presentation.s5.intro': "All projections use static assumptions with no compounding. The villa ADR in the model (€3,500) is below Villa Lev's 2025 live rate (€3,584). Year-1 ramp assumes 70% of mature occupancy; Year-2 assumes 90%.",
   'presentation.s5.rampTable.header': 'Ramp-Up Profile — Realistic Scenario (Live Model)',
   'presentation.s5.opexTable.header': 'Operating Cost Structure (Annual)',
@@ -1690,7 +1714,7 @@ export const en: TranslationDictionary = {
   'presentation.s8.alignment.1b.mechanism': 'TEPIX III advisory fee',
   'presentation.s8.alignment.1b.detail': '10% of TEPIX III grant as advisory fee, deferred to disbursement — aligns operator with grant approval.',
   'presentation.s8.alignment.1c.mechanism': 'Performance ratchet at exit',
-  'presentation.s8.alignment.1c.detail': '0% operator share if IRR < 8% · +9% at IRR 8–22% · +29% if IRR ≥ 22%.',
+  'presentation.s8.alignment.1c.detail': '0% operator share if IRR < 8% · +9% at IRR 8–25% · +29% if IRR ≥ 25%.',
   'presentation.s8.alignment.2a.mechanism': 'Management fee (gross revenue)',
   'presentation.s8.alignment.2a.detail': '5% of gross revenue, minimum €24,000/villa/yr. Senior to debt service.',
   'presentation.s8.alignment.2b.mechanism': 'Incentive fee (GOP above hurdle)',
@@ -1781,10 +1805,30 @@ export const en: TranslationDictionary = {
   'inv.sens.resetAll':       'Reset to base',
   'inv.sens.covenantLegend': 'IRR ≥ 15% · MOIC ≥ 2.0× · Yield ≥ 12%',
   'inv.sens.paybackUnit':    'yr',
+  // ── Break-even (Gap 2) ──
+  'inv.sens.breakEvenLabel':     'Break-even occupancy',
+  'inv.sens.breakEvenSub':       'Nights/yr at which revenue covers debt service',
+  'inv.sens.breakEvenUnit':      'nights / yr',
+  'inv.sens.bufferLabel':        'Margin of safety',
+  'inv.sens.bufferSub':          'Revenue buffer above break-even (at current slider assumptions)',
+  'inv.sens.breakEvenBaseNote':  'Break-even uses slider assumptions; Tail Stress uses base assumptions',
+  // ── Hold period comparison (Gap 3) ──
+  'inv.sens.holdPanel.heading':    'Hold period comparison',
+  'inv.sens.holdPanel.subheading': 'IRR and MOIC at three fixed exit years — current operating assumptions, exit year overridden per column',
+  'inv.sens.holdPanel.col5':       '5-year hold',
+  'inv.sens.holdPanel.col7':       '7-year hold',
+  'inv.sens.holdPanel.col11':      '11-year hold',
+  'inv.sens.holdPanel.baseLabel':  'Base case',
+  'inv.sens.holdPanel.irrRow':     'Equity IRR',
+  'inv.sens.holdPanel.moicRow':    'MOIC',
+  'inv.sens.holdPanel.tepixNote':  'TEPIX III loan active during this period',
 
   // ── Bank sensitivity tab (2026-05-25) ──
   'bank.tabs.overview':       'Overview',
   'bank.tabs.sensitivity':    'Sensitivity',
+  'bank.tabs.creditAnalysis': 'Credit Analysis',
+  'bank.tabs.vatCashflow':    'VAT Cashflow',
+  'bank.optimaLink':          'View Optima terms',
   'bank.sens.title':          'Live Sensitivity Analysis',
   'bank.sens.subtitle':       'Adjust key assumptions and watch DSCR, LTV, ICR, and NOI recalculate in real time.',
   'bank.sens.slidersHeading': 'Lever adjustments',
@@ -1803,7 +1847,7 @@ export const en: TranslationDictionary = {
   'bank.sens.opexSub':        'Buffer rate applied to controllable operating costs',
   'bank.sens.baseValue':      'Base',
   'bank.sens.dscrLabel':      'DSCR',
-  'bank.sens.dscrSub':        'Stabilised year · covenant ≥ 1.25×',
+  'bank.sens.dscrSub':        'First op. year 2030 · covenant ≥ 1.25×',
   'bank.sens.ltvLabel':       'LTV',
   'bank.sens.ltvSub':         'At completion · appraised value',
   'bank.sens.icrLabel':       'ICR',
@@ -1940,6 +1984,7 @@ export const en: TranslationDictionary = {
   'ct.founder.layerBInactive':  'Inactive (no grant path)',
   'ct.founder.layerCNote':      'Tier:',
   'ct.founder.exitNote':        'Exit:',
+  'ct.founder.exitNoteDetail':  '(pari-passu + developer equity + grant bonus + ratchet above 25% IRR)',
   'ct.founder.floorNote':       'Floor protected at',
   'ct.equityPoolModel':         'Equity pool (model)',
   'ct.requiredFromInvestors':   'Required from investors',
@@ -1992,15 +2037,15 @@ export const en: TranslationDictionary = {
   'ct.capRatchet10Detail':      '10% standalone ratchet cap reached',
   'ct.capNoBinding':            'No cap binding',
   // ── Founder governance / golden share (2026-05-27) ──
-  'ct.governance.title':        'Founder Governance Rights',
-  'ct.governance.badge':        'Founder Control Share',
+  'ct.governance.title':        'Investor protections — sponsor governance controls',
+  'ct.governance.badge':        'Structural Protection',
   'ct.governance.badgeLabel':   'Golden Share',
-  'ct.governance.description':  'The sponsor holds a control share that preserves certain decision-making rights regardless of equity ownership percentage. These rights are personal to the founder and non-transferable.',
-  'ct.governance.right1':       'Sole right to appoint and remove the Managing Director',
-  'ct.governance.right2':       'Veto on disposal of any project property or portfolio asset',
-  'ct.governance.right3':       'Veto on new equity issuances, mergers, and capital restructurings',
-  'ct.governance.right4':       'Casting vote in the event of a Board deadlock on strategic matters',
-  'ct.governance.condition':    'Rights are exercisable within the constraints of Greek company law (N.4072/2012) and the shareholders\' agreement. Rights do not apply in the event of a material and unremedied founder default.',
+  'ct.governance.description':  'Your investment is protected by a sponsor-held control share that prevents unilateral dilution of equity rights, forced asset sales without consent, and management changes that could jeopardise the project. These controls are personal to the sponsor and cannot be transferred or exercised against investors\' interests.',
+  'ct.governance.right1':       'Sole right to appoint and remove the Managing Director — preserving operational continuity and project expertise',
+  'ct.governance.right2':       'Veto on disposal of any project property or portfolio asset — your asset cannot be sold without sponsor sign-off',
+  'ct.governance.right3':       'Veto on new equity issuances, mergers, or capital restructurings — your stake cannot be diluted without consent',
+  'ct.governance.right4':       'Casting vote in Board deadlocks on strategic matters — prevents governance paralysis that would harm project value',
+  'ct.governance.condition':    'These protections exist for all stakeholders including investors. They are exercisable within Greek company law (N.4072/2012) and the shareholders\' agreement. They lapse in the event of a material and unremedied sponsor default.',
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd':         'std',
   'bank.about.unitDbl':         'dbl',
@@ -2030,6 +2075,8 @@ export const en: TranslationDictionary = {
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
   'pnl.depreciation':        'Depreciation (Art. 24, straight-line)',
   'pnl.ebit':                'EBIT (after depreciation)',
+  'pnl.capitalStructure':    'Capital Structure',
+  'pnl.capitalStructureSub': 'Active path · stabilised-year figures · updates on every assumption change',
   'term.annualDepreciation': 'Annual depreciation',
 
   // ── Sources & Uses panel (SourcesUsesPanel) ───────────────────────────────
@@ -2049,6 +2096,22 @@ export const en: TranslationDictionary = {
   'finComp.payback':               'Payback period',
   'finComp.totalEquityAtClose':    'Total equity at close',
   'finComp.minDSCRLoanLife':       'Min DSCR (loan life)',
+
+  // ── Analytics page ───────────────────────────────────────────────────────
+  'nav.analytics':                 'Analytics',
+  'analytics.title':               'Feature Analytics',
+  'analytics.pageIntro':           'Usage telemetry for internal features — powered by Firestore. Requires NEXT_PUBLIC_ANALYTICS_ENABLED=true.',
+  'analytics.range7d':             '7 days',
+  'analytics.range30d':            '30 days',
+  'analytics.range90d':            '90 days',
+  'analytics.colFeature':          'Feature',
+  'analytics.colTotalOpens':       'Opens',
+  'analytics.colUniqueSessions':   'Unique sessions',
+  'analytics.colAdminOpens':       'Admin',
+  'analytics.colBankOpens':        'Bank',
+  'analytics.colLastUsed':         'Last used',
+  'analytics.noData':              'No usage data in the selected range.',
+  'analytics.loading':             'Loading…',
 
   // ── Connections page ──────────────────────────────────────────────────────
   'nav.connections':               'Connections',
@@ -2077,33 +2140,33 @@ export const en: TranslationDictionary = {
   // ── Sponsor equity breakdown — three capacities ──────────────────────────
   'ct.roles.sectionTitle': "Sponsor Equity — Three Capacities",
   'ct.roles.sectionSub': "The sponsor holds {pct} of equity across three capacities. All participate in the same waterfall.",
-  // Panel 1 — Co-investor
-  'ct.roles.panel1.title': "Co-investor",
+  // Panel 1 — Co-invest
+  'ct.roles.panel1.title': "Sponsor co-invest",
   'ct.roles.panel1.pctLabel': "Pari-passu equity stake",
-  'ct.roles.panel1.caption': "{cash} contributed at LP terms",
-  'ct.roles.panel1.note': "Same pari-passu rights as any LP contributing the same capital. No preferential treatment.",
-  // Panel 2 — Developer & Manager
-  'ct.roles.panel2.title': "Developer & Manager",
+  'ct.roles.panel1.caption': "{cash} invested at LP terms — same rights as any investor",
+  'ct.roles.panel1.note': "The sponsor invests real capital on the same terms as you. This aligns exit incentives directly — the sponsor profits only when you profit.",
+  // Panel 2 — Sponsor promote
+  'ct.roles.panel2.title': "Sponsor promote",
   'ct.roles.panel2.pctLabel': "Developer equity promote — Layer A",
-  'ct.roles.panel2.caption': "Earned for sourcing, construction, and operations",
-  'ct.roles.panel2.note': "Market-standard promote for active sponsors. Earned regardless of additional capital contributed.",
+  'ct.roles.panel2.caption': "Market-standard promote for active development and management",
+  'ct.roles.panel2.note': "A 25% equity promote is standard market practice for an active development sponsor. This incentivises performance without diluting your cash returns — promote is earned on top of investor distributions, not instead of them.",
   'ct.roles.panel2.ratchetAdd': "+ up to {pct} conditional ratchet (Layer C, investor return-linked)",
-  // Panel 3 — Grant originator
-  'ct.roles.panel3.title': "Grant Originator",
-  'ct.roles.panel3.pctLabel': "Layer B equity bonus — TEPIX III",
-  'ct.roles.panel3.caption': "Earned for securing state financing",
-  'ct.roles.panel3.note': "TEPIX III secured: {amt}. The grant fee is reinvested as equity — reduces the equity capital required from investors.",
+  // Panel 3 — Grant uplift
+  'ct.roles.panel3.title': "Grant uplift",
+  'ct.roles.panel3.pctLabel': "Layer B equity bonus — Development Law Grant",
+  'ct.roles.panel3.caption': "Sponsor secured state financing — reducing your equity requirement",
+  'ct.roles.panel3.note': "Grant of {amt} secured. The 10% success fee taken as equity reinvestment directly reduces the equity capital call from investors by an equivalent amount.",
   'ct.roles.panel3.inactive': "Not applicable — grant path not selected in this scenario.",
   'ct.roles.panel3.activeChip': "Active",
   'ct.roles.panel3.inactiveChip': "Not active",
   // Combined result
-  'ct.roles.total.combinedStake': "Combined equity stake",
-  'ct.roles.total.sameWaterfall': "The sponsor participates in distributions alongside all equity holders at this combined stake — same waterfall, same priority, no preferential treatment.",
+  'ct.roles.total.combinedStake': "Combined economic stake (across all three capacities)",
+  'ct.roles.total.sameWaterfall': "The sponsor receives distributions from the same pool as investors — no preferential queue, no priority claim. The promote and grant uplift increase the sponsor's slice of the pool but never jump the queue.",
   'ct.roles.total.distributions': "Distributions (base scenario)",
-  'ct.roles.total.breakdownCoInvestor': "co-investor",
-  'ct.roles.total.breakdownDeveloper': "developer",
+  'ct.roles.total.breakdownCoInvestor': "co-invest",
+  'ct.roles.total.breakdownDeveloper': "promote",
   'ct.roles.total.breakdownRatchet': "ratchet",
-  'ct.roles.total.breakdownGrant': "grant",
+  'ct.roles.total.breakdownGrant': "grant uplift",
 
   // ── Cap Table investor-UX redesign (2026-05-27) ──
   'ct.dealHeadline': "Investor Summary",
@@ -2116,8 +2179,8 @@ export const en: TranslationDictionary = {
   'ct.dealParamsSub': "Waterfall controls — adjust to recompute distributions",
   'ct.dealParamsToggle': "Show parameters",
   'ct.dealParamsHide': "Hide parameters",
-  'ct.sponsorAlignment': "Sponsor Alignment",
-  'ct.sponsorAlignmentSub': "How the sponsor participates alongside investors in the same waterfall",
+  'ct.sponsorAlignment': "How the sponsor earns alongside you",
+  'ct.sponsorAlignmentSub': "Three earning capacities — all in the same waterfall as investors, no priority treatment",
   'ct.waterfallDetail': "Waterfall Detail",
   'ct.waterfallDetailSub': "Three-layer distribution mechanics — pari-passu, grant bonus, and performance ratchet",
   'ct.waterfallDetailToggle': "Show detail",
@@ -2137,7 +2200,7 @@ export const en: TranslationDictionary = {
 
   // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
   'bank.optima.eyebrow': 'Optima Bank — Dual Sub-Project Structure',
-  'bank.optima.capexNote': 'Service provider fees and contingency absorbed into construction line per Optima Bank eligibility rules (Optima\'s proposed structure, 2026-05-28). Admin view retains full breakdown.',
+
   'bank.optima.subProjectA': 'Sub-Project A',
   'bank.optima.subProjectB': 'Sub-Project B',
   'bank.optima.loanTerm': '12y total / 2y grace / 10y amortisation',
@@ -2174,6 +2237,21 @@ export const en: TranslationDictionary = {
   'bank.optima.upliftNewEquity': 'Net new equity needed',
   'bank.optima.upliftSaved': '✓ Saved',
   'bank.optima.upliftDscrVsBase': 'vs base',
+  'bank.optima.upliftCapexBreakdown': 'CapEx category breakdown',
+  'bank.optima.upliftCategory': 'Category',
+  'bank.optima.upliftBefore': 'Before',
+  'bank.optima.upliftAfter': 'After',
+  'bank.optima.upliftDeltaAmt': 'Δ Amount',
+  'bank.optima.upliftDeltaPct': 'Δ %',
+  'bank.optima.upliftExpandBreakdown': 'Show CapEx breakdown',
+  'bank.optima.upliftCollapseBreakdown': 'Hide CapEx breakdown',
+  'bank.optima.pathImpactTitle': 'CapEx absorption by financing path',
+  'bank.optima.pathImpactSub': 'How the overrun splits between extra loan and equity on each path',
+  'bank.optima.pathBaseline': 'Baseline loan',
+  'bank.optima.pathNew': 'New loan',
+  'bank.optima.pathDeltaLoan': 'Δ Loan',
+  'bank.optima.pathDeltaPct': 'Δ %',
+  'bank.optima.pathEquityChange': 'Equity change',
   'as.optimaTab': 'Optima Bank',
   'bank.graceMode.label': 'Loan draw structure',
   'bank.graceMode.standard': 'Single loan',
@@ -2182,6 +2260,185 @@ export const en: TranslationDictionary = {
   'bank.graceMode.two_phase.desc': 'Two separate loans: Phase 1 finances the plots (drawn at Phase 1 start, 2-year grace, then amortises). Phase 2 finances the full construction as a single draw (drawn at Phase 2 start, own 2-year grace, then amortises). Each loan is fully independent.',
   'bank.graceMode.rolling': 'Staged draw',
   'bank.graceMode.rolling.desc': 'Same two-loan structure as Block draw, but Phase 2 (construction) is released in 4 tranches of 25% each at 6-month intervals. Every tranche carries its own 2-year grace — amortisation steps in progressively, lowering debt service during the hotel\'s opening years.',
+  'bank.graceMode.rolling_cohort': 'Block grace',
+  'bank.graceMode.rolling_cohort.desc': 'Construction released in 4 tranches of 25% at 6-month intervals — interest accrues only on drawn amounts. A single cohort grace period applies from the first draw: all tranches start amortising together after the grace window expires. Use when the bank requires a unified repayment schedule.',
   'bank.graceMode.plotsStart': 'Phase 1 start — plots',
   'bank.graceMode.constructionStart': 'Phase 2 start — construction',
+
+  // ── OpCo/Cap Table redesign — waterfall steps (2026-06-01) ──
+  'opco.wStep5Label': 'Distributable pool split pari-passu — investors and sponsor together',
+  'opco.wStep5Detail': 'All equity holders — investors and the sponsor\'s co-invest — receive their pro-rata cash share simultaneously from the same pool. No party is paid first.',
+  'opco.wStep6Label': 'Developer promote (Bucket 1A) and ratchet sit on top — not in front',
+  'opco.wStep6Detail': 'The sponsor holds a developer promote (Bucket 1A, free carry) and where the grant is approved a grant equity bonus. Both are additive to the sponsor\'s co-invest equity share. At exit, all three layers receive proceeds simultaneously alongside investors — no party is paid first. The ratchet (Layer C) adds an incremental bonus on top once investors reach an 8% IRR.',
+  'opco.wStep7Label': 'At exit — all equity layers apply to sale proceeds',
+  'opco.wStep7Detail': 'Exit proceeds are distributed: (1) bank repaid from proceeds; (2) all equity holders share the remainder simultaneously — sponsor co-invest, developer promote (Bucket 1A), and grant equity (where applicable) all receive their pro-rata slice at the same time. The ratchet (Layer C) adds an incremental slice for the sponsor when investor IRR at exit exceeds 25%.',
+
+  // Bucket 1A cross-reference on OpCo tab
+  'opco.bucket1AXref': 'Bucket 1A — Sponsor equity promote (25% free carry) is a capital-structure item, not an operational fee. See Cap Table → Capital structure for detail.',
+
+  // ── Cap Table — capital structure section (migrated from opco-split) ──
+  'ct.cs.sectionTitle': 'Capital structure',
+  'ct.cs.sponsorPromote': 'Sponsor promote equity',
+  'ct.cs.sponsorPromoteSub': 'Free carry — no cash required from sponsor',
+  'ct.cs.sponsorCoinvest': 'Sponsor co-invest',
+  'ct.cs.sponsorCoinvestSub': 'Cash invested at LP terms — pari-passu with investors',
+  'ct.cs.investorPool': 'Investor equity pool',
+  'ct.cs.investorPoolSub': '8% preferred return · 70/30 above',
+  'ct.cs.bankLoan': 'Bank loan',
+  'ct.cs.grant': 'Grant',
+  'ct.cs.grantInactive': 'Not in current path',
+  'ct.cs.totalCapex': 'Total CapEx',
+  'ct.cs.propcoPlot': 'plot',
+  'ct.cs.propcoPlots': 'plots',
+
+  // ── Cap Table — equity waterfall section ──
+  'ct.equityWaterfall': 'Equity distribution waterfall',
+  'ct.equityWaterfallSub': 'How distributable cash flows from the pool to each holder',
+
+  // ── P&L Founder ManCo fee section (ADR-0019) ──────────────────────────────
+  'pnl.mancoFeeSection': 'Founder ManCo fee — pre-equity',
+  'pnl.postDsPostMancoResidual': 'Residual after DS and ManCo fee',
+  'pnl.grantSuccessFeeLabel': 'Grant success fee — cash (Aggelakakis + Eytan, {year})',
+
+  // ── CapEx Absorption ──────────────────────────────────────────────────────
+  'capexAbs.title': 'CAPEX ABSORPTION',
+  'capexAbs.subtitle': 'Absorbs ineligible cost lines into the construction line.',
+  'capexAbs.serviceProviders': 'Absorb service providers',
+  'capexAbs.serviceProvidersDesc': 'Architect, civil engineer, legal, construction director, licenses & permits',
+  'capexAbs.contingency': 'Absorb contingency',
+  'capexAbs.contingencyDesc': 'Contingency (10% of building + FF&E) — absorbed into the construction line',
+  'capexAbs.constructionBefore': 'Construction before',
+  'capexAbs.constructionAfter': 'Construction after',
+  'capexAbs.constructionDelta': 'Δ Construction',
+  'capexAbs.pathImpactTitle': 'Absorption by financing path',
+  'capexAbs.pathBaseline': 'Baseline loan',
+  'capexAbs.pathNew': 'New loan',
+  'capexAbs.pathDeltaLoan': 'Δ Loan',
+  'capexAbs.pathDeltaPct': 'Δ %',
+  'capexAbs.pathEquityChange': 'Equity change',
+  'capexAbs.ofTotalBudget': 'of total budget',
+
+  // ── P1-07: BankStressTest output strip — min DSCR + stabilised secondary (2026-06-03) ──
+  'bank.stress.output.dscrStabilised': 'Stabilised:',
+
+  // ── P1-08: Exit analysis card (FI-20) (2026-06-03) ──
+  'bank.exit.sectionTitle': 'Exit Analysis',
+  'bank.exit.sectionSub': 'Terminal asset value, residual debt, and exit LTV at the modelled exit year.',
+  'bank.exit.exitYear': 'Exit Year',
+  'bank.exit.terminalAsset': 'Terminal Asset Value',
+  'bank.exit.terminalAssetSub': 'EBITDA × exit multiple',
+  'bank.exit.loanAtExit': 'Loan Balance at Exit',
+  'bank.exit.loanAtExitSub': 'Remaining debt at exit year',
+  'bank.exit.terminalLTV': 'Terminal LTV',
+  'bank.exit.ltvPass': 'pass',
+  'bank.exit.ltvFail': 'fail',
+  'bank.exit.ltvThreshold': '≤ 70% threshold',
+  'bank.exit.underwaterNote': 'At exit, remaining loan balance exceeds asset value. Equity proceeds are €0 under this scenario.',
+
+  // ── P1-09: WC facility adequacy warning (FI-19, FI-27) (2026-06-03) ──
+  'bank.kpi.wcFacilityLabel': 'WC facility',
+  'bank.wc.adequacyBelowMin': 'may be below minimum',
+  'bank.wc.adequacyShortfall': 'Shortfall:',
+
+  // ── P1-10: Stabilised ops EBITDA margin benchmark + FF&E line (HO-04, HO-05) (2026-06-03) ──
+  'bank.stabilised.ebitdaMarginBenchmark': 'Industry range: 40–55% (boutique hospitality)',
+  'bank.stabilised.ffeReserve': 'of which FF&E Reserve',
+
+  // ── P1-10: Hospitality KPI strip (HO-03, HO-06, HO-15, HO-16) (2026-06-03) ──
+  'bank.kpi.revpar': 'RevPAR (stabilised)',
+  'bank.kpi.revparSub': 'Revenue / available room-nights',
+  'bank.kpi.ltvCovenant': 'LTV Covenant',
+  'bank.kpi.ltvCovenantThreshold': '≤ 70% bank threshold',
+  'bank.kpi.preOpening': 'Pre-opening Budget',
+  'bank.kpi.preOpeningAmort': 'amort.',
+  'bank.kpi.mgmtFee': 'Mgmt Fee',
+  'bank.kpi.mgmtFeeBaseLabel': 'Base rate',
+  'bank.kpi.mgmtFeeIncentiveLabel': 'incentive',
+
+  // ── P1-14: In-page anchor bars (UX-07, UX-25) (2026-06-03) ──
+  'dash.anchor.overview': 'Overview',
+  'dash.anchor.returns': 'Returns',
+  'dash.anchor.dscr': 'DSCR',
+  'dash.anchor.conservatism': 'Conservatism',
+  'dash.anchor.founder': 'Founder',
+  'bank.anchor.termSheet': 'Term Sheet',
+  'bank.anchor.dealOverview': 'Deal Overview',
+  'bank.anchor.loanMetrics': 'Loan Metrics',
+  'bank.anchor.dscr': 'DSCR',
+  'bank.anchor.capital': 'Capital',
+  'bank.anchor.pnl': 'P&L',
+
+  // ── P1-15: Accessibility — aria labels and table captions (UI-06, UI-18) (2026-06-03) ──
+  'aria.chart.dscr': 'DSCR trajectory chart',
+  'aria.chart.paymentCapacity': 'Payment capacity vs debt service chart',
+  'aria.chart.dsra': 'Debt service reserve account chart',
+  'aria.chart.revenue': 'Revenue and EBITDA chart',
+  'aria.chart.allPathsDscr': 'All financing paths DSCR trajectory chart',
+  'aria.chart.capitalStructure': 'Capital structure pie chart',
+  'aria.table.caption.portfolio': 'Portfolio breakdown by plot',
+  'aria.table.caption.capex': 'CAPEX breakdown by property',
+  'aria.table.caption.dscrSummary': 'DSCR summary across scenarios',
+  'aria.table.caption.financingComparison': 'Financing path comparison',
+  'aria.table.caption.pnl': 'Projected P&L timeline',
+
+  // ── P1-16: UI-09 Connected viewers i18n + UI-25 print:hidden (2026-06-03) ──
+  'bank.admin.connectedViewers': 'Connected viewers',
+  'bank.admin.noActiveViewers': 'No active viewers.',
+  'bank.admin.anonBadge': 'anon',
+
+  // ── P1-17: i18n fixes (2026-06-03) ──
+  // Note: 'app.platform' already defined at line 6
+  'assumptions.lastSaved': 'Last saved',
+  'connections.action.excel': 'Excel ↓',
+  'connections.action.presentation': 'Presentation',
+  'connections.action.tour': 'Tour',
+  'connections.time.justNow': 'just now',
+  'connections.time.secondsAgo': '{{n}}s ago',
+  'connections.time.minutesAgo': '{{n}}m ago',
+  'connections.time.hoursAgo': '{{n}}h ago',
+  'connections.time.daysAgo': '{{n}}d ago',
+
+  // P2-10: FI-12 equity draw order footnote (SourcesUsesPanel)
+  'sau.equityFirstNote': 'Equity drawn first before any debt disbursement.',
+
+  // P2-10: FI-17 DSCR numerator footnote (BankPnLSection)
+  'pnl.dscrNumeratorNote': 'DSCR uses pre-OpCo EBITDA in the bank view (EBITDA before management and incentive fees).',
+
+  // P2-10: FI-18 grace interest reserve prominent label
+  'bank.equityOverview.graceInterestReserve': 'Grace Period Interest Reserve',
+  'bank.equityOverview.graceInterestReserveSub': 'Pre-revenue interest accrued during the 2026–2028 grace period — returned to equity after grace ends.',
+
+  // P2-10: FI-25 break-even dual-axis subtitle
+  'bank.bar.breakevenSub': 'Dual-axis stress: ADR + occupancy simultaneously',
+
+  // P3-15: export on request card
+  'bank.actions.onRequest.title': 'Additional materials available on request',
+  'bank.actions.onRequest.sub': 'Excel model and presentation deck available on request.',
+
+  // ── CAPEX Comparison page ──
+  'nav.capexComparison': 'CAPEX Comparison',
+  'admin.capexComparison.title': 'CAPEX Comparison — True vs. Stated',
+  'admin.capexComparison.pageIntro': 'Enter a virtual uplift to see how stated CAPEX (bank-facing) compares to true CAPEX. Figures are ephemeral — nothing is saved.',
+  'admin.capexComparison.disclaimer': 'Hypothetical — not saved to scenario',
+  'admin.capexComparison.inputLabel': 'Virtual uplift',
+  'admin.capexComparison.modeAbs': '€k',
+  'admin.capexComparison.modePct': '% of true CAPEX',
+  'admin.capexComparison.colTrue': 'True CAPEX',
+  'admin.capexComparison.colStated': 'Stated CAPEX',
+  'admin.capexComparison.colDelta': 'Delta',
+  'admin.capexComparison.colBankNote': 'Bank-facing',
+  'admin.capexComparison.rowCapexTotal': 'Total CAPEX',
+  'admin.capexComparison.rowEquityRequired': 'Equity required',
+  'admin.capexComparison.rowLoan': 'Total loan drawn',
+  'admin.capexComparison.rowDepreciation': 'Annual depreciation',
+  'admin.capexComparison.rowEbitda': 'Stabilised EBITDA',
+  'admin.capexComparison.rowEbitdaNote': '(not affected by uplift)',
+  'admin.capexComparison.rowDscr': 'Stabilised DSCR',
+  'admin.capexComparison.rowIrr': 'Equity IRR',
+  'admin.capexComparison.inactiveHint': 'Enter an uplift above to activate the comparison.',
+
+  // ── Events disclosure (Gap 5) ──
+  // kpi.ebitdaMarginNote is on debt-coverage/page only — not on InvestorSensitivityTab.
+  // This key is used in the dashboard events disclosure row and docx §4/§6.
+  'inv.events.disclosure': 'Events revenue (~€60K/yr at base) is modelled incremental income with no live comparable — Villa Lev currently generates €0 from events. Demand pipeline exists (40+ enquiries/yr) but is not yet demonstrated revenue.',
 };

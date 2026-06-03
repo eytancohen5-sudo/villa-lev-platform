@@ -19,38 +19,17 @@ import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import BankControlBar from "@/components/BankControlBar";
 import { PageTour, usePageTour } from "@/components/PageTour";
 import { BANK_TOUR } from "@/lib/tours/configs";
-import { PRESENTATION_LABEL } from "@/lib/presentationMeta";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 import { logPresenceActivity } from "@/lib/data/usePresence";
+import { MetricCell } from "@/components/MetricCell";
 import Link from "next/link";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine } from "recharts";
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ComposedChart, Area, Bar } from "recharts";
 
 type TabSide = 'A' | 'B';
 
-function MetricCell({
-  value,
-  label,
-  sublabel,
-  valueClass,
-}: {
-  value: string;
-  label: string;
-  sublabel?: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="text-center px-2">
-      <div className={`kpi-value ${valueClass ?? "text-text-primary"}`}>{value}</div>
-      <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">
-        {label}
-      </div>
-      {sublabel && (
-        <div className="text-xs text-text-tertiary mt-0.5">{sublabel}</div>
-      )}
-    </div>
-  );
-}
-
 export default function OptimaPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("bank-optima"); }, [track]);
   const { t, locale } = useTranslation();
   const {
     model,
@@ -58,65 +37,31 @@ export default function OptimaPage() {
     templates,
     projects,
     activeScenario,
-    capTable,
-    waterfall,
     setFinancingPathOverride,
     setOptimaEuriborRate,
   } = useModelStore();
   const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
-  const [xlsxLoading, setXlsxLoading] = useState(false);
-  const [docxLoading, setDocxLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<TabSide>('A');
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
+  const [xlsxLoading, setXlsxLoading] = useState(false);
 
   const handleDownloadXlsx = async () => {
     if (!model || xlsxLoading) return;
     setXlsxLoading(true);
-    void logPresenceActivity('excel_download');
     try {
       const { exportBusinessPlan } = await import('@/lib/excel/exportBP');
-      const exportScenario = activeScenario === 'breakeven' ? 'realistic' : activeScenario;
-      const blob = await exportBusinessPlan(
-        { ...assumptions, viewMode: 'bank', financingPath: 'optima' },
-        model,
-        exportScenario,
-        capTable,
-        waterfall,
-        locale,
-      );
+      const exportScenario = (activeScenario === 'breakeven' ? 'realistic' : activeScenario) as 'realistic' | 'upside' | 'downside';
+      const blob = await exportBusinessPlan(assumptions, model, exportScenario);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `villa-lev-optima-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(a);
+      a.download = 'VillaLev_BusinessPlan_Optima.xlsx';
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('xlsx export failed', e);
     } finally {
       setXlsxLoading(false);
-    }
-  };
-
-  const handleDownloadDocx = async () => {
-    if (!model || docxLoading) return;
-    setDocxLoading(true);
-    try {
-      const { exportBankPresentation } = await import('@/lib/docx/exportBankPresentation');
-      const blob = await exportBankPresentation(
-        { ...assumptions, viewMode: 'bank' },
-        model,
-        locale,
-      );
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `villa-lev-optima-presentation-${new Date().toISOString().slice(0, 10)}.docx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } finally {
-      setDocxLoading(false);
     }
   };
 
@@ -251,7 +196,7 @@ export default function OptimaPage() {
     const tabRevenue = stabYear ? stabYear.totalRevenue * capexRatio : 0;
     const tabEbitda = stabYear ? stabYear.ebitdaPreOpCo * capexRatio : 0;
     const tabEbitdaMargin = stabYear?.ebitdaMargin ?? 0; // margin stays the same
-    const tabDSCR = minDscrEntry?.dscr ?? 0;
+    const tabDSCR = tabAnnualDS > 0 && tabEbitda > 0 ? tabEbitda / tabAnnualDS : 0;
     const tabICR =
       tabInterestAnnual > 0 && tabEbitda > 0 ? tabEbitda / tabInterestAnnual : 0;
     const tabNCF = stabYear ? stabYear.netCashFlowPostVAT * capexRatio : 0;
@@ -368,11 +313,38 @@ export default function OptimaPage() {
   ) : null;
 
   const dscrChartData = (optimaScenario?.pnl ?? [])
-    .filter((p) => p.year >= PROJECT_CONSTANTS.OPENING_YEAR)
+    .filter((p) => p.year >= 2026)
     .map((p) => ({
       year: p.year,
-      DSCR: Number(p.dscr.toFixed(2)),
+      DSCR: p.dscr > 0 ? Number(p.dscr.toFixed(2)) : null,
     }));
+
+  const optimaPaymentCapacityData = (optimaScenario?.pnl ?? [])
+    .filter((p) => p.year >= 2026)
+    .map((p) => ({
+      year: p.year,
+      cfads: Math.round(p.cfads),
+      fundingGap: Math.max(0, Math.round(p.debtService - p.cfads)),
+      debtService: Math.round(p.debtService),
+      interest: Math.round(p.termLoanInterest),
+    }));
+
+  // Fingerprints from model output force Recharts to remount whenever
+  // assumptions change (e.g. gracePeriodYears, loanCoverageRate, euriborRate).
+  const dscrChartKey = `dscr-optima-${activeScenario}-${dscrChartData.find(d => d.DSCR !== null)?.DSCR?.toFixed(3) ?? '0'}`;
+  const pcChartKey = `pc-optima-${activeScenario}-${Math.round(optimaPaymentCapacityData.find(d => d.debtService > 0)?.debtService ?? 0)}`;
+
+  const optimaDsraTarget = optimaScenario?.dsraTarget ?? 0;
+  const optimaDsraData = optimaDsraTarget > 0
+    ? (optimaScenario?.pnl ?? [])
+        .filter((p) => p.year >= 2026)
+        .map((p) => ({
+          year: p.year,
+          balance: Math.round(p.dsraBalance ?? 0),
+          draw: Math.round(p.dsraDraw ?? 0),
+          replenishment: Math.round(p.dsraReplenishment ?? 0),
+        }))
+    : [];
 
   // Term Sheet cells — scoped to active sub-project
   const termSheetCells = [
@@ -475,50 +447,43 @@ export default function OptimaPage() {
             </div>
           </button>
 
-          {/* Presentation */}
-          <a
-            href={`/presentation?lang=${locale}&from=bank`}
-            onClick={() => void logPresenceActivity('presentation_view')}
-            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all"
+          {/* Coming Soon — Excel & Presentation flip card */}
+          <div
+            className="group/flip col-span-2 cursor-default"
+            style={{ perspective: '800px' }}
           >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                <svg width="15" height="16" viewBox="0 0 15 16" fill="none" aria-hidden="true">
-                  <path d="M2 1.5h7l4 4V14.5H2V1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                  <path d="M9 1.5V5.5H13" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" className="text-brand-500"/>
-                  <path d="M4.5 9h6M4.5 11.5h4" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-brand-400"/>
-                </svg>
+            <div
+              className="relative h-full transition-transform duration-500 ease-in-out motion-reduce:transition-none group-hover/flip:[transform:rotateY(180deg)]"
+              style={{ transformStyle: 'preserve-3d' }}
+            >
+              {/* Front */}
+              <div
+                className="absolute inset-0 flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5"
+                style={{ backfaceVisibility: 'hidden' }}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" className="text-amber-500"/>
+                      <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"/>
+                    </svg>
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{t('bank.actions.comingSoon.badge')}</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.comingSoon.title')}</p>
+                  <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.comingSoon.sub')}</p>
+                </div>
               </div>
-              <span className="text-[10px] font-semibold tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{PRESENTATION_LABEL}</span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.presentation.title')}</p>
-              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.presentation.sub')}</p>
-            </div>
-          </a>
-
-          {/* Excel */}
-          <button
-            onClick={handleDownloadXlsx}
-            disabled={!model || xlsxLoading}
-            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-emerald-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors shrink-0">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" stroke="currentColor" strokeWidth="1.3" className="text-emerald-600"/>
-                  <path d="M4.5 5h7M4.5 8h7M4.5 11h4.5" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" className="text-emerald-500"/>
-                </svg>
+              {/* Back */}
+              <div
+                className="absolute inset-0 flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-5"
+                style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+              >
+                <p className="text-sm text-amber-800 text-center leading-relaxed">{t('bank.actions.comingSoon.back')}</p>
               </div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Excel</span>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-text-primary leading-tight">
-                {xlsxLoading ? t('bar.preparing') : t('bank.actions.model.title')}
-              </p>
-              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.model.sub')}</p>
-            </div>
-          </button>
+          </div>
 
         </div>
       </div>
@@ -842,7 +807,7 @@ export default function OptimaPage() {
           <MetricCell
             value={tabData.tabDSCR > 0 ? formatMultiple(tabData.tabDSCR) : "—"}
             label={t("term.dscr")}
-            sublabel={minDscrYear ? `min · ${minDscrYear}` : t("inv.stabilisedOps")}
+            sublabel={t("inv.stabilisedOps")}
             valueClass={
               tabData.tabDSCR >= dscrCovenant ? "text-positive" : "text-warning"
             }
@@ -911,35 +876,127 @@ export default function OptimaPage() {
         </div>
       )}
 
-      {/* DSCR over time */}
-      {dscrChartData.length > 0 && (
-        <div id="optima-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">
-            {t('bank.section.repaymentCapacity')}
-          </h3>
-          <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
-          <ResponsiveContainer key={`dscr-optima-${activeScenario}`} width="100%" height={280}>
-            <LineChart data={dscrChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
-              <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0.75, "dataMax + 0.5"]} />
-              <Tooltip
-                formatter={(value) => `${Number(value).toFixed(2)}×`}
-                contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine y={dscrCovenant} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: t('bank.chart.covenantLabel'), position: 'insideTopLeft', fontSize: 10, fill: '#9E3B3B' }} />
-              <ReferenceLine
-                x={2029}
-                stroke="#8B6914"
-                strokeDasharray="3 3"
-                label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
-              />
-              <Line type="monotone" dataKey="DSCR" name="DSCR (Optima)" stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-          {rampHaircutNote}
-        </div>
+      {/* DSCR + Payment Capacity charts */}
+      {(dscrChartData.length > 0 || optimaPaymentCapacityData.length > 0 || optimaDsraTarget > 0) && (
+        <>
+          {/* Row 1 — DSCR + Payment Capacity */}
+          {(dscrChartData.length > 0 || optimaPaymentCapacityData.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              {dscrChartData.length > 0 && (
+                <div id="optima-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+                  <h3 className="text-sm font-semibold text-text-primary mb-1">
+                    {t('bank.section.repaymentCapacity')}
+                  </h3>
+                  <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
+                  <ResponsiveContainer key={dscrChartKey} width="100%" height={300}>
+                    <LineChart data={dscrChartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                      <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v.toFixed(1)}×`} domain={[0.75, "dataMax + 0.5"]} />
+                      <Tooltip
+                        formatter={(value) => value != null ? `${Number(value).toFixed(2)}×` : '—'}
+                        contentStyle={{ borderRadius: 8, border: "1px solid #EDE6D5", fontSize: 12 }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <ReferenceLine y={dscrCovenant} stroke="#9E3B3B" strokeDasharray="5 5" label={{ value: t('bank.chart.covenantLabel'), position: 'insideTopLeft', fontSize: 10, fill: '#9E3B3B' }} />
+                      <ReferenceLine
+                        x={2029}
+                        stroke="#8B6914"
+                        strokeDasharray="3 3"
+                        label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
+                      />
+                      <Line type="monotone" dataKey="DSCR" name="DSCR (Optima)" stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} connectNulls={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  {rampHaircutNote}
+                </div>
+              )}
+
+              {optimaPaymentCapacityData.length > 0 && (
+                <div id="optima-payment-capacity-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+                  <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dash.annualDSChart')}</h3>
+                  <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dash.dsChart.sub')}</p>
+                  <ResponsiveContainer key={pcChartKey} width="100%" height={300}>
+                    <ComposedChart data={optimaPaymentCapacityData}>
+                      <defs>
+                        <linearGradient id="dsObligationOptima" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#9E3B3B" stopOpacity={0.12} />
+                          <stop offset="95%" stopColor="#9E3B3B" stopOpacity={0.03} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                      <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} domain={['auto', 'dataMax']} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          const cfadsVal = Number(payload.find((p) => p.dataKey === 'cfads')?.value ?? 0);
+                          const dsVal = Number(payload.find((p) => p.dataKey === 'debtService')?.value ?? 0);
+                          const impliedDscr = dsVal > 0 ? (cfadsVal / dsVal).toFixed(2) : '—';
+                          return (
+                            <div style={{ background: 'white', border: '1px solid #EDE6D5', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+                              <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+                              {payload.map((p) => (
+                                <div key={p.dataKey as string} style={{ color: p.color, marginBottom: 2 }}>
+                                  {p.name}: {formatCurrency(Number(p.value), false, locale)}
+                                </div>
+                              ))}
+                              <div style={{ color: '#6B7280', borderTop: '1px solid #EDE6D5', marginTop: 4, paddingTop: 4 }}>
+                                DSCR: {impliedDscr}×
+                              </div>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <ReferenceLine y={0} stroke="#6B7280" strokeDasharray="3 3" />
+                      <Area type="monotone" dataKey="debtService" name={t('pnl.debtService')} stroke="#9E3B3B" strokeWidth={2} fill="url(#dsObligationOptima)" dot={false} />
+                      <Line type="monotone" dataKey="fundingGap" name={t('dash.dsChart.fundingGap')} stroke="#C4754B" strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="interest" name={t('pnl.termLoanInterest')} stroke="#6B7280" strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Row 2 — DSRA */}
+          {optimaDsraTarget > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div id="optima-dsra-summary" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+                <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dsra.sectionTitle')}</h3>
+                <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dsra.chartSub')}</p>
+                {optimaDsraData.some((d) => d.draw > 0 || d.replenishment > 0) ? (
+                  <ResponsiveContainer key={`dsra-optima-${activeScenario}`} width="100%" height={280}>
+                    <ComposedChart data={optimaDsraData} margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="optimaDsraGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C4A55E" stopOpacity={0.22} />
+                          <stop offset="95%" stopColor="#C4A55E" stopOpacity={0.04} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
+                      <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `€${(v / 1000).toFixed(0)}K`} />
+                      <Tooltip formatter={(v) => formatCurrency(Number(v), false, locale)} contentStyle={{ borderRadius: 8, border: '1px solid #EDE6D5', fontSize: 12 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <ReferenceLine y={optimaDsraTarget} stroke="#8B6914" strokeDasharray="5 4" label={{ value: t('dsra.target'), position: 'insideTopRight', fontSize: 9, fill: '#8B6914' }} />
+                      <Area type="monotone" dataKey="balance" name={t('dsra.legend.balance')} stroke="#C4A55E" strokeWidth={2.2} fill="url(#optimaDsraGrad)" />
+                      <Bar dataKey="replenishment" name={t('dsra.legend.replenish')} yAxisId="right" barSize={16} fill="#6B7A3D" />
+                      <Bar dataKey="draw" name={t('dsra.legend.draw')} yAxisId="right" barSize={16} fill="#9E3B3B" />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center gap-2 h-20 text-xs text-positive font-medium">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6.5" stroke="#6B7A3D" /><path d="M4 7l2.5 2.5L10 4.5" stroke="#6B7A3D" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    {t('dsra.noActivity')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* ── SHARED PORTFOLIO-LEVEL SECTIONS ── */}
@@ -993,9 +1050,7 @@ export default function OptimaPage() {
         <p className="text-xs text-text-tertiary">
           {t("app.title")} &middot; {t("app.location")} &middot; {t("app.confidential")}
         </p>
-        <p className="text-[11px] text-text-tertiary mt-1 italic">
-          {t("bank.optima.capexNote")}
-        </p>
+
       </div>
 
       <VillaMarketDrawer

@@ -1315,17 +1315,19 @@ export default function AssumptionsPage() {
     removePortfolioOverhead,
     updatePortfolioOpexScalar,
     setOptimaSubProjectSide,
-    capexUpliftEur,
     setFinancingPathOverride,
+    capexUpliftEur,
+    capexUpliftBaselineLoans,
+    financingPathOverride,
   } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(ASSUMPTIONS_TOUR.storageKey);
   const [tab, setTab] = useState<
-    "portfolio" | "templates" | "general" | "revenue" | "opex" | "portfolio-opex" | "financing" | "dsra" | "optima"
+    "portfolio" | "financing" | "revenue" | "opex" | "portfolio-opex" | "general" | "templates" | "optima"
   >("portfolio");
 
-  // CAPEX uplift baseline refs — frozen when no uplift is active
-  const baselineLoanRef = useRef<number>(0);
   const baseCapexRef = useRef<number>(0);
+  const baselineLoanRef = useRef<number>(0);
+  const baselineDscrRef = useRef<number>(0);
 
   // Set financing path to 'optima' while on the Optima tab so the engine
   // applies the CAPEX uplift override correctly.
@@ -1536,19 +1538,18 @@ export default function AssumptionsPage() {
         {(
           [
             { id: "portfolio", label: "Portfolio" },
-            { id: "templates", label: "Templates" },
-            { id: "optima", label: t('as.optimaTab') },
             { id: "financing", label: t('as.financingPaths') },
-            { id: "general", label: t('as.general') },
             { id: "revenue", label: t('as.revenue') },
             { id: "opex", label: t('as.opexTab') },
             { id: "portfolio-opex", label: t('as.portfolioOpexTab') },
-            { id: "dsra", label: t('as.dsra') },
+            { id: "general", label: t('as.general') },
+            { id: "templates", label: "Templates" },
+            ...(assumptions.financingPath === 'optima' ? [{ id: "optima", label: t('as.optimaTab') }] : []),
           ] as const
         ).map((tabDef) => (
           <button
             key={tabDef.id}
-            onClick={() => setTab(tabDef.id)}
+            onClick={() => setTab(tabDef.id as typeof tab)}
             className={`px-4 py-2 rounded-md text-sm transition-colors ${
               tab === tabDef.id
                 ? "bg-white text-text-primary font-medium shadow-sm"
@@ -1578,6 +1579,13 @@ export default function AssumptionsPage() {
             <h4 className="text-xs font-medium uppercase tracking-wider text-text-tertiary mb-3">Shared Costs</h4>
             <table className="w-full">
               <tbody>
+                <AssumptionRow
+                  label={t('field.devConstructionFeePerYear')}
+                  value={a.developerConstructionFeePerYear ?? 60_000}
+                  path="developerConstructionFeePerYear"
+                  format="currency"
+                  note="Flat annual fee paid by PropCo to OpCo during the construction phase (2026–2028). Shown in the fee-streams table and capitalised into CapEx over 2 years."
+                />
                 <AssumptionRow
                   label={t('field.poolCostPerM2')}
                   value={a.poolConstructionCostPerM2 ?? 1_000}
@@ -1676,6 +1684,28 @@ export default function AssumptionsPage() {
       {/* ── FINANCING PATHS TAB ── */}
       {tab === "financing" && (
         <div>
+          {/* CAPEX uplift sensitivity */}
+          {(() => {
+            if (capexUpliftEur === null) {
+              baseCapexRef.current = model.capex.portfolioTotal;
+              baselineLoanRef.current = model.keyMetrics.loanAmount;
+              baselineDscrRef.current = model.scenarios.realistic.minDSCRLoanLife;
+            }
+            const activePathKey = (financingPathOverride ?? assumptions.financingPath) === 'tepix-loan' ? 'tepixLoan' : (financingPathOverride ?? assumptions.financingPath) as 'commercial' | 'rrf' | 'grant' | 'optima';
+            const baselineLoanEur = capexUpliftBaselineLoans?.[activePathKey] ?? baselineLoanRef.current;
+            return (
+              <div className="mb-6">
+                <CapexUpliftControl
+                  baseCapexEur={baseCapexRef.current}
+                  baselineLoanEur={baselineLoanEur}
+                  currentLoanEur={model.keyMetrics.loanAmount}
+                  currentDscr={model.scenarios.realistic.minDSCRLoanLife}
+                  baselineDscr={baselineDscrRef.current > 0 ? baselineDscrRef.current : undefined}
+                />
+              </div>
+            );
+          })()}
+
           <p className="text-sm text-text-secondary mb-6">
             {t('as.selectPath')}
           </p>
@@ -1821,6 +1851,12 @@ export default function AssumptionsPage() {
             )}
 
             {a.financingPath === "tepix-loan" && (<>
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-purple-300 bg-purple-50 px-4 py-2.5 text-sm font-medium text-[#7B5EA7]">
+                <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="10" cy="10" r="4" />
+                </svg>
+                {t('field.tepixActivePathBanner')}
+              </div>
               <table className="w-full">
                 <tbody>
                   <AssumptionRow label={t('field.tepixCoverage')} value={a.tepixLoan.coverageRate} path="tepixLoan.coverageRate" format="percent" note="90% coverage" />
@@ -2059,6 +2095,67 @@ export default function AssumptionsPage() {
               </>
             );
           })()}
+
+          {/* ── DSRA (merged into General) ── */}
+          <SectionHeader title={t('dsra.sectionTitle')} />
+          <p className="text-xs text-text-secondary mb-4">{t('dsra.sectionSub')}</p>
+          <table className="w-full text-sm">
+            <tbody>
+              <tr className="border-b border-surface-secondary">
+                <td className="py-2 pr-4 text-text-secondary">
+                  {t('as.dsraTargetDSCR')}
+                </td>
+                <td className="py-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.targetDSCR ?? 1.25}
+                    onChange={v => setAssumption('dsra.targetDSCR' as any, v)}
+                    format="number"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraSweepPct')}</td>
+                <td className="pt-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.sweep2028Pct ?? 1.0}
+                    onChange={v => setAssumption('dsra.sweep2028Pct' as any, v)}
+                    format="percent"
+                  />
+                </td>
+              </tr>
+              <tr className="border-b border-surface-secondary">
+                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
+                  {t('as.dsraSweepNote')}
+                </td>
+              </tr>
+              <tr className="border-b border-surface-secondary">
+                <td className="py-2 pr-4 text-text-secondary">{t('as.dsraReplenishPriority')}</td>
+                <td className="py-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.replenishmentPriority ?? 1.0}
+                    onChange={v => setAssumption('dsra.replenishmentPriority' as any, v)}
+                    format="percent"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraRepayThreshold')}</td>
+                <td className="pt-2 text-right">
+                  <EditableCell
+                    value={a.dsra?.partnerRepaymentThreshold ?? 2}
+                    onChange={v => setAssumption('dsra.partnerRepaymentThreshold' as any, Math.round(v))}
+                    format="number"
+                  />
+                </td>
+              </tr>
+              <tr>
+                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
+                  {t('as.dsraRepayThresholdNote')}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p className="text-xs text-text-tertiary leading-relaxed mt-2">{t('dsra.assumptionsCaption')}</p>
         </div>
       )}
 
@@ -2671,7 +2768,7 @@ export default function AssumptionsPage() {
           {/* Header strip */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-surface-tertiary/60">
             <p className="text-sm text-text-secondary">
-              Dual sub-project structure for Optima Bank. All settings feed directly into the bank-facing view.
+              Dual sub-project structure for Optima Bank.
             </p>
             <Link
               href={`/bank/optima?lang=${locale}`}
@@ -2763,9 +2860,7 @@ export default function AssumptionsPage() {
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-1">
                   CAPEX Absorption
                 </h3>
-                <p className="text-xs text-text-tertiary mb-4">
-                  Optima Bank absorbs ineligible cost lines into the construction line for bank-facing output. Admin view retains the full breakdown.
-                </p>
+
                 <table className="w-full">
                   <tbody>
                     <ToggleRow
@@ -2938,111 +3033,8 @@ export default function AssumptionsPage() {
                 );
               })()}
 
-              {/* ── CAPEX Sensitivity ── */}
-              {(() => {
-                const cr = computeOptimaCapResult(model.capex, a.optimaLoan!);
-                const rate = a.optimaLoan.euriborRate + a.optimaLoan.spreadBps / 10000;
-                const repayYrs = a.optimaLoan.repaymentYears ?? 10;
-                const pmt = (loan: number) =>
-                  loan > 0 && repayYrs > 0 && rate > 0
-                    ? (loan * rate) / (1 - Math.pow(1 + rate, -repayYrs))
-                    : 0;
-                const totalLoan = cr.subProjectLoans.A + cr.subProjectLoans.B;
-                const annualDS = pmt(totalLoan);
-                const portfolioDSCR = model.optimaScenario?.minDSCRLoanLife ?? 0;
-                if (capexUpliftEur === null) {
-                  baselineLoanRef.current = totalLoan;
-                  baseCapexRef.current = model.capex.portfolioTotal;
-                }
-                return (
-                  <div id="optima-capex-sensitivity">
-                    <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-text-tertiary mb-4">
-                      {t("bank.optima.upliftTool")}
-                    </h3>
-                    <CapexUpliftControl
-                      baseCapexEur={baseCapexRef.current}
-                      baselineLoanEur={baselineLoanRef.current}
-                      currentLoanEur={totalLoan}
-                      currentDscr={portfolioDSCR}
-                    />
-                  </div>
-                );
-              })()}
             </>
           )}
-        </div>
-      )}
-
-      {/* ── DSRA TAB ── */}
-      {tab === "dsra" && (
-        <div className="bg-white rounded-xl border border-surface-tertiary p-6 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-text-primary uppercase tracking-wide mb-1">
-              {t('dsra.sectionTitle')}
-            </h3>
-            <p className="text-xs text-text-secondary">{t('dsra.sectionSub')}</p>
-          </div>
-          <table className="w-full text-sm">
-            <tbody>
-              {/* Target DSCR */}
-              <tr className="border-b border-surface-secondary">
-                <td className="py-2 pr-4 text-text-secondary">
-                  {t('as.dsraTargetDSCR')}
-                </td>
-                <td className="py-2 text-right">
-                  <EditableCell
-                    value={a.dsra?.targetDSCR ?? 1.25}
-                    onChange={v => setAssumption('dsra.targetDSCR' as any, v)}
-                    format="number"
-                  />
-                </td>
-              </tr>
-              {/* 2028 sweep % */}
-              <tr>
-                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraSweepPct')}</td>
-                <td className="pt-2 text-right">
-                  <EditableCell
-                    value={a.dsra?.sweep2028Pct ?? 1.0}
-                    onChange={v => setAssumption('dsra.sweep2028Pct' as any, v)}
-                    format="percent"
-                  />
-                </td>
-              </tr>
-              <tr className="border-b border-surface-secondary">
-                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
-                  {t('as.dsraSweepNote')}
-                </td>
-              </tr>
-              {/* Replenishment priority */}
-              <tr className="border-b border-surface-secondary">
-                <td className="py-2 pr-4 text-text-secondary">{t('as.dsraReplenishPriority')}</td>
-                <td className="py-2 text-right">
-                  <EditableCell
-                    value={a.dsra?.replenishmentPriority ?? 1.0}
-                    onChange={v => setAssumption('dsra.replenishmentPriority' as any, v)}
-                    format="percent"
-                  />
-                </td>
-              </tr>
-              {/* Partner repayment threshold */}
-              <tr>
-                <td className="pt-2 pr-4 text-text-secondary">{t('as.dsraRepayThreshold')}</td>
-                <td className="pt-2 text-right">
-                  <EditableCell
-                    value={a.dsra?.partnerRepaymentThreshold ?? 2}
-                    onChange={v => setAssumption('dsra.partnerRepaymentThreshold' as any, Math.round(v))}
-                    format="number"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td colSpan={2} className="pb-2 text-[11px] text-text-tertiary leading-relaxed pr-4">
-                  {t('as.dsraRepayThresholdNote')}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <p className="text-xs text-text-tertiary leading-relaxed">{t('dsra.assumptionsCaption')}</p>
         </div>
       )}
 

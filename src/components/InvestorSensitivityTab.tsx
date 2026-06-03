@@ -16,6 +16,7 @@ import {
   moicDot,
   yieldColor,
   yieldDot,
+  buildHoldScenario,
 } from "@/components/investorSensitivityHelpers";
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -104,11 +105,91 @@ function KpiRow({ label, subLabel, value, valueClass, dotClass }: KpiRowProps) {
   );
 }
 
+// ── Hold Period Panel ─────────────────────────────────────────────────────────
+
+interface HoldColumn {
+  exitYear: number;
+  holdYears: number;
+  labelKey: 'inv.sens.holdPanel.col5' | 'inv.sens.holdPanel.col7' | 'inv.sens.holdPanel.col11';
+  irr: number;
+  moic: number;
+  isBase: boolean;
+  loanActive: boolean;
+}
+
+interface HoldPeriodPanelProps {
+  columns: HoldColumn[];
+  t: (key: string) => string;
+}
+
+function HoldPeriodPanel({ columns, t }: HoldPeriodPanelProps) {
+  return (
+    <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+      <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-1">
+        {t('inv.sens.holdPanel.heading')}
+      </h3>
+      <p className="text-xs text-text-secondary mb-4">{t('inv.sens.holdPanel.subheading')}</p>
+      <div className="grid grid-cols-3 gap-3">
+        {columns.map((col) => (
+          <div
+            key={col.exitYear}
+            className={
+              col.isBase
+                ? "ring-2 ring-brand-400 rounded-xl bg-brand-50/40 p-4"
+                : "bg-surface-secondary/30 rounded-xl p-4"
+            }
+          >
+            {/* Column header */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                <span className="text-sm font-bold text-text-primary">{t(col.labelKey)}</span>
+                {col.isBase && (
+                  <span className="bg-brand-50 text-brand-700 text-[9px] font-semibold rounded px-1.5 py-0.5">
+                    {t('inv.sens.holdPanel.baseLabel')}
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-text-tertiary">{col.exitYear}</p>
+              {col.loanActive && (
+                <p className="text-[10px] text-amber-600 mt-0.5">{t('inv.sens.holdPanel.tepixNote')}</p>
+              )}
+            </div>
+
+            {/* IRR row */}
+            <div className="mb-2">
+              <p className="text-[10px] text-text-tertiary mb-0.5">{t('inv.sens.holdPanel.irrRow')}</p>
+              <p className={`text-xl font-mono font-semibold tabular-nums ${irrColor(col.irr)}`}>
+                {col.irr > 0 ? formatPercent(col.irr, 1) : '—'}
+              </p>
+            </div>
+
+            {/* MOIC row */}
+            <div>
+              <p className="text-[10px] text-text-tertiary mb-0.5">{t('inv.sens.holdPanel.moicRow')}</p>
+              <p className={`text-xl font-mono font-semibold tabular-nums ${moicColor(col.moic)}`}>
+                {col.moic > 0 ? formatMultiple(col.moic) : '—'}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Hold column definitions (defined outside component — no re-creation per render) ──
+
+const HOLD_COLUMNS = [
+  { exitYear: 2031, holdYears: 2031 - 2029, labelKey: 'inv.sens.holdPanel.col5' as const },
+  { exitYear: 2033, holdYears: 2033 - 2029, labelKey: 'inv.sens.holdPanel.col7' as const },
+  { exitYear: 2037, holdYears: 2037 - 2029, labelKey: 'inv.sens.holdPanel.col11' as const, isBase: true as const },
+] as const;
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function InvestorSensitivityTab() {
   const { t, locale } = useTranslation();
-  const { assumptions } = useModelStore();
+  const { assumptions, activeScenario } = useModelStore();
 
   const [sliders, setSliders] = useState<SliderValues>(() =>
     readBaseValues(assumptions)
@@ -121,15 +202,30 @@ export default function InvestorSensitivityTab() {
   const result = useMemo(() => {
     const modified = applySliders(assumptions, sliders);
     return computeModel(modified);
-  }, [assumptions, sliders]);
+  }, [assumptions, sliders, activeScenario]);
 
-  const realistic = result.scenarios.realistic;
+  // Hold period comparison: both [assumptions, sliders] because operating
+  // assumptions (occupancy, ADR) flow through, but each column's exitYear
+  // is forced by buildHoldScenario regardless of sliders.exitYear.
+  const holdComparisons = useMemo(() =>
+    HOLD_COLUMNS.map(col => ({
+      ...col,
+      ...buildHoldScenario(assumptions, sliders, col.exitYear, activeScenario),
+      isBase: ('isBase' in col && (col as { isBase?: boolean }).isBase) === true,
+      loanActive: col.exitYear < 2037, // TEPIX III loan runs to HORIZON_END_YEAR (2037)
+    })),
+  [assumptions, sliders, activeScenario]);
+
+  const realistic = result.scenarios[activeScenario];
 
   const equityIRR = realistic.equityIRR;
   const totalMOIC = realistic.totalMOIC;
   const yieldStabilised = realistic.yieldStabilised;
   const equityPaybackYears = realistic.equityPaybackYears;
   const terminalUnderwater = realistic.terminalUnderwater;
+
+  const breakEvenNights = result.keyMetrics.breakEvenNights;
+  const bufferToBreakEven = result.keyMetrics.bufferToBreakEven;
 
   const baseValues = readBaseValues(assumptions);
 
@@ -138,6 +234,19 @@ export default function InvestorSensitivityTab() {
   const formatExitYear = (v: number) => String(Math.round(v));
   const formatMultipleStr = (v: number) => `${v.toFixed(1)}×`;
   const formatPerM2 = (v: number) => formatCurrency(v, false, locale);
+
+  // Buffer traffic-light thresholds
+  const bufferDotClass =
+    bufferToBreakEven >= 0.20 ? 'bg-positive' :
+    bufferToBreakEven > 0.08  ? 'bg-warning' :
+    bufferToBreakEven > 0     ? 'bg-negative' :
+    'bg-text-tertiary/40';
+
+  const bufferValueClass =
+    bufferToBreakEven >= 0.20 ? 'text-positive' :
+    bufferToBreakEven > 0.08  ? 'text-warning' :
+    bufferToBreakEven > 0     ? 'text-negative' :
+    'text-text-tertiary';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -245,7 +354,8 @@ export default function InvestorSensitivityTab() {
         </div>
 
         {/* ── Right: KPI table ──────────────────────────────────────── */}
-        <div className="lg:w-3/5">
+        <div className="lg:w-3/5 flex flex-col gap-4">
+          {/* Main KPI card */}
           <div className="bg-white rounded-xl border border-surface-tertiary p-5">
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-4">
               {t("inv.sens.kpiHeading")}
@@ -303,8 +413,43 @@ export default function InvestorSensitivityTab() {
               ))}
             </div>
           </div>
+
+          {/* ── Break-even card ─────────────────────────────────────── */}
+          <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-4">
+              {t("inv.sens.breakEvenLabel")}
+            </h3>
+
+            <KpiRow
+              label={t("inv.sens.breakEvenLabel")}
+              subLabel={t("inv.sens.breakEvenSub")}
+              value={breakEvenNights > 0 ? `${breakEvenNights} ${t("inv.sens.breakEvenUnit")}` : "—"}
+              valueClass="text-text-primary"
+              dotClass="bg-text-tertiary/40"
+            />
+
+            <KpiRow
+              label={t("inv.sens.bufferLabel")}
+              subLabel={t("inv.sens.bufferSub")}
+              value={bufferToBreakEven > 0 ? formatPercent(bufferToBreakEven, 1) : "—"}
+              valueClass={bufferValueClass}
+              dotClass={bufferDotClass}
+            />
+
+            <p className="text-[10px] text-text-tertiary mt-3">
+              {t("inv.sens.breakEvenBaseNote")}
+            </p>
+          </div>
         </div>
 
+      </div>
+
+      {/* ── Hold Period Comparison — full width below flex row ─────── */}
+      <div className="mt-6">
+        <HoldPeriodPanel
+          columns={holdComparisons as HoldColumn[]}
+          t={t as (key: string) => string}
+        />
       </div>
     </div>
   );

@@ -148,7 +148,7 @@ function SaveModal() {
 
       {hasExisting && !showSaveAsNew ? (
         <div className="rounded-xl bg-surface-secondary/40 border border-surface-tertiary px-4 py-3 mb-5">
-          <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">Last saved</div>
+          <div className="text-[11px] uppercase tracking-wider text-text-tertiary mb-1">{t('assumptions.lastSaved')}</div>
           <div className="text-sm font-medium text-text-primary truncate">{lastSavedConfigName}</div>
         </div>
       ) : (

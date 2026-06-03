@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
@@ -22,6 +22,8 @@ import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useConnectionsLog } from "@/lib/data/useConnectionsLog";
 import { BANK_TOUR } from "@/lib/tours/configs";
 import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
+import { MetricCell } from "@/components/MetricCell";
 import {
   BarChart,
   Bar,
@@ -43,27 +45,9 @@ import {
   Label,
 } from "recharts";
 
-function MetricCell({
-  value,
-  label,
-  sublabel,
-  valueClass,
-}: {
-  value: string;
-  label: string;
-  sublabel?: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="text-center px-2">
-      <div className={`kpi-value ${valueClass ?? 'text-text-primary'}`}>{value}</div>
-      <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">{label}</div>
-      {sublabel && <div className="text-xs text-text-tertiary mt-0.5">{sublabel}</div>}
-    </div>
-  );
-}
-
 export default function BankPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("bank-overview"); }, [track]);
   const { t, locale } = useTranslation();
   const {
     model,
@@ -75,7 +59,7 @@ export default function BankPage() {
     setAssumption,
   } = useModelStore();
   const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
-  const [activeTab, setActiveTab] = useState<'overview' | 'sensitivity'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'creditAnalysis' | 'vat'>('overview');
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
   const { isAdmin } = useEffectiveAuth();
   const { entries: connectedUsers } = useConnectionsLog(isAdmin);
@@ -206,13 +190,15 @@ export default function BankPage() {
       ? `${grace}y grace`
       : graceMode === 'two-phase'
         ? t('bank.graceMode.two_phase')
-        : t('bank.graceMode.rolling');
+        : graceMode === 'rolling-cohort'
+          ? t('bank.graceMode.rolling_cohort')
+          : t('bank.graceMode.rolling');
   const termSheetCovenant = assumptions.dscrCovenantThreshold ?? 1.25;
 
   const grantAmount = km.grantAmount;
   const capitalData = [
     { name: t('inv.loan'), value: km.loanAmount, color: "#8B6914" },
-    { name: t('kpi.equityRequired'), value: km.equityRequired, color: "#6B7A3D" },
+    { name: t('kpi.capexEquity'), value: km.equityRequired, color: "#6B7A3D" },
     ...(grantAmount > 0
       ? [{ name: t('path.grantShort'), value: grantAmount, color: "#4A6A8B" }]
       : []),
@@ -257,9 +243,9 @@ export default function BankPage() {
       const hasDs = p.dscr > 0;
       return {
         year: p.year,
-        Conservative: hasDs ? Number(p.dscr.toFixed(2))          : null,
-        'Realistic':  hasDs ? Number((up?.dscr ?? 0).toFixed(2)) : null,
-        Downside:     hasDs ? Number((down?.dscr ?? 0).toFixed(2)) : null,
+        Realistic:  hasDs ? Number(p.dscr.toFixed(2))          : null,
+        Upside:     hasDs ? Number((up?.dscr ?? 0).toFixed(2)) : null,
+        Downside:   hasDs ? Number((down?.dscr ?? 0).toFixed(2)) : null,
       };
     });
 
@@ -273,34 +259,142 @@ export default function BankPage() {
 
       {/* Tab navigation strip */}
       <div className="max-w-6xl mx-auto px-4 mt-4 mb-0 print:hidden">
-        <div className="flex gap-2 border-b border-slate-200">
+        <div className="flex items-center gap-2 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('overview')}
             aria-pressed={activeTab === 'overview'}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-400/60 ${
               activeTab === 'overview'
                 ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                : 'border-transparent text-gray-600 hover:text-text-primary'
             }`}
           >
             {t('bank.tabs.overview')}
           </button>
           <button
-            onClick={() => setActiveTab('sensitivity')}
-            aria-pressed={activeTab === 'sensitivity'}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === 'sensitivity'
+            onClick={() => setActiveTab('creditAnalysis')}
+            aria-pressed={activeTab === 'creditAnalysis'}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-400/60 ${
+              activeTab === 'creditAnalysis'
                 ? 'border-brand-500 text-brand-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                : 'border-transparent text-gray-600 hover:text-text-primary'
             }`}
           >
-            {t('bank.tabs.sensitivity')}
+            {t('bank.tabs.creditAnalysis')}
           </button>
+          <button
+            onClick={() => setActiveTab('vat')}
+            aria-pressed={activeTab === 'vat'}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-400/60 ${
+              activeTab === 'vat'
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-600 hover:text-text-primary'
+            }`}
+          >
+            {t('bank.tabs.vatCashflow')}
+          </button>
+
+          {/* Optima cross-link (UX-22 Phase 1 interim) */}
+          <Link
+            href="/bank/optima"
+            className="ml-auto mb-px inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-brand-600 border border-brand-200 bg-brand-50 hover:bg-brand-100 hover:border-brand-400 transition-colors"
+          >
+            {t('bank.optimaLink')}
+            <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </div>
 
-      {/* Sensitivity tab — replaces the entire content area */}
-      {activeTab === 'sensitivity' && <BankSensitivityTab />}
+      {/* P1-14: In-page anchor bar — visible on Overview tab only */}
+      {activeTab === 'overview' && (
+        <nav
+          aria-label={t('bank.anchor.termSheet')}
+          className="max-w-6xl mx-auto px-4 print:hidden"
+        >
+          <div className="flex gap-1 overflow-x-auto py-2 scrollbar-none scroll-smooth">
+            {([
+              { href: '#bank-term-sheet',        label: t('bank.anchor.termSheet') },
+              { href: '#live-track-record',       label: t('bank.anchor.dealOverview') },
+              { href: '#bank-kpi-strip',          label: t('bank.anchor.loanMetrics') },
+              { href: '#bank-dscr-chart',         label: t('bank.anchor.dscr') },
+              { href: '#bank-capital-structure',  label: t('bank.anchor.capital') },
+              { href: '#bank-pnl',                label: t('bank.anchor.pnl') },
+            ] as const).map(({ href, label }) => (
+              <a
+                key={href}
+                href={href}
+                className="shrink-0 px-3 py-1 rounded-full text-xs font-medium text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400/60"
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </nav>
+      )}
+
+      {/* Credit Analysis tab (renamed from Sensitivity) — P2-08: stress analysis moved here */}
+      {activeTab === 'creditAnalysis' && (
+        <div>
+          <BankSensitivityTab />
+          {/* Stress Analysis — Collateral + Cash-Flow (moved from Overview per P2-08/UX-14) */}
+          <div className="max-w-6xl mx-auto px-6 pb-8 print:hidden">
+            <div id="bank-stress-analysis" className="mb-6">
+              <h3 className="text-sm font-semibold text-text-primary mb-4">{t('bank.section.stressAnalysis')}</h3>
+              <div className="space-y-4">
+
+                {/* I — Collateral Stress */}
+                <div className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
+                  <h4 className="text-sm font-semibold text-text-primary mb-1">{t('bank.stress.collateralHeading')}</h4>
+                  <p className="text-xs text-text-tertiary mb-5">{t('bank.collateral.sub')}</p>
+                  <div className="grid grid-cols-3 divide-x divide-surface-tertiary">
+                    <MetricCell
+                      value={formatMultiple(model.collateral.stress.coverage)}
+                      label={t('sc.stress')}
+                      sublabel={`${formatCurrency(model.collateral.stress.value, true, locale)} · LTV ${formatPercent(model.collateral.stress.ltv)}`}
+                    />
+                    <MetricCell
+                      value={formatMultiple(model.collateral.market.coverage)}
+                      label={t('sc.market')}
+                      sublabel={`${formatCurrency(model.collateral.market.value, true, locale)} · LTV ${formatPercent(model.collateral.market.ltv)}`}
+                      valueClass="text-brand-600"
+                    />
+                    <MetricCell
+                      value={formatMultiple(model.collateral.optimistic.coverage)}
+                      label={t('sc.optimistic')}
+                      sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
+                      valueClass="text-positive"
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={() => setVillaSaleDrawerOpen(true)}
+                      className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
+                    >
+                      <span>{t('collateral.saleMarketStudy')}</span>
+                      <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* II — Cash-Flow Stress */}
+                <div>
+                  <h4 className="text-sm font-semibold text-text-primary mb-3">{t('bank.stress.cashFlowHeading')}</h4>
+                  <BankStressTest />
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VAT Cashflow tab */}
+      {activeTab === 'vat' && (
+        <div className="max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none">
+          <ConstructionVatCashflow />
+        </div>
+      )}
 
       {/* Overview tab — existing content */}
       {activeTab === 'overview' && <div key={activeScenario} className="animate-fade-in max-w-6xl mx-auto px-6 py-8 print:px-0 print:py-2 print:max-w-none">
@@ -314,9 +408,6 @@ export default function BankPage() {
             {t('app.title')}
           </h1>
           <p className="text-sm text-text-secondary mt-1 max-w-xl mx-auto text-center">{t('bank.pageIntro')}</p>
-          <p className="text-text-secondary max-w-xl mx-auto">
-            {pathLabel} &middot; {t('app.confidential')}
-          </p>
         </div>
 
         {/* 2b. Quick Access — Tour · Presentation · Model */}
@@ -348,41 +439,18 @@ export default function BankPage() {
               </div>
             </button>
 
-            {/* Coming Soon — Excel & Presentation flip card */}
-            <div
-              className="group/flip col-span-2 cursor-default"
-              style={{ perspective: '800px' }}
-            >
-              <div
-                className="relative h-full transition-transform duration-500 ease-in-out motion-reduce:transition-none group-hover/flip:[transform:rotateY(180deg)]"
-                style={{ transformStyle: 'preserve-3d' }}
-              >
-                {/* Front */}
-                <div
-                  className="absolute inset-0 flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5"
-                  style={{ backfaceVisibility: 'hidden' }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" className="text-amber-500"/>
-                        <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-amber-500"/>
-                      </svg>
-                    </div>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">{t('bank.actions.comingSoon.badge')}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.comingSoon.title')}</p>
-                    <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.comingSoon.sub')}</p>
-                  </div>
+            {/* Export materials — static card (P3-15: 3D flip removed) */}
+            <div className="col-span-2 flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5">
+              <div className="flex items-start justify-between">
+                <div className="w-10 h-10 rounded-xl bg-surface-secondary flex items-center justify-center shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M3 12h10M8 3v7m-3-2.5L8 10l3-2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" className="text-text-secondary"/>
+                  </svg>
                 </div>
-                {/* Back */}
-                <div
-                  className="absolute inset-0 flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 p-5"
-                  style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-                >
-                  <p className="text-sm text-amber-800 text-center leading-relaxed">{t('bank.actions.comingSoon.back')}</p>
-                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.onRequest.title')}</p>
+                <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.onRequest.sub')}</p>
               </div>
             </div>
 
@@ -432,6 +500,7 @@ export default function BankPage() {
             {/* Per-plot portfolio breakdown */}
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
+                <caption className="sr-only">{t('aria.table.caption.portfolio')}</caption>
                 <thead>
                   <tr className="bg-surface-secondary/40 border-b border-surface-tertiary">
                     <th className="text-left py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colPlot')}</th>
@@ -510,16 +579,16 @@ export default function BankPage() {
               badge: { text: dscrPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail'), tone: dscrPass ? 'positive' : 'warning' },
               tone: dscrPass ? 'positive' : 'warning',
             },
-            { label: t('kpi.equityRequired'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
+            { label: t('kpi.capexEquity'), value: formatCurrency(km.equityRequired, true, locale), sub: `${formatPercent(km.equityRequired / km.totalCapex, 0)} ${t('kpi.ofTotal')}` },
             { label: t('kpi.totalInvestment'), value: formatCurrency(km.totalCapex, true, locale), sub: `${formatCurrency(km.loanAmount, true, locale)} + ${formatCurrency(km.equityRequired, true, locale)}${grantAmount > 0 ? ` + ${formatCurrency(grantAmount, true, locale)} grant` : ''}` },
             { label: t('bank.termsheet.securityLabel'), value: t('bank.termsheet.securityValue'), sub: t('bank.termsheet.securitySub'), isText: true },
           ];
           const colCount = cells.length;
           return (
             <div id="bank-term-sheet" className="mb-6">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">
+              <h2 className="text-sm font-semibold text-text-primary mb-3">
                 {t('bank.section.termsheet')}
-              </h3>
+              </h2>
               <div className="bg-white rounded-xl border border-surface-tertiary shadow-sm overflow-hidden">
                 {/* Metrics grid */}
                 <div className={`grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-surface-tertiary ${colCount >= 8 ? 'lg:grid-cols-8' : 'lg:grid-cols-7'}`}>
@@ -588,26 +657,47 @@ export default function BankPage() {
                       </div>
                     </div>
                     {/* Facility 2 — WC Revolving */}
-                    <div className="rounded-lg border border-amber-200 bg-white px-4 py-3">
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1.5">
-                        {t('bank.creditAsk.facility2.label')}
-                      </div>
-                      <div className="font-mono font-bold text-xl text-text-primary leading-none">
-                        {formatCurrency(activeScenarioOutput.wcMinimumFacility, true, locale)}
-                      </div>
-                      <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
-                        {assumptions.workingCapital.spreadOverTermRate > 0
-                          ? `+${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} bps`
-                          : ""}
-                        {assumptions.workingCapital.selfLiquidating ? " · self-liquidating" : ""}
-                      </div>
-                      <div className="text-[10px] text-text-tertiary mt-1 leading-snug">
-                        {t('bank.creditAsk.facility2.purpose')}
-                      </div>
-                      <div className="text-[9px] text-amber-600/80 mt-1.5 italic">
-                        {t('bank.creditAsk.facility2.separate')}
-                      </div>
-                    </div>
+                    {(() => {
+                      const wcAssumed = assumptions.workingCapital.facilitySize;
+                      const wcMinimum = activeScenarioOutput.wcMinimumFacility;
+                      const wcAdequate = wcMinimum <= wcAssumed;
+                      return (
+                        <div className={`rounded-lg border bg-white px-4 py-3 ${wcAdequate ? 'border-amber-200' : 'border-warning/60'}`}>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700 mb-1.5">
+                            {t('bank.creditAsk.facility2.label')}
+                          </div>
+                          <div className="font-mono font-bold text-xl text-text-primary leading-none">
+                            {formatCurrency(wcMinimum, true, locale)}
+                          </div>
+                          <div className="text-[11px] text-text-secondary mt-1.5 font-medium">
+                            {assumptions.workingCapital.spreadOverTermRate > 0
+                              ? `+${(assumptions.workingCapital.spreadOverTermRate * 10000).toFixed(0)} bps`
+                              : ""}
+                            {assumptions.workingCapital.selfLiquidating ? t('bank.wc.selfLiquidatingSuffix') : ""}
+                          </div>
+                          <div className="text-[10px] text-text-tertiary mt-1 leading-snug">
+                            {t('bank.creditAsk.facility2.purpose')}
+                          </div>
+                          <div className="text-[9px] text-amber-600/80 mt-1.5 italic">
+                            {t('bank.creditAsk.facility2.separate')}
+                          </div>
+                          {!wcAdequate && (
+                            <div className="mt-2 rounded-lg bg-warning/10 border border-warning/30 px-2 py-1.5">
+                              <div className="flex items-start gap-1.5">
+                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" className="shrink-0 mt-px">
+                                  <path d="M6 1L11 10H1L6 1Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" className="text-warning" />
+                                  <path d="M6 5v2.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" className="text-warning" />
+                                  <circle cx="6" cy="8.5" r="0.5" fill="currentColor" className="text-warning" />
+                                </svg>
+                                <div className="text-[9px] text-warning leading-snug">
+                                  {`${t('bank.kpi.wcFacilityLabel')} ${formatCurrency(wcAssumed, true, locale)} ${t('bank.wc.adequacyBelowMin')} ${formatCurrency(wcMinimum, true, locale)} — ${t('bank.wc.adequacyShortfall')} ${formatCurrency(wcMinimum - wcAssumed, true, locale)}`}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {/* Dual-use detail */}
                   <div className="mt-3 space-y-1">
@@ -642,17 +732,9 @@ export default function BankPage() {
 
         {/* 5. Loan Metrics */}
         <div id="bank-kpi-strip" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-md mb-6">
-            <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-primary border-b border-surface-tertiary pb-2 mb-4">
               {t('bank.section.loanMetrics')}
-            </h3>
-            <p className="text-xs text-text-tertiary mb-6">
-              {pathLabel} · {
-                activeScenario === 'upside' ? t('scenario.upside') :
-                activeScenario === 'downside' ? t('scenario.downside') :
-                activeScenario === 'breakeven' ? t('scenario.breakeven') :
-                t('scenario.realistic')
-              }
-            </p>
+            </h2>
             <div className="grid grid-cols-3 divide-x divide-surface-tertiary mb-4">
               <MetricCell
                 value={formatCurrency(km.totalCapex, true, locale)}
@@ -685,12 +767,7 @@ export default function BankPage() {
                 </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 divide-x divide-surface-tertiary pt-4 border-t border-surface-tertiary">
-              <MetricCell
-                value={formatMultiple(km.assetCoverage)}
-                label={t('kpi.assetCoverage')}
-                sublabel={formatCurrency(km.portfolioValue, true, locale)}
-              />
+            <div className="grid grid-cols-1 pt-4 border-t border-surface-tertiary">
               <MetricCell
                 value={formatMultiple(minDscrValue)}
                 label={t('term.dscr')}
@@ -718,6 +795,7 @@ export default function BankPage() {
               <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
+                    <caption className="sr-only">{t('aria.table.caption.capex')}</caption>
                     <thead>
                       <tr className="bg-surface-secondary/40">
                         <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium whitespace-nowrap">{t('capex.costCategory')}</th>
@@ -779,6 +857,29 @@ export default function BankPage() {
           locale={locale}
         />
 
+        {/* FI-18: Grace Period Interest Reserve — prominent tile (P2-10) */}
+        {km.graceInterestCarry > 0 && (
+          <div className="mb-6 rounded-xl border border-amber-300/60 bg-amber-50/40 px-5 py-4 flex items-start gap-4">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="6.5" stroke="#B45309" strokeWidth="1.3"/>
+                <path d="M8 5v3l2 2" stroke="#B45309" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700 mb-0.5">
+                {t('bank.equityOverview.graceInterestReserve')}
+              </div>
+              <div className="text-2xl font-bold font-mono tabular-nums text-amber-900 leading-none">
+                {formatCurrency(km.graceInterestCarry, false, locale)}
+              </div>
+              <p className="text-[11px] text-amber-700/80 mt-1 leading-snug">
+                {t('bank.equityOverview.graceInterestReserveSub')}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 8. Capital Structure + Stabilised Metrics */}
         <div id="bank-capital-structure" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">
           <div className="bg-white rounded-xl border border-surface-tertiary p-6">
@@ -787,6 +888,7 @@ export default function BankPage() {
             </h3>
             <div className="flex flex-col items-center">
               <div className="w-48 h-48">
+                <figure role="img" aria-label={t('aria.chart.capitalStructure')} className="w-full h-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie data={capitalData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" strokeWidth={2} stroke="#FEFCF7">
@@ -801,6 +903,7 @@ export default function BankPage() {
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                </figure>
               </div>
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3">
                 {capitalData.map((item) => (
@@ -842,19 +945,24 @@ export default function BankPage() {
               {[
                 { label: t('inv.annualRevenue'), value: formatCurrency(activeStab?.totalRevenue ?? 0, true, locale) },
                 { label: t('term.ebitda'), value: formatCurrency(activeStab?.ebitda ?? 0, true, locale) },
-                { label: t('term.ebitdaMargin'), value: formatPercent(activeStab?.ebitdaMargin ?? 0) },
+                { label: t('term.ebitdaMargin'), value: formatPercent(activeStab?.ebitdaMargin ?? 0), footnote: t('bank.stabilised.ebitdaMarginBenchmark') },
+                { label: t('bank.stabilised.ffeReserve'), value: formatCurrency((activeStab?.propertyBreakdown?.reduce((s, p) => s + p.ffeReservePerUnit * (p.villaUnits + p.standardSuites + p.doubleSuites) * p.count, 0) ?? 0), true, locale) },
                 { label: t('kpi.annualDS'), value: formatCurrency(km.annualDS, true, locale) },
                 { label: t('term.dscr'), value: formatMultiple(activeStab?.dscr ?? 0), highlight: true },
                 { label: t('pnl.ncfPostVAT'), value: formatCurrency(activeStab?.netCashFlow ?? 0, true, locale) },
               ].map((item) => (
-                <div
-                  key={item.label}
-                  className={`flex justify-between items-center py-2 ${item.highlight ? "bg-brand-50 -mx-3 px-3 rounded-lg" : ""}`}
-                >
-                  <span className="text-sm text-text-secondary">{item.label}</span>
-                  <span className={`data-cell font-medium ${item.highlight ? "text-brand-600" : "text-text-primary"}`}>
-                    {item.value}
-                  </span>
+                <div key={item.label}>
+                  <div
+                    className={`flex justify-between items-center py-2 ${('highlight' in item && item.highlight) ? "bg-brand-50 -mx-3 px-3 rounded-lg" : ""}`}
+                  >
+                    <span className="text-sm text-text-secondary">{item.label}</span>
+                    <span className={`data-cell font-medium ${('highlight' in item && item.highlight) ? "text-brand-600" : "text-text-primary"}`}>
+                      {item.value}
+                    </span>
+                  </div>
+                  {('footnote' in item && item.footnote) && (
+                    <p className="text-[10px] text-text-tertiary -mt-1 pb-1 italic">{item.footnote}</p>
+                  )}
                 </div>
               ))}
               <p className="text-xs text-stone-500 mt-1">{t('bank.dscr.mgmtFeeNote')}</p>
@@ -863,7 +971,7 @@ export default function BankPage() {
         </div>
 
         {/* 7. ICR / LLCR / PLCR coverage ratio cards */}
-        <h3 className="text-sm font-semibold text-text-primary mb-3">{t('bank.coverage.groupHeading')}</h3>
+        <h2 className="text-sm font-semibold text-text-primary mb-3">{t('bank.coverage.groupHeading')}</h2>
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             {
@@ -895,13 +1003,105 @@ export default function BankPage() {
           ))}
         </div>
 
+        {/* 7b. Hospitality KPI strip — RevPAR, LTV covenant, pre-opening, mgmt fee (P1-10) */}
+        {(() => {
+          // RevPAR: stabilised revenue / total available room-nights
+          // Available room-nights = sum over portfolio of (units × nights-cap or baseNights)
+          const totalAvailableNights = portfolio.reduce((s, p) => {
+            const units = p.villaUnits + p.standardSuites + p.doubleSuites;
+            return s + p.count * units * (assumptions.general.nightsCap || 365);
+          }, 0);
+          const revpar = totalAvailableNights > 0
+            ? (activeStab?.totalRevenue ?? 0) / totalAvailableNights
+            : 0;
+
+          // LTV covenant: current LTV from keyMetrics vs 70% threshold
+          const currentLTV = km.ltv;
+          const ltvCovenantPass = currentLTV <= 0.70;
+
+          // Pre-opening total from portfolioOpex assumption
+          const preOpeningTotal = assumptions.portfolioOpex?.preOpeningTotal ?? 0;
+          const preOpeningAmortYears = assumptions.portfolioOpex?.preOpeningAmortYears ?? 1;
+          const preOpeningAmortAnnual = preOpeningAmortYears > 0 ? preOpeningTotal / preOpeningAmortYears : 0;
+
+          // Mgmt fee rate
+          const mgmtFeeRate = assumptions.opCoFee.enabled ? assumptions.opCoFee.baseMgmtFeeRate : 0;
+          const incentiveFeeRate = assumptions.opCoFee.enabled ? assumptions.opCoFee.incentiveFeeRate : 0;
+
+          return (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {/* RevPAR */}
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+                  {t('bank.kpi.revpar')}
+                </div>
+                <div className="kpi-value text-text-primary">
+                  {revpar > 0 ? formatCurrency(Math.round(revpar), false, locale) : '—'}
+                </div>
+                <div className="text-xs text-text-tertiary mt-1">{t('bank.kpi.revparSub')}</div>
+              </div>
+
+              {/* LTV Covenant */}
+              <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+                  {t('bank.kpi.ltvCovenant')}
+                </div>
+                <div className={`kpi-value ${ltvCovenantPass ? 'text-positive' : 'text-warning'}`}>
+                  {formatPercent(currentLTV)}
+                </div>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className={[
+                    'inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                    ltvCovenantPass ? 'bg-positive/15 text-positive' : 'bg-warning/15 text-warning',
+                  ].join(' ')}>
+                    <span className="w-1 h-1 rounded-full bg-current" aria-hidden="true" />
+                    {ltvCovenantPass ? t('dash.termsheet.pass') : t('dash.termsheet.fail')}
+                  </span>
+                  <span className="text-[10px] text-text-tertiary">{t('bank.kpi.ltvCovenantThreshold')}</span>
+                </div>
+              </div>
+
+              {/* Pre-opening budget */}
+              {preOpeningTotal > 0 && (
+                <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+                    {t('bank.kpi.preOpening')}
+                  </div>
+                  <div className="kpi-value text-text-primary">
+                    {formatCurrency(preOpeningTotal, true, locale)}
+                  </div>
+                  <div className="text-xs text-text-tertiary mt-1">
+                    {`${formatCurrency(Math.round(preOpeningAmortAnnual), true, locale)}/yr · ${preOpeningAmortYears}y ${t('bank.kpi.preOpeningAmort')}`}
+                  </div>
+                </div>
+              )}
+
+              {/* Mgmt fee KPI */}
+              {assumptions.opCoFee.enabled && (
+                <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-2">
+                    {t('bank.kpi.mgmtFee')}
+                  </div>
+                  <div className="kpi-value text-text-primary">
+                    {formatPercent(mgmtFeeRate)}
+                  </div>
+                  <div className="text-xs text-text-tertiary mt-1">
+                    {`${t('bank.kpi.mgmtFeeBaseLabel')} · ${formatPercent(incentiveFeeRate)} ${t('bank.kpi.mgmtFeeIncentiveLabel')}`}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* 9. DSCR + Payment Capacity charts — Row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div id="bank-dscr-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
-            <h3 className="text-sm font-semibold text-text-primary mb-1">
+            <h2 className="text-sm font-semibold text-text-primary mb-1">
               {t('bank.section.repaymentCapacity')}
-            </h3>
+            </h2>
             <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.dscrChartSub')}</p>
+            <figure role="img" aria-label={t('aria.chart.dscr')}>
             <ResponsiveContainer key={`dscr-scenario-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={300}>
               <LineChart data={dscrChart}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
@@ -919,17 +1119,19 @@ export default function BankPage() {
                   strokeDasharray="3 3"
                   label={{ value: t('bank.chart.firstFullDS'), position: "insideTopRight", fontSize: 9, fill: "#8B6914" }}
                 />
-                <Line type="monotone" dataKey="Conservative" name={t('scenario.realistic')} stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} connectNulls={false} />
-                <Line type="monotone" dataKey="Realistic" name={t('scenario.upside')} stroke="#6B7A3D" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey="Realistic" name={t('scenario.realistic')} stroke="#8B6914" strokeWidth={2.5} activeDot={{ r: 4 }} connectNulls={false} />
+                <Line type="monotone" dataKey="Upside" name={t('scenario.upside')} stroke="#6B7A3D" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false} />
                 <Line type="monotone" dataKey="Downside" name={t('scenario.downside')} stroke="#C4754B" strokeWidth={1.5} strokeDasharray="4 2" activeDot={{ r: 4 }} connectNulls={false} />
               </LineChart>
             </ResponsiveContainer>
+            </figure>
             {rampHaircutNote}
           </div>
 
           <div id="bank-payment-capacity-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
             <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dash.annualDSChart')}</h3>
             <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dash.dsChart.sub')}</p>
+            <figure role="img" aria-label={t('aria.chart.paymentCapacity')}>
             <ResponsiveContainer key={`pc-bank-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={300}>
               <ComposedChart data={bankPaymentCapacityData}>
                 <defs>
@@ -969,6 +1171,7 @@ export default function BankPage() {
                 <Line type="monotone" dataKey="interest" name={t('pnl.termLoanInterest')} stroke="#6B7280" strokeWidth={1.5} strokeDasharray="5 3" dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
+            </figure>
           </div>
         </div>
 
@@ -979,6 +1182,7 @@ export default function BankPage() {
               <h3 className="text-sm font-semibold text-text-primary mb-1">{t('dsra.sectionTitle')}</h3>
               <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('dsra.chartSub')}</p>
               {bankDsraData.some((d) => d.draw > 0 || d.replenishment > 0) ? (
+                <figure role="img" aria-label={t('aria.chart.dsra')}>
                 <ResponsiveContainer key={`dsra-bank-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={280}>
                   <ComposedChart data={bankDsraData} margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
                     <defs>
@@ -999,6 +1203,7 @@ export default function BankPage() {
                     <Bar dataKey="draw" name={t('dsra.legend.draw')} yAxisId="right" barSize={16} fill="#9E3B3B" />
                   </ComposedChart>
                 </ResponsiveContainer>
+                </figure>
               ) : (
                 <div className="flex items-center gap-2 h-20 text-xs text-positive font-medium">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="6.5" stroke="#6B7A3D" /><path d="M4 7l2.5 2.5L10 4.5" stroke="#6B7A3D" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -1011,10 +1216,11 @@ export default function BankPage() {
 
         {/* 10. Revenue & EBITDA Chart */}
         <div id="bank-revenue-chart" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
-          <h3 className="text-sm font-semibold text-text-primary mb-1">
+          <h2 className="text-sm font-semibold text-text-primary mb-1">
             {t('bank.section.projectedRevenue')}
-          </h3>
+          </h2>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.revenueEbitdaSub')}</p>
+          <figure role="img" aria-label={t('aria.chart.revenue')}>
           <ResponsiveContainer width="100%" height={320}>
             <ComposedChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#EDE6D5" />
@@ -1030,6 +1236,7 @@ export default function BankPage() {
               <Line type="monotone" dataKey="Net Cash Flow" name={t('kpi.netCashFlow')} stroke="#C4754B" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
+          </figure>
         </div>
 
         {/* Fix 4 — Scenario DSCR summary table (before full stress test) */}
@@ -1062,11 +1269,12 @@ export default function BankPage() {
           })();
           return (
             <div id="bank-dscr-summary" className="bg-white rounded-xl border border-surface-tertiary p-5 mb-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-4">
+              <h2 className="text-sm font-semibold text-text-primary mb-4">
                 {t('bank.section.dscrSummary')}
-              </h3>
+              </h2>
               <div className="overflow-x-auto">
               <table className="w-full text-sm">
+                <caption className="sr-only">{t('aria.table.caption.dscrSummary')}</caption>
                 <thead>
                   <tr className="border-b border-surface-tertiary">
                     <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('bank.dscrTable.scenario')}</th>
@@ -1138,7 +1346,7 @@ export default function BankPage() {
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg bg-surface-secondary/40 border border-surface-tertiary px-4 py-3">
                     <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{item.label}</div>
-                    <div className="font-display text-xl text-text-primary">{item.value}</div>
+                    <div className="kpi-value-compact text-text-primary">{item.value}</div>
                     <div className="text-[10px] text-text-tertiary mt-0.5">{item.sub}</div>
                   </div>
                 ))}
@@ -1212,60 +1420,6 @@ export default function BankPage() {
           );
         })()}
 
-        {/* 11b. Construction VAT Cashflow (ADR-0015) */}
-        <div className="mb-6">
-          <ConstructionVatCashflow />
-        </div>
-
-        {/* 12. Stress Analysis — Collateral + Cash-Flow */}
-        <div id="bank-stress-analysis" className="mb-6 print:hidden">
-          <h3 className="text-sm font-semibold text-text-primary mb-4">{t('bank.section.stressAnalysis')}</h3>
-          <div className="space-y-4">
-
-            {/* I — Collateral Stress */}
-            <div className="bg-white rounded-xl border border-surface-tertiary p-6 shadow-sm">
-              <h4 className="text-sm font-semibold text-text-primary mb-1">{t('bank.stress.collateralHeading')}</h4>
-              <p className="text-xs text-text-tertiary mb-5">{t('bank.collateral.sub')}</p>
-              <div className="grid grid-cols-3 divide-x divide-surface-tertiary">
-                <MetricCell
-                  value={formatMultiple(model.collateral.stress.coverage)}
-                  label={t('sc.stress')}
-                  sublabel={`${formatCurrency(model.collateral.stress.value, true, locale)} · LTV ${formatPercent(model.collateral.stress.ltv)}`}
-                />
-                <MetricCell
-                  value={formatMultiple(model.collateral.market.coverage)}
-                  label={t('sc.market')}
-                  sublabel={`${formatCurrency(model.collateral.market.value, true, locale)} · LTV ${formatPercent(model.collateral.market.ltv)}`}
-                  valueClass="text-brand-600"
-                />
-                <MetricCell
-                  value={formatMultiple(model.collateral.optimistic.coverage)}
-                  label={t('sc.optimistic')}
-                  sublabel={`${formatCurrency(model.collateral.optimistic.value, true, locale)} · LTV ${formatPercent(model.collateral.optimistic.ltv)}`}
-                  valueClass="text-positive"
-                />
-              </div>
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={() => setVillaSaleDrawerOpen(true)}
-                  className="group inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full text-[13px] font-semibold text-amber-700 border border-amber-300 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 hover:text-amber-900 transition-all duration-150"
-                >
-                  <span>{t('collateral.saleMarketStudy')}</span>
-                  <span className="transition-transform duration-150 group-hover:translate-x-0.5">→</span>
-                </button>
-              </div>
-            </div>
-
-            {/* II — Cash-Flow Stress */}
-            <div>
-              <h4 className="text-sm font-semibold text-text-primary mb-3">{t('bank.stress.cashFlowHeading')}</h4>
-              <BankStressTest />
-            </div>
-
-          </div>
-        </div>
-
         {/* 12. Financing Path Comparison */}
         <div id="bank-financing-comparison" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
           <h3 className="text-sm font-semibold text-text-primary mb-1">
@@ -1274,6 +1428,7 @@ export default function BankPage() {
           <p className="text-[11px] text-text-tertiary mb-5">{t('bank.financing.sub')}</p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">{t('aria.table.caption.financingComparison')}</caption>
               <thead>
                 <tr className="border-b border-surface-tertiary">
                   <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('common.metric')}</th>
@@ -1326,6 +1481,7 @@ export default function BankPage() {
             {t('dash.dscrTrajectory')}
           </h3>
           <p className="text-xs text-text-tertiary mb-5 max-w-2xl">{t('bank.allPathsChartSub')}</p>
+          <figure role="img" aria-label={t('aria.chart.allPathsDscr')}>
           <ResponsiveContainer key={`dscr-allpaths-${activeScenario}-${financingPathOverride ?? 'none'}-${graceMode}`} width="100%" height={280}>
             <LineChart data={model.dscrByYear.filter((d) => d.year >= 2026).map((d) => ({
               year: d.year,
@@ -1350,25 +1506,87 @@ export default function BankPage() {
               <Line type="monotone" dataKey="TEPIX Loan" name={t('path.tepixLoanShort')} stroke="#7B5EA7" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
+          </figure>
         </div>
 
         {/* 14. P&L Timeline — detailed evidence */}
         <div id="bank-pnl" className="mb-6">
-          <h3 className="text-sm font-semibold text-text-primary mb-3">
+          <h2 className="text-sm font-semibold text-text-primary mb-3">
             {t('pnl.title')}
-          </h3>
+          </h2>
           {rampHaircutNote}
           <BankPnLSection />
         </div>
+
+        {/* 14b. Exit Analysis (P1-08 / FI-20) */}
+        {(() => {
+          const exitYr = activeScenarioOutput.exitYear;
+          const termAsset = activeScenarioOutput.terminalAssetValue;
+          const termEquity = activeScenarioOutput.terminalEquityValue;
+          const underwater = activeScenarioOutput.terminalUnderwater;
+          // Loan balance at exit: terminal asset value − terminal equity value (when not underwater)
+          const loanAtExit = underwater ? termAsset : termAsset - termEquity;
+          const terminalLTV = termAsset > 0 ? loanAtExit / termAsset : 0;
+          const ltvPass = terminalLTV <= 0.70;
+          return (
+            <div id="bank-exit-analysis" className="bg-white rounded-xl border border-surface-tertiary p-6 mb-6">
+              <h2 className="text-sm font-semibold text-text-primary mb-1">
+                {t('bank.exit.sectionTitle')}
+              </h2>
+              <p className="text-xs text-text-tertiary mb-5">{t('bank.exit.sectionSub')}</p>
+              <div className="grid grid-cols-4 divide-x divide-surface-tertiary">
+                <MetricCell
+                  value={String(exitYr)}
+                  label={t('bank.exit.exitYear')}
+                  sublabel={`${activeScenarioOutput.exitEbitdaMultiple.toFixed(1)}× EBITDA`}
+                />
+                <MetricCell
+                  value={formatCurrency(termAsset, true, locale)}
+                  label={t('bank.exit.terminalAsset')}
+                  sublabel={t('bank.exit.terminalAssetSub')}
+                  valueClass="text-brand-600"
+                />
+                <MetricCell
+                  value={formatCurrency(loanAtExit, true, locale)}
+                  label={t('bank.exit.loanAtExit')}
+                  sublabel={t('bank.exit.loanAtExitSub')}
+                />
+                <div className="text-center px-2">
+                  <div className={`kpi-value ${ltvPass ? 'text-positive' : 'text-warning'}`}>
+                    {formatPercent(terminalLTV)}
+                  </div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-text-secondary mt-2">
+                    {t('bank.exit.terminalLTV')}
+                  </div>
+                  <div className="mt-1">
+                    <span className={[
+                      'inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                      ltvPass ? 'bg-positive/15 text-positive' : 'bg-warning/15 text-warning',
+                    ].join(' ')}>
+                      <span className="w-1 h-1 rounded-full bg-current" aria-hidden="true" />
+                      {ltvPass ? t('bank.exit.ltvPass') : t('bank.exit.ltvFail')}
+                    </span>
+                  </div>
+                  <div className="text-xs text-text-tertiary mt-0.5">{t('bank.exit.ltvThreshold')}</div>
+                </div>
+              </div>
+              {underwater && (
+                <p className="mt-3 text-xs text-warning font-medium">
+                  {t('bank.exit.underwaterNote')}
+                </p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 15. Admin-only: who's currently viewing */}
         {isAdmin && (
           <div className="mb-6 print:hidden">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-3">
-              Connected viewers
+              {t('bank.admin.connectedViewers')}
             </h3>
             {connectedUsers.length === 0 ? (
-              <p className="text-xs text-text-tertiary">No active viewers.</p>
+              <p className="text-xs text-text-tertiary">{t('bank.admin.noActiveViewers')}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {connectedUsers.map((u) => {
@@ -1378,11 +1596,11 @@ export default function BankPage() {
                       key={u.uid}
                       className="flex items-center gap-2 rounded-lg border border-surface-tertiary bg-white px-3 py-2"
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${u.isStale ? "bg-text-tertiary" : "bg-green-500"}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${u.isStale ? "bg-text-tertiary" : "bg-emerald-500"}`} />
                       <span className="text-[11px] font-medium text-text-primary">{u.displayName}</span>
                       {u.isAnonymous && (
                         <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary bg-surface-tertiary px-1.5 py-0.5 rounded-full">
-                          anon
+                          {t('bank.admin.anonBadge')}
                         </span>
                       )}
                       <span className="text-[11px] text-text-tertiary font-mono">{u.currentPage}</span>

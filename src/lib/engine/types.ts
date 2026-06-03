@@ -277,7 +277,7 @@ export interface DSRAParams {
 
 // ── Financing Parameters ──
 
-export type GraceMode = 'standard' | 'rolling' | 'two-phase';
+export type GraceMode = 'standard' | 'rolling' | 'two-phase' | 'rolling-cohort';
 
 export interface CommercialLoanParams {
   loanCoverageRate: number;
@@ -296,6 +296,11 @@ export interface CommercialLoanParams {
   plotsStartQ?: 1 | 2 | 3 | 4;
   constructionStartYear?: number;
   constructionStartQ?: 1 | 2 | 3 | 4;
+  // Commitment fee on undrawn construction facility (T2–T5 only; T1/plots drawn at signing).
+  // Greek banks charge this on the committed-but-undrawn construction balance.
+  // Admin-only: suppressed in bank view. Default false (off).
+  commitmentFeeEnabled?: boolean;
+  commitmentFeeRate?: number;   // decimal, e.g. 0.0075 = 0.75% p.a.
 }
 
 export interface GrantParams {
@@ -518,6 +523,12 @@ export interface PortfolioOpex {
   preOpeningTotal: number;
   preOpeningAmortYears: number;
   preOpeningStartYear: number;
+  /** Professional service fees expensed during construction (lawyers for permits/contracts,
+   *  financial/tax advisors, project management consultants). These are NOT capitalised —
+   *  they are deductible under Article 22, Law 4172/2013 in the year incurred and enter
+   *  the Article 27 tax-loss carryforward pool. Civil engineer and architect design fees
+   *  are part of the building cost and should remain in the CapEx budget, not here. */
+  constructionServicesExpensed?: number;
   includePreOpeningInStabilised: boolean;
   // Pool configuration — drives Pool R&M annualCost automatically
   poolCount: number;        // default 17; user-editable
@@ -530,6 +541,9 @@ export interface PortfolioOpexOutput {
   servicesTotal: number;
   overheadTotal: number;
   preOpeningAmort: number;
+  /** Pro-rated annual share of constructionServicesExpensed — non-zero only in pre-opening
+   *  years. Deductible under Article 22, enters the Article 27 loss-carryforward pool. */
+  constructionServicesExpense: number;
   total: number;
   yearRoundFixed: number; // staffTotal + overheadTotal — bank "fixed cost spine"
   variable: number;       // servicesTotal
@@ -570,12 +584,22 @@ export interface ModelAssumptions {
   feeCashSplitPct?: number;
   financingPath: FinancingPath;
   opCoFee: OpCoFeeParams;
-  // Minimum annual management fee paid SENIOR to debt service in bank view
-  // (lives inside OpEx, hits DSCR). OpCo billing above this floor is
-  // subordinated to debt service. Bank view replaces the per-villa
-  // managementFee lines with this floor + the junior overage; internal
-  // view ignores it. See cash-waterfall block in `computePnLYear` (model.ts).
-  opCoSeniorFloor: number;
+  /**
+   * Minimum annual management fee per project. Paid junior to debt service —
+   * accrues when unpaid, settled from post-DS residual. Multiplied by plot
+   * count in model.ts.
+   *
+   * Backward-compat: engine also reads the legacy field `opCoSeniorFloor`
+   * (stored in Firestore on old scenarios) via the pattern
+   * `a.opCoFloor ?? a.opCoSeniorFloor ?? 0`.
+   */
+  opCoFloor: number;
+  /**
+   * @deprecated Renamed to `opCoFloor`. Retained for Firestore backward-compat
+   * so old saved scenarios deserialise without losing the floor value.
+   * Engine reads: `a.opCoFloor ?? a.opCoSeniorFloor ?? 0`.
+   */
+  opCoSeniorFloor?: number;
   /** When true, the 2029 senior OpCo fee is deferred to 2030. UI-only toggle. */
   opCoSeniorDefer2029?: boolean;
   workingCapital: WorkingCapitalParams;
@@ -702,10 +726,13 @@ export interface AnnualPnL {
   // Used for IRR add-back so the pre-split IRR correctly adds back the
   // uncapped fee, not the capped amount. Equals opCoTotalFee when no cap binds.
   opCoTotalFeeRaw?: number;
-  // Bank view only: senior portion of the OpCo fee paid inside OpEx
-  // (= `opCoSeniorFloor`). Junior tranche = opCoTotalFee − opCoSeniorPaid.
-  // Zero in internal view (no floor concept there).
+  // Floor portion of OpCo fee actually paid this year (post-DS). May be less
+  // than the full floor if residual was insufficient (in which case the unpaid
+  // balance accrues in `floorAccrual` and is carried into the following year).
   opCoSeniorPaid: number;
+  // Cumulative unpaid floor balance carried into the following year.
+  // Zero when the floor was fully paid in this year or OpCo is disabled.
+  floorAccrual: number;
   // Junior tranche of OpCo fee paid out of post-DS residual (tiered formula).
   // Zero when OpCo split is disabled or residual is insufficient.
   opCoJuniorPaid: number;
@@ -770,6 +797,15 @@ export interface AnnualPnL {
   taxLossUtilised?: number;
   /** Running balance of unused carried-forward tax losses at end of period. */
   taxLossPoolBalance?: number;
+  /** Annual commitment fee on undrawn construction tranches (T2–T5).
+   *  Zero when commitmentFeeEnabled is false or in bank view mode. */
+  commitmentFee?: number;
+  /** CIT tax base: max(0, ebitdaPreOpCo − depreciation − opCoFloor − opCoJunior − wcInterest − termLoanInterest − commitmentFee). Populated by computePnLYear; updated by LCF re-pass. */
+  taxableProfit?: number;
+  /** Amount of 2029 opening-year floor deferred to 2030 when opCoSeniorDefer2029=true.
+   *  Returned by computePnLYear so the loop can fold it into floorAccrualBalance.
+   *  Zero when the flag is false or absent. Diagnostic only — not displayed in UI. */
+  deferredFloor?: number;
 }
 
 export interface WorkingCapitalQuarter {
@@ -850,6 +886,11 @@ export interface ScenarioOutput {
   dsraTarget?: number;         // DSRA_target = max worst-year shortfall
   dsraSweep2028?: number;      // sweep from 2028 NCF
   dsraPartnerAdvance?: number; // partner_advance = max(0, dsraTarget - dsraSweep2028)
+  // ── Pre-opening equity buffer ──
+  // 1 month of opening-year portfolioOpex (year-round staff + shared costs).
+  // Equity-funded instead of WC draws; added to total equity contribution.
+  // Distinct from equityRequired (CapEx × (1−LTV)).
+  preOpeningEquityBuffer: number;
 }
 
 // Stable identifier for each comparison row, locale-independent. Add cases
@@ -912,6 +953,8 @@ export interface ModelOutput {
     supplementaryLoan: number;
     landFundedByTepix: number;
     landFundedByCommercial: number;
+    /** Loan-to-Cost ratio: loanAmount / totalCapex. FI-04. */
+    loanToProjectCost: number;
     // TEPIX III €8M program-cap binding amount. 0 unless the active path
     // is tepix-loan AND the unconstrained primary loan exceeded 8M. When
     // >0, the excess has been routed to commercial supplementary debt +
@@ -930,6 +973,9 @@ export interface ModelOutput {
     graceInterestCarry: number;
     // Number of years the reserve is held (graceEndYear − HORIZON_START_YEAR + 1).
     graceInterestHoldYears: number;
+    // 1 month of opening-year portfolioOpex. Equity-funded pre-opening buffer.
+    // Total equity on day one = equityRequired + graceInterestCarry + preOpeningEquityBuffer.
+    preOpeningEquityBuffer: number;
   };
   dscrByYear: {
     year: number;

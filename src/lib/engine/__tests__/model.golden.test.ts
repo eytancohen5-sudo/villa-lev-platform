@@ -46,6 +46,21 @@ function withPessimisticOccupancy(base: ModelAssumptions): ModelAssumptions {
 
 // ── Tests ───────────────────────────────────────────────────────────
 
+// SNAPSHOT PENDING UPDATE (2026-06-01):
+// The floor moved from OpEx (senior to DS) to a post-DS waterfall position.
+// With OpCo disabled (BASE_CASE default), currentYearFloor = 0 — so there is
+// no management fee drag at all, which raises stabilisedEBITDA by
+// opCoFloor × totalVillaCount = €25K × 3 = +€75K/yr vs the old snapshots.
+// DSCR delta: commercial path 0.8015 → 1.0070.
+// bufferToBreakEven also shifts because the break-even computation uses totalOpex.
+//
+// These snapshots must be reset as a SEPARATE COMMIT after Eytan reviews the
+// delta above and approves the new numbers. Use: vitest -u
+//
+// The sanity-invariant tests below (stabilised DSCR positive, portfolio value,
+// TEPIX cap) are NOT snapshots and continue to pass — they do not encode
+// specific numeric values.
+
 describe("computeModel — keyMetrics snapshots", () => {
   it("realistic / commercial path", () => {
     const out = computeModel(withFinancingPath(BASE_CASE, "commercial"));

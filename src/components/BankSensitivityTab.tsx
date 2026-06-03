@@ -6,6 +6,7 @@ import { computeModel } from "@/lib/engine/model";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import type { ModelAssumptions, PropertyConfig } from "@/lib/engine/types";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -304,6 +305,34 @@ export default function BankSensitivityTab() {
     return computeModel(modified);
   }, [assumptions, sliders, activePath]);
 
+  // CAPEX sensitivity — vary construction cost/m² across the portfolio, hold sliders constant
+  const capexRows = useMemo(() => {
+    const deltas = [-0.20, -0.10, -0.05, 0, 0.05, 0.10, 0.20];
+    return deltas.map((delta) => {
+      const base = applySliders(cloneAssumptions(assumptions), sliders, activePath);
+      base.portfolio = base.portfolio.map((p) => ({
+        ...p,
+        constructionCostPerM2: p.constructionCostPerM2 * (1 + delta),
+      }));
+      const r = computeModel(base);
+      // Anchor CAPEX sensitivity DSCR/DS/NCF to FIRST_OPERATIONAL_YEAR (2030) — the first
+      // post-ramp year, consistent with the DSCR Trajectory chart tooltip which prominently
+      // labels 2030. Stabilised year (2032) used to be the anchor but its 1.62× read
+      // misled vs the chart's 1.07× at 2030 (same scenario, different year).
+      const firstOp = r.scenarios.realistic.pnl.find(
+        (p) => p.year === PROJECT_CONSTANTS.FIRST_OPERATIONAL_YEAR
+      );
+      return {
+        label: delta === 0 ? t('sens.base') : `${delta > 0 ? '+' : ''}${(delta * 100).toFixed(0)}%`,
+        isBase: delta === 0,
+        capex: r.capex.portfolioTotal,
+        ds: firstOp?.debtService ?? 0,
+        dscr: firstOp?.dscr ?? 0,
+        ncf: firstOp?.netCashFlowPostVAT ?? 0,
+      };
+    });
+  }, [assumptions, sliders, activePath, t]);
+
   const realistic = result.scenarios.realistic;
   const stab = realistic.stabilisedYear;
 
@@ -548,6 +577,45 @@ export default function BankSensitivityTab() {
         </div>
 
       </div>
+
+      {/* CAPEX Sensitivity — construction cost/m² variation, financing-path aware */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-6">
+      <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-1">
+        {t('sens.capexSensitivity')}
+      </h3>
+      <p className="text-xs text-text-tertiary mb-4">
+        {t('bank.sens.pathNote')}: <span className="font-medium text-text-secondary">{pathLabel}</span>
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-surface-tertiary">
+              <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.change')}</th>
+              <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.capex')}</th>
+              <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('kpi.annualDS')}</th>
+              <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.dscrStabilised')}</th>
+              <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {capexRows.map((row) => (
+              <tr key={row.label} className={`border-b border-surface-secondary/50 ${row.isBase ? "bg-brand-50/50 font-medium" : ""}`}>
+                <td className="py-2 pr-4">{row.label}</td>
+                <td className="text-right py-2 px-3 font-mono text-xs">{formatCurrency(row.capex, true, locale)}</td>
+                <td className="text-right py-2 px-3 font-mono text-xs">{formatCurrency(row.ds, true, locale)}</td>
+                <td className={`text-right py-2 px-3 font-mono text-xs ${row.dscr >= 1.25 ? "text-positive" : row.dscr >= 1.0 ? "text-warning" : "text-negative"}`}>
+                  {row.dscr > 0 ? formatMultiple(row.dscr) : "—"}
+                </td>
+                <td className={`text-right py-2 px-3 font-mono text-xs ${row.ncf >= 0 ? "text-positive" : "text-negative"}`}>
+                  {formatCurrency(row.ncf, true, locale)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     </div>
   );
 }

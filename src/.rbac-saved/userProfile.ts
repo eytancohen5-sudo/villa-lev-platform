@@ -27,6 +27,11 @@ import {
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
+// CONSOLIDATION NOTE (2026-06-03): The live src/lib/data/userProfile.ts no
+// longer declares these locally — it re-exports them from @/lib/firebase,
+// which is the canonical location. If RBAC is re-implemented from this saved
+// copy, replace these two lines with:
+//   export { USERS_COLLECTION, INVITES_COLLECTION } from "@/lib/firebase";
 export const USERS_COLLECTION = "users";
 export const INVITES_COLLECTION = "invites";
 

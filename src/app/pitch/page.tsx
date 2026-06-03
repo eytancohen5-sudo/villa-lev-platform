@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useModelStore, type ScenarioName } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -8,6 +8,7 @@ import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useMo
 import { useSeasonSnapshot } from "@/lib/data/useSeasonSnapshot";
 import type { FinancingPath } from "@/lib/engine/types";
 import type { Locale } from "@/lib/i18n/types";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 import {
   Bar,
   Line,
@@ -187,6 +188,8 @@ function dscrColor(dscr: number): string {
 }
 
 export default function PitchPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("pitch"); }, [track]);
   const { model, assumptions, activeScenario } = useModelStore();
   const { locale, t } = useTranslation();
   // Live 2026 revenue — same source the admin dashboard's Conservatism Check

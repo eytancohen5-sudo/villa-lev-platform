@@ -104,11 +104,17 @@ function buildAmortSchedule(
   getDS: (year: number) => number,
   startYear: number,
   endYear: number,
-  graceEndYear: number
+  graceEndYear: number,
+  drawnBalanceFn?: (year: number) => number
 ): Map<number, AmortYear> {
   const map = new Map<number, AmortYear>();
   let balance = loanAmount;
   for (let year = startYear; year <= endYear; year++) {
+    // During grace years, override balance to drawn amount (not full committed facility).
+    // IMPORTANT: override balance before computing opening so the carry-forward is correct.
+    if (year <= graceEndYear && drawnBalanceFn) {
+      balance = drawnBalanceFn(year);
+    }
     const opening = balance;
     let interest = 0;
     let principal = 0;
@@ -124,6 +130,73 @@ function buildAmortSchedule(
     const closing = Math.max(0, opening - principal);
     map.set(year, { opening, interest, principal, closing });
     balance = closing;
+  }
+  return map;
+}
+
+// ── Rolling amortisation schedule ──────────────────────────────────────────
+// Computes a per-tranche amortisation schedule for rolling-mode paths.
+// Each tranche has its own IO period (from disbYear to amortStart - 1) and
+// then amortises independently. This prevents the global-graceEndYear problem
+// where early tranches' balance stays flat until the last tranche's grace ends.
+
+interface RollingTranche {
+  loan: number;
+  disbYear: number;
+  disbQ: 1 | 2 | 3 | 4;
+  amortStart: number;
+}
+
+function buildRollingAmortSchedule(
+  tranches: RollingTranche[],
+  rate: number,
+  repaymentTermYears: number,
+  startYear: number,
+  endYear: number
+): Map<number, AmortYear> {
+  const map = new Map<number, AmortYear>();
+  for (let year = startYear; year <= endYear; year++) {
+    let totalOpening = 0;
+    let totalInterest = 0;
+    let totalPrincipal = 0;
+    for (const tr of tranches) {
+      if (year < tr.disbYear) continue; // not yet drawn
+      const trPmt = pmt(rate, repaymentTermYears, tr.loan);
+      if (year < tr.amortStart) {
+        // IO period
+        totalOpening += tr.loan;
+        const interest =
+          year === tr.disbYear
+            ? tr.loan * rate * (5 - tr.disbQ) / 4  // partial year
+            : tr.loan * rate;                        // full year IO
+        totalInterest += interest;
+        // principal = 0 (grace/IO)
+      } else {
+        // Amortising period
+        const yearsAmortized = year - tr.amortStart; // payments made BEFORE this year
+        const openingTr =
+          yearsAmortized === 0
+            ? tr.loan  // first amort year opens at full tranche loan
+            : (() => {
+                // PV of remaining payments: PMT × (1 - (1+r)^(-remainingYears)) / r
+                const remainingYears = repaymentTermYears - yearsAmortized;
+                if (remainingYears <= 0) return 0;
+                return trPmt * (1 - Math.pow(1 + rate, -remainingYears)) / rate;
+              })();
+        const interest = openingTr * rate;
+        const principal = Math.max(0, Math.min(openingTr, trPmt - interest));
+        totalOpening += openingTr;
+        totalInterest += interest;
+        totalPrincipal += principal;
+      }
+    }
+    const closing = Math.max(0, totalOpening - totalPrincipal);
+    map.set(year, {
+      opening: totalOpening,
+      interest: totalInterest,
+      principal: totalPrincipal,
+      closing,
+    });
   }
   return map;
 }
@@ -397,6 +470,24 @@ interface DebtServiceResult {
   // For multi-tranche rolling mode this is earlier than graceEndYear + 1 (the
   // first tranche amortises before the last one does). Defaults to graceEndYear + 1.
   firstAmortYear?: number;
+  // ── Drawn-balance override for amortisation schedule ──
+  // When provided, buildAmortSchedule uses this function to override the
+  // running balance during grace years so opening/closing reflects the
+  // actually-drawn balance rather than the full committed facility.
+  // Only set on paths where tranches are drawn in stages (two-phase, rolling;
+  // grant two-phase and rolling). NOT set on standard, optima, rrf, tepix-loan.
+  drawnBalanceFn?: (year: number) => number;
+  // ── Per-tranche rolling schedule ──
+  // When set, computeScenario uses buildRollingAmortSchedule instead of
+  // buildAmortSchedule so each tranche amortises independently from its own
+  // amortStart — not from the global graceEndYear of the last tranche.
+  // Only set on rolling commercial and rolling grant paths.
+  rollingTranches?: RollingTranche[];
+  // ── Commitment fee on undrawn construction tranches ──
+  // Annual fee by year for T2–T5 (construction tranches, not plots/T1).
+  // Set only on rolling and rolling-cohort commercial/grant paths when
+  // commitmentFeeEnabled is true. Zero/absent otherwise.
+  commitmentFeeByYear?: Record<number, number>;
 }
 
 function computeTotalLand(a: ModelAssumptions): number {
@@ -445,12 +536,12 @@ function computeDebtService(
 
       // Each tranche: amortStartYear = disbYear + 3 (consistent with standard model:
       // loan drawn 2026 → amortises from 2029 = +3).
-      const tranches = [
-        { loan: plotsLoan,    disbYear: pYear,    disbQ: pQ,   amortStart: pYear    + 3 },
-        { loan: constQuarter, disbYear: t2.year,  disbQ: t2.q, amortStart: t2.year  + 3 },
-        { loan: constQuarter, disbYear: t3.year,  disbQ: t3.q, amortStart: t3.year  + 3 },
-        { loan: constQuarter, disbYear: t4.year,  disbQ: t4.q, amortStart: t4.year  + 3 },
-        { loan: constQuarter, disbYear: t5.year,  disbQ: t5.q, amortStart: t5.year  + 3 },
+      const tranches: RollingTranche[] = [
+        { loan: plotsLoan,    disbYear: pYear,    disbQ: pQ as 1|2|3|4,   amortStart: pYear    + 3 },
+        { loan: constQuarter, disbYear: t2.year,  disbQ: t2.q as 1|2|3|4, amortStart: t2.year  + 3 },
+        { loan: constQuarter, disbYear: t3.year,  disbQ: t3.q as 1|2|3|4, amortStart: t3.year  + 3 },
+        { loan: constQuarter, disbYear: t4.year,  disbQ: t4.q as 1|2|3|4, amortStart: t4.year  + 3 },
+        { loan: constQuarter, disbYear: t5.year,  disbQ: t5.q as 1|2|3|4, amortStart: t5.year  + 3 },
       ];
 
       // Debt service for one tranche in a given year:
@@ -484,6 +575,28 @@ function computeDebtService(
       // even though the last tranche (T5) is still IO until 2031.
       const firstAmortYear = Math.min(...tranches.map(t => t.amortStart));
 
+      const rollingDrawnBalance = (year: number): number =>
+        tranches.filter(tr => tr.disbYear <= year).reduce((s, tr) => s + tr.loan, 0);
+
+      // Commitment fee: applies only to construction tranches (T2–T5), not plots (T1)
+      const rollingCommitmentFeeByYear: Record<number, number> = {};
+      const rollingCommitFeeEnabled = a.commercialLoan.commitmentFeeEnabled ?? false;
+      const rollingCommitFeeRate = a.commercialLoan.commitmentFeeRate ?? 0.0075;
+      if (rollingCommitFeeEnabled) {
+        const constructionTranches = tranches.slice(1); // T2–T5, skip T1 (plots)
+        for (let yr = cYear; yr <= HORIZON_END_YEAR; yr++) {
+          let fee = 0;
+          for (const tr of constructionTranches) {
+            if (yr < tr.disbYear) {
+              fee += tr.loan * rollingCommitFeeRate;
+            } else if (yr === tr.disbYear) {
+              fee += tr.loan * rollingCommitFeeRate * (tr.disbQ - 1) / 4;
+            }
+          }
+          if (fee > 0) rollingCommitmentFeeByYear[yr] = fee;
+        }
+      }
+
       return {
         annualDS,
         loanAmount,
@@ -495,6 +608,9 @@ function computeDebtService(
         graceInterestCarry: rollingGraceInterestCarry,
         firstAmortYear,
         getDS: rollingGetDS,
+        drawnBalanceFn: rollingDrawnBalance,
+        rollingTranches: tranches,
+        commitmentFeeByYear: rollingCommitmentFeeByYear,
       };
     }
 
@@ -544,6 +660,12 @@ function computeDebtService(
         tpGraceCarry += twoPhaseGetDS(yr);
       }
 
+      const twoPhaseDrawnBalance = (year: number): number => {
+        if (year < p1Year) return 0;
+        if (year < p2Year) return phase1Loan;
+        return loanAmount;
+      };
+
       return {
         annualDS: combinedDS,
         loanAmount,
@@ -555,25 +677,136 @@ function computeDebtService(
         graceInterestCarry: tpGraceCarry,
         firstAmortYear: Math.min(phase1AmortStart, phase2AmortStart),
         getDS: twoPhaseGetDS,
+        drawnBalanceFn: twoPhaseDrawnBalance,
       };
     }
 
-    // 'standard' (default) — byte-for-byte identical to original code
+    if (graceMode === 'rolling-cohort') {
+      // Same 5-tranche drawdown as rolling mode:
+      // T1 = plots; T2-T5 = construction (4 × 25%, one per semester).
+      // BUT: all tranches share a SINGLE cohort grace end date =
+      //   firstDisbYear + gracePeriodYears (i.e. pYear + gracePeriodYears).
+      // Changing gracePeriodYears in the UI moves the single grace end date.
+      const plotsLoan   = PHASE1_LAND_PERMITS * a.commercialLoan.loanCoverageRate;
+      const constLoan   = loanAmount - plotsLoan;
+      const constQuarter = constLoan / 4;
+
+      const pYear = a.commercialLoan.plotsStartYear        ?? HORIZON_START_YEAR;
+      const pQ    = a.commercialLoan.plotsStartQ           ?? 1;
+      const cYear = a.commercialLoan.constructionStartYear  ?? HORIZON_START_YEAR + 1;
+      const cQ    = a.commercialLoan.constructionStartQ     ?? 1;
+
+      function addQtrs(baseYear: number, baseQ: number, n: number) {
+        const total = (baseQ - 1) + n;
+        return { year: baseYear + Math.floor(total / 4), q: (total % 4) + 1 };
+      }
+
+      const t2 = addQtrs(cYear, cQ, 0);
+      const t3 = addQtrs(cYear, cQ, 2);
+      const t4 = addQtrs(cYear, cQ, 4);
+      const t5 = addQtrs(cYear, cQ, 6);
+
+      const tranches = [
+        { loan: plotsLoan,    disbYear: pYear,    disbQ: pQ   },
+        { loan: constQuarter, disbYear: t2.year,  disbQ: t2.q },
+        { loan: constQuarter, disbYear: t3.year,  disbQ: t3.q },
+        { loan: constQuarter, disbYear: t4.year,  disbQ: t4.q },
+        { loan: constQuarter, disbYear: t5.year,  disbQ: t5.q },
+      ];
+
+      // COHORT: all tranches amortise from the same year = firstDisbYear + gracePeriodYears + 1
+      const gracePeriodYears = a.commercialLoan.gracePeriodYears ?? 2;
+      const cohortGraceEndYear = pYear + gracePeriodYears; // e.g. 2026+2 = 2028
+
+      // IO for year = sum of drawn-tranche IO payments
+      function trancheIO(tr: { loan: number; disbYear: number; disbQ: number }, year: number): number {
+        if (year < tr.disbYear) return 0;
+        if (year === tr.disbYear) return tr.loan * rate * (5 - tr.disbQ) / 4;
+        return tr.loan * rate; // full year IO
+      }
+
+      const cohortGetDS = (year: number): number => {
+        if (year <= cohortGraceEndYear) {
+          return tranches.reduce((sum, tr) => sum + trancheIO(tr, year), 0);
+        }
+        return annualDS;
+      };
+
+      // graceInterestCarry = pre-operational IO (years before OPENING_YEAR)
+      const firstDisbYear = pYear;
+      let cohortGraceCarry = 0;
+      for (let yr = firstDisbYear; yr < OPENING_YEAR; yr++) {
+        cohortGraceCarry += cohortGetDS(yr);
+      }
+
+      // drawnBalanceFn: balance = sum of loans for tranches drawn by year
+      const cohortDrawnBalance = (year: number): number =>
+        tranches.reduce((sum, tr) => year >= tr.disbYear ? sum + tr.loan : sum, 0);
+
+      // Commitment fee: applies only to construction tranches (T2–T5), not plots (T1)
+      // Fee = undrawn tranche × commitmentFeeRate, for the fraction of year before draw
+      const cohortCommitmentFeeByYear: Record<number, number> = {};
+      const commitFeeEnabled = a.commercialLoan.commitmentFeeEnabled ?? false;
+      const commitFeeRate = a.commercialLoan.commitmentFeeRate ?? 0.0075;
+      if (commitFeeEnabled) {
+        const constructionTranches = tranches.slice(1); // T2–T5, skip T1 (plots)
+        for (let yr = cYear; yr <= HORIZON_END_YEAR; yr++) {
+          let fee = 0;
+          for (const tr of constructionTranches) {
+            if (yr < tr.disbYear) {
+              fee += tr.loan * commitFeeRate;               // full year undrawn
+            } else if (yr === tr.disbYear) {
+              fee += tr.loan * commitFeeRate * (tr.disbQ - 1) / 4;  // partial before draw
+            }
+            // yr > tr.disbYear: fee += 0 (drawn)
+          }
+          if (fee > 0) cohortCommitmentFeeByYear[yr] = fee;
+        }
+      }
+
+      return {
+        annualDS,
+        loanAmount,
+        equityRequired: equity,
+        grantAmount: 0,
+        effectiveInterestRate: rate,
+        repaymentTermYears,
+        graceEndYear: cohortGraceEndYear,
+        graceInterestCarry: cohortGraceCarry,
+        firstAmortYear: cohortGraceEndYear + 1,
+        getDS: cohortGetDS,
+        drawnBalanceFn: cohortDrawnBalance,
+        commitmentFeeByYear: cohortCommitmentFeeByYear,
+        // rollingTranches intentionally NOT set — rolling-cohort uses buildAmortSchedule
+        // (with drawnBalanceFn), not buildRollingAmortSchedule, because all tranches
+        // amortise from the same cohort grace end year.
+      };
+    }
+
+    // 'standard' (default) — uses scenario-specific calibrated scalars.
+    // Existing Firestore scenarios have manually-calibrated interest2026/2027/2028
+    // values that must be honoured. Per-tranche IO formulae would override these.
     const commGracePeriodYears = a.commercialLoan.gracePeriodYears ?? 2;
     const commGraceEndYear = HORIZON_START_YEAR + commGracePeriodYears;
     const commGetDS = (year: number) => {
       if (year === HORIZON_START_YEAR) return a.commercialLoan.interest2026;
       if (year === HORIZON_START_YEAR + 1) return a.commercialLoan.interest2027;
-      if (year === commGraceEndYear) return a.commercialLoan.interest2028;
+      // FIX: extend interest2028 to ALL intermediate grace years (not just commGraceEndYear)
+      // This prevents years between 2027 and commGraceEndYear from returning 0 when gracePeriodYears > 2
+      if (year > HORIZON_START_YEAR + 1 && year <= commGraceEndYear) return a.commercialLoan.interest2028;
       if (year > commGraceEndYear) return annualDS;
       return 0;
     };
-    const commGraceInterestCarry =
-      commGracePeriodYears === 0
-        ? 0
-        : commGetDS(HORIZON_START_YEAR) +
-          commGetDS(HORIZON_START_YEAR + 1) +
-          commGetDS(commGraceEndYear);
+
+    // graceInterestCarry = sum of IO for all pre-operational years.
+    let commGraceInterestCarry = 0;
+    for (let yr = HORIZON_START_YEAR; yr < OPENING_YEAR; yr++) {
+      commGraceInterestCarry += commGetDS(yr);
+    }
+
+    // NOTE: no drawnBalanceFn for standard path — draw schedule is manually
+    // calibrated via interest scalars and cannot be reliably inferred from
+    // constructionStartYear. The amort schedule uses full loanAmount from the start.
     return {
       annualDS,
       loanAmount,
@@ -651,6 +884,28 @@ function computeDebtService(
       const gFirstDisbYear = Math.min(...gTranches.map(tr => tr.disbYear));
       let gRollingCarry = 0;
       for (let yr = gFirstDisbYear; yr < OPENING_YEAR; yr++) gRollingCarry += gRollingGetDS(yr);
+      const gRollingDrawnBalance = (year: number): number =>
+        gTranches.filter(tr => tr.disbYear <= year).reduce((s, tr) => s + tr.loan, 0);
+
+      // Commitment fee: applies only to construction tranches (T2–T5), not plots (T1)
+      const gRollingCommitmentFeeByYear: Record<number, number> = {};
+      const gRollingCommitFeeEnabled = a.commercialLoan.commitmentFeeEnabled ?? false;
+      const gRollingCommitFeeRate = a.commercialLoan.commitmentFeeRate ?? 0.0075;
+      if (gRollingCommitFeeEnabled) {
+        const gConstructionTranches = gTranches.slice(1); // T2–T5, skip T1 (plots)
+        for (let yr = cYear; yr <= HORIZON_END_YEAR; yr++) {
+          let fee = 0;
+          for (const tr of gConstructionTranches) {
+            if (yr < tr.disbYear) {
+              fee += tr.loan * gRollingCommitFeeRate;
+            } else if (yr === tr.disbYear) {
+              fee += tr.loan * gRollingCommitFeeRate * (tr.disbQ - 1) / 4;
+            }
+          }
+          if (fee > 0) gRollingCommitmentFeeByYear[yr] = fee;
+        }
+      }
+
       return {
         annualDS,
         loanAmount: remainingLoan,
@@ -662,6 +917,14 @@ function computeDebtService(
         graceInterestCarry: gRollingCarry,
         firstAmortYear: Math.min(...gTranches.map(t => t.amortStart)),
         getDS: gRollingGetDS,
+        drawnBalanceFn: gRollingDrawnBalance,
+        rollingTranches: gTranches.map(tr => ({
+          loan: tr.loan,
+          disbYear: tr.disbYear,
+          disbQ: tr.disbQ as 1 | 2 | 3 | 4,
+          amortStart: tr.amortStart,
+        })),
+        commitmentFeeByYear: gRollingCommitmentFeeByYear,
       };
     }
 
@@ -690,6 +953,11 @@ function computeDebtService(
       const gTpFirstYear = Math.min(p1Year, p2Year);
       let gTpCarry = 0;
       for (let yr = gTpFirstYear; yr < OPENING_YEAR; yr++) gTpCarry += gTwoPhaseGetDS(yr);
+      const gTwoPhaseDrawnBalance = (year: number): number => {
+        if (year < p1Year) return 0;
+        if (year < p2Year) return phase1Loan;
+        return remainingLoan;
+      };
       return {
         annualDS: p1AnnualDS + p2AnnualDS,
         loanAmount: remainingLoan,
@@ -701,6 +969,7 @@ function computeDebtService(
         graceInterestCarry: gTpCarry,
         firstAmortYear: Math.min(p1AmortStart, p2AmortStart),
         getDS: gTwoPhaseGetDS,
+        drawnBalanceFn: gTwoPhaseDrawnBalance,
       };
     }
 
@@ -1254,7 +1523,7 @@ function computeOpexForProperty(
   year: number,
   prop: PropertyConfig
 ): number {
-  if (year <= HORIZON_START_YEAR + 1) return 0;
+  if (year < OPENING_YEAR) return 0;
 
   const controllableOpex =
     prop.opex.housekeeping +
@@ -1277,13 +1546,31 @@ function computeOpexForProperty(
 export function computePortfolioOpex(year: number, assumptions: ModelAssumptions): PortfolioOpexOutput {
   const ZERO: PortfolioOpexOutput = {
     staffTotal: 0, servicesTotal: 0, overheadTotal: 0,
-    preOpeningAmort: 0, total: 0, yearRoundFixed: 0, variable: 0,
+    preOpeningAmort: 0, constructionServicesExpense: 0,
+    total: 0, yearRoundFixed: 0, variable: 0,
   };
-  // No portfolio OPEX during pre-construction years
-  if (year <= HORIZON_START_YEAR + 1) return ZERO;
-
   // TODO: apply inflationHook escalator when activated
   const po = assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
+
+  // Pre-opening years: staff/services/overhead are zero (not yet operational).
+  // Two cost types may apply:
+  //   1. preOpeningAmort — if amortisation starts before OPENING_YEAR
+  //   2. constructionServicesExpense — professional service fees expensed as incurred
+  //      (lawyers for permits/contracts, PM consultants, financial/tax advisors).
+  //      Deductible under Article 22, Law 4172/2013; enters the Article 27 loss pool.
+  if (year < OPENING_YEAR) {
+    const preOpeningAmort =
+      year >= po.preOpeningStartYear && year < po.preOpeningStartYear + po.preOpeningAmortYears
+        ? po.preOpeningTotal / po.preOpeningAmortYears
+        : 0;
+    const numConstructionYears = OPENING_YEAR - HORIZON_START_YEAR; // 3 years: 2026–2028
+    const constructionServicesExpense =
+      numConstructionYears > 0
+        ? (po.constructionServicesExpensed ?? 0) / numConstructionYears
+        : 0;
+    const total = preOpeningAmort + constructionServicesExpense;
+    return { ...ZERO, preOpeningAmort, constructionServicesExpense, total };
+  }
 
   const staffTotal = po.staffRoles.reduce((sum, role) => {
     const count = role.headcount ?? 1;
@@ -1377,6 +1664,7 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
     servicesTotal,
     overheadTotal,
     preOpeningAmort,
+    constructionServicesExpense: 0, // only non-zero in pre-opening years
     total,
     yearRoundFixed: staffTotal + overheadTotal,
     variable: servicesTotal,
@@ -1411,22 +1699,35 @@ function computeScenario(
   const opCoEnabled = !!opCo?.enabled;
 
   const graceEndYear = debtResult.graceEndYear;
-  const preAmortSchedule = buildAmortSchedule(
-    debtResult.loanAmount,
-    debtResult.effectiveInterestRate,
-    debtResult.annualDS,
-    debtResult.getDS,
-    HORIZON_START_YEAR,
-    HORIZON_END_YEAR,
-    graceEndYear
-  );
+  const preAmortSchedule = debtResult.rollingTranches
+    ? buildRollingAmortSchedule(
+        debtResult.rollingTranches,
+        debtResult.effectiveInterestRate,
+        debtResult.repaymentTermYears,
+        HORIZON_START_YEAR,
+        HORIZON_END_YEAR
+      )
+    : buildAmortSchedule(
+        debtResult.loanAmount,
+        debtResult.effectiveInterestRate,
+        debtResult.annualDS,
+        debtResult.getDS,
+        HORIZON_START_YEAR,
+        HORIZON_END_YEAR,
+        graceEndYear,
+        debtResult.drawnBalanceFn
+      );
 
   // Annual straight-line depreciation deductible for CIT (Art. 24, Law 4172/2013).
   // Available as a closure variable inside computePnLYear.
   // Falls back to zero when capex is not provided (e.g. isolated unit tests).
   const annualDepreciation = capex?.annualDepreciationTotal ?? 0;
 
-  const computePnLYear = (year: number, wcInterestExpense: number): Omit<AnnualPnL,
+  const computePnLYear = (
+    year: number,
+    wcInterestExpense: number,
+    floorAccrualIn: number = 0,
+  ): Omit<AnnualPnL,
     'cumulativeNCF' | 'cumulativeYieldOnInitialEquity' |
     'termLoanInterest' | 'termLoanPrincipal' | 'termLoanBalance' |
     'interestCoverageRatio' | 'wcAvgBalance' |
@@ -1483,7 +1784,7 @@ function computeScenario(
 
       // FF&E Reserve: max(ffeReserveFloor, rate% × revenuePerUnit).
       // Rate schedule driven by a.ffeSchedule (editable); defaults to 2/3/4%.
-      // Opening year (2029): floor only (rate=0). Pre-opening: zero.
+      // Opening year (2029): zero (reserve not yet accumulating). Pre-opening: zero.
       const ffeReserveFloor = prop.opex.ffeReserveFloor ?? 0;
       const ffe = a.ffeSchedule;
       const ffeReserveRatePct =
@@ -1493,7 +1794,7 @@ function computeScenario(
         year === FIRST_OPERATIONAL_YEAR + 1 ? (ffe?.rate2030 ?? 0.03) :
         (ffe?.rateStabilised ?? 0.04);
       // Floor fires in any operational year (>= OPENING_YEAR); zero before.
-      const ffeReservePerUnit = year < OPENING_YEAR
+      const ffeReservePerUnit = year < FIRST_OPERATIONAL_YEAR
         ? 0
         : Math.max(ffeReserveFloor, ffeReserveRatePct * revenuePerUnit);
 
@@ -1511,7 +1812,7 @@ function computeScenario(
         totalRevenue: revenuePerUnit * prop.count,
         opexPerUnit,
         ffeReservePerUnit,
-        totalOpex: year <= HORIZON_START_YEAR + 1 ? 0 : opexPerUnit * prop.count,
+        totalOpex: year < OPENING_YEAR ? 0 : opexPerUnit * prop.count,
       };
     });
 
@@ -1561,39 +1862,21 @@ function computeScenario(
       0
     );
 
-    // Bank view restructures the management-fee line:
-    //   internal view: per-villa `managementFee` lives inside propertyOpex
-    //                  (sum across portfolio ≈ €100K @ BASE_CASE).
-    //   bank view:     strip per-villa managementFee from OpEx; replace it
-    //                  with a single `opCoSeniorFloor` (€24K @ BASE_CASE)
-    //                  paid SENIOR to debt service. Anything OpCo bills
-    //                  above that floor is JUNIOR (paid out of residual
-    //                  cash after DS — see waterfall block below).
     // Per-villa managementFee aggregated across the portfolio. Always 0 in the
     // current model (managementFee is deprecated and set to 0 in all templates).
-    // Retained for the OpEx swap logic below; safe to sum because managementFee
-    // is now optional and defaults to 0.
+    // Retained for backward-compat; safe to sum because managementFee is optional.
     const perVillaMgmtFeeTotal =
-      year <= HORIZON_START_YEAR + 1
+      year < OPENING_YEAR
         ? 0
         : a.portfolio.reduce(
             (sum, prop) => sum + (prop.opex.managementFee ?? 0) * prop.count,
             0,
           );
 
-    // Senior management fee paid inside OpEx (bank view only; zero pre-ops).
-    // The floor is PER PROJECT (plot): €25K × number of projects = €75K total
-    // at 3 plots. Mirrors the construction-phase minimum (€75K/yr CAPEX) so
-    // Eytan's minimum compensation is consistent across both phases.
-    const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
-    const seniorMgmtFeeBase =
-      year > HORIZON_START_YEAR + 1 ? (a.opCoSeniorFloor ?? 0) * totalVillaCount : 0;
-    const seniorMgmtFee = seniorMgmtFeeBase;
-
-    // OpEx that flows into EBITDA pre-OpCo.
-    //   internal: legacy — keep per-villa managementFee in propertyOpex.
-    //   bank:     remove per-villa managementFee, add the senior floor.
-    const propertyOpex = propertyOpexAll - perVillaMgmtFeeTotal + seniorMgmtFee;
+    // OpEx that flows into ebitdaPreOpCo. Strip the deprecated per-villa
+    // managementFee (always 0) from propertyOpex. The floor is NO LONGER in
+    // OpEx — DS is senior to the floor, floor is paid post-DS from residual.
+    const propertyOpex = propertyOpexAll - perVillaMgmtFeeTotal;
 
     // Portfolio OPEX (undistributed shared overhead — staff, services, overhead, pre-opening amort).
     // NOTE: opexContingencyRate does NOT apply to portfolio OPEX — separate code path.
@@ -1604,84 +1887,119 @@ function computeScenario(
     // deducted explicitly from ncf and cfads downstream (Finding A fix).
     const totalOpex = propertyOpex + portfolioOpexResult.total;
 
-    // EBITDA pre-OpCo (= GOP) before any *junior* management-company fees
-    // are taken. In bank view, EBITDA pre-OpCo is already net of the senior
-    // floor — that's the point: the floor crosses DSCR; the overage does not.
+    // ebitdaPreOpCo = true gross margin before any OpCo cost.
+    // The floor is now post-DS, so this is the unencumbered DSCR numerator.
     // WC interest is NOT in ebitdaPreOpCo — it belongs in the DSCR denominator
     // only (via dscrLoaded) and is deducted below when computing ncf/cfads.
     const ebitdaPreOpCo = totalRevenue - totalOpex;
 
     const ds = debtResult.getDS(year);
 
-    // ── Unified tiered junior formula ─────────────────────────────────────
-    // Legacy params (baseMgmtFeeRate, incentiveFeeRate, opcoAnnualFeeCap,
-    // shareholderMinResidualShare) are inert — kept on OpCoFeeParams for
-    // Firestore backward-compat only.
+    // Commitment fee on undrawn construction tranches (admin-only, suppressed in bank view).
+    // Computed before the floor waterfall so residualAfterDS uses the total debt cost.
+    const rawCommitmentFee = debtResult.commitmentFeeByYear?.[year] ?? 0;
+    const commitmentFee = (a.viewMode !== 'bank') ? rawCommitmentFee : 0;
+    const totalDS = ds + commitmentFee;
+
+    // ── DS is senior. Floor obligation (current year + any prior accrual) paid
+    // first from post-DS residual. Junior tiers paid from what remains.
+    // Unpaid floor accrues.
+    //
+    // Backward-compat: read opCoFloor ?? opCoSeniorFloor ?? 0 so existing
+    // Firestore scenarios that still carry opCoSeniorFloor are not silently broken.
+    const totalVillaCount = a.portfolio.reduce((sum, prop) => sum + prop.count, 0);
+    const currentYearFloor =
+      year >= OPENING_YEAR && opCoEnabled
+        ? ((a.opCoFloor ?? a.opCoSeniorFloor ?? 0) * totalVillaCount)
+        : 0;
+    // opCoSeniorDefer2029: zero the opening-year floor when the flag is active.
+    // The deferred amount is added to floorAccrualBalance by the caller after this
+    // year's iteration completes — see the loop bodies in Pass 1 and Pass 2.
+    const deferOpeningFloor =
+      (a.opCoSeniorDefer2029 === true) &&
+      (year === OPENING_YEAR) &&
+      (a.viewMode !== 'bank');   // bank-mode guard: never defer in bank/Optima output
+    const effectiveYearFloor = deferOpeningFloor ? 0 : currentYearFloor;
+    const totalFloorObligation = effectiveYearFloor + floorAccrualIn;
+
+    const residualAfterDS = Math.max(0, ebitdaPreOpCo - totalDS);
+    const opCoFloorActuallyPaid = Math.min(totalFloorObligation, residualAfterDS);
+    const newFloorAccrual = totalFloorObligation - opCoFloorActuallyPaid;
+
+    // Junior tiers from what's left after floor payment.
+    const residualAfterFloor = Math.max(0, residualAfterDS - opCoFloorActuallyPaid);
     const tier1Rate  = opCo.juniorTier1Rate        ?? 0.10;
     const tier2Rate  = opCo.juniorTier2Rate        ?? 0.15;
     const threshold  = opCo.juniorResidualThreshold ?? 500_000;
-    const residualAfterDS = Math.max(0, ebitdaPreOpCo - ds);
-    const tier1Amount     = opCoEnabled ? tier1Rate * Math.min(residualAfterDS, threshold)     : 0;
-    const tier2Amount     = opCoEnabled ? tier2Rate * Math.max(0, residualAfterDS - threshold) : 0;
+    const tier1Amount     = opCoEnabled ? tier1Rate * Math.min(residualAfterFloor, threshold)     : 0;
+    const tier2Amount     = opCoEnabled ? tier2Rate * Math.max(0, residualAfterFloor - threshold) : 0;
     const opCoJuniorPaid  = tier1Amount + tier2Amount;
 
-    // Legacy AnnualPnL fields repurposed for new semantics (field names unchanged
-    // so existing consumers keep working without type changes):
-    //   opCoBaseFee      ← senior floor (was "base management fee")
+    // IRR add-back: both floor and junior are now post-DS, so both are added back
+    // to reconstruct the pre-split cash flow for equityIRRPreOpCo.
+    // opCoTotalFeeRaw = opCoFloorActuallyPaid + opCoJuniorPaid (both tiers).
+    //
+    // Legacy AnnualPnL fields mapped for backward-compat:
+    //   opCoBaseFee      ← floor actually paid this year
     //   opCoBrandFee     ← 0, retired
-    //   opCoIncentiveFee ← junior paid (was "incentive fee")
-    //   opCoTotalFeeRaw  ← juniorPaid ONLY — this is the IRR add-back basis.
-    //                      Senior floor is in OpEx and must NOT be added back.
-    //   opCoTotalFee     ← seniorFloor + juniorPaid (total OpCo cost)
-    const opCoBaseFee      = seniorMgmtFee;
+    //   opCoIncentiveFee ← junior paid
+    //   opCoTotalFeeRaw  ← floor + junior (both post-DS — full IRR add-back)
+    //   opCoTotalFee     ← floor + junior (total OpCo cost)
+    //   opCoSeniorPaid   ← floor actually paid (post-DS; field name kept for compat)
+    const opCoBaseFee      = opCoFloorActuallyPaid;
     const opCoBrandFee     = 0;
     const opCoIncentiveFee = opCoJuniorPaid;
-    const opCoTotalFeeRaw  = opCoJuniorPaid;
-    const opCoTotalFee     = seniorMgmtFee + opCoJuniorPaid;
+    const opCoTotalFeeRaw  = opCoFloorActuallyPaid + opCoJuniorPaid;
+    const opCoTotalFee     = opCoFloorActuallyPaid + opCoJuniorPaid;
+    const opCoSeniorPaid   = opCoFloorActuallyPaid;
 
     const amortYear = preAmortSchedule.get(year);
     const termLoanInterestForTax = amortYear?.interest ?? 0;
+
     const vat = year <= HORIZON_START_YEAR + 1 ? 0 : -(grossRevenue * a.tax.netVATRate);
     // Depreciation deductible from CIT base from OPENING_YEAR onward (asset commissioning).
     // Greek Law 4172/2013 Art. 24 — straight-line. Before commissioning: zero.
     const yearAnnualDepreciation = year >= OPENING_YEAR ? annualDepreciation : 0;
 
-    // ── Unified waterfall (both views) ────────────────────────────────────
-    // Senior floor is already in OpEx (seniorMgmtFee → propertyOpex → totalOpex
-    // → ebitdaPreOpCo). Junior fee is subordinated to DS and paid only from
-    // post-DS residual. DSCR uses ebitdaPreOpCo / DS in both views — junior
-    // is never in the DSCR numerator.
+    // ── Post-DS waterfall ─────────────────────────────────────────────────
+    // DS is senior. Floor obligation (current year + any prior accrual) paid
+    // first from post-DS residual. Junior tiers paid from what remains.
+    // Unpaid floor accrues into next year.
     //
     // NOTE (Finding A): wcInterestExpense is excluded from totalOpex / ebitdaPreOpCo
     // so it does NOT affect the DSCR numerator. It is a real cash cost and is
     // deducted explicitly from ncf, taxableProfit, and cfads below.
     // dscrLoaded carries it in the denominator: ebitdaPreOpCo / (ds + wcInterest).
     //
-    // CIT: OpCo fees to a related entity are deductible at the PropCo level
-    // under Greek CIT. Senior floor is implicit in ebitdaPreOpCo; only the
-    // junior tranche is subtracted from the taxable base here.
+    // CIT: both floor and junior are deductible at the PropCo level (related-entity
+    // management fees under Greek CIT). Floor is an explicit deduction below since
+    // it no longer reduces ebitdaPreOpCo via OpEx.
     // Depreciation (Art. 24) is deducted from the CIT base but does NOT
     // reduce EBITDA or NCF — it is a non-cash deduction (tax shield only).
-    //
-    // Junior shortfall is forfeit for the year (no accrual / carryover).
 
-    // ── Unified waterfall (both views) ────────────────────────────────────
-    const opCoSeniorPaid   = seniorMgmtFee;
-    const ebitda           = ebitdaPreOpCo - opCoJuniorPaid;
-    const ncf              = ebitdaPreOpCo - ds - opCoJuniorPaid - wcInterestExpense;
-    const dscr             = ds > 0 ? ebitdaPreOpCo / ds : 0;
-    const dscrLoaded       = ds + wcInterestExpense > 0
-      ? ebitdaPreOpCo / (ds + wcInterestExpense) : 0;
-    const taxableProfit    = Math.max(
+    const ebitda     = ebitdaPreOpCo - opCoFloorActuallyPaid - opCoJuniorPaid;
+    const ncf        = ebitdaPreOpCo - totalDS - opCoFloorActuallyPaid - opCoJuniorPaid - wcInterestExpense;
+    const dscr       = totalDS > 0 ? ebitdaPreOpCo / totalDS : 0;
+    const dscrLoaded = totalDS + wcInterestExpense > 0
+      ? ebitdaPreOpCo / (totalDS + wcInterestExpense) : 0;
+    // Floor is now an explicit deduction from taxable profit (not in OpEx any more).
+    // Commitment fee is deductible as a financing cost (bank arrangement fee).
+    const taxableProfit = Math.max(
       0,
-      ebitdaPreOpCo - yearAnnualDepreciation - opCoJuniorPaid - wcInterestExpense - termLoanInterestForTax,
+      ebitdaPreOpCo
+        - yearAnnualDepreciation
+        - opCoFloorActuallyPaid
+        - opCoJuniorPaid
+        - wcInterestExpense
+        - termLoanInterestForTax
+        - commitmentFee,
     );
 
     const ebitdaMargin = totalRevenue > 0 ? ebitda / totalRevenue : 0;
 
     const cit = year <= HORIZON_START_YEAR + 1 ? 0 : -(taxableProfit * a.tax.corporateIncomeTaxRate);
     // CFADS for LLCR/PLCR + project IRR. CIT stored negative; adding it
-    // subtracts the tax bill. Uses pre-junior-fee EBITDA so CFADS represents
+    // subtracts the tax bill. Uses pre-fee ebitdaPreOpCo so CFADS represents
     // the asset's unlevered cash flow before the owner/manager split.
     // WC interest deducted — real cash cost (Finding A).
     // VAT excluded — balance-sheet pass-through, not an income-statement item.
@@ -1716,10 +2034,13 @@ function computeScenario(
       opCoTotalFee,
       opCoTotalFeeRaw,
       opCoSeniorPaid,
+      floorAccrual: newFloorAccrual,
+      deferredFloor: deferOpeningFloor ? currentYearFloor : 0,
       opCoJuniorPaid,
       ebitda,
       ebitdaMargin,
-      debtService: ds,
+      debtService: totalDS,
+      commitmentFee,
       netCashFlow: ncf,
       vatPayable: vat,
       citPayable: cit,
@@ -1730,16 +2051,24 @@ function computeScenario(
       dscr,
       wcInterestExpense,
       dscrLoaded,
+      taxableProfit,
     };
   };
 
   // Pass 1: baseline P&L without WC interest. Build cumulative-cash map for
-  // gating the seasonal draw decisions.
+  // gating the seasonal draw decisions. Thread floorAccrualBalance so the
+  // baseline pass correctly propagates any distress accruals across years.
   const baselineCumByYear = new Map<number, number>();
   {
     let cum = 0;
+    let floorAccrualBalance = 0;
     for (const year of years) {
-      const baseline = computePnLYear(year, 0);
+      const baseline = computePnLYear(year, 0, floorAccrualBalance);
+      floorAccrualBalance = baseline.floorAccrual;
+      // Fold deferred 2029 floor into the accrual balance so it carries flat to 2030.
+      if (baseline.deferredFloor && baseline.deferredFloor > 0) {
+        floorAccrualBalance += baseline.deferredFloor;
+      }
       cum += baseline.netCashFlowPostVAT;
       baselineCumByYear.set(year, cum);
     }
@@ -1758,23 +2087,34 @@ function computeScenario(
   const amortSchedule = preAmortSchedule;
 
   // Pass 2: final P&L with WC interest threaded into OPEX, amort merged in.
+  // floorAccrualBalance carries unpaid floor obligations year-to-year.
   let cumulativeNCF = 0;
   let cumulativeYieldOnInitialEquity = 0;
   let distributionThresholdCrossed = false;
+  let floorAccrualBalance = 0;
   const pnl: AnnualPnL[] = years.map((year) => {
     const wcAnnual = wcSchedule.annual.get(year);
     const wcInterestExpense = wcAnnual?.interestExpense ?? 0;
-    const yearPnL = computePnLYear(year, wcInterestExpense);
+    const yearPnL = computePnLYear(year, wcInterestExpense, floorAccrualBalance);
+    floorAccrualBalance = yearPnL.floorAccrual;
+    // Fold deferred 2029 floor into the accrual balance so it carries flat to 2030.
+    if (yearPnL.deferredFloor && yearPnL.deferredFloor > 0) {
+      floorAccrualBalance += yearPnL.deferredFloor;
+    }
     cumulativeNCF += yearPnL.netCashFlowPostVAT;
     cumulativeYieldOnInitialEquity += yearPnL.yieldOnInitialEquity;
     const amort = amortSchedule.get(year);
     const termLoanInterest = amort?.interest ?? 0;
     const termLoanPrincipal = amort?.principal ?? 0;
     const termLoanBalance = amort?.closing ?? 0;
+    // FI-01: ICR denominator includes WC interest so interest coverage reflects
+    // all interest-bearing obligations, not just the term loan.
+    const icrDenominator = termLoanInterest + wcInterestExpense;
     const interestCoverageRatio =
-      termLoanInterest > 0 ? yearPnL.ebitda / termLoanInterest : 0;
-    // Distributions unlock when DSCR ≥ 1.0 (project covers debt service from EBITDA).
-    if ((yearPnL.dscr ?? 0) >= 1.0) {
+      icrDenominator > 0 ? yearPnL.ebitdaPreOpCo / icrDenominator : 0;
+    // Distributions unlock when NCF post-VAT first exceeds DISTRIBUTION_RESERVE_THRESHOLD.
+    // ADR-0014: gate is NCF-based (≥ threshold), not DSCR-based.
+    if (yearPnL.netCashFlowPostVAT >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD) {
       distributionThresholdCrossed = true;
     }
     const distributionGated = !distributionThresholdCrossed;
@@ -1841,7 +2181,12 @@ function computeScenario(
         // B. Pre-opening years: generate loss from interest charges incurred.
         //    termLoanInterest is the amort schedule interest (= termLoanInterestForTax).
         //    wcInterestExpense is the working-capital facility interest.
-        const lossGenerated = (row.termLoanInterest ?? 0) + (row.wcInterestExpense ?? 0);
+        //    commitmentFee is a deductible financing cost on undrawn construction tranches.
+        // opexLoss: any pre-opening OPEX that reduced ebitdaPreOpCo below zero
+        // (preOpeningAmort if amortisation starts before OPENING_YEAR, plus
+        //  constructionServicesExpense — legal/consulting fees expensed under Art. 22).
+        const opexLoss = row.ebitdaPreOpCo < 0 ? -row.ebitdaPreOpCo : 0;
+        const lossGenerated = opexLoss + (row.termLoanInterest ?? 0) + (row.wcInterestExpense ?? 0) + (row.commitmentFee ?? 0);
         if (lossGenerated > 0) {
           vintages.push({ year: row.year, remaining: lossGenerated });
         }
@@ -1853,12 +2198,16 @@ function computeScenario(
         //    rawTaxableBeforePool can be negative if depreciation + interest > EBITDA.
         //    Greek CIT: no cash refund for operational losses. Floor CIT at zero.
         //    Push operational-year losses into the vintage pool.
+        //    Both opCoSeniorPaid (floor) and opCoJuniorPaid are now post-DS deductions;
+        //    both are deductible at the PropCo level (related-entity management fees).
         const rawTaxableBeforePool =
           (row.ebitdaPreOpCo ?? 0)
           - (row.annualDepreciation ?? 0)
+          - (row.opCoSeniorPaid ?? 0)
           - (row.opCoJuniorPaid ?? 0)
           - (row.wcInterestExpense ?? 0)
-          - (row.termLoanInterest ?? 0);
+          - (row.termLoanInterest ?? 0)
+          - (row.commitmentFee ?? 0);
 
         if (rawTaxableBeforePool < 0) {
           // Depreciation + interest exceeds EBITDA — operational loss this year.
@@ -1871,6 +2220,7 @@ function computeScenario(
           row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
           const newCIT = 0;
           row.citPayable = newCIT;
+          row.taxableProfit = 0;
           row.annualDepreciation = row.annualDepreciation ?? 0; // already set, keep it
           row.cfads = (row.ebitdaPreOpCo ?? 0) - (row.wcInterestExpense ?? 0) + newCIT;
           row.profitAfterTax = (row.netCashFlow ?? 0) + newCIT;
@@ -1899,6 +2249,7 @@ function computeScenario(
           row.taxLossUtilised = totalUtilised;
           row.taxLossPoolBalance = vintages.reduce((s, v) => s + v.remaining, 0);
           row.citPayable = newCIT;
+          row.taxableProfit = Math.max(0, adjustedTaxable);
           row.cfads = (row.ebitdaPreOpCo ?? 0) - (row.wcInterestExpense ?? 0) + newCIT;
           row.profitAfterTax = (row.netCashFlow ?? 0) + newCIT;
           row.netCashFlowPostVAT = (row.netCashFlow ?? 0) + (row.vatPayable ?? 0) + newCIT;
@@ -1929,8 +2280,8 @@ function computeScenario(
     {
       let thresholdCrossed = false;
       for (const row of pnl) {
-        // Distributions unlock when DSCR ≥ 1.0 (project covers debt service from EBITDA).
-        if ((row.dscr ?? 0) >= 1.0) {
+        // ADR-0014: distributions unlock when NCF post-VAT ≥ DISTRIBUTION_RESERVE_THRESHOLD.
+        if (row.netCashFlowPostVAT >= PROJECT_CONSTANTS.DISTRIBUTION_RESERVE_THRESHOLD) {
           thresholdCrossed = true;
         }
         row.distributionGated = !thresholdCrossed;
@@ -1949,7 +2300,9 @@ function computeScenario(
   const partnerRepaymentThreshold = dsraParams?.partnerRepaymentThreshold ?? 2;
 
   // Step 3.2 — Worst-year shortfall → DSRA target size
-  const operationalRows = pnl.filter(row => row.year >= FIRST_OPERATIONAL_YEAR);
+  // FI-02: include OPENING_YEAR (2029) — the opening year can be the weakest
+  // year and excluding it would undersize the DSRA target.
+  const operationalRows = pnl.filter(row => row.year >= OPENING_YEAR);
   const shortfalls = operationalRows.map(row => {
     const ds = row.debtService ?? 0;
     const cfads = row.cfads ?? 0;
@@ -1965,8 +2318,9 @@ function computeScenario(
   // Step 3.4 — Partner advance fills the gap
   const dsraPartnerAdvance = Math.max(0, dsraTarget - dsraSweep2028);
 
-  // Step 3.5 — Pre-operational rows: zeros, effectiveDSCR = dscr
-  for (const row of pnl.filter(r => r.year < FIRST_OPERATIONAL_YEAR)) {
+  // Step 3.5 — Pre-operational rows (before OPENING_YEAR): zeros, effectiveDSCR = dscr
+  // FI-02: boundary aligned with operationalRows (year >= OPENING_YEAR).
+  for (const row of pnl.filter(r => r.year < OPENING_YEAR)) {
     row.dsraDraw = 0;
     row.dsraReplenishment = 0;
     row.dsraBalance = 0;
@@ -2257,6 +2611,14 @@ function computeScenario(
   const paybackHit = pnl.find((p) => p.cumulativeYieldOnInitialEquity >= 1);
   const equityPaybackYears = paybackHit ? paybackHit.year - HORIZON_START_YEAR : null;
 
+  // Pre-opening equity buffer: 1 month of opening-year portfolioOpex.
+  // Covers the pre-opening cash need (staff + shared costs) without drawing
+  // on the WC revolving facility (preOpeningTotalDraw = 0).
+  const openingYearRow = pnl.find((r) => r.year === OPENING_YEAR);
+  const preOpeningEquityBuffer = Math.round(
+    (openingYearRow?.portfolioOpex?.total ?? 0) / 12,
+  );
+
   const yieldStabilised = stab?.yieldOnInitialEquity ?? 0;
   const cumulativeYieldFinal = finalYear?.cumulativeYieldOnInitialEquity ?? 0;
 
@@ -2303,6 +2665,7 @@ function computeScenario(
     dsraTarget,
     dsraSweep2028,
     dsraPartnerAdvance,
+    preOpeningEquityBuffer,
   };
 }
 
@@ -2651,6 +3014,14 @@ export function computeModel(a: ModelAssumptions, capexOverride?: CapexBreakdown
     graceInterestCarry: activeDebt.graceInterestCarry,
     // Number of years the reserve is held (graceEndYear − HORIZON_START_YEAR + 1).
     graceInterestHoldYears: activeDebt.graceEndYear - HORIZON_START_YEAR + 1,
+    // 1 month of opening-year portfolioOpex. Equity-funded pre-opening buffer.
+    // Total day-one equity = equityRequired + graceInterestCarry + preOpeningEquityBuffer.
+    // portfolioOpex is financing-path-independent; use realistic scenario.
+    preOpeningEquityBuffer: realistic.preOpeningEquityBuffer,
+    // FI-04: Loan-to-Cost — fraction of total project cost financed by debt.
+    loanToProjectCost: capex.portfolioTotal > 0
+      ? activeDebt.loanAmount / capex.portfolioTotal
+      : 0,
   };
 
   const computeTimeMs = performance.now() - startTime;

@@ -82,6 +82,10 @@ export const fr = {
   'kpi.equityRequired': 'Fonds propres requis',
   'kpi.graceInterestCarry': "Réserve d'intérêts (au closing)",
   'kpi.graceInterestCarrySub': 'Intérêts 2026–2028 · remboursable après la période de grâce',
+  'kpi.capexEquity': 'Fonds propres CapEx',
+  'kpi.capexEquitySub': 'CapEx − prêt − subvention',
+  'kpi.totalEquityNeed': 'Besoin total en fonds propres',
+  'kpi.totalEquityNeedSub': 'Fonds propres CapEx + intérêts de grâce',
   'kpi.annualDS': 'SD annuel',
   'kpi.annualDSSub': 'Amortissement complet à partir de 2029',
   'kpi.netCashFlow': 'FTN (post-impôts)',
@@ -130,6 +134,7 @@ export const fr = {
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',
   'bank.bar.optimaEffective': 'Effectif',
+  'bank.bar.optimaLoanPct': 'Prêt %',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Demande de Crédit · Antiparos, Grèce',
@@ -222,6 +227,8 @@ export const fr = {
   'pnl.yieldOnEquity': 'Rendement FTN post-impôts / fonds propres initiaux',
   'pnl.totalYieldOnEquity': 'Rendement total (cumulé) / fonds propres initiaux',
   'pnl.termLoanInterest': 'Intérêts du prêt',
+  'pnl.commitmentFee': 'Commission d\'engagement',
+  'pnl.commitmentFeeTooltip': 'Facturée sur le solde de la facilité non tirée. Calculée pendant la période de décaissement de construction, indépendamment de l\'amortissement du prêt.',
   'pnl.termLoanPrincipal': 'Principal du prêt',
   'pnl.termLoanBalance': 'Solde du prêt (fin d\'année)',
   'pnl.icr': 'Couverture intérêts (ICR)',
@@ -674,6 +681,7 @@ export const fr = {
   'sens.wcSensitivity': 'Taille de la facilité FR',
   'sens.facility': 'Facilité',
   'sens.wcY2Trough': 'Creux sept. Y2',
+  'sens.dscrStabilised': 'DSCR (2030)',
 
   'inv.portfolioExpansion': 'Expansion du portefeuille · Antiparos, Grèce',
   'inv.capitalStructure': 'Structure du capital',
@@ -934,6 +942,7 @@ export const fr = {
   'dash.termsheet.pass': 'ok',
   'dash.termsheet.fail': 'échec',
   'dash.termsheet.min': 'Min',
+  'dash.termsheet.suppLoanNote': 'Suppl.',
 
   // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
   'dash.founder.section': 'Waterfall du fondateur',
@@ -989,6 +998,7 @@ export const fr = {
   'pnl.portfolioOverhead': 'Portfolio Overhead',
   // TODO: translate
   'pnl.portfolioPreOpening': 'Pre-opening amort.',
+  'pnl.portfolioConstructionServices': 'Services de construction (charges)',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'DSRA Draw',
   'pnl.dsraBalance': 'DSRA Balance (EoP)',
@@ -1029,6 +1039,9 @@ export const fr = {
   'financing.activePathNote': 'Active path highlighted. Toggle path above to switch.',
   'financing.securityNote': 'Security: 1st-rank mortgage on land + structure',
   'financing.stabilisedDSCR': 'Stabilised DSCR:',
+  'financing.commitmentFeeLabel': 'Commission d\'engagement',
+  'financing.commitmentFeeRate': 'Taux (% par an)',
+  'financing.commitmentFeeTotal': 'Total sur la période',
   'nav.groupAnalyse': 'Analyse',
   'nav.groupInputs': 'Inputs',
   'nav.groupStructure': 'Structure',
@@ -1183,7 +1196,7 @@ export const fr = {
   'presentation.s4.propA.desc': 'Two twin villas (3-bedroom + 4-bedroom), each with own entrance, private pool, and sea views. Target ADR €3,500/night net.',
   'presentation.s4.propB.desc': 'Four boutique suites — 2 Standard (40m²) and 2 Double (65m²) — plus hamam/sauna/gym and indoor/outdoor events space.',
   'presentation.s4.suiteTable.header': 'Suite Pricing',
-  'presentation.s4.events.note': 'Events and retreats income is not modelled in the Conservative case — it is unmodelled upside with proven demand.',
+  'presentation.s4.events.note': "Les revenus d'événements (~60K€/an en base) sont des revenus incrémentiels modélisés non encore démontrés par la villa en activité. Un pipeline de demande existe (40+ demandes de mariage/an) mais aucun événement n'a encore été organisé.",
   'presentation.s5.intro': 'All projections use static assumptions with no compounding. The villa ADR in the model (€3,500) is below Villa Lev\'s 2025 live rate (€3,584).',
   'presentation.s5.rampTable.header': 'Ramp-Up Profile — Realistic Scenario (Live Model)',
   'presentation.s5.opexTable.header': 'Operating Cost Structure (Annual)',
@@ -1404,6 +1417,7 @@ export const fr = {
   'ct.founder.layerBInactive':  'Inactive (no grant path)',
   'ct.founder.layerCNote':      'Tier:',
   'ct.founder.exitNote':        'Exit:',
+  'ct.founder.exitNoteDetail':  '(pari-passu + developer equity + grant bonus + ratchet above 25% IRR)', // TODO translate
   'ct.founder.floorNote':       'Floor protected at',
   'ct.equityPoolModel':         'Equity pool (model)',
   'ct.requiredFromInvestors':   'Required from investors',
@@ -1535,7 +1549,7 @@ export const fr = {
 
   // ── Optima Bank page (fr — added with CAPEX uplift sensitivity tool) ──
   'bank.optima.eyebrow': 'Optima Bank — Structure à Deux Sous-projets',
-  'bank.optima.capexNote': 'Les honoraires de prestataires et les imprévus sont absorbés dans la ligne construction selon les règles d\'éligibilité Optima Bank (structure proposée par Optima, 2026-05-28). La vue admin conserve la ventilation complète.',
+
   'bank.optima.subProjectA': 'Sous-projet A',
   'bank.optima.subProjectB': 'Sous-projet B',
   'bank.optima.loanTerm': '12 ans total / 2 ans de grâce / 10 ans d\'amortissement',
@@ -1572,9 +1586,92 @@ export const fr = {
   'bank.optima.upliftNewEquity': 'Nouveaux fonds propres nets requis',
   'bank.optima.upliftSaved': '✓ Sauvegardé',
   'bank.optima.upliftDscrVsBase': 'vs base',
+  'bank.optima.upliftCapexBreakdown': 'Détail des catégories CAPEX',
+  'bank.optima.upliftCategory': 'Catégorie',
+  'bank.optima.upliftBefore': 'Avant',
+  'bank.optima.upliftAfter': 'Après',
+  'bank.optima.upliftDeltaAmt': 'Δ Montant',
+  'bank.optima.upliftDeltaPct': 'Δ %',
+  'bank.optima.upliftExpandBreakdown': 'Afficher le détail CAPEX',
+  'bank.optima.upliftCollapseBreakdown': 'Masquer le détail CAPEX',
+  'bank.optima.pathImpactTitle': 'Absorption CAPEX par voie de financement',
+  'bank.optima.pathImpactSub': 'Comment le dépassement se répartit entre prêt supplémentaire et fonds propres',
+  'bank.optima.pathBaseline': 'Prêt de base',
+  'bank.optima.pathNew': 'Nouveau prêt',
+  'bank.optima.pathDeltaLoan': 'Δ Prêt',
+  'bank.optima.pathDeltaPct': 'Δ %',
+  'bank.optima.pathEquityChange': 'Variation des fonds propres',
   'as.optimaTab': 'Optima Bank',
   'bank.graceMode.label': 'Structure de grâce',
   'bank.graceMode.standard': 'Standard (2 ans)',
   'bank.graceMode.rolling': 'Revolving (5 ans IO)',
   'bank.graceMode.two_phase': 'Biphasé (terrain+construction)',
+
+  // ── OpCo/Cap Table redesign (2026-06-01) — EN fallback ──
+  'opco.wStep5Label': 'Distributable pool split pari-passu — investors and sponsor together',
+  'opco.wStep5Detail': 'All equity holders — investors and the sponsor\'s co-invest — receive their pro-rata cash share simultaneously from the same pool. No party is paid first.',
+  'opco.wStep6Label': 'Developer promote (Bucket 1A) and ratchet sit on top — not in front',
+  'opco.wStep6Detail': 'The sponsor holds a developer promote (Bucket 1A, free carry) and where the grant is approved a grant equity bonus. Both are additive to the sponsor\'s co-invest equity share. At exit, all three layers receive proceeds simultaneously alongside investors — no party is paid first. The ratchet (Layer C) adds an incremental bonus on top once investors reach an 8% IRR.', // TODO translate
+  'opco.wStep7Label': 'At exit — all equity layers apply to sale proceeds', // TODO translate
+  'opco.wStep7Detail': 'Exit proceeds are distributed: (1) bank repaid from proceeds; (2) all equity holders share the remainder simultaneously — sponsor co-invest, developer promote (Bucket 1A), and grant equity (where applicable) all receive their pro-rata slice at the same time. The ratchet (Layer C) adds an incremental slice for the sponsor when investor IRR at exit exceeds 25%.', // TODO translate
+  'opco.bucket1AXref': 'Bucket 1A — Sponsor equity promote (25% free carry) is a capital-structure item, not an operational fee. See Cap Table → Capital structure for detail.',
+  'ct.cs.sectionTitle': 'Capital structure',
+  'ct.cs.sponsorPromote': 'Sponsor promote equity',
+  'ct.cs.sponsorPromoteSub': 'Free carry — no cash required from sponsor',
+  'ct.cs.sponsorCoinvest': 'Sponsor co-invest',
+  'ct.cs.sponsorCoinvestSub': 'Cash invested at LP terms — pari-passu with investors',
+  'ct.cs.investorPool': 'Investor equity pool',
+  'ct.cs.investorPoolSub': '8% preferred return · 70/30 above',
+  'ct.cs.bankLoan': 'Bank loan',
+  'ct.cs.grant': 'Grant',
+  'ct.cs.grantInactive': 'Not in current path',
+  'ct.cs.totalCapex': 'Total CapEx',
+  'ct.cs.propcoPlot': 'plot',
+  'ct.cs.propcoPlots': 'plots',
+  'ct.equityWaterfall': 'Equity distribution waterfall',
+  'ct.equityWaterfallSub': 'How distributable cash flows from the pool to each holder',
+
+  // ── P&L Founder ManCo fee section (ADR-0019) ──────────────────────────────
+  'pnl.mancoFeeSection': 'Honoraires ManCo fondateur — avant distribution',
+  'pnl.postDsPostMancoResidual': 'Résidu après DS et honoraires ManCo',
+  'pnl.grantSuccessFeeLabel': 'Honoraire de succès subvention — espèces (Aggelakakis + Eytan, {year})',
+
+  // ── CapEx Absorption ──────────────────────────────────────────────────────
+  'capexAbs.title': 'ABSORPTION CAPEX',
+  'capexAbs.subtitle': 'Absorbe les lignes de coût inéligibles dans la ligne construction.',
+  'capexAbs.serviceProviders': 'Absorber prestataires',
+  'capexAbs.serviceProvidersDesc': 'Architecte, ingénieur civil, juridique, directeur de construction, licences & permis',
+  'capexAbs.contingency': 'Absorber contingence',
+  'capexAbs.contingencyDesc': 'Contingence (10% bâtiment + FF&E) — absorbée dans la ligne construction',
+  'capexAbs.constructionBefore': 'Construction avant',
+  'capexAbs.constructionAfter': 'Construction après',
+  'capexAbs.constructionDelta': 'Δ Construction',
+  'capexAbs.pathImpactTitle': 'Absorption par voie de financement',
+  'capexAbs.pathBaseline': 'Prêt de base',
+  'capexAbs.pathNew': 'Nouveau prêt',
+  'capexAbs.pathDeltaLoan': 'Δ Prêt',
+  'capexAbs.pathDeltaPct': 'Δ %',
+  'capexAbs.pathEquityChange': 'Variation fonds propres',
+  'capexAbs.ofTotalBudget': 'du budget total',
+
+  // ── Break-even (Gap 2) ──
+  'inv.sens.breakEvenLabel':     "Seuil de rentabilité d'occupation",
+  'inv.sens.breakEvenSub':       "Nuits/an couvrant le service de la dette",
+  'inv.sens.breakEvenUnit':      'nuits / an',
+  'inv.sens.bufferLabel':        'Marge de sécurité',
+  'inv.sens.bufferSub':          "Marge de revenus au-dessus du seuil de rentabilité (hypothèses actuelles)",
+  'inv.sens.breakEvenBaseNote':  "Seuil de rentabilité : hypothèses slider · Stress extrême : hypothèses de base",
+  // ── Hold period comparison (Gap 3) ──
+  'inv.sens.holdPanel.heading':    'Comparaison des périodes de détention',
+  'inv.sens.holdPanel.subheading': 'IRR et MOIC à trois années de sortie fixes — hypothèses opérationnelles actuelles, année de sortie par colonne',
+  'inv.sens.holdPanel.col5':       'Détention 5 ans',
+  'inv.sens.holdPanel.col7':       'Détention 7 ans',
+  'inv.sens.holdPanel.col11':      'Détention 11 ans',
+  'inv.sens.holdPanel.baseLabel':  'Cas de base',
+  'inv.sens.holdPanel.irrRow':     'IRR capitaux propres',
+  'inv.sens.holdPanel.moicRow':    'MOIC',
+  'inv.sens.holdPanel.tepixNote':  'Prêt TEPIX III actif pendant cette période',
+
+  // ── Events disclosure (Gap 5) ──
+  'inv.events.disclosure': "Les revenus d'événements (~60K€/an en base) sont des revenus incrémentiels modélisés sans comparable réel — Villa Lev génère actuellement 0€ d'événements. Un pipeline de demande existe (40+ demandes/an) mais ces revenus ne sont pas encore démontrés.",
 };

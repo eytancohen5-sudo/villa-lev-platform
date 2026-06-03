@@ -88,6 +88,10 @@ export const el: TranslationDictionary = {
   'kpi.equityRequired': 'Απαιτούμενα ίδια κεφάλαια',
   'kpi.graceInterestCarry': 'Αποθεματικό τόκων (κατά κλείσιμο)',
   'kpi.graceInterestCarrySub': 'Τόκοι 2026–2028 · επιστρέφεται μετά τη λήξη χάριτος',
+  'kpi.capexEquity': 'Ίδια κεφάλαια CapEx',
+  'kpi.capexEquitySub': 'CapEx − δάνειο − επιχορήγηση',
+  'kpi.totalEquityNeed': 'Συνολική ανάγκη ιδίων κεφαλαίων',
+  'kpi.totalEquityNeedSub': 'Ίδια κεφάλαια CapEx + τόκοι περιόδου χάριτος',
   'kpi.annualDS': 'Ετήσια ΕΧ',
   'kpi.annualDSSub': 'Πλήρης αποπληρωμή από το 2029',
   'kpi.netCashFlow': 'ΚΤΡ (μετά φόρων)',
@@ -159,6 +163,7 @@ export const el: TranslationDictionary = {
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',
   'bank.bar.optimaEffective': 'Εφαρμοστέο',
+  'bank.bar.optimaLoanPct': 'Ποσοστό Δανείου',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'Αίτηση Χρηματοδότησης · Αντίπαρος, Ελλάδα',
@@ -200,6 +205,9 @@ export const el: TranslationDictionary = {
   'financing.securityNote': 'Εξασφάλιση: 1ης τάξης υποθήκη σε γη + κτίριο',
   'financing.stabilisedDSCR': 'DSCR σταθεροποίησης:',
   'financing.activePathNote': 'Η ενεργή διαδρομή επισημαίνεται. Εναλλάξτε πάνω.',
+  'financing.commitmentFeeLabel': 'Προμήθεια δέσμευσης',
+  'financing.commitmentFeeRate': 'Επιτόκιο (% ετησίως)',
+  'financing.commitmentFeeTotal': 'Σύνολο περιόδου',
 
   // ── Debt Coverage page ──
   'dc.title': 'Κάλυψη Χρέους',
@@ -227,6 +235,7 @@ export const el: TranslationDictionary = {
   'pnl.portfolioOverhead': 'Γενικά Έξοδα Χαρτοφυλακίου',
  
   'pnl.portfolioPreOpening': 'Αποσβέσεις Προ-Έναρξης',
+  'pnl.portfolioConstructionServices': 'Υπηρεσίες κατασκευής (δαπάνη)',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'Ανάληψη DSRA',
   'pnl.dsraBalance': 'Υπόλοιπο DSRA (ΤΠ)',
@@ -322,6 +331,10 @@ export const el: TranslationDictionary = {
   'auth.error.popupBlocked': 'Η σύνδεση Google αποκλείστηκε από τον περιηγητή. Χρησιμοποιήστε email και κωδικό.',
   'auth.error.unauthorizedDomain': 'Αυτός ο τομέας δεν είναι εξουσιοδοτημένος για σύνδεση με Google. Ζητήστε από τον Eytan να τον προσθέσει στο Firebase Console.',
   'auth.error.unknown': 'Αποτυχία σύνδεσης. Παρακαλώ δοκιμάστε ξανά.',
+  'auth.gate.nameRequired': 'Παρακαλώ εισάγετε το όνομά σας.',
+  'auth.gate.incorrectCode': 'Λανθασμένος κωδικός πρόσβασης.',
+  'auth.gate.signingIn': 'Σύνδεση…',
+  'auth.gate.signInGoogle': 'Σύνδεση με Google',
 
   // ── Team page ──
   'team.title': 'Ομάδα',
@@ -416,6 +429,8 @@ export const el: TranslationDictionary = {
   'pnl.yieldOnEquity': 'Απόδοση Καθ. CF μετά φόρων / αρχικά ίδια κεφάλαια',
   'pnl.totalYieldOnEquity': 'Συνολική απόδοση (σωρευτική) / αρχικά ίδια κεφάλαια',
   'pnl.termLoanInterest': 'Τόκοι τραπεζικού δανείου',
+  'pnl.commitmentFee': 'Προμήθεια δεσμευμένου κεφαλαίου',
+  'pnl.commitmentFeeTooltip': 'Χρεώνεται επί του μη αναληφθέντος υπολοίπου της πίστωσης. Συσσωρεύεται κατά την κατασκευαστική περίοδο, ανεξάρτητα από το πρόγραμμα αποπληρωμής.',
   'pnl.termLoanPrincipal': 'Κεφάλαιο δανείου',
   'pnl.termLoanBalance': 'Υπόλοιπο δανείου (τέλος έτους)',
   'pnl.icr': 'Κάλυψη τόκων (ICR)',
@@ -423,6 +438,8 @@ export const el: TranslationDictionary = {
   'pnl.cit': 'Φόρος εισοδήματος',
   'pnl.ebitdaMargin': 'Περιθώριο EBITDA',
   'pnl.cfads': 'CFADS',
+  'pnl.financeSection': 'Κόστος χρηματοδότησης',
+  'pnl.taxSection': 'Φόρος',
 
   'dash.section.dealSnapshot': 'Σύνοψη συμφωνίας',
   'dash.section.coverage': 'Δείκτες κάλυψης',
@@ -553,7 +570,7 @@ export const el: TranslationDictionary = {
   'kpi.plcr': 'PLCR',
   'kpi.plcrSub': 'NPV CFADS / δάνειο, ζωή έργου',
   'kpi.covHeadroom': 'Περιθώριο DSCR (covenant)',
-  'kpi.covHeadroomSub': 'έναντι 1.25× covenant',
+  'kpi.covHeadroomSub': 'έναντι 1.25× (μέσος ζωής δανείου)',
   'kpi.equityYield': 'Απόδοση ιδίων κεφαλαίων (σταθ.)',
   'kpi.equityYieldSub': 'NCF μετά φόρων / αρχικά ίδια κεφάλαια, 2032',
   'kpi.cumYield': 'Σωρευτική απόδοση (2037)',
@@ -863,6 +880,8 @@ export const el: TranslationDictionary = {
   'field.tepixLandGap': 'Κενό γης (εμπορικό)',
   'field.tepixCombinedDS': 'Συνδυασμένη ετήσια εξυπηρέτηση',
   'field.tepixCombinedStructure': 'Συνδυασμένη δομή δανείου',
+  'field.tepixActivePathBanner': 'Το TEPIX III είναι η ενεργή χρηματοδοτική σας οδός — οι παράμετροι αυτοί εφαρμόζονται στο μοντέλο.',
+  'field.tepixInertBanner': 'Οι παράμετροι TEPIX III είναι αποθηκευμένοι αλλά όχι ενεργοί. Επιλέξτε TEPIX III παραπάνω για να τους εφαρμόσετε.',
   'comp.suppCommercialLoan': 'Συμπληρωματικό εμπορικό δάνειο (€)',
 
   'dash.section.exitPath': 'Σύγκριση Τρόπων Εξόδου',
@@ -888,6 +907,7 @@ export const el: TranslationDictionary = {
   'sens.facility': 'Πίστωση',
   'sens.wcY2Trough': 'Σεπ. Y2 ελάχιστο',
   'sens.capexSensitivity': 'Ευαισθησία CAPEX κατασκευής (±% στο κόστος/m²)',
+  'sens.dscrStabilised': 'ΔΚΕΧ (2030)',
 
   'inv.portfolioExpansion': 'Επέκταση χαρτοφυλακίου · Αντίπαρος, Ελλάδα',
   'inv.capitalStructure': 'Κεφαλαιακή διάρθρωση',
@@ -902,6 +922,7 @@ export const el: TranslationDictionary = {
   'common.path': 'Δομή',
   'common.metric': 'Δείκτης',
   'common.loading': 'Φόρτωση...',
+  'common.noData': '—',
 
   'config.title': 'Διαμορφώσεις',
   'config.save': 'Αποθήκευση',
@@ -1150,6 +1171,7 @@ export const el: TranslationDictionary = {
   'dash.termsheet.pass': 'εντός',
   'dash.termsheet.fail': 'εκτός',
   'dash.termsheet.min': 'Ελάχ.',
+  'dash.termsheet.suppLoanNote': 'Συμπλ.',
 
   // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
   'dash.founder.section': 'Καταρράκτης ιδρυτή',
@@ -1233,6 +1255,7 @@ export const el: TranslationDictionary = {
   'bank.wc.revolving': 'ανακυκλούμενη πιστωτική γραμμή',
   'bank.wc.bpsSpread': 'bps πάνω από term rate',
   'bank.wc.selfLiquidating': 'αυτο-εκκαθαριζόμενο (αποπληρώνεται στο τέλος κάθε peak season)',
+  'bank.wc.selfLiquidatingSuffix': ' · αυτο-εκκαθαριζόμενο',
   'bank.wc.notIncluded': 'δεν περιλαμβάνεται στο παραπάνω ποσό δανείου',
   'bank.wc.dual.vatBridgeLabel': '① Construction VAT bridge',
   'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · εκταμίευση 35/45/20% · τριμηνιαία επιστροφή ΑΑΔΕ, καθυστέρηση 1 τριμήνου · μέγιστο float €145.711',
@@ -1559,7 +1582,7 @@ export const el: TranslationDictionary = {
   'presentation.s4.propA.desc': 'Δύο ταυτόσημες βίλες (3 + 4 υπνοδωμάτια), κάθε μία με ιδιαίτερη είσοδο, ιδιωτική πισίνα και θέα στη θάλασσα. Στόχος ΜΗΤ €3.500/βράδυ καθαρό.',
   'presentation.s4.propB.desc': 'Τέσσερις boutique σουίτες — 2 Τυπικές (40m²) και 2 Διπλές (65m²) — συν hamam/σάουνα/γυμναστήριο και εσωτερικό/εξωτερικό χώρο εκδηλώσεων.',
   'presentation.s4.suiteTable.header': 'Τιμολόγηση Σουιτών',
-  'presentation.s4.events.note': 'Τα έσοδα από εκδηλώσεις και retreats δεν προβλέπονται στο Συντηρητικό σενάριο — αποτελούν μη μοντελοποιημένη ανοδική δυνατότητα με αποδεδειγμένη ζήτηση.',
+  'presentation.s4.events.note': 'Έσοδα εκδηλώσεων (~€60K/έτος στη βάση) αποτελούν μοντελοποιημένα αυξητικά έσοδα που δεν έχουν αποδειχθεί ακόμη από τη λειτουργούσα βίλα. Υπάρχει αγωγός ζήτησης (40+ ετήσια αιτήματα γάμων) αλλά δεν έχουν πραγματοποιηθεί εκδηλώσεις έως σήμερα.',
   'presentation.s5.intro': 'Όλες οι προβλέψεις χρησιμοποιούν στατικές παραδοχές χωρίς σύνθεση. Το ΜΗΤ βίλας στο μοντέλο (€3.500) είναι κατώτερο του ζωντανού ρυθμού Villa Lev 2025 (€3.584).',
   'presentation.s5.rampTable.header': 'Προφίλ Ανόδου — Ρεαλιστικό Σενάριο (Ζωντανό Μοντέλο)',
   'presentation.s5.opexTable.header': 'Δομή Λειτουργικού Κόστους (Ετήσιο)',
@@ -1677,7 +1700,7 @@ export const el: TranslationDictionary = {
   'presentation.s8.alignment.1b.mechanism': 'Αμοιβή συμβούλου TEPIX III',
   'presentation.s8.alignment.1b.detail': '10% της επιχορήγησης TEPIX III ως αμοιβή συμβούλου, αναβαλλόμενη έως εκταμίευση — ευθυγραμμίζει τον φορέα με έγκριση επιχορήγησης.',
   'presentation.s8.alignment.1c.mechanism': 'Μηχανισμός απόδοσης κατά έξοδο',
-  'presentation.s8.alignment.1c.detail': '0% μερίδιο φορέα αν IRR < 8% · +9% για IRR 8–22% · +29% αν IRR ≥ 22%.',
+  'presentation.s8.alignment.1c.detail': '0% μερίδιο φορέα αν IRR < 8% · +9% για IRR 8–25% · +29% αν IRR ≥ 25%.', // TODO translate
   'presentation.s8.alignment.2a.mechanism': 'Αμοιβή διαχείρισης (ακαθάριστα έσοδα)',
   'presentation.s8.alignment.2a.detail': '5% ακαθάριστων εσόδων, ελάχιστο €24.000/βίλα/έτος. Ανώτερη της εξυπηρέτησης χρέους.',
   'presentation.s8.alignment.2b.mechanism': 'Αμοιβή κινήτρου (GOP πάνω από hurdle)',
@@ -1797,10 +1820,30 @@ export const el: TranslationDictionary = {
   'inv.sens.resetAll':       'Επαναφορά στη βάση',
   'inv.sens.covenantLegend': 'IRR ≥ 15% · MOIC ≥ 2,0× · Απόδοση ≥ 12%',
   'inv.sens.paybackUnit':    'έτη',
+  // ── Break-even (Gap 2) ──
+  'inv.sens.breakEvenLabel':     'Νεκρό σημείο πληρότητας',
+  'inv.sens.breakEvenSub':       'Διανυκτερεύσεις/έτος για κάλυψη χρεολυσίου',
+  'inv.sens.breakEvenUnit':      'διανυκτερεύσεις / έτος',
+  'inv.sens.bufferLabel':        'Περιθώριο ασφαλείας',
+  'inv.sens.bufferSub':          'Περιθώριο εσόδων πάνω από το νεκρό σημείο (με τρέχουσες παραδοχές)',
+  'inv.sens.breakEvenBaseNote':  'Το νεκρό σημείο χρησιμοποιεί παραδοχές slider · το ακραίο σενάριο χρησιμοποιεί βασικές παραδοχές',
+  // ── Hold period comparison (Gap 3) ──
+  'inv.sens.holdPanel.heading':    'Σύγκριση περιόδου διακράτησης',
+  'inv.sens.holdPanel.subheading': 'IRR και MOIC σε τρία σταθερά έτη εξόδου — τρέχουσες λειτουργικές παραδοχές, έτος εξόδου ανά στήλη',
+  'inv.sens.holdPanel.col5':       'Διακράτηση 5 ετών',
+  'inv.sens.holdPanel.col7':       'Διακράτηση 7 ετών',
+  'inv.sens.holdPanel.col11':      'Διακράτηση 11 ετών',
+  'inv.sens.holdPanel.baseLabel':  'Βασικό σενάριο',
+  'inv.sens.holdPanel.irrRow':     'IRR κεφαλαίου',
+  'inv.sens.holdPanel.moicRow':    'MOIC',
+  'inv.sens.holdPanel.tepixNote':  'Δάνειο ΤΕΠΙΧ ΙΙΙ ενεργό κατά αυτή την περίοδο',
 
   // ── Bank sensitivity tab (2026-05-25) ──
   'bank.tabs.overview':       'Επισκόπηση',
   'bank.tabs.sensitivity':    'Ανάλυση Ευαισθησίας',
+  'bank.tabs.creditAnalysis': 'Πιστωτική Ανάλυση',
+  'bank.tabs.vatCashflow':    'ΦΠΑ Κατασκευής',
+  'bank.optimaLink':          'Δείτε όρους Optima',
   'bank.sens.title':          'Ανάλυση Ευαισθησίας σε Πραγματικό Χρόνο',
   'bank.sens.subtitle':       'Προσαρμόστε βασικές παραδοχές και παρακολουθήστε DSCR, LTV, ICR και NOI να υπολογίζονται αυτόματα.',
   'bank.sens.slidersHeading': 'Ρύθμιση παραμέτρων',
@@ -1819,7 +1862,7 @@ export const el: TranslationDictionary = {
   'bank.sens.opexSub':        'Περιθώριο ασφαλείας στις ελεγχόμενες λειτουργικές δαπάνες',
   'bank.sens.baseValue':      'Βάση',
   'bank.sens.dscrLabel':      'DSCR',
-  'bank.sens.dscrSub':        'Σταθεροποιημένο έτος · σύμβαση ≥ 1,25×',
+  'bank.sens.dscrSub':        'Πρώτο λειτ. έτος 2030 · σύμβαση ≥ 1,25×',
   'bank.sens.ltvLabel':       'LTV',
   'bank.sens.ltvSub':         'Κατά ολοκλήρωση · εκτιμηθείσα αξία',
   'bank.sens.icrLabel':       'ICR',
@@ -1956,6 +1999,7 @@ export const el: TranslationDictionary = {
   'ct.founder.layerBInactive':  'Ανενεργό (χωρίς διαδρομή επιχορήγησης)',
   'ct.founder.layerCNote':      'Βαθμίδα:',
   'ct.founder.exitNote':        'Έξοδος:',
+  'ct.founder.exitNoteDetail':  '(pari-passu + developer equity + grant bonus + ratchet above 25% IRR)', // TODO translate
   'ct.founder.floorNote':       'Κατώτατο προστατευμένο σε',
   'ct.equityPoolModel':         'Equity pool (μοντέλο)',
   'ct.requiredFromInvestors':   'Απαιτούμενο από επενδυτές',
@@ -2040,6 +2084,7 @@ export const el: TranslationDictionary = {
   'field.licensesPermits':         'Άδειες & εγκρίσεις',
   'field.constructionDirector':    'Διευθυντής κατασκευής',
   'field.interiorDesignerCost':    'Εσωτερικός σχεδιαστής',
+  'field.devConstructionFeePerYear': 'Αμοιβή κατασκευής developer (ανά έτος)',
   'field.poolCostPerM2':           'Κόστος κατασκευής πισίνας (€/m²)',
   'field.poolSlotQty':             'Count',
   'field.poolSlotWidth':           'Πλάτος (m)',
@@ -2063,6 +2108,8 @@ export const el: TranslationDictionary = {
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
   'pnl.depreciation':        'Αποσβέσεις (Άρθ. 24, σταθερή μέθοδος)',
   'pnl.ebit':                'EBIT (μετά αποσβέσεων)',
+  'pnl.capitalStructure':    'Κεφαλαιακή Δομή',
+  'pnl.capitalStructureSub': 'Ενεργή οδός · τιμές σταθεροποιημένου έτους · ενημερώνεται σε κάθε αλλαγή παραδοχής',
   'term.annualDepreciation': 'Ετήσιες αποσβέσεις',
   'pnl.vatMemoSection': 'ΦΠΑ κατασκευής — χρονισμός (υπόμνημα — εκτός NCF)',
   'pnl.vatReceivable': 'Υπόλοιπο απαίτησης ΦΠΑ / επιστροφή',
@@ -2084,6 +2131,22 @@ export const el: TranslationDictionary = {
   'finComp.payback':               'Περίοδος αποπληρωμής',
   'finComp.totalEquityAtClose':    'Σύνολο ΙΚ κατά κλείσιμο',
   'finComp.minDSCRLoanLife':       'Ελάχιστο DSCR (διάρκεια δανείου)',
+
+  // ── Analytics page ───────────────────────────────────────────────────────
+  'nav.analytics':                 'Αναλυτικά',
+  'analytics.title':               'Αναλυτικά Λειτουργιών',
+  'analytics.pageIntro':           'Τηλεμετρία χρήσης εσωτερικών λειτουργιών — μέσω Firestore.',
+  'analytics.range7d':             '7 ημέρες',
+  'analytics.range30d':            '30 ημέρες',
+  'analytics.range90d':            '90 ημέρες',
+  'analytics.colFeature':          'Λειτουργία',
+  'analytics.colTotalOpens':       'Ανοίγματα',
+  'analytics.colUniqueSessions':   'Μοναδικές συνεδρίες',
+  'analytics.colAdminOpens':       'Διαχείριση',
+  'analytics.colBankOpens':        'Τράπεζα',
+  'analytics.colLastUsed':         'Τελευταία χρήση',
+  'analytics.noData':              'Δεν υπάρχουν δεδομένα για το επιλεγμένο διάστημα.',
+  'analytics.loading':             'Φόρτωση…',
 
   // ── Connections page ──────────────────────────────────────────────────────
   'nav.connections':               'Συνδέσεις',
@@ -2167,7 +2230,7 @@ export const el: TranslationDictionary = {
 
   // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
   'bank.optima.eyebrow': 'Optima Bank — Δομή Δύο Υπο-έργων',
-  'bank.optima.capexNote': 'Αμοιβές παρόχων υπηρεσιών και απρόβλεπτα ενσωματωμένα στη γραμμή κατασκευής σύμφωνα με τους κανόνες επιλεξιμότητας Optima Bank (πρόταση Optima, 2026-05-28). Η προβολή διαχειριστή διατηρεί την πλήρη ανάλυση.',
+
   'bank.optima.subProjectA': 'Υπο-έργο Α',
   'bank.optima.subProjectB': 'Υπο-έργο Β',
   'bank.optima.loanTerm': '12 έτη συνολικά / 2 έτη χάριτος / 10 έτη αποπληρωμής',
@@ -2204,6 +2267,21 @@ export const el: TranslationDictionary = {
   'bank.optima.upliftNewEquity': 'Νέα καθαρή ίδια κεφάλαια',
   'bank.optima.upliftSaved': '✓ Αποθηκεύτηκε',
   'bank.optima.upliftDscrVsBase': 'vs βάση',
+  'bank.optima.upliftCapexBreakdown': 'Ανάλυση κατηγοριών CAPEX',
+  'bank.optima.upliftCategory': 'Κατηγορία',
+  'bank.optima.upliftBefore': 'Πριν',
+  'bank.optima.upliftAfter': 'Μετά',
+  'bank.optima.upliftDeltaAmt': 'Δ Ποσό',
+  'bank.optima.upliftDeltaPct': 'Δ %',
+  'bank.optima.upliftExpandBreakdown': 'Εμφάνιση ανάλυσης CAPEX',
+  'bank.optima.upliftCollapseBreakdown': 'Απόκρυψη ανάλυσης CAPEX',
+  'bank.optima.pathImpactTitle': 'Απορρόφηση CAPEX ανά μονοπάτι',
+  'bank.optima.pathImpactSub': 'Πώς η υπέρβαση κατανέμεται σε δάνειο και ίδια κεφάλαια ανά μονοπάτι',
+  'bank.optima.pathBaseline': 'Δάνειο βάσης',
+  'bank.optima.pathNew': 'Νέο δάνειο',
+  'bank.optima.pathDeltaLoan': 'Δ Δάνειο',
+  'bank.optima.pathDeltaPct': 'Δ %',
+  'bank.optima.pathEquityChange': 'Μεταβολή ιδίων κεφαλαίων',
   'as.optimaTab': 'Optima Bank',
   'bank.graceMode.label': 'Δομή εκταμίευσης',
   'bank.graceMode.standard': 'Ενιαίο δάνειο',
@@ -2212,6 +2290,165 @@ export const el: TranslationDictionary = {
   'bank.graceMode.two_phase.desc': 'Δύο ανεξάρτητα δάνεια: Φάση 1 (οικόπεδα) εκταμιεύεται ως εφάπαξ με χάρη 2 ετών. Φάση 2 (κατασκευή) εκταμιεύεται ολόκληρη στην έναρξη Φάσης 2 με δική της χάρη 2 ετών. Κάθε δάνειο αποσβένεται ανεξάρτητα.',
   'bank.graceMode.rolling': 'Σταδιακή εκταμίευση',
   'bank.graceMode.rolling.desc': 'Ίδια δομή δύο δανείων, αλλά η Φάση 2 εκταμιεύεται σε 4 εξαμηνιαίες δόσεις 25% έκαστη. Κάθε δόση έχει δική της χάρη 2 ετών — η αποπληρωμή ξεκινά σταδιακά, μειώνοντας το χρέος στα πρώτα λειτουργικά έτη.',
+  'bank.graceMode.rolling_cohort': 'Ενιαία χάρη',
+  'bank.graceMode.rolling_cohort.desc': 'Η κατασκευή εκταμιεύεται σε 4 δόσεις 25% ανά εξάμηνο — τόκοι μόνο στα εκταμιευθέντα ποσά. Ενιαία περίοδος χάριτος από την πρώτη εκταμίευση: όλες οι δόσεις αρχίζουν αποπληρωμή ταυτόχρονα μετά τη λήξη χάριτος.',
   'bank.graceMode.plotsStart': 'Έναρξη Φάσης 1 — οικόπεδα',
   'bank.graceMode.constructionStart': 'Έναρξη Φάσης 2 — κατασκευή',
+
+  // ── OpCo/Cap Table redesign — waterfall steps (2026-06-01) ──
+  'opco.wStep5Label': 'Διανομή ταμείου pari-passu (επενδυτές + χορηγός ταυτόχρονα)',
+  'opco.wStep5Detail': 'Όλοι οι μέτοχοι — επενδυτές και η συν-επένδυση του χορηγού — λαμβάνουν ταυτόχρονα αναλογικά από το ίδιο ταμείο. Κανείς δεν πληρώνεται πρώτος.',
+  'opco.wStep6Label': 'Promote χορηγού (Κάδος 1Α) και ratchet πάνω — όχι πριν',
+  'opco.wStep6Detail': 'The sponsor holds a developer promote (Bucket 1A, free carry) and where the grant is approved a grant equity bonus. Both are additive to the sponsor\'s co-invest equity share. At exit, all three layers receive proceeds simultaneously alongside investors — no party is paid first. The ratchet (Layer C) adds an incremental bonus on top once investors reach an 8% IRR.', // TODO translate
+  'opco.wStep7Label': 'At exit — all equity layers apply to sale proceeds', // TODO translate
+  'opco.wStep7Detail': 'Exit proceeds are distributed: (1) bank repaid from proceeds; (2) all equity holders share the remainder simultaneously — sponsor co-invest, developer promote (Bucket 1A), and grant equity (where applicable) all receive their pro-rata slice at the same time. The ratchet (Layer C) adds an incremental slice for the sponsor when investor IRR at exit exceeds 25%.', // TODO translate
+
+  // Bucket 1A cross-reference on OpCo tab
+  'opco.bucket1AXref': 'Κάδος 1Α — Το promote μετοχών χορηγού (25% ελεύθερη συμμετοχή) είναι κεφαλαιακό στοιχείο, όχι λειτουργική αμοιβή. Βλ. Cap Table → Κεφαλαιακή δομή για λεπτομέρειες.',
+
+  // ── Cap Table — capital structure section (migrated from opco-split) ──
+  'ct.cs.sectionTitle': 'Κεφαλαιακή δομή',
+  'ct.cs.sponsorPromote': 'Μετοχές promote χορηγού',
+  'ct.cs.sponsorPromoteSub': 'Ελεύθερη συμμετοχή — δεν απαιτείται μετρητά από τον χορηγό',
+  'ct.cs.sponsorCoinvest': 'Συν-επένδυση χορηγού',
+  'ct.cs.sponsorCoinvestSub': 'Μετρητά σε LP όρους — pari-passu με επενδυτές',
+  'ct.cs.investorPool': 'Δεξαμενή επενδυτών',
+  'ct.cs.investorPoolSub': '8% προτεραιότητα · 70/30 πάνω',
+  'ct.cs.bankLoan': 'Τραπεζικό δάνειο',
+  'ct.cs.grant': 'Επιχορήγηση',
+  'ct.cs.grantInactive': 'Μη ενεργό στο τρέχον μονοπάτι',
+  'ct.cs.totalCapex': 'Συνολικό CapEx',
+  'ct.cs.propcoPlot': 'οικόπεδο',
+  'ct.cs.propcoPlots': 'οικόπεδα',
+
+  // ── Cap Table — equity waterfall section ──
+  'ct.equityWaterfall': 'Waterfall διανομής ιδίων κεφαλαίων',
+  'ct.equityWaterfallSub': 'Πώς τα διανεμητέα μετρητά ρέουν από το ταμείο σε κάθε κάτοχο',
+
+  // ── P&L Founder ManCo fee section (ADR-0019) ──────────────────────────────
+  'pnl.mancoFeeSection': 'Αμοιβή ManCo ιδρυτή — προ μετόχων',
+  'pnl.postDsPostMancoResidual': 'Υπόλοιπο μετά DS και αμοιβής ManCo',
+  'pnl.grantSuccessFeeLabel': 'Αμοιβή επιτυχίας επιχορήγησης — μετρητά (Aggelakakis + Eytan, {year})',
+
+  // ── CapEx Absorption ──────────────────────────────────────────────────────
+  'capexAbs.title': 'ΑΠΟΡΡΟΦΗΣΗ CAPEX',
+  'capexAbs.subtitle': 'Απορροφά ανεπίλεκτες γραμμές κόστους στη γραμμή κατασκευής.',
+  'capexAbs.serviceProviders': 'Απορρόφηση παρόχων υπηρεσιών',
+  'capexAbs.serviceProvidersDesc': 'Αρχιτέκτονας, πολιτικός μηχανικός, νομικά, διευθυντής κατασκευών, άδειες & εγκρίσεις',
+  'capexAbs.contingency': 'Απορρόφηση πρόβλεψης',
+  'capexAbs.contingencyDesc': 'Πρόβλεψη (10% κατασκευής + FF&E) — στη γραμμή κατασκευής',
+  'capexAbs.constructionBefore': 'Κατασκευή πριν',
+  'capexAbs.constructionAfter': 'Κατασκευή μετά',
+  'capexAbs.constructionDelta': 'Δ Κατασκευή',
+  'capexAbs.pathImpactTitle': 'Απορρόφηση ανά μονοπάτι',
+  'capexAbs.pathBaseline': 'Δάνειο βάσης',
+  'capexAbs.pathNew': 'Νέο δάνειο',
+  'capexAbs.pathDeltaLoan': 'Δ Δάνειο',
+  'capexAbs.pathDeltaPct': 'Δ %',
+  'capexAbs.pathEquityChange': 'Μεταβολή ιδίων',
+  'capexAbs.ofTotalBudget': 'επί του συνολικού προϋπολογισμού',
+
+  // ── P1-07/08/09/10: Bank view additions (2026-06-03) ──
+  'bank.stress.output.dscrStabilised': 'Σταθερ.:',
+  'bank.exit.sectionTitle': 'Ανάλυση Εξόδου',
+  'bank.exit.sectionSub': 'Τελική αξία περιουσιακού στοιχείου, υπολειπόμενο χρέος και LTV εξόδου.',
+  'bank.exit.exitYear': 'Έτος Εξόδου',
+  'bank.exit.terminalAsset': 'Τελική Αξία Ενεργητικού',
+  'bank.exit.terminalAssetSub': 'EBITDA × πολλαπλασιαστής',
+  'bank.exit.loanAtExit': 'Υπόλοιπο Δανείου στην Έξοδο',
+  'bank.exit.loanAtExitSub': 'Υπολειπόμενο χρέος',
+  'bank.exit.terminalLTV': 'Τελικό LTV',
+  'bank.exit.ltvPass': 'OK',
+  'bank.exit.ltvFail': 'αποτυχία',
+  'bank.exit.ltvThreshold': '≤ 70% όριο',
+  'bank.exit.underwaterNote': 'Κατά την έξοδο, το υπόλοιπο δανείου υπερβαίνει την αξία του ενεργητικού.',
+  'bank.kpi.wcFacilityLabel': 'Διευκόλυνση ΚΚ',
+  'bank.wc.adequacyBelowMin': 'ενδέχεται να είναι κάτω από το ελάχιστο',
+  'bank.wc.adequacyShortfall': 'Έλλειμμα:',
+  'bank.stabilised.ebitdaMarginBenchmark': 'Εύρος κλάδου: 40–55% (boutique φιλοξενία)',
+  'bank.stabilised.ffeReserve': 'εκ των οποίων Αποθεματικό FF&E',
+  'bank.kpi.revpar': 'RevPAR (σταθεροποιημένο)',
+  'bank.kpi.revparSub': 'Έσοδα / διαθέσιμα δωρόνυκτα',
+  'bank.kpi.ltvCovenant': 'Σύμφωνο LTV',
+  'bank.kpi.ltvCovenantThreshold': '≤ 70% όριο τράπεζας',
+  'bank.kpi.preOpening': 'Προϋπολογισμός Προ-Λειτουργίας',
+  'bank.kpi.preOpeningAmort': 'απόσβεση',
+  'bank.kpi.mgmtFee': 'Αμοιβή Διαχ.',
+  'bank.kpi.mgmtFeeBaseLabel': 'Βασικό ποσοστό',
+  'bank.kpi.mgmtFeeIncentiveLabel': 'κίνητρο',
+
+  // ── P1-14: In-page anchor bars (2026-06-03) ──
+  'dash.anchor.overview': 'Επισκόπηση',
+  'dash.anchor.returns': 'Αποδόσεις',
+  'dash.anchor.dscr': 'DSCR',
+  'dash.anchor.conservatism': 'Συντηρητισμός',
+  'dash.anchor.founder': 'Ιδρυτής',
+  'bank.anchor.termSheet': 'Δελτίο Όρων',
+  'bank.anchor.dealOverview': 'Συμφωνία',
+  'bank.anchor.loanMetrics': 'Μετρικές Δανείου',
+  'bank.anchor.dscr': 'DSCR',
+  'bank.anchor.capital': 'Κεφάλαιο',
+  'bank.anchor.pnl': 'ΚΑΧ',
+
+  // ── P1-15: Accessibility aria labels (2026-06-03) ──
+  'aria.chart.dscr': 'Γράφημα πορείας DSCR',
+  'aria.chart.paymentCapacity': 'Γράφημα ικανότητας πληρωμής',
+  'aria.chart.dsra': 'Γράφημα αποθεματικού DSRA',
+  'aria.chart.revenue': 'Γράφημα εσόδων και EBITDA',
+  'aria.chart.allPathsDscr': 'Γράφημα DSCR για όλες τις χρηματοδοτικές οδούς',
+  'aria.chart.capitalStructure': 'Γράφημα κεφαλαιακής δομής',
+  'aria.table.caption.portfolio': 'Ανάλυση χαρτοφυλακίου ανά οικόπεδο',
+  'aria.table.caption.capex': 'Ανάλυση CAPEX ανά ακίνητο',
+  'aria.table.caption.dscrSummary': 'Σύνοψη DSCR ανά σενάριο',
+  'aria.table.caption.financingComparison': 'Σύγκριση χρηματοδοτικών οδών',
+  'aria.table.caption.pnl': 'Προβλεπόμενη χρονολογική εξέλιξη ΚΑΧ',
+
+  // ── P1-16: Connected viewers i18n (2026-06-03) ──
+  'bank.admin.connectedViewers': 'Συνδεδεμένοι θεατές',
+  'bank.admin.noActiveViewers': 'Δεν υπάρχουν ενεργοί θεατές.',
+  'bank.admin.anonBadge': 'ανών.',
+
+  // ── P1-17: i18n fixes (2026-06-03) ──
+  'assumptions.lastSaved': 'Τελευταία αποθήκευση',
+  'connections.action.excel': 'Excel ↓',
+  'connections.action.presentation': 'Παρουσίαση',
+  'connections.action.tour': 'Ξενάγηση',
+  'connections.time.justNow': 'μόλις τώρα',
+  'connections.time.secondsAgo': '{{n}}δ πριν',
+  'connections.time.minutesAgo': '{{n}}λ πριν',
+  'connections.time.hoursAgo': '{{n}}ω πριν',
+  'connections.time.daysAgo': '{{n}}η πριν',
+
+  'sau.equityFirstNote': 'Τα ίδια κεφάλαια εκταμιεύονται πρώτα, πριν από οποιαδήποτε εκταμίευση δανείου.',
+  'pnl.dscrNumeratorNote': 'Ο DSCR χρησιμοποιεί EBITDA προ-OpCo στην τραπεζική προβολή (EBITDA πριν από αμοιβές διαχείρισης).',
+  'bank.equityOverview.graceInterestReserve': 'Αποθεματικό Τόκων Χάριτος',
+  'bank.equityOverview.graceInterestReserveSub': 'Τόκοι που συσσωρεύτηκαν πριν από έσοδα κατά την περίοδο χάριτος 2026–2028 — επιστρέφονται στα ίδια κεφάλαια μετά τη χάριτος.',
+  'bank.bar.breakevenSub': 'Διπλή καταπόνηση: ADR + πληρότητα ταυτόχρονα',
+  'bank.actions.onRequest.title': 'Επιπλέον υλικά διαθέσιμα κατόπιν αιτήματος',
+  'bank.actions.onRequest.sub': 'Υπόδειγμα Excel και παρουσίαση διαθέσιμα κατόπιν αιτήματος.',
+
+  // ── CAPEX Comparison page ──
+  'nav.capexComparison': 'Σύγκριση CAPEX',
+  'admin.capexComparison.title': 'Σύγκριση CAPEX — Πραγματικό vs. Δηλωθέν',
+  'admin.capexComparison.pageIntro': 'Εισάγετε εικονική αύξηση για σύγκριση δηλωθέντος και πραγματικού CAPEX. Τα στοιχεία δεν αποθηκεύονται.',
+  'admin.capexComparison.disclaimer': 'Υποθετικό — δεν αποθηκεύεται',
+  'admin.capexComparison.inputLabel': 'Εικονική αύξηση',
+  'admin.capexComparison.modeAbs': '€k',
+  'admin.capexComparison.modePct': '% πραγματικού CAPEX',
+  'admin.capexComparison.colTrue': 'Πραγματικό CAPEX',
+  'admin.capexComparison.colStated': 'Δηλωθέν CAPEX',
+  'admin.capexComparison.colDelta': 'Διαφορά',
+  'admin.capexComparison.colBankNote': 'Για τράπεζα',
+  'admin.capexComparison.rowCapexTotal': 'Σύνολο CAPEX',
+  'admin.capexComparison.rowEquityRequired': 'Ίδια κεφάλαια',
+  'admin.capexComparison.rowLoan': 'Σύνολο δανείου',
+  'admin.capexComparison.rowDepreciation': 'Ετήσιες αποσβέσεις',
+  'admin.capexComparison.rowEbitda': 'Σταθεροποιημένο EBITDA',
+  'admin.capexComparison.rowEbitdaNote': '(δεν επηρεάζεται)',
+  'admin.capexComparison.rowDscr': 'Σταθεροποιημένο DSCR',
+  'admin.capexComparison.rowIrr': 'IRR Ιδίων Κεφαλαίων',
+  'admin.capexComparison.inactiveHint': 'Εισάγετε αύξηση για να ενεργοποιήσετε τη σύγκριση.',
+
+  // ── Events disclosure (Gap 5) ──
+  'inv.events.disclosure': 'Τα έσοδα εκδηλώσεων (~€60K/έτος στη βάση) είναι μοντελοποιημένα αυξητικά έσοδα χωρίς πραγματικό συγκριτικό — η Villa Lev δεν παράγει επί του παρόντος έσοδα από εκδηλώσεις (€0). Ο αγωγός ζήτησης υπάρχει (40+ αιτήματα/έτος) αλλά δεν αποτελεί αποδεδειγμένο εισόδημα.',
 };

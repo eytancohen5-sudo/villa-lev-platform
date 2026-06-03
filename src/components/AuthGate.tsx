@@ -8,19 +8,31 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signInAnonymously, updateProfile, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getAuthInstance } from "@/lib/firebase";
+import { useTranslation } from "@/lib/i18n/I18nProvider";
 
 const ADMIN_EMAIL = (process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? "").toLowerCase();
 
 const PASS_KEY = "vl-admin-pass";
 const NAME_KEY = "vl-admin-name";
 
-function checkStored(): boolean {
+// Security note (BE-01): The raw password still ships in the client bundle via
+// NEXT_PUBLIC_ADMIN_PASS — this hashing layer only prevents a stolen localStorage
+// token from being used as a one-shot credential elsewhere. Full mitigation
+// requires moving auth to a server-side secret (tracked separately).
+async function sha256(message: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function checkStored(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   try {
-    return (
-      localStorage.getItem(PASS_KEY) ===
-      (process.env.NEXT_PUBLIC_ADMIN_PASS ?? "")
-    );
+    const stored = localStorage.getItem(PASS_KEY);
+    if (!stored) return false;
+    const expected = await sha256(process.env.NEXT_PUBLIC_ADMIN_PASS ?? "");
+    return stored === expected;
   } catch {
     return false;
   }
@@ -29,6 +41,7 @@ function checkStored(): boolean {
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useTranslation();
 
   const [mounted, setMounted] = useState(false);
   const [authorized, setAuthorized] = useState(false);
@@ -38,11 +51,67 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    setAuthorized(checkStored());
-    try {
-      setName(localStorage.getItem(NAME_KEY) ?? "");
-    } catch { /* private mode */ }
+    void (async () => {
+      const isAuthorized = await checkStored();
+
+      if (isAuthorized) {
+        try { setName(localStorage.getItem(NAME_KEY) ?? ""); } catch { /* private mode */ }
+        setAuthorized(true);
+        // Re-establish anon Firebase session on return visits. The password gate
+        // persists in localStorage indefinitely, but the anon auth session can
+        // expire. Without this, canEdit stays false and saves silently fail.
+        const auth = getAuthInstance();
+        if (auth) {
+          void (async () => {
+            try {
+              if (typeof (auth as { authStateReady?: () => Promise<void> }).authStateReady === 'function') {
+                await (auth as { authStateReady: () => Promise<void> }).authStateReady();
+              }
+              if (!auth.currentUser) {
+                const storedName = (() => { try { return localStorage.getItem(NAME_KEY) ?? ""; } catch { return ""; } })();
+                const cred = await signInAnonymously(auth);
+                if (cred.user && storedName) {
+                  await updateProfile(cred.user, { displayName: storedName });
+                }
+              }
+            } catch { /* non-fatal — UI still works, writes will fail gracefully */ }
+          })();
+        }
+      } else {
+        // localStorage hash missing — check if Firebase Auth already has a live
+        // non-anonymous session (e.g. Eytan's Google sign-in). Mirrors BankGate's
+        // checkExistingAuth pattern: setMounted is deferred so the form never
+        // flashes for an already-authenticated admin.
+        const auth = getAuthInstance();
+        let autoAuthorized = false;
+        if (auth) {
+          try {
+            if (typeof (auth as { authStateReady?: () => Promise<void> }).authStateReady === 'function') {
+              await (auth as { authStateReady: () => Promise<void> }).authStateReady();
+            }
+          } catch { /* ignore */ }
+          const user = auth.currentUser;
+          if (user && !user.isAnonymous) {
+            const displayName = user.displayName ?? user.email ?? "Eytan";
+            try {
+              const hash = await sha256(process.env.NEXT_PUBLIC_ADMIN_PASS ?? "");
+              localStorage.setItem(PASS_KEY, hash);
+              localStorage.setItem(NAME_KEY, displayName);
+            } catch { /* private mode */ }
+            setName(displayName);
+            setAuthorized(true);
+            autoAuthorized = true;
+          }
+        }
+        if (!autoAuthorized) {
+          try { setName(localStorage.getItem(NAME_KEY) ?? ""); } catch { /* private mode */ }
+        }
+      }
+
+      // Always set mounted last — component renders null until this point,
+      // so the name-entry form never flashes for an authenticated admin.
+      setMounted(true);
+    })();
   }, []);
 
   // Login page and public routes bypass the gate.
@@ -69,7 +138,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         }
         const displayName = cred.user.displayName ?? "Eytan";
         try {
-          localStorage.setItem(PASS_KEY, process.env.NEXT_PUBLIC_ADMIN_PASS ?? "");
+          const hash = await sha256(process.env.NEXT_PUBLIC_ADMIN_PASS ?? "");
+          localStorage.setItem(PASS_KEY, hash);
           localStorage.setItem(NAME_KEY, displayName);
         } catch { /* private mode */ }
         setAuthorized(true);
@@ -86,10 +156,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
 
     const submit = () => {
-      if (!name.trim()) { setError("Please enter your name."); return; }
-      if (pass === (process.env.NEXT_PUBLIC_ADMIN_PASS ?? "")) {
+      if (!name.trim()) { setError(t('auth.gate.nameRequired')); return; }
+      void (async () => {
+      const [passHash, expectedHash] = await Promise.all([
+        sha256(pass),
+        sha256(process.env.NEXT_PUBLIC_ADMIN_PASS ?? ""),
+      ]);
+      if (passHash === expectedHash) {
         try {
-          localStorage.setItem(PASS_KEY, pass);
+          localStorage.setItem(PASS_KEY, passHash);
           localStorage.setItem(NAME_KEY, name.trim());
         } catch { /* private mode */ }
         setAuthorized(true);
@@ -115,8 +190,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           })();
         }
       } else {
-        setError("Incorrect access code.");
+        setError(t('auth.gate.incorrectCode'));
       }
+      })();
     };
 
     return (
@@ -124,7 +200,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <div className="max-w-sm w-full bg-white rounded-xl border border-surface-tertiary p-8 space-y-4">
           <div>
             <h1 className="font-display text-xl text-text-primary">Villa Lev</h1>
-            <p className="text-xs text-text-tertiary mt-0.5">Finance Platform</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{t('app.platform')}</p>
           </div>
           {/* Google sign-in — persistent identity for the administrator */}
           <button
@@ -139,7 +215,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
               <path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/>
               <path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.3z"/>
             </svg>
-            {googleLoading ? "Signing in…" : "Sign in with Google"}
+            {googleLoading ? t('auth.gate.signingIn') : t('auth.gate.signInGoogle')}
           </button>
 
           <div className="flex items-center gap-2">

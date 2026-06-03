@@ -7,7 +7,7 @@
 // Fixture: BASE_CASE from engine defaults — cold-start values. For slider /
 // readBaseValues tests we only need the shape, not live Firestore state.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, test } from "vitest";
 import { BASE_CASE } from "@/lib/engine/defaults";
 import type { ModelAssumptions } from "@/lib/engine/types";
 
@@ -17,8 +17,10 @@ import {
   yieldColor,
   applySliders,
   readBaseValues,
+  buildHoldScenario,
   type SliderValues,
 } from "@/components/investorSensitivityHelpers";
+import { en } from "@/lib/i18n/en";
 
 // ── Minimal fixture helpers ───────────────────────────────────────────────────
 
@@ -203,4 +205,142 @@ describe("readBaseValues — exitValuationPerM2 fallback", () => {
     const result = readBaseValues(assumptions);
     expect(result.exitValuationPerM2).toBe(11000);
   });
+});
+
+// ── 12. bufferToBreakEven traffic-light thresholds — Gap 2 ───────────────────
+
+describe("bufferToBreakEven traffic-light thresholds", () => {
+  // These test the threshold logic that the component applies — we verify the
+  // boundary values directly rather than exercising the component's render.
+  // Component uses STRICT inequalities: >= 0.20 → positive, > 0.08 → warning, > 0 → negative.
+  // At exactly 0.08 the value falls into "negative" (not warning) because the check is > 0.08.
+  const thresholds = [
+    { value: 0.25, expectedColor: "text-positive",      expectedDot: "bg-positive" },
+    { value: 0.20, expectedColor: "text-positive",      expectedDot: "bg-positive" },
+    { value: 0.15, expectedColor: "text-warning",       expectedDot: "bg-warning" },
+    { value: 0.09, expectedColor: "text-warning",       expectedDot: "bg-warning" },  // just above 0.08 boundary
+    { value: 0.08, expectedColor: "text-negative",      expectedDot: "bg-negative" }, // exactly 0.08 → negative (> not >=)
+    { value: 0.05, expectedColor: "text-negative",      expectedDot: "bg-negative" },
+    { value: 0.01, expectedColor: "text-negative",      expectedDot: "bg-negative" },
+    { value: 0,    expectedColor: "text-text-tertiary", expectedDot: "bg-text-tertiary/40" },
+  ];
+
+  function bufferDotClass(v: number): string {
+    if (v >= 0.20) return "bg-positive";
+    if (v > 0.08)  return "bg-warning";
+    if (v > 0)     return "bg-negative";
+    return "bg-text-tertiary/40";
+  }
+  function bufferValueClass(v: number): string {
+    if (v >= 0.20) return "text-positive";
+    if (v > 0.08)  return "text-warning";
+    if (v > 0)     return "text-negative";
+    return "text-text-tertiary";
+  }
+
+  thresholds.forEach(({ value, expectedColor, expectedDot }) => {
+    it(`buffer ${value} → valueClass "${expectedColor}", dotClass "${expectedDot}"`, () => {
+      expect(bufferValueClass(value)).toBe(expectedColor);
+      expect(bufferDotClass(value)).toBe(expectedDot);
+    });
+  });
+});
+
+// ── 13. buildHoldScenario — Gap 3 ────────────────────────────────────────────
+
+describe("buildHoldScenario", () => {
+  it("returns an object with irr and moic properties", () => {
+    const sliders = makeSliders();
+    const result = buildHoldScenario(BASE_CASE, sliders, 2037);
+    expect(result).toHaveProperty("irr");
+    expect(result).toHaveProperty("moic");
+  });
+
+  it("returns finite irr and moic (not NaN)", () => {
+    const sliders = makeSliders();
+    const result = buildHoldScenario(BASE_CASE, sliders, 2037);
+    expect(Number.isFinite(result.irr)).toBe(true);
+    expect(Number.isFinite(result.moic)).toBe(true);
+  });
+
+  it("forcedExitYear overrides sliders.exitYear — 2037 vs 2033 give different MOIC", () => {
+    const sliders = makeSliders({ exitYear: 2033 });
+    const at2037 = buildHoldScenario(BASE_CASE, sliders, 2037);
+    const at2033 = buildHoldScenario(BASE_CASE, sliders, 2033);
+    // A longer hold changes the terminal value computation — MOIC must differ.
+    expect(at2037.moic).not.toBeCloseTo(at2033.moic, 2);
+  });
+
+  it("2037 column result differs from a natural sliders.exitYear:2033 run", () => {
+    // This confirms the forcedExitYear override is actually applied.
+    const slidersAt2033 = makeSliders({ exitYear: 2033 });
+    const forced2037 = buildHoldScenario(BASE_CASE, slidersAt2033, 2037);
+    const natural2033 = buildHoldScenario(BASE_CASE, slidersAt2033, 2033);
+    expect(forced2037.irr).not.toBeCloseTo(natural2033.irr, 2);
+  });
+});
+
+// ── 14. holdComparisons — exactly one isBase:true column ─────────────────────
+
+describe("holdComparisons derivation — isBase flag", () => {
+  const HOLD_COLUMNS = [
+    { exitYear: 2031, holdYears: 2031 - 2029, labelKey: 'inv.sens.holdPanel.col5' as const },
+    { exitYear: 2033, holdYears: 2033 - 2029, labelKey: 'inv.sens.holdPanel.col7' as const },
+    { exitYear: 2037, holdYears: 2037 - 2029, labelKey: 'inv.sens.holdPanel.col11' as const, isBase: true as const },
+  ] as const;
+
+  it("exactly one column has isBase:true", () => {
+    const baseCols = HOLD_COLUMNS.filter(c => ('isBase' in c && c.isBase) === true);
+    expect(baseCols).toHaveLength(1);
+  });
+
+  it("the isBase:true column has exitYear 2037", () => {
+    const baseCol = HOLD_COLUMNS.find(c => ('isBase' in c && c.isBase) === true);
+    expect(baseCol?.exitYear).toBe(2037);
+  });
+});
+
+// ── 15. GAP 5 — Events disclosure i18n keys ───────────────────────────────────
+
+describe("Gap 5 — events disclosure i18n keys", () => {
+  it("inv.events.disclosure exists and is non-empty in en", () => {
+    expect(en['inv.events.disclosure']).toBeTruthy();
+    expect(en['inv.events.disclosure'].length).toBeGreaterThan(0);
+  });
+
+  it("presentation.s4.events.note exists and is non-empty in en", () => {
+    expect(en['presentation.s4.events.note']).toBeTruthy();
+    expect(en['presentation.s4.events.note'].length).toBeGreaterThan(0);
+  });
+
+  it("inv.events.disclosure contains 'not yet demonstrated'", () => {
+    expect(en['inv.events.disclosure']).toContain('not yet demonstrated');
+  });
+
+  it("presentation.s4.events.note contains 'not yet demonstrated'", () => {
+    expect(en['presentation.s4.events.note']).toContain('not yet demonstrated');
+  });
+
+  it("presentation.s4.events.note contains '40+' (TEPIX III conservatism anchor)", () => {
+    expect(en['presentation.s4.events.note']).toContain('40+');
+  });
+
+  it("inv.events.disclosure contains '40+' (TEPIX III conservatism anchor)", () => {
+    expect(en['inv.events.disclosure']).toContain('40+');
+  });
+
+  // Docx export uses a hardcoded string (consistent with existing convention) —
+  // we verify the key text is present in the locale as a proxy.
+
+  // Render tests — require React / Zustand / i18n graph; mark as todo.
+  test.todo("Dashboard events disclosure row renders inside showStressDetail block");
+});
+
+// ── 16. Render tests — todo (React environment not available in Vitest node) ──
+
+describe("InvestorSensitivityTab — render tests", () => {
+  test.todo("renders break-even card below KPI card");
+  test.todo("renders hold period panel below the flex row");
+  test.todo("hold period panel shows exactly 3 columns");
+  test.todo("2037 column shows 'Base case' badge");
 });

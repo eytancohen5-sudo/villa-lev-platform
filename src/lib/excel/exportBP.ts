@@ -1119,10 +1119,9 @@ export async function exportBusinessPlan(
   // Assumptions sheet columns $T$/$W$/$X$ (mgmtFee/opexContingency/extraOpex)
   // are retained to prevent index shifts in any cross-sheet lookups.
   //
-  // Bank-view OPEX adjustment (mirrors engine model.ts ~lines 739-772):
-  //   Bank view: adds a single "Senior management floor" row
-  //   (opCoSeniorFloor × totalVillaCount) paid SENIOR to debt service.
-  //   opCoFeeRow then shows only the JUNIOR overage.
+  // Bank-view OPEX note: the floor is no longer in OpEx (moved post-DS in model.ts).
+  //   Both views: opCoFeeRow shows the full floor + junior (both post-DS).
+  //   No "Senior management floor" row is added to the OpEx section.
   const isBankViewExport = (a.viewMode ?? 'internal') === 'bank';
   const totalVillaCountExport = a.portfolio.reduce((sum, p) => sum + p.count, 0);
 
@@ -1147,26 +1146,13 @@ export async function exportBusinessPlan(
     pr2 += 1;
   });
 
-  // Bank view only: senior management floor (opCoSeniorFloor × totalVillaCount),
-  // paid SENIOR to debt service. Replaces the per-villa managementFee that was
-  // removed from the per-property baseOpex formula above.
-  if (isBankViewExport) {
-    PnL.getCell(`A${pr2}`).value = '  Senior management floor (SENIOR to DS)';
-    PnL.getCell(`A${pr2}`).font = FONT.italic;
-    years.forEach((y, i) => {
-      const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-      // Only applies in operational years (engine: year > HORIZON_START_YEAR + 2 = 2028)
-      const seniorFee = y > 2028 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
-      c.value = seniorFee;
-      c.numFmt = FMT.euro;
-      c.fill = STYLE.inputFill;
-    });
-    propOpexRows.push(pr2);
-    pr2 += 1;
-  }
+  // NOTE: The floor is no longer in OpEx (moved to post-DS waterfall in model.ts).
+  // The old "Senior management floor (SENIOR to DS)" bank-view row is removed.
+  // The engine's totalOpex no longer contains the floor, so the residual
+  // formula for the portfolio overhead row is correct without subtracting it.
 
   // Portfolio-level shared overhead (staff, services, shared overhead, pre-opening amortisation).
-  // Seeded as the EXACT RESIDUAL: engine.totalOpex − Σ(propertyBreakdown[].totalOpex) − seniorFloor.
+  // Seeded as the EXACT RESIDUAL: engine.totalOpex − Σ(propertyBreakdown[].totalOpex).
   // Using the residual rather than portfolioOpex.total directly avoids any mis-match caused by
   // legacy per-villa managementFee fields in Firestore that the engine subtracts from propertyOpex
   // even though they are no longer included in computeOpexForProperty. By construction the SUM
@@ -1179,9 +1165,8 @@ export async function exportBusinessPlan(
       const pnlY = py(y);
       const engineTotalOpex = pnlY?.totalOpex ?? 0;
       const propertyOpexAllY = (pnlY?.propertyBreakdown ?? []).reduce((s, p) => s + p.totalOpex, 0);
-      const seniorFloorY = isBankViewExport && y > 2028
-        ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
-      const residual = engineTotalOpex - propertyOpexAllY - seniorFloorY;
+      // Floor is no longer in engineTotalOpex — no subtraction needed.
+      const residual = engineTotalOpex - propertyOpexAllY;
       c.value = residual;
       c.numFmt = FMT.euro;
       c.fill = STYLE.inputFill;
@@ -1218,33 +1203,23 @@ export async function exportBusinessPlan(
   });
   pr2 += 1;
 
-  // OpCo management fee — hardcoded from engine (Bucket 2A gross-revenue fee +
-  // Bucket 2B incentive). Formula reconstruction is not feasible here (EBITDA-based
-  // incentive creates a circular reference in Excel), so we mirror the engine's value.
+  // OpCo fee — both floor and junior are now post-DS (neither lives in OpEx).
+  // Formula reconstruction not feasible (accrual + tiered formula would need
+  // the engine's full waterfall). Mirror engine value directly.
   //
-  // The engine always folds seniorMgmtFee into totalOpex (via propertyOpex) in both
-  // bank and internal view. The "Portfolio shared overhead" residual row therefore
-  // absorbs it in both views. This row must show ONLY the junior tranche in both views
-  // — otherwise the EBITDA formula (Revenue − totalOpexRow − opCoFeeRow) would
-  // double-count the senior floor and understate EBITDA by seniorMgmtFee.
-  //
-  //   opCoTotalFee = seniorFloor + juniorPaid  (engine field)
-  //   This row  = juniorPaid  (= opCoTotalFee − seniorFloor)  in BOTH views.
-  //
-  // Bank view label makes the subordination explicit; internal view uses the
-  // familiar "management fee" label but still shows juniorPaid only.
+  //   opCoTotalFee = opCoFloorActuallyPaid + opCoJuniorPaid  (both post-DS)
+  //   Show the full amount in both views — no floor has already been deducted from OpEx.
   const opCoFeeRow = pr2;
   PnL.getCell(`A${pr2}`).value = isBankViewExport
-    ? 'OpCo junior fee — subordinated to DS (Bucket 2A+2B above senior floor)'
-    : 'OpCo management fee — junior tranche (Bucket 2A + 2B, from engine)';
+    ? 'OpCo fee — floor + tiered (both junior to DS)'
+    : 'OpCo management fee (floor + tiered, from engine)';
   PnL.getCell(`A${pr2}`).font = FONT.italic;
   years.forEach((y, i) => {
     const c = PnL.getCell(`${col(2 + i)}${pr2}`);
-    // Strip the senior floor in BOTH views — it is already captured in totalOpexRow
-    // via the portfolio-overhead residual row (which absorbs seniorMgmtFee from the
-    // engine's propertyOpex computation regardless of view mode).
-    const seniorFloor = y > 2028 ? (a.opCoSeniorFloor ?? 0) * totalVillaCountExport : 0;
-    c.value = pyVal(y, 'opCoTotalFee') - seniorFloor;
+    // Floor is no longer in totalOpex; show the full opCoTotalFee in both views.
+    // Backward-compat: old scenarios with opCoSeniorFloor still produce the right
+    // value because the engine reads a.opCoFloor ?? a.opCoSeniorFloor ?? 0.
+    c.value = pyVal(y, 'opCoTotalFee');
     c.numFmt = FMT.euro;
     c.fill = STYLE.inputFill;
   });

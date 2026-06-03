@@ -542,6 +542,8 @@ export async function exportInvestorPresentation(
     ],
   }));
 
+  children.push(bodyText('Note: Events revenue (~€60K/yr at base) is modelled incremental income not yet demonstrated by the live villa. Demand pipeline exists (40+ enquiries/yr) but no events have been held to date.'));
+
   children.push(navLink('/admin/returns'));
 
   // ── §5 Capital Structure & Financing Paths ────────────────────────────────
@@ -643,6 +645,7 @@ export async function exportInvestorPresentation(
 
   children.push(
     bodyText('Year 2029 is a ramp year; use the stabilised row as the normalised baseline.'),
+    bodyText('Note: Events revenue (~€60K/yr at base) is modelled incremental income not yet demonstrated by the live villa. Demand pipeline exists (40+ enquiries/yr) but no events have been held to date.'),
   );
 
   children.push(navLink('/admin/p-and-l'));

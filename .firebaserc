@@ -10,6 +10,12 @@
         ],
         "production": [
           "villa-lev-finance"
+        ],
+        "p2": [
+          "villa-lev-finance-p2"
+        ],
+        "p3": [
+          "villa-lev-finance-p3"
         ]
       }
     }

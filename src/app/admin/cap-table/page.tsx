@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState, useId } from "react";
+import { useMemo, useState, useId, useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { CAP_TABLE_TOUR } from "@/lib/tours/configs";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 import { computeCapTable } from "@/lib/engine/capTable";
 import {
   RATCHET_STANDALONE_CAP,
@@ -18,6 +19,8 @@ import {
 } from "@/lib/engine/founderWaterfall";
 import { SectionHeader } from "@/components/AdminUI";
 import { EytanReturnBreakdown } from "@/components/EytanReturnBreakdown";
+import type { ModelAssumptions, ModelOutput } from "@/lib/engine/types";
+import type { TranslationDictionary } from "@/lib/i18n/types";
 
 function NumberInput({
   value,
@@ -63,6 +66,8 @@ function NumberInput({
 }
 
 export default function CapTablePage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-cap-table"); }, [track]);
   const { locale, t } = useTranslation();
   const {
     model,
@@ -90,8 +95,10 @@ export default function CapTablePage() {
   const grantApproved = assumptions.financingPath === "grant";
 
   // Resolve auto-balance investor before running the waterfall so the cap
-  // table always sums to the model's equity requirement.
+  // table always sums to the project's full equity need at close.
   const equityRequired = model?.keyMetrics.equityRequired ?? 0;
+  const graceInterestCarry = model?.keyMetrics.graceInterestCarry ?? 0;
+  const totalEquityNeed = equityRequired + graceInterestCarry;
   const resolvedCapTable = useMemo(() => {
     const autoIdx = capTable.findIndex((sh) => sh.autoBalance);
     if (autoIdx < 0) return capTable;
@@ -99,11 +106,11 @@ export default function CapTablePage() {
       (s, sh, i) => (i !== autoIdx ? s + sh.cashIn : s),
       0
     );
-    const balanceCash = Math.max(0, equityRequired - othersCash);
+    const balanceCash = Math.max(0, totalEquityNeed - othersCash);
     return capTable.map((sh, i) =>
       i === autoIdx ? { ...sh, cashIn: balanceCash } : sh
     );
-  }, [capTable, equityRequired]);
+  }, [capTable, totalEquityNeed]);
 
   const result = useMemo(() => {
     if (!model) return null;
@@ -113,7 +120,7 @@ export default function CapTablePage() {
       : undefined;
     return computeCapTable(scenario, resolvedCapTable, waterfall, {
       grantApproved,
-      equityRequired: model.keyMetrics.equityRequired,
+      equityRequired: totalEquityNeed,
       grantAmount: liveGrantAmount,
       founderFeePct: assumptions.grantProcurementFeePct ?? DEFAULT_GRANT_PROCUREMENT_FEE_PCT,
       consultantSharePct: assumptions.consultantSharePct ?? DEFAULT_GRANT_CONSULTANT_SHARE_PCT,
@@ -315,10 +322,10 @@ export default function CapTablePage() {
       {/* ── C: Equity coverage bar ──────────────────────────────────── */}
       {(() => {
         const totalCommitted = result.totalEquityCommitted;
-        const gap = equityRequired - totalCommitted;
+        const gap = totalEquityNeed - totalCommitted;
         const covered = Math.abs(gap) < 1;
         const overCommitted = gap < -1;
-        const pct = equityRequired > 0 ? Math.min(1, totalCommitted / equityRequired) : 1;
+        const pct = totalEquityNeed > 0 ? Math.min(1, totalCommitted / totalEquityNeed) : 1;
         const borderCls = covered
           ? "border-positive/30 bg-positive/5"
           : overCommitted
@@ -347,8 +354,13 @@ export default function CapTablePage() {
                   {chipLabel}
                 </span>
               </div>
-              <span className="text-xs text-text-tertiary font-mono">
-                {formatCurrency(totalCommitted, true, locale)} committed · {formatCurrency(equityRequired, true, locale)} required
+              <span className="text-xs text-text-tertiary font-mono flex flex-col items-end gap-0.5">
+                <span>{formatCurrency(totalCommitted, true, locale)} committed · {t('kpi.totalEquityNeed')}: {formatCurrency(totalEquityNeed, true, locale)}</span>
+                {graceInterestCarry > 0 && (
+                  <span className="text-[10px] text-text-tertiary/70">
+                    {t('kpi.capexEquity')} {formatCurrency(equityRequired, true, locale)} + {t('kpi.graceInterestCarry')} {formatCurrency(graceInterestCarry, true, locale)}
+                  </span>
+                )}
               </span>
             </div>
             {overCommitted && (
@@ -370,6 +382,25 @@ export default function CapTablePage() {
           </div>
         );
       })()}
+
+      {/* ── C2: Capital structure (migrated from OpCo tab) ──────────── */}
+      <SectionHeader title={t('ct.cs.sectionTitle')} />
+      <CapStructureSummary
+        assumptions={assumptions}
+        keyMetrics={model.keyMetrics}
+        founderCashInvested={founderCash}
+        t={t}
+        locale={locale}
+        formatCurrency={(v) => formatCurrency(v, true, locale)}
+        formatPercent={formatPercent}
+      />
+
+      {/* ── C3: Equity distribution waterfall ───────────────────────── */}
+      <div id="captable-equity-waterfall" className="mt-6 mb-4">
+        <div className="text-[11px] font-bold uppercase tracking-[0.13em] text-text-tertiary">{t('ct.equityWaterfall')}</div>
+        <p className="text-xs text-text-secondary mt-0.5">{t('ct.equityWaterfallSub')}</p>
+      </div>
+      <EquityWaterfallBox t={t} grantApproved={grantApproved} />
 
       {/* ── D: Stakeholders table ────────────────────────────────────── */}
       <SectionHeader title={t('ct.stakeholders')} />
@@ -813,7 +844,7 @@ export default function CapTablePage() {
                     {formatPercent(b.founderOperatingPct)}
                   </div>
                   <div className="text-xs text-text-tertiary mt-1">
-                    {t('ct.founder.exitNote')} {formatPercent(b.founderExitPct)} (devEq + grant, no ratchet)
+                    {t('ct.founder.exitNote')} {formatPercent(b.founderExitPct)} {t('ct.founder.exitNoteDetail')}
                   </div>
                 </div>
                 <div>
@@ -1007,6 +1038,143 @@ export default function CapTablePage() {
       </div>
 
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={CAP_TABLE_TOUR} />
+    </div>
+  );
+}
+
+// ── CapStructureSummary ─────────────────────────────────────────────────────
+// Heading is provided by the caller (cap-table/page.tsx via SectionHeader).
+// This component does not self-label.
+function CapStructureSummary({
+  assumptions,
+  keyMetrics,
+  founderCashInvested,
+  t,
+  locale,
+  formatCurrency: fmt,
+  formatPercent: fmtPct,
+}: {
+  assumptions: ModelAssumptions;
+  keyMetrics: ModelOutput["keyMetrics"];
+  founderCashInvested: number;
+  t: (key: keyof TranslationDictionary) => string;
+  locale: string;
+  formatCurrency: (v: number) => string;
+  formatPercent: (v: number) => string;
+}) {
+  const grantRate = assumptions.grant?.grantRate ?? 0;
+  const isGrant = assumptions.financingPath === "grant";
+  const grantAmount = keyMetrics.grantAmount;
+  const totalPlots = assumptions.portfolio.reduce((s, p) => s + p.count, 0);
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{t('ct.cs.sponsorPromote')}</div>
+        <div className="font-display text-2xl mt-1">25%</div>
+        <div className="text-xs text-text-tertiary mt-1">{t('ct.cs.sponsorPromoteSub')}</div>
+      </div>
+      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{t('ct.cs.sponsorCoinvest')}</div>
+        <div className="font-display text-2xl mt-1">{fmt(founderCashInvested)}</div>
+        <div className="text-xs text-text-tertiary mt-1">{t('ct.cs.sponsorCoinvestSub')}</div>
+      </div>
+      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{t('ct.cs.investorPool')}</div>
+        <div className="font-display text-2xl mt-1">{fmt(Math.max(0, keyMetrics.equityRequired - founderCashInvested))}</div>
+        <div className="text-xs text-text-tertiary mt-1">{t('ct.cs.investorPoolSub')}</div>
+        {keyMetrics.graceInterestCarry > 0 && (
+          <div className="text-[10px] text-text-tertiary/70 mt-1 border-t border-surface-tertiary pt-1">
+            + {fmt(keyMetrics.graceInterestCarry)} {t('kpi.graceInterestCarry')} → {t('kpi.totalEquityNeed')} {fmt(keyMetrics.equityRequired + keyMetrics.graceInterestCarry)}
+          </div>
+        )}
+      </div>
+      <div className="rounded-xl border border-warning/30 bg-warning/5 p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-warning">{t('ct.cs.bankLoan')}</div>
+        <div className="font-display text-2xl mt-1">{fmt(keyMetrics.loanAmount)}</div>
+        <div className="text-xs text-text-tertiary mt-1">@ {fmtPct(assumptions.commercialLoan.interestRate)} · {assumptions.commercialLoan.repaymentTermYears}y amort post-grace</div>
+      </div>
+      <div className="rounded-xl border border-positive/30 bg-positive/5 p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-positive">{t('ct.cs.grant')}</div>
+        <div className="font-display text-2xl mt-1">
+          {isGrant ? fmt(grantAmount) : "—"}
+        </div>
+        <div className="text-xs text-text-tertiary mt-1">
+          {isGrant ? `${fmtPct(grantRate)} of eligible CapEx` : t('ct.cs.grantInactive')}
+        </div>
+      </div>
+      <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+        <div className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">{t('ct.cs.totalCapex')}</div>
+        <div className="font-display text-2xl mt-1">{fmt(keyMetrics.totalCapex)}</div>
+        <div className="text-xs text-text-tertiary mt-1">{totalPlots} {totalPlots === 1 ? t('ct.cs.propcoPlot') : t('ct.cs.propcoPlots')} + construction + FF&amp;E + soft costs</div>
+      </div>
+    </div>
+  );
+}
+
+// ── EquityWaterfallBox ──────────────────────────────────────────────────────
+// Full 7-step equity distribution waterfall moved from OpCo tab.
+// Steps 1-4 describe the cash-flow priority stack; steps 5-7 describe
+// how the distributable pool is split among equity holders.
+function EquityWaterfallBox({
+  t,
+  grantApproved,
+}: {
+  t: (key: keyof TranslationDictionary) => string;
+  grantApproved: boolean;
+}) {
+  const steps = [
+    {
+      i: 1,
+      label: 'Bank gets paid',
+      detail: 'Annual debt service — interest + amortisation — senior and first',
+    },
+    {
+      i: 2,
+      label: `Bucket 1B advisory fee${grantApproved ? '' : ' (Grant path only)'}`,
+      detail: 'Deferred cash advisory fee spread over 3 years post-disbursement',
+      dimmed: !grantApproved,
+    },
+    {
+      i: 3,
+      label: 'Tax paid',
+      detail: 'Corporate income tax on taxable income',
+    },
+    {
+      i: 4,
+      label: t('opco.wStep5Label'),
+      detail: t('opco.wStep5Detail'),
+      highlight: true,
+    },
+    {
+      i: 5,
+      label: t('opco.wStep6Label'),
+      detail: t('opco.wStep6Detail'),
+      highlight: true,
+    },
+    {
+      i: 6,
+      label: t('opco.wStep7Label'),
+      detail: t('opco.wStep7Detail'),
+      highlight: true,
+    },
+  ];
+
+  return (
+    <div className="bg-white rounded-xl border border-surface-tertiary overflow-hidden mb-6">
+      <ol className="divide-y divide-surface-secondary/40">
+        {steps.map((s) => (
+          <li
+            key={s.i}
+            className={`px-4 py-3 flex items-start gap-3 ${s.dimmed ? "opacity-40" : ""} ${s.highlight ? "bg-brand-50/30" : ""}`}
+          >
+            <span className={`font-display text-lg w-6 text-center flex-shrink-0 ${s.highlight ? "text-brand-700" : "text-text-tertiary"}`}>{s.i}</span>
+            <div>
+              <div className="font-medium text-sm">{s.label}</div>
+              <div className="text-xs text-text-tertiary mt-0.5">{s.detail}</div>
+            </div>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

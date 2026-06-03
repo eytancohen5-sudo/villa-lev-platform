@@ -9,7 +9,6 @@ import { LanguageToggle } from "@/components/LanguageToggle";
 import { ViewAsControl } from "@/components/ViewAsControl";
 import { BankViewBadge } from "@/components/BankViewToggle";
 import { AssumptionPrompts } from "@/components/AssumptionPrompts";
-import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { FinancingPath } from "@/lib/engine/types";
 import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 const { HORIZON_END_YEAR, MIN_EXIT_YEAR } = PROJECT_CONSTANTS;
@@ -28,6 +27,7 @@ const financingPaths: { id: FinancingPath; shortKey: keyof TranslationDictionary
   { id: "rrf", shortKey: "path.rrfShort" },
   { id: "grant", shortKey: "path.grantShort" },
   { id: "tepix-loan", shortKey: "path.tepixLoanShort" },
+  { id: "optima", shortKey: "path.optimaShort" },
 ];
 
 function PercentInput({
@@ -226,28 +226,29 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/dashboard",      labelKey: "nav.dashboard" },
       { href: "/admin/returns",        labelKey: "nav.returns" },
       { href: "/admin/pnl",            labelKey: "nav.pnl" },
-      { href: "/admin/breakeven",      labelKey: "nav.breakeven" },
       { href: "/admin/sensitivity",    labelKey: "nav.sensitivity" },
       { href: "/admin/debt-coverage",  labelKey: "nav.debtCoverage" },
-      { href: "/admin/financing",      labelKey: "nav.financingPaths" },
     ],
   },
   {
     labelKey: "nav.groupStructure",
     items: [
-      { href: "/admin/opco-split", labelKey: "nav.opcoSplit" },
-      { href: "/admin/cap-table",  labelKey: "nav.capTable" },
+      { href: "/admin/financing",      labelKey: "nav.financingPaths" },
+      { href: "/admin/opco-split",     labelKey: "nav.opcoSplit" },
+      { href: "/admin/cap-table",      labelKey: "nav.capTable" },
     ],
   },
   {
     labelKey: "nav.groupInputs",
     items: [
-      { href: "/admin/assumptions",  labelKey: "nav.assumptions" },
-      { href: "/admin/capex",        labelKey: "nav.capex" },
-      { href: "/admin/scenarios",    labelKey: "nav.scenarios" },
-      { href: "/admin/lexicon",      labelKey: "nav.lexicon" },
-      { href: "/admin/team",         labelKey: "nav.team" },
-      { href: "/admin/connections",  labelKey: "nav.connections" },
+      { href: "/admin/scenarios",      labelKey: "nav.scenarios" },
+      { href: "/admin/assumptions",    labelKey: "nav.assumptions" },
+      { href: "/admin/capex",            labelKey: "nav.capex" },
+      { href: "/admin/capex-comparison", labelKey: "nav.capexComparison" },
+      { href: "/admin/presentation",   labelKey: "nav.presentation" },
+      { href: "/admin/lexicon",        labelKey: "nav.lexicon" },
+      { href: "/admin/team",           labelKey: "nav.team" },
+      { href: "/admin/connections",    labelKey: "nav.connections" },
     ],
   },
 ];
@@ -594,7 +595,6 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       <AssumptionPrompts />
-      {/* <AssumptionsMemoButton /> */}
     </div>
   );
 }

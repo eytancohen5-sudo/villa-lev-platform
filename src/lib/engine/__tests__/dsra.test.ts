@@ -26,7 +26,7 @@ import { computeModel } from '@/lib/engine/model';
 import { BASE_CASE, PROJECT_CONSTANTS } from '@/lib/engine/defaults';
 import type { ModelAssumptions } from '@/lib/engine/types';
 
-const { FIRST_OPERATIONAL_YEAR } = PROJECT_CONSTANTS;
+const { FIRST_OPERATIONAL_YEAR, OPENING_YEAR } = PROJECT_CONSTANTS;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -132,27 +132,32 @@ describe('DSRA engine — Pass 3 waterfall', () => {
 
   // ── Test 4: Drawdown supplements DSCR to target in the known weak year ─────
   it('enabled (targetDSCR=2.0): FIRST_OPERATIONAL_YEAR row has a positive draw and effectiveDSCR >= 2.0', () => {
-    // With targetDSCR=2.0 and FIRST_OPERATIONAL_YEAR DSCR ≈ 1.75, the engine must draw from the
-    // reserve to bridge the gap to the 2.0× coverage threshold.
+    // FI-02: OPENING_YEAR (2029) is now included in the DSRA shortfall window.
+    // 2029 is the weakest year (ramp-up, full DS onset) so the DSRA draws there
+    // first. FIRST_OPERATIONAL_YEAR (2030) may also draw if needed.
+    // We test OPENING_YEAR (2029) — the worst-case year that the DSRA must cover.
     const a: ModelAssumptions = withDSRA({ enabled: true, targetDSCR: 2.0 });
     const out = computeModel(a);
     const { pnl } = out.scenarios.realistic;
 
-    const row2029 = pnl.find((r) => r.year === FIRST_OPERATIONAL_YEAR);
-    expect(row2029).toBeDefined();
+    const rowOpeningYear = pnl.find((r) => r.year === OPENING_YEAR);
+    expect(rowOpeningYear).toBeDefined();
 
-    // A draw must have been made
-    expect(row2029!.dsraDraw ?? 0).toBeGreaterThan(0);
+    // A draw must have been made in the opening year (worst-case shortfall)
+    expect(rowOpeningYear!.dsraDraw ?? 0).toBeGreaterThan(0);
 
     // The draw must close the gap to the 2.0× target
-    expect(row2029!.effectiveDSCR ?? 0).toBeGreaterThanOrEqual(2.0);
+    expect(rowOpeningYear!.effectiveDSCR ?? 0).toBeGreaterThanOrEqual(2.0);
 
     // Verify the arithmetic contract:
     //   effectiveDSCR = (cfads + dsraDraw) / debtService
-    const { cfads, dsraDraw, effectiveDSCR, debtService } = row2029!;
+    const { cfads, dsraDraw, effectiveDSCR, debtService } = rowOpeningYear!;
     const recomputedEffectiveDSCR =
       debtService > 0 ? ((cfads ?? 0) + (dsraDraw ?? 0)) / debtService : 0;
     expect(recomputedEffectiveDSCR).toBeCloseTo(effectiveDSCR ?? 0, 3);
+
+    // FIRST_OPERATIONAL_YEAR constant still used in other tests — ensure it is not orphaned.
+    expect(FIRST_OPERATIONAL_YEAR).toBeGreaterThan(OPENING_YEAR);
   });
 
   // ── Test 5 (CRITICAL): drawdown does NOT enter cfads, netCashFlow, or NCF postVAT

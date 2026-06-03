@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import type { CapTableResult, StakeholderResult } from "@/lib/engine/capTable";
 
 interface EytanReturnBreakdownProps {
@@ -80,6 +81,10 @@ function StatusChip({ active, labelOn, labelOff }: { active: boolean; labelOn: s
   );
 }
 
+/**
+ * Sponsor equity breakdown — three capacities (co-invest, promote, grant uplift).
+ * Heading is provided by the caller (cap-table/page.tsx). This component does not self-label.
+ */
 export function EytanReturnBreakdown({
   result,
   founderResult,
@@ -90,6 +95,11 @@ export function EytanReturnBreakdown({
   formatPercent,
 }: EytanReturnBreakdownProps) {
   const { t } = useTranslation();
+  const { isImpersonating } = useEffectiveAuth();
+
+  // Sponsor promote details are admin-only (HO-13 P2-05).
+  // When an admin is previewing as a banker, suppress this breakdown entirely.
+  if (isImpersonating) return null;
 
   if (!founderResult) return null;
 
@@ -105,17 +115,6 @@ export function EytanReturnBreakdown({
 
   return (
     <div id="captable-eytan-return" className="mb-6">
-
-      {/* Section heading */}
-      <div className="mb-4">
-        <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-text-tertiary">
-          {t("ct.roles.sectionTitle")}
-        </div>
-        <p className="text-xs text-text-secondary mt-0.5">
-          {t("ct.roles.sectionSub")
-            .replace("{pct}", formatPercent(combinedPct))}
-        </p>
-      </div>
 
       {/* Three capacity panels */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

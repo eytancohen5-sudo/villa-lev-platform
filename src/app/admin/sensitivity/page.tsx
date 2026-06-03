@@ -1,16 +1,18 @@
 "use client";
 
 import { useModelStore } from "@/lib/store/modelStore";
+import type { ScenarioName } from "@/lib/store/modelStore";
 import { formatCurrency, formatMultiple, formatPercent } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel } from "@/lib/engine/model";
 import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 const { HORIZON_END_YEAR, MIN_EXIT_YEAR } = PROJECT_CONSTANTS;
 import type { ModelAssumptions } from "@/lib/engine/types";
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { SENSITIVITY_TOUR } from "@/lib/tours/configs";
 import InvestorSensitivityTab from "@/components/InvestorSensitivityTab";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 
 // ── Tornado helpers ────────────────────────────────────────────────────
 // Tornado chart: vary one input at a time around the baseline, capture how
@@ -45,8 +47,8 @@ function clone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x));
 }
 
-function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; baseIRR: number; maxSwing: number } {
-  const baseIRR = computeModel(baseline).scenarios.realistic.equityIRR;
+function computeTornado(baseline: ModelAssumptions, activeScenario: ScenarioName): { bars: TornadoBarData[]; baseIRR: number; maxSwing: number } {
+  const baseIRR = computeModel(baseline).scenarios[activeScenario].equityIRR;
 
   const inputs: TornadoInput[] = [
     {
@@ -134,8 +136,8 @@ function computeTornado(baseline: ModelAssumptions): { bars: TornadoBarData[]; b
   ];
 
   const bars: TornadoBarData[] = inputs.map((input) => {
-    const low = computeModel(input.vary(clone(baseline), 'low')).scenarios.realistic.equityIRR;
-    const high = computeModel(input.vary(clone(baseline), 'high')).scenarios.realistic.equityIRR;
+    const low = computeModel(input.vary(clone(baseline), 'low')).scenarios[activeScenario].equityIRR;
+    const high = computeModel(input.vary(clone(baseline), 'high')).scenarios[activeScenario].equityIRR;
     return {
       label: input.label,
       baseIRR,
@@ -198,8 +200,10 @@ function TornadoBar({ bar, maxSwing }: { bar: TornadoBarData; maxSwing: number }
 }
 
 export default function SensitivityPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-sensitivity"); }, [track]);
   const { t, locale } = useTranslation();
-  const { assumptions } = useModelStore();
+  const { assumptions, activeScenario } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(SENSITIVITY_TOUR.storageKey);
 
   const sensitivityData = useMemo(() => {
@@ -214,7 +218,7 @@ export default function SensitivityPage() {
         },
       };
       const result = computeModel(modified);
-      const stab = result.scenarios.realistic.stabilisedYear;
+      const stab = result.scenarios[activeScenario].stabilisedYear;
       return {
         label: delta === 0 ? t('sens.base') : `${delta > 0 ? "+" : ""}€${delta}`,
         adr: assumptions.revenueRealistic.villaADR + delta,
@@ -237,7 +241,7 @@ export default function SensitivityPage() {
         },
       };
       const result = computeModel(modified);
-      const stab = result.scenarios.realistic.stabilisedYear;
+      const stab = result.scenarios[activeScenario].stabilisedYear;
       return {
         label: delta === 0 ? t('sens.base') : `${delta > 0 ? "+" : ""}${delta} nights`,
         nights: assumptions.revenueRealistic.villaBaseNights + delta,
@@ -259,7 +263,7 @@ export default function SensitivityPage() {
         },
       };
       const result = computeModel(modified);
-      const stab = result.scenarios.realistic.stabilisedYear;
+      const stab = result.scenarios[activeScenario].stabilisedYear;
       return {
         label: delta === 0 ? t('sens.base') : `${delta > 0 ? "+" : ""}${(delta * 100).toFixed(1)}%`,
         rate: ((assumptions.commercialLoan.interestRate + delta) * 100).toFixed(2) + "%",
@@ -283,7 +287,7 @@ export default function SensitivityPage() {
         },
       };
       const result = computeModel(modified);
-      const real = result.scenarios.realistic;
+      const real = result.scenarios[activeScenario];
       const stab = real.stabilisedYear;
       const y2 = real.pnl.find((p) => p.year === 2029);
       return {
@@ -320,11 +324,33 @@ export default function SensitivityPage() {
       }),
     }));
 
-    return { adrRows, nightsRows, rateRows, wcRows, exitMatrix, exitMultiples };
-  }, [assumptions]);
+    // CapEx sensitivity — vary construction cost/m² across the portfolio
+    const capexDeltas = [-0.20, -0.10, -0.05, 0, 0.05, 0.10, 0.20];
+    const capexRows = capexDeltas.map((delta) => {
+      const modified = {
+        ...assumptions,
+        portfolio: assumptions.portfolio.map((p) => ({
+          ...p,
+          constructionCostPerM2: p.constructionCostPerM2 * (1 + delta),
+        })),
+      };
+      const result = computeModel(modified);
+      const stab = result.scenarios[activeScenario].stabilisedYear;
+      return {
+        label: delta === 0 ? t('sens.base') : `${delta > 0 ? '+' : ''}${(delta * 100).toFixed(0)}%`,
+        isBase: delta === 0,
+        capex: result.capex.portfolioTotal,
+        ds: stab?.debtService ?? 0,
+        dscr: stab?.dscr ?? 0,
+        ncf: stab?.netCashFlowPostVAT ?? 0,
+      };
+    });
+
+    return { adrRows, nightsRows, rateRows, wcRows, exitMatrix, exitMultiples, capexRows };
+  }, [assumptions, t, activeScenario]);
 
   // Tornado is its own memo — 20+ engine runs, only redo when assumptions change.
-  const tornado = useMemo(() => computeTornado(assumptions), [assumptions]);
+  const tornado = useMemo(() => computeTornado(assumptions, activeScenario), [assumptions, activeScenario]);
 
   return (
     <div>
@@ -536,6 +562,41 @@ export default function SensitivityPage() {
                 <tr key={row.label} className={`border-b border-surface-secondary/50 ${row.isBase ? "bg-brand-50/50 font-medium" : ""}`}>
                   <td className="py-2 pr-4">{row.label}</td>
                   <td className="text-right py-2 px-3 data-cell">{row.rate}</td>
+                  <td className="text-right py-2 px-3 data-cell">{formatCurrency(row.ds, true, locale)}</td>
+                  <td className={`text-right py-2 px-3 data-cell ${row.dscr >= 1.25 ? "text-positive" : "text-warning"}`}>
+                    {formatMultiple(row.dscr)}
+                  </td>
+                  <td className={`text-right py-2 px-3 data-cell ${row.ncf >= 0 ? "text-positive" : "text-negative"}`}>
+                    {formatCurrency(row.ncf, true, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* CapEx Sensitivity */}
+      <div className="bg-white rounded-xl border border-surface-tertiary p-5 mt-6 mb-6">
+        <h3 className="text-sm font-medium uppercase tracking-wider text-text-tertiary mb-4">
+          {t('sens.capexSensitivity')}
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-tertiary">
+                <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.change')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.capex')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('kpi.annualDS')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.dscr')}</th>
+                <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sensitivityData.capexRows.map((row) => (
+                <tr key={row.label} className={`border-b border-surface-secondary/50 ${row.isBase ? "bg-brand-50/50 font-medium" : ""}`}>
+                  <td className="py-2 pr-4">{row.label}</td>
+                  <td className="text-right py-2 px-3 data-cell">{formatCurrency(row.capex, true, locale)}</td>
                   <td className="text-right py-2 px-3 data-cell">{formatCurrency(row.ds, true, locale)}</td>
                   <td className={`text-right py-2 px-3 data-cell ${row.dscr >= 1.25 ? "text-positive" : "text-warning"}`}>
                     {formatMultiple(row.dscr)}

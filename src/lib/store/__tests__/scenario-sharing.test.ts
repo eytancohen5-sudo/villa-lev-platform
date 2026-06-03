@@ -192,7 +192,11 @@ function consumeAlert() {
 describe('saveConfig — ownership stamping', () => {
   beforeEach(resetStore);
 
-  it('1. stamps userId + ownerDisplayName + published=false by default', async () => {
+  it('1. stamps userId + ownerDisplayName + published=true by default (team-share default, RBAC rollback 2026-05-27)', async () => {
+    // After the RBAC rollback the saveConfig default changed from published:false
+    // to published:true so every team save is immediately visible to all
+    // password-gate users without needing an explicit "Share with team" action.
+    // The caller can still override to false via opts.published.
     useModelStore.getState().setCurrentAuthIdentity({
       uid: 'uid-alice',
       displayName: 'Alice',
@@ -204,12 +208,12 @@ describe('saveConfig — ownership stamping', () => {
     const saved = configs[0];
     expect(saved.userId).toBe('uid-alice');
     expect(saved.ownerDisplayName).toBe('Alice');
-    expect(saved.published).toBe(false);
+    expect(saved.published).toBe(true);   // team-share default is now true
     expect(saved.copiedFrom).toBeNull();
     // Server got a copy too.
     expect(fakeState.store.setCalls).toHaveLength(1);
     expect(fakeState.store.setCalls[0].data.userId).toBe('uid-alice');
-    expect(fakeState.store.setCalls[0].data.published).toBe(false);
+    expect(fakeState.store.setCalls[0].data.published).toBe(true);
   });
 
   it('2. stamps published=true when opts.published is set', async () => {
@@ -234,16 +238,20 @@ describe('saveConfig — ownership stamping', () => {
     expect(saved.ownerDisplayName).toBe('bob.smith');
   });
 
-  it('refuses to save without auth, alerts the user', async () => {
+  it('saves to localStorage without auth (deferred Firestore push, RBAC rollback 2026-05-26)', async () => {
+    // After the RBAC rollback the store no longer blocks saves when uid is null.
+    // Anonymous auth resolves asynchronously after the password gate; saveConfig
+    // writes to localStorage immediately and defers the Firestore push to
+    // hydrateForUser once the uid becomes available.
     // No identity bridge call → uid is null.
     await useModelStore.getState().saveConfig('Anonymous attempt');
-    expect(useModelStore.getState().savedConfigs).toHaveLength(0);
-    const alert = consumeAlert();
-    expect(alert?.kind).toBe('alert');
-    if (alert?.kind === 'alert') {
-      expect(alert.tone).toBe('warning');
-      expect(alert.title).toMatch(/sign.?in/i);
-    }
+    // Config IS saved locally even without a uid.
+    const configs = useModelStore.getState().savedConfigs;
+    expect(configs).toHaveLength(1);
+    // But Firestore was NOT called (uid absent → skip server push).
+    expect(fakeState.store.setCalls).toHaveLength(0);
+    // No alert is raised for the anonymous case.
+    expect(useModelStore.getState().uiPrompt).toBeNull();
   });
 });
 
@@ -272,7 +280,12 @@ describe('loadConfig — copy-on-load semantics', () => {
     return foreign;
   }
 
-  it('3. loading a foreign scenario forks a copy with copiedFrom provenance', async () => {
+  it('3. loading a foreign scenario hydrates state directly — no copy (RBAC rollback 2026-05-27)', async () => {
+    // RBAC rollback 2026-05-27: isForeign is hardcoded false in loadConfig.
+    // The single shared-password team makes per-UID ownership meaningless —
+    // a new anonymous UID is issued each session, so copy-on-load would
+    // duplicate every scenario on every reload. loadConfig now always
+    // hydrates state in-place and sets activeConfigId to the source id.
     useModelStore.getState().setCurrentAuthIdentity({
       uid: 'uid-bob',
       displayName: 'Bob',
@@ -281,27 +294,17 @@ describe('loadConfig — copy-on-load semantics', () => {
     const foreign = seedForeign();
     await useModelStore.getState().loadConfig(foreign.id);
     const configs = useModelStore.getState().savedConfigs;
-    // Original untouched, copy appended.
-    expect(configs).toHaveLength(2);
-    const copy = configs.find((c) => c.id !== foreign.id)!;
-    expect(copy.userId).toBe('uid-bob');
-    expect(copy.ownerDisplayName).toBe('Bob');
-    expect(copy.published).toBe(false);
-    expect(copy.copiedFrom).toEqual({
-      userId: 'uid-alice',
-      displayName: 'Alice',
-      scenarioId: foreign.id,
-      copiedAt: expect.any(Number),
-    });
-    // Active pointer points at the COPY, not the source.
-    expect(useModelStore.getState().activeConfigId).toBe(copy.id);
-    expect(useModelStore.getState().activeConfigId).not.toBe(foreign.id);
-    // Server received the copy.
-    const serverCopy = fakeState.store.setCalls.find((c) => c.id === copy.id);
-    expect(serverCopy).toBeDefined();
+    // No copy is created — the list stays at 1 (just the source).
+    expect(configs).toHaveLength(1);
+    // Active pointer is set to the source id directly.
+    expect(useModelStore.getState().activeConfigId).toBe(foreign.id);
+    // Server was NOT called (no copy to push).
+    expect(fakeState.store.setCalls).toHaveLength(0);
   });
 
-  it('4. double-click race: second load focuses existing copy instead of duplicating', async () => {
+  it('4. double-click race: second load is idempotent (RBAC rollback — no copy-on-load)', async () => {
+    // Since copy-on-load is disabled, loading the same scenario twice is
+    // idempotent: count stays the same and activeConfigId stays at the source.
     useModelStore.getState().setCurrentAuthIdentity({
       uid: 'uid-bob',
       displayName: 'Bob',
@@ -310,12 +313,11 @@ describe('loadConfig — copy-on-load semantics', () => {
     const foreign = seedForeign();
     await useModelStore.getState().loadConfig(foreign.id);
     const afterFirst = useModelStore.getState().savedConfigs.length;
-    // Second load should NOT add a third entry.
     await useModelStore.getState().loadConfig(foreign.id);
     const afterSecond = useModelStore.getState().savedConfigs.length;
     expect(afterSecond).toBe(afterFirst);
-    // Active pointer still at the existing copy (not the source).
-    expect(useModelStore.getState().activeConfigId).not.toBe(foreign.id);
+    // Active pointer is at the source id (not some copy id).
+    expect(useModelStore.getState().activeConfigId).toBe(foreign.id);
   });
 
   it('loading own scenario does NOT fork a copy', async () => {

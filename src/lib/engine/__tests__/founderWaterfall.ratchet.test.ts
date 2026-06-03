@@ -4,8 +4,8 @@
 //
 // These tests pin the economics of the restructured RATCHET_TIERS:
 //   miss      — IRR < 8%  → 0% ratchet  (merges old failure + below_pref)
-//   pref_met  — 8–22% IRR → +9%
-//   excellent — ≥ 22% IRR → +29% (no-grant differential removed)
+//   pref_met  — 8–25% IRR → +9%
+//   excellent — ≥ 25% IRR → +29% (no-grant differential removed)
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -60,7 +60,7 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.performanceRatchetPct).toBe(0);
   });
 
-  it('returns +9% ratchet for IRR 8–22% (pref_met tier) reduced by 10% carry to 0.081', () => {
+  it('returns +9% ratchet for IRR 8–25% (pref_met tier) reduced by 10% carry to 0.081', () => {
     // Default aggelakakisCarryPct = 0.10; 9% × 0.90 = 8.1%
     const result = computeFounderStake({
       ...BASE_INPUT,
@@ -72,7 +72,7 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.performanceRatchetPct).toBeCloseTo(0.081);
   });
 
-  it('returns 0% ratchet for IRR 8–22% when MOIC floor not met (drops to miss)', () => {
+  it('returns 0% ratchet for IRR 8–25% when MOIC floor not met (drops to miss)', () => {
     // pref_met needs MOIC ≥ 2.5; MOIC = 1.8 → drops to miss (moicFloor = 0)
     const result = computeFounderStake({
       ...BASE_INPUT,
@@ -85,25 +85,25 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(result.moicFloorReduction).toBe(true);
   });
 
-  it('returns +9% ratchet for IRR ≥ 22% with grant approved (10% cap × 0.90 carry reduction)', () => {
+  it('returns +9% ratchet for IRR ≥ 25% with grant approved (10% cap × 0.90 carry reduction)', () => {
     // Excellent tier raw = 10%; carry reduces to 10% × 0.90 = 9%.
     // Standalone ratchet cap (10%) applies to the gross value before carry,
     // so the effective post-carry cap is 10% × 0.90 = 9%.
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
-      investorIRR: 0.25,
+      investorIRR: 0.30,
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');
     expect(result.performanceRatchetPct).toBeCloseTo(0.09);
   });
 
-  it('returns +9% ratchet for IRR ≥ 22% WITHOUT grant (carry reduces 10% to 9%)', () => {
+  it('returns +9% ratchet for IRR ≥ 25% WITHOUT grant (carry reduces 10% to 9%)', () => {
     const noGrantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: false,
-      investorIRR: 0.25,
+      investorIRR: 0.30,
       investorMOIC: 7.0,
     });
     expect(noGrantCase.ratchetTier).toBe('excellent');
@@ -115,13 +115,13 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     const grantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
-      investorIRR: 0.25,
+      investorIRR: 0.30,
       investorMOIC: 7.0,
     });
     const noGrantCase = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: false,
-      investorIRR: 0.25,
+      investorIRR: 0.30,
       investorMOIC: 7.0,
     });
     expect(grantCase.performanceRatchetPct).toBeCloseTo(0.09);
@@ -129,23 +129,23 @@ describe('Bucket 1C ratchet — 3-tier structure', () => {
     expect(grantCase.performanceRatchetPct).toBe(noGrantCase.performanceRatchetPct);
   });
 
-  it('pref_met tier boundary: IRR exactly at 22% still in pref_met (exclusive upper bound)', () => {
-    // irrMax for pref_met = 0.22 (exclusive), so 0.2199 is pref_met. 9% × 0.90 = 8.1%
+  it('pref_met tier boundary: IRR just below 25% still in pref_met (exclusive upper bound)', () => {
+    // irrMax for pref_met = 0.25 (exclusive), so 0.2499 is pref_met. 9% × 0.90 = 8.1%
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
-      investorIRR: 0.2199,
+      investorIRR: 0.2499,
       investorMOIC: 3.0,
     });
     expect(result.ratchetTier).toBe('pref_met');
     expect(result.performanceRatchetPct).toBeCloseTo(0.081);
   });
 
-  it('excellent tier boundary: IRR at exactly 22% flips to excellent', () => {
+  it('excellent tier boundary: IRR at exactly 25% flips to excellent', () => {
     const result = computeFounderStake({
       ...BASE_INPUT,
       grantApproved: true,
-      investorIRR: 0.22,
+      investorIRR: 0.25,
       investorMOIC: 7.0,
     });
     expect(result.ratchetTier).toBe('excellent');

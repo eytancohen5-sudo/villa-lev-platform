@@ -104,6 +104,10 @@ export interface TranslationDictionary {
   'kpi.equityRequired': string;
   'kpi.graceInterestCarry': string;
   'kpi.graceInterestCarrySub': string;
+  'kpi.capexEquity': string;
+  'kpi.capexEquitySub': string;
+  'kpi.totalEquityNeed': string;
+  'kpi.totalEquityNeedSub': string;
   'kpi.annualDS': string;
   'kpi.annualDSSub': string;
   'kpi.netCashFlow': string;
@@ -156,6 +160,8 @@ export interface TranslationDictionary {
   'pnl.profitAfterTax': string;
   'pnl.ffeReserve': string;
   'pnl.wcInterest': string;
+  'pnl.financeSection': string;
+  'pnl.taxSection': string;
   'pnl.wcAvg': string;
   'pnl.wcPeak': string;
   'pnl.wcNetContribution': string;
@@ -173,6 +179,8 @@ export interface TranslationDictionary {
   'pnl.yieldOnEquity': string;
   'pnl.totalYieldOnEquity': string;
   'pnl.termLoanInterest': string;
+  'pnl.commitmentFee': string;
+  'pnl.commitmentFeeTooltip': string;
   'pnl.termLoanPrincipal': string;
   'pnl.termLoanBalance': string;
   'pnl.icr': string;
@@ -185,6 +193,7 @@ export interface TranslationDictionary {
   'pnl.portfolioServices': string;
   'pnl.portfolioOverhead': string;
   'pnl.portfolioPreOpening': string;
+  'pnl.portfolioConstructionServices': string;
 
   // Dashboard — bank metrics
   'dash.section.dealSnapshot': string;
@@ -587,6 +596,7 @@ export interface TranslationDictionary {
   'field.licensesPermits': string;
   'field.constructionDirector': string;
   'field.interiorDesignerCost': string;
+  'field.devConstructionFeePerYear': string;
   'field.poolCostPerM2': string;
   'field.poolSlotQty': string;
   'field.poolSlotWidth': string;
@@ -657,6 +667,7 @@ export interface TranslationDictionary {
   'sens.facility': string;
   'sens.wcY2Trough': string;
   'sens.capexSensitivity': string;
+  'sens.dscrStabilised': string;
 
   // ── Investor ──
   'inv.portfolioExpansion': string;
@@ -700,6 +711,23 @@ export interface TranslationDictionary {
   'inv.sens.resetAll': string;
   'inv.sens.covenantLegend': string;
   'inv.sens.paybackUnit': string;
+  // ── Break-even (Gap 2) ──
+  'inv.sens.breakEvenLabel': string;
+  'inv.sens.breakEvenSub': string;
+  'inv.sens.breakEvenUnit': string;
+  'inv.sens.bufferLabel': string;
+  'inv.sens.bufferSub': string;
+  'inv.sens.breakEvenBaseNote': string;
+  // ── Hold period comparison (Gap 3) ──
+  'inv.sens.holdPanel.heading': string;
+  'inv.sens.holdPanel.subheading': string;
+  'inv.sens.holdPanel.col5': string;
+  'inv.sens.holdPanel.col7': string;
+  'inv.sens.holdPanel.col11': string;
+  'inv.sens.holdPanel.baseLabel': string;
+  'inv.sens.holdPanel.irrRow': string;
+  'inv.sens.holdPanel.moicRow': string;
+  'inv.sens.holdPanel.tepixNote': string;
 
   // ── Common ──
   'common.year': string;
@@ -707,6 +735,7 @@ export interface TranslationDictionary {
   'common.path': string;
   'common.metric': string;
   'common.loading': string;
+  'common.noData': string;
 
   // ── Config management ──
   'config.title': string;
@@ -963,6 +992,7 @@ export interface TranslationDictionary {
   'dash.termsheet.pass': string;
   'dash.termsheet.fail': string;
   'dash.termsheet.min': string;
+  'dash.termsheet.suppLoanNote': string;
 
   // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
   'dash.founder.section': string;
@@ -1048,6 +1078,7 @@ export interface TranslationDictionary {
   'bank.bar.optimaSpread': string;
   'bank.bar.optimaEuribor': string;
   'bank.bar.optimaEffective': string;
+  'bank.bar.optimaLoanPct': string;
 
   // ── bank/page.tsx hero & section headings (2026-05-23) ──
   'bank.hero.eyebrow': string;
@@ -1124,6 +1155,7 @@ export interface TranslationDictionary {
   'bank.wc.revolving': string;
   'bank.wc.bpsSpread': string;
   'bank.wc.selfLiquidating': string;
+  'bank.wc.selfLiquidatingSuffix': string;
   'bank.wc.notIncluded': string;
   'bank.wc.dual.vatBridgeLabel': string;
   'bank.wc.dual.vatBridgeSub': string;
@@ -1275,6 +1307,9 @@ export interface TranslationDictionary {
   'financing.securityNote': string;
   'financing.stabilisedDSCR': string;
   'financing.activePathNote': string;
+  'financing.commitmentFeeLabel': string;
+  'financing.commitmentFeeRate': string;
+  'financing.commitmentFeeTotal': string;
 
   // ── Debt Coverage page ──
   'dc.title': string;
@@ -1404,6 +1439,10 @@ export interface TranslationDictionary {
   'auth.error.popupBlocked': string;
   'auth.error.unauthorizedDomain': string;
   'auth.error.unknown': string;
+  'auth.gate.nameRequired': string;
+  'auth.gate.incorrectCode': string;
+  'auth.gate.signingIn': string;
+  'auth.gate.signInGoogle': string;
 
   // ── Team page ──
   'team.title': string;
@@ -1791,6 +1830,9 @@ export interface TranslationDictionary {
   // ── Bank sensitivity tab (2026-05-25) ──
   'bank.tabs.overview': string;
   'bank.tabs.sensitivity': string;
+  'bank.tabs.creditAnalysis': string;
+  'bank.tabs.vatCashflow': string;
+  'bank.optimaLink': string;
   'bank.sens.title': string;
   'bank.sens.subtitle': string;
   'bank.sens.slidersHeading': string;
@@ -1952,6 +1994,7 @@ export interface TranslationDictionary {
   'ct.founder.layerBInactive': string;
   'ct.founder.layerCNote': string;
   'ct.founder.exitNote': string;
+  'ct.founder.exitNoteDetail': string;
   'ct.founder.floorNote': string;
   'ct.equityPoolModel': string;
   'ct.requiredFromInvestors': string;
@@ -2057,6 +2100,34 @@ export interface TranslationDictionary {
   'ct.waterfallDetailSub': string;
   'ct.waterfallDetailToggle': string;
   'ct.waterfallDetailHide': string;
+
+  // ── OpCo/Cap Table redesign — waterfall steps (2026-06-01) ──
+  'opco.wStep5Label': string;
+  'opco.wStep5Detail': string;
+  'opco.wStep6Label': string;
+  'opco.wStep6Detail': string;
+  'opco.wStep7Label': string;
+  'opco.wStep7Detail': string;
+  'opco.bucket1AXref': string;
+
+  // ── Cap Table — capital structure section (migrated from opco-split) ──
+  'ct.cs.sectionTitle': string;
+  'ct.cs.sponsorPromote': string;
+  'ct.cs.sponsorPromoteSub': string;
+  'ct.cs.sponsorCoinvest': string;
+  'ct.cs.sponsorCoinvestSub': string;
+  'ct.cs.investorPool': string;
+  'ct.cs.investorPoolSub': string;
+  'ct.cs.bankLoan': string;
+  'ct.cs.grant': string;
+  'ct.cs.grantInactive': string;
+  'ct.cs.totalCapex': string;
+  'ct.cs.propcoPlot': string;
+  'ct.cs.propcoPlots': string;
+
+  // ── Cap Table — equity waterfall section ──
+  'ct.equityWaterfall': string;
+  'ct.equityWaterfallSub': string;
   // ── Bank unit labels (2026-05-25) ──
   'bank.about.unitStd': string;
   'bank.about.unitDbl': string;
@@ -2098,6 +2169,22 @@ export interface TranslationDictionary {
   'sau.wcNote': string;
   'sau.balanceNote': string;
 
+  // ── Analytics page ───────────────────────────────────────────────────────
+  'nav.analytics': string;
+  'analytics.title': string;
+  'analytics.pageIntro': string;
+  'analytics.range7d': string;
+  'analytics.range30d': string;
+  'analytics.range90d': string;
+  'analytics.colFeature': string;
+  'analytics.colTotalOpens': string;
+  'analytics.colUniqueSessions': string;
+  'analytics.colAdminOpens': string;
+  'analytics.colBankOpens': string;
+  'analytics.colLastUsed': string;
+  'analytics.noData': string;
+  'analytics.loading': string;
+
   // ── Connections page ──────────────────────────────────────────────────────
   'nav.connections': string;
   'connections.title': string;
@@ -2134,7 +2221,7 @@ export interface TranslationDictionary {
 
   // ── Optima Bank page (2026-05-28) ──
   'bank.optima.eyebrow': string;
-  'bank.optima.capexNote': string;
+
   'bank.optima.subProjectA': string;
   'bank.optima.subProjectB': string;
   'bank.optima.loanTerm': string;
@@ -2172,6 +2259,21 @@ export interface TranslationDictionary {
   'bank.optima.upliftNewEquity': string;
   'bank.optima.upliftSaved': string;
   'bank.optima.upliftDscrVsBase': string;
+  'bank.optima.upliftCapexBreakdown': string;
+  'bank.optima.upliftCategory': string;
+  'bank.optima.upliftBefore': string;
+  'bank.optima.upliftAfter': string;
+  'bank.optima.upliftDeltaAmt': string;
+  'bank.optima.upliftDeltaPct': string;
+  'bank.optima.upliftExpandBreakdown': string;
+  'bank.optima.upliftCollapseBreakdown': string;
+  'bank.optima.pathImpactTitle': string;
+  'bank.optima.pathImpactSub': string;
+  'bank.optima.pathBaseline': string;
+  'bank.optima.pathNew': string;
+  'bank.optima.pathDeltaLoan': string;
+  'bank.optima.pathDeltaPct': string;
+  'bank.optima.pathEquityChange': string;
   'as.optimaTab': string;
   // ── Grace structure toggle (commercial path, /bank view) ──
   'bank.graceMode.label': string;
@@ -2181,6 +2283,146 @@ export interface TranslationDictionary {
   'bank.graceMode.two_phase.desc': string;
   'bank.graceMode.rolling': string;
   'bank.graceMode.rolling.desc': string;
+  'bank.graceMode.rolling_cohort': string;
+  'bank.graceMode.rolling_cohort.desc': string;
   'bank.graceMode.plotsStart': string;
   'bank.graceMode.constructionStart': string;
+
+  // ── TEPIX active-path banner (assumptions page) ──
+  'field.tepixActivePathBanner': string;
+  'field.tepixInertBanner': string;
+
+  // ── P&L capital structure mini-panel ──
+  'pnl.capitalStructure': string;
+  'pnl.capitalStructureSub': string;
+
+  // ── P&L Founder ManCo fee section (ADR-0019) ──────────────────────────────
+  'pnl.mancoFeeSection': string;
+  'pnl.postDsPostMancoResidual': string;
+  'pnl.grantSuccessFeeLabel': string;
+
+  // ── CapEx Absorption ──────────────────────────────────────────────────────
+  'capexAbs.title': string;
+  'capexAbs.subtitle': string;
+  'capexAbs.serviceProviders': string;
+  'capexAbs.serviceProvidersDesc': string;
+  'capexAbs.contingency': string;
+  'capexAbs.contingencyDesc': string;
+  'capexAbs.constructionBefore': string;
+  'capexAbs.constructionAfter': string;
+  'capexAbs.constructionDelta': string;
+  'capexAbs.pathImpactTitle': string;
+  'capexAbs.pathBaseline': string;
+  'capexAbs.pathNew': string;
+  'capexAbs.pathDeltaLoan': string;
+  'capexAbs.pathDeltaPct': string;
+  'capexAbs.pathEquityChange': string;
+  'capexAbs.ofTotalBudget': string;
+
+  // ── P1-07/08/09/10: Bank view additions (2026-06-03) ──
+  'bank.stress.output.dscrStabilised': string;
+  'bank.exit.sectionTitle': string;
+  'bank.exit.sectionSub': string;
+  'bank.exit.exitYear': string;
+  'bank.exit.terminalAsset': string;
+  'bank.exit.terminalAssetSub': string;
+  'bank.exit.loanAtExit': string;
+  'bank.exit.loanAtExitSub': string;
+  'bank.exit.terminalLTV': string;
+  'bank.exit.ltvPass': string;
+  'bank.exit.ltvFail': string;
+  'bank.exit.ltvThreshold': string;
+  'bank.exit.underwaterNote': string;
+  'bank.kpi.wcFacilityLabel': string;
+  'bank.wc.adequacyBelowMin': string;
+  'bank.wc.adequacyShortfall': string;
+  'bank.stabilised.ebitdaMarginBenchmark': string;
+  'bank.stabilised.ffeReserve': string;
+  'bank.kpi.revpar': string;
+  'bank.kpi.revparSub': string;
+  'bank.kpi.ltvCovenant': string;
+  'bank.kpi.ltvCovenantThreshold': string;
+  'bank.kpi.preOpening': string;
+  'bank.kpi.preOpeningAmort': string;
+  'bank.kpi.mgmtFee': string;
+  'bank.kpi.mgmtFeeBaseLabel': string;
+  'bank.kpi.mgmtFeeIncentiveLabel': string;
+  // P1-16: admin viewer i18n
+  'bank.admin.connectedViewers': string;
+  'bank.admin.noActiveViewers': string;
+  'bank.admin.anonBadge': string;
+  // P1-17: i18n fixes
+  'assumptions.lastSaved': string;
+  'connections.action.excel': string;
+  'connections.action.presentation': string;
+  'connections.action.tour': string;
+  'connections.time.justNow': string;
+  'connections.time.secondsAgo': string;
+  'connections.time.minutesAgo': string;
+  'connections.time.hoursAgo': string;
+  'connections.time.daysAgo': string;
+  // P1-14: in-page anchor bars
+  'dash.anchor.overview': string;
+  'dash.anchor.returns': string;
+  'dash.anchor.dscr': string;
+  'dash.anchor.conservatism': string;
+  'dash.anchor.founder': string;
+  'bank.anchor.termSheet': string;
+  'bank.anchor.dealOverview': string;
+  'bank.anchor.loanMetrics': string;
+  'bank.anchor.dscr': string;
+  'bank.anchor.capital': string;
+  'bank.anchor.pnl': string;
+  // P1-15: accessibility aria labels and table captions
+  'aria.chart.dscr': string;
+  'aria.chart.paymentCapacity': string;
+  'aria.chart.dsra': string;
+  'aria.chart.revenue': string;
+  'aria.chart.allPathsDscr': string;
+  'aria.chart.capitalStructure': string;
+  'aria.table.caption.portfolio': string;
+  'aria.table.caption.capex': string;
+  'aria.table.caption.dscrSummary': string;
+  'aria.table.caption.financingComparison': string;
+  'aria.table.caption.pnl': string;
+
+  // P2-10: FI-12 equity draw order footnote
+  'sau.equityFirstNote': string;
+  // P2-10: FI-17 DSCR numerator footnote
+  'pnl.dscrNumeratorNote': string;
+  // P2-10: FI-18 grace interest reserve prominence
+  'bank.equityOverview.graceInterestReserve': string;
+  'bank.equityOverview.graceInterestReserveSub': string;
+  // P2-10: FI-25 break-even dual-axis subtitle
+  'bank.bar.breakevenSub': string;
+  // P3-15: export on request
+  'bank.actions.onRequest.title': string;
+  'bank.actions.onRequest.sub': string;
+
+  // ── CAPEX Comparison page (admin.capexComparison) ──
+  'nav.capexComparison': string;
+  'admin.capexComparison.title': string;
+  'admin.capexComparison.pageIntro': string;
+  'admin.capexComparison.disclaimer': string;
+  'admin.capexComparison.inputLabel': string;
+  'admin.capexComparison.modeAbs': string;
+  'admin.capexComparison.modePct': string;
+  'admin.capexComparison.colTrue': string;
+  'admin.capexComparison.colStated': string;
+  'admin.capexComparison.colDelta': string;
+  'admin.capexComparison.colBankNote': string;
+  'admin.capexComparison.rowCapexTotal': string;
+  'admin.capexComparison.rowEquityRequired': string;
+  'admin.capexComparison.rowLoan': string;
+  'admin.capexComparison.rowDepreciation': string;
+  'admin.capexComparison.rowEbitda': string;
+  'admin.capexComparison.rowEbitdaNote': string;
+  'admin.capexComparison.rowDscr': string;
+  'admin.capexComparison.rowIrr': string;
+  'admin.capexComparison.inactiveHint': string;
+
+  // ── Events disclosure (Gap 5) ──
+  // kpi.ebitdaMarginNote renders only on debt-coverage/page — NOT on InvestorSensitivityTab.
+  // inv.events.disclosure is therefore added for dashboard events row and docx export.
+  'inv.events.disclosure': string;
 }

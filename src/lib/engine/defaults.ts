@@ -81,6 +81,7 @@ import {
   RoomAreaBreakdown,
   PortfolioOpex,
   computeTotalArea,
+  GraceMode,
 } from './types';
 
 // ── Default Room Area Breakdowns (m²) ──
@@ -571,6 +572,15 @@ export const BASE_CASE: ModelAssumptions = {
     interest2026: 43200,
     interest2027: 94300,
     interest2028: 184600,
+    graceMode: 'two-phase' as GraceMode,
+    // Rolling-mode disbursement start quarters (optional — engine falls back to these defaults).
+    plotsStartYear: 2026,
+    plotsStartQ: 1 as 1 | 2 | 3 | 4,
+    constructionStartYear: 2027,
+    constructionStartQ: 1 as 1 | 2 | 3 | 4,
+    // Commitment fee on undrawn construction tranches (T2–T5). Default off.
+    commitmentFeeEnabled: false,
+    commitmentFeeRate: 0.0075,
   },
 
   grant: {
@@ -625,7 +635,7 @@ export const BASE_CASE: ModelAssumptions = {
 
   acquisitionLegalPerPlot: 50000,
   poolConstructionCostPerM2: 1_000,
-  developerConstructionFeePerYear: 75_000,
+  developerConstructionFeePerYear: 60_000,  // €5K/month × 12 — flat dev-management fee during construction
   optimaLoan: {
     euriborRate: 0.025,      // ~2.5% Euribor — confirm with Eytan before next meeting
     spreadBps: 250,          // 2.5% spread per 2026-05-28 term sheet
@@ -691,19 +701,20 @@ export const BASE_CASE: ModelAssumptions = {
     juniorResidualThreshold: 500_000,
   },
 
-  // Minimum annual management fee per project, paid SENIOR to debt service
-  // in bank view (lives inside OpEx, hits DSCR). Multiplied by the number of
-  // plots in model.ts → €25K × 3 plots = €75K/yr total @ current portfolio.
+  // Minimum annual management fee per project. Junior to debt service —
+  // paid from post-DS residual. Accrues when residual insufficient. Multiplied
+  // by plot count in engine → €25K × 3 plots = €75K/yr total @ current portfolio.
   // Matches the construction-phase minimum (developerConstructionFeePerYear)
   // so Eytan's floor is consistent across construction and operations.
-  // OpCo fees above this floor are subordinated (junior) to debt service.
-  opCoSeniorFloor: 25_000,
+  opCoFloor: 25_000,
 
   workingCapital: {
     active: true,
     facilitySize: 560000,
     spreadOverTermRate: 0.01,
-    preOpeningTotalDraw: 200000,
+    // Pre-opening WC draws are equity-funded (see model.ts preOpeningEquityBuffer).
+    // The WC facility is reserved for the seasonal cycle and VAT-bridge only.
+    preOpeningTotalDraw: 0,
     seasonalDrawPerCycle: 150000,
     y2RampBufferTopup: 100000,
     selfLiquidating: true,
@@ -795,6 +806,11 @@ export const BASE_CASE: ModelAssumptions = {
     preOpeningTotal: 275000,
     preOpeningAmortYears: 5,
     preOpeningStartYear: 2029,
+    // Lawyers for permits/contracts, PM consultants, financial/tax advisors —
+    // expensed under Article 22 in the year incurred (2026–2028), not capitalised.
+    // Set to the total across all construction years; engine spreads evenly per year.
+    // Civil engineer and architect fees belong in the CapEx budget, not here.
+    constructionServicesExpensed: 0,
     includePreOpeningInStabilised: true,
     poolCount: 17,
     poolCostPerUnit: 1500,
@@ -837,8 +853,9 @@ export function ensurePortfolioOpex(assumptions: ModelAssumptions): ModelAssumpt
     ? renamedRoles
     : [...renamedRoles, d.staffRoles.find((r) => r.name === 'Pool Technician')!];
 
-  // WC facilitySize: anything ≤ 400k causes a covenant breach — peak VAT float
-  // is €455,346. Reset to BP value of €560k wherever a stale save slipped through.
+  // WC facilitySize: anything ≤ 400k is stale — peak VAT-bridge float is
+  // €728,554 (minimumFacility = €750k). Reset to BP value of €560k for stale
+  // saves; scenarios in 400k–749k range are user-intentional and pass through.
   const wc = assumptions.workingCapital;
   const fixedWc =
     (wc?.facilitySize ?? 0) <= 400_000

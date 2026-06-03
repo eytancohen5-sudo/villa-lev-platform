@@ -85,4 +85,3 @@ export const SCENARIOS_COLLECTION = 'scenarios';
 // does X live?". See ADR 0002 for the full data model.
 export const USERS_COLLECTION = 'users';
 export const INVITES_COLLECTION = 'invites';
-export const MAIL_COLLECTION = 'mail';

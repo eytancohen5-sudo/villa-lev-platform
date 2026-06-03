@@ -202,9 +202,14 @@ describe("firestore.rules — RBAC structural guards", () => {
     expect(b).not.toMatch(/allow\s+read\s*:\s*if\s+true\s*;/);
   });
 
-  it("scenarios/{scenarioId} create gates on canEdit()", () => {
+  it("scenarios/{scenarioId} create gates on request.auth != null (RBAC rollback 2026-05-26)", () => {
+    // RBAC was rolled back 2026-05-26. canEdit() was replaced with
+    // `request.auth != null` so that password-gate anonymous-auth users can
+    // save scenarios. The password gate itself is the access control layer.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(/allow\s+create\s*:[\s\S]*?canEdit\s*\(\s*\)/);
+    expect(b).toMatch(/allow\s+create\s*:[\s\S]*?request\.auth\s*!=\s*null/);
+    // canEdit() must NOT be the create guard (it would block anonymous-auth users)
+    expect(b).not.toMatch(/allow\s+create\s*:\s*if\s+canEdit\s*\(\s*\)/);
   });
 
   it("scenarios/{scenarioId} create stamps caller as userId", () => {
@@ -233,17 +238,23 @@ describe("firestore.rules — RBAC structural guards", () => {
     expect(b).toMatch(/copiedFrom\.copiedAt\s+is\s+number/);
   });
 
-  it("scenarios/{scenarioId} update gates on canEdit() and caller-is-owner", () => {
+  it("scenarios/{scenarioId} update gates on request.auth != null (RBAC rollback 2026-05-27)", () => {
+    // RBAC rollback 2026-05-27: canEdit() and owner-match were removed from the
+    // update predicate. Anonymous Firebase Auth issues a new UID each session so
+    // resource.data.userId == request.auth.uid would block editing scenarios
+    // saved in a previous session. Any authenticated user can now edit any scenario.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(/allow\s+update\s*:[\s\S]*?canEdit\s*\(\s*\)/);
-    expect(b).toMatch(
-      /allow\s+update\s*:[\s\S]*?resource\.data\.userId\s*==\s*request\.auth\.uid/,
-    );
+    expect(b).toMatch(/allow\s+update\s*:[\s\S]*?request\.auth\s*!=\s*null/);
+    // canEdit() must NOT gate update (would block anonymous-auth users)
+    expect(b).not.toMatch(/allow\s+update\s*:\s*if\s+canEdit\s*\(\s*\)/);
   });
 
-  it("scenarios/{scenarioId} update enforces userId immutability", () => {
+  it("scenarios/{scenarioId} update does NOT enforce userId immutability (RBAC rollback 2026-05-27)", () => {
+    // After rollback: per-UID ownership checks removed. userId immutability
+    // was part of the old RBAC write guard; it is no longer asserted in rules.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(
+    // The update rule enforces id immutability but NOT userId immutability.
+    expect(b).not.toMatch(
       /allow\s+update\s*:[\s\S]*?request\.resource\.data\.userId\s*==\s*resource\.data\.userId/,
     );
   });
@@ -255,40 +266,32 @@ describe("firestore.rules — RBAC structural guards", () => {
     );
   });
 
-  it("scenarios/{scenarioId} update enforces copiedFrom immutability field-by-field (NOT whole-map equality)", () => {
-    // Revision M1 guard: rules-language map equality has surprising semantics
-    // (key-order, missing-vs-null), so each subfield is compared explicitly.
+  it("scenarios/{scenarioId} update does NOT enforce copiedFrom immutability (RBAC rollback 2026-05-27)", () => {
+    // RBAC rollback 2026-05-27: the full ownership + immutability guard was
+    // replaced with a simple `request.auth != null` gate. copiedFrom
+    // immutability (field-by-field subfield checks) is no longer in the rules.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(
-      /copiedFrom\.userId\s*==\s*resource\.data\.copiedFrom\.userId/,
-    );
-    expect(b).toMatch(
-      /copiedFrom\.scenarioId\s*==\s*resource\.data\.copiedFrom\.scenarioId/,
-    );
-    expect(b).toMatch(
-      /copiedFrom\.displayName\s*==\s*resource\.data\.copiedFrom\.displayName/,
-    );
-    expect(b).toMatch(
-      /copiedFrom\.copiedAt\s*==\s*resource\.data\.copiedFrom\.copiedAt/,
-    );
-    // And explicitly: whole-map equality must NOT be the guard.
     expect(b).not.toMatch(
-      /request\.resource\.data\.copiedFrom\s*==\s*resource\.data\.copiedFrom\b/,
+      /copiedFrom\.userId\s*==\s*resource\.data\.copiedFrom\.userId/,
     );
   });
 
-  it("scenarios/{scenarioId} update has the null-vs-null branch (set-once-at-create when null)", () => {
+  it("scenarios/{scenarioId} update does NOT have the null-vs-null copiedFrom branch (RBAC rollback 2026-05-27)", () => {
+    // The null-vs-null copiedFrom branch was part of the old RBAC update
+    // guard. After rollback the update predicate is simply `request.auth != null`.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(
+    expect(b).not.toMatch(
       /request\.resource\.data\.copiedFrom\s*==\s*null\s*&&\s*resource\.data\.copiedFrom\s*==\s*null/,
     );
   });
 
-  it("scenarios/{scenarioId} delete is owner-gated, not `if false`", () => {
+  it("scenarios/{scenarioId} delete gates on request.auth != null (RBAC rollback 2026-05-27)", () => {
+    // RBAC rollback 2026-05-27: owner-gated delete (canEdit() + userId match)
+    // replaced with `request.auth != null`. Any authenticated (including
+    // anonymous password-gate) user can delete any scenario. Previously delete
+    // was `if false`; that is also gone.
     const b = extractMatchBlock(loadRules(), "match /scenarios/{scenarioId}");
-    expect(b).toMatch(
-      /allow\s+delete\s*:[\s\S]*?canEdit\s*\(\s*\)[\s\S]*?resource\.data\.userId\s*==\s*request\.auth\.uid/,
-    );
+    expect(b).toMatch(/allow\s+delete\s*:[\s\S]*?request\.auth\s*!=\s*null/);
     expect(b).not.toMatch(/allow\s+delete\s*:\s*if\s+false\s*;/);
   });
 
@@ -305,13 +308,17 @@ describe("firestore.rules — RBAC structural guards", () => {
     expect(b).toMatch(/copiedFrom\.size\s*\(\s*\)\s*==\s*4/);
   });
 
-  it("appConfig/{docId} block is untouched by the scenarios rewrite", () => {
-    // Sanity: confirm the admin-pinned reference-scenario flow didn't regress
-    // when the adjacent scenarios block was rewritten. Public read + admin-
-    // only write + locked doc id + key-set fence must all still be present.
+  it("appConfig/{docId} — public read, auth-gated write with shape validation (post-RBAC-rollback 2026-05-27)", () => {
+    // 2026-05-27: appConfig write was relaxed from isAdmin() to request.auth != null
+    // so that password-gate anonymous users can set the reference scenario (★ button).
+    // Shape validation (docId lock + field whitelist) is kept unchanged.
     const b = extractMatchBlock(loadRules(), "match /appConfig/{docId}");
     expect(b).toMatch(/allow\s+read\s*:\s*if\s+true\s*;/);
-    expect(b).toMatch(/allow\s+write\s*:[\s\S]*?isAdmin\s*\(\s*\)/);
+    // Write is auth-gated, not admin-only (RBAC rollback)
+    expect(b).toMatch(/allow\s+write\s*:[\s\S]*?request\.auth\s*!=\s*null/);
+    // isAdmin() must NOT be the sole write guard any more
+    expect(b).not.toMatch(/allow\s+write\s*:\s*if\s+isAdmin\s*\(\s*\)\s*;/);
+    // Shape guards unchanged
     expect(b).toMatch(/docId\s*==\s*'current'/);
     expect(b).toMatch(
       /keys\s*\(\s*\)\s*\.\s*hasOnly\s*\(\s*\[\s*'referenceScenarioId'\s*,\s*'updatedAt'\s*,\s*'updatedBy'\s*\]\s*\)/,

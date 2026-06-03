@@ -26,9 +26,11 @@ import {
   type FieldValue,
 } from "firebase/firestore";
 import type { User } from "firebase/auth";
-
-export const USERS_COLLECTION = "users";
-export const INVITES_COLLECTION = "invites";
+// USERS_COLLECTION and INVITES_COLLECTION are canonical in @/lib/firebase.
+// They are re-exported here so callers that import from userProfile.ts
+// continue to resolve them without change.
+export { USERS_COLLECTION, INVITES_COLLECTION } from "@/lib/firebase";
+import { USERS_COLLECTION, INVITES_COLLECTION } from "@/lib/firebase";
 
 export type Role = "admin" | "editor" | "viewer";
 

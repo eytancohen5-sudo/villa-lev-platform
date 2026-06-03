@@ -5,7 +5,9 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { AnnualPnL } from "@/lib/engine/types";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { Chevron } from "@/components/icons/Chevron";
+import { computeEquityPosition } from "@/lib/engine/equityPosition";
 
 type RowDef = {
   label: string;
@@ -35,7 +37,7 @@ function getDefaultExpanded(): Record<string, boolean> {
   return {
     cfads: true,
     finance: true,
-    ebit: true,
+    ebit: false,
   };
 }
 
@@ -51,7 +53,7 @@ export function BankPnLSection({
   annualDebtServiceOverride?: number;
 } = {}) {
   const { t, locale } = useTranslation();
-  const { model, activeScenario } = useModelStore();
+  const { model, activeScenario, assumptions } = useModelStore();
   // Distinct storage key for optima context so expand state doesn't bleed between pages.
   const storageKey = subProjectLabel !== undefined ? 'bank-pnl-expanded-optima' : 'bank-pnl-expanded';
   // useState must be unconditional (Rules of Hooks) — placed before any early return.
@@ -174,7 +176,7 @@ export function BankPnLSection({
   );
 
   // ── Finance section (default EXPANDED in bank view) ───────────────────────
-  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "finance" });
+  rows.push({ label: t('pnl.financeSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "finance" });
   rows.push(
     // NEW: wcInterestExpense row
     {
@@ -191,7 +193,7 @@ export function BankPnLSection({
   );
 
   // ── Tax section (default collapsed) ──────────────────────────────────────
-  rows.push({ label: t('pnl.cfadsBridge'), getValue: () => "", format: "raw", separator: true, sectionKey: "tax" });
+  rows.push({ label: t('pnl.taxSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "tax" });
   rows.push(
     {
       label: t('pnl.corporateTax'),
@@ -219,7 +221,17 @@ export function BankPnLSection({
   rows.push({ label: t('pnl.debtServiceSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "debtService" });
   rows.push(
     { label: t('pnl.debtService'),        getValue: (p) => annualDebtServiceOverride !== undefined ? annualDebtServiceOverride : p.debtService,        format: "currency", bold: true, outflow: true },
-    { label: t('pnl.postDsResidual'),     getValue: (p) => p.ebitdaPreOpCo - (annualDebtServiceOverride !== undefined ? annualDebtServiceOverride : p.debtService), format: "currency", bold: true },
+    {
+      label: t('pnl.postDsResidual'),
+      getValue: (p) => {
+        if (annualDebtServiceOverride != null) {
+          return (p.netCashFlow ?? 0) - (p.debtService ?? 0) + annualDebtServiceOverride;
+        }
+        return p.netCashFlow ?? 0;
+      },
+      format: "currency",
+      bold: true,
+    },
     ...(opCoActive ? [
       { label: t('pnl.opcoIncentiveFee'), getValue: (p: AnnualPnL) => p.opCoIncentiveFee, format: "currency" as const, bold: true, outflow: true },
     ] as RowDef[] : []),
@@ -231,7 +243,7 @@ export function BankPnLSection({
     },
     {
       label: t('pnl.profitBeforeTax'),
-      getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0) - (p.termLoanInterest ?? 0) - (p.wcInterestExpense ?? 0),
+      getValue: (p) => p.taxableProfit ?? 0,
       format: "currency" as const,
       bold: true,
     },
@@ -294,6 +306,80 @@ export function BankPnLSection({
     );
   }
 
+  // ── Equity cashflow position ──────────────────────────────────────────────
+  const graceMode = (assumptions?.financingPath === 'commercial'
+    ? (assumptions?.commercialLoan?.graceMode ?? 'two-phase')
+    : 'standard') as 'standard' | 'two-phase' | 'rolling' | 'rolling-cohort';
+  const plotsStartYear = assumptions?.commercialLoan?.plotsStartYear ?? PROJECT_CONSTANTS.HORIZON_START_YEAR;
+  const constructionStartYear = assumptions?.commercialLoan?.constructionStartYear ?? (PROJECT_CONSTANTS.HORIZON_START_YEAR + 1);
+  const equityRequired = model.keyMetrics.equityRequired;
+  const graceInterestCarry = model.keyMetrics.graceInterestCarry;
+  const peakNegativeNCF = Math.abs(Math.min(0, ...activePnl.map((p) => p.cumulativeNCF ?? 0)));
+  const totalOutOfPocket = equityRequired + peakNegativeNCF;
+  // Phase 1 equity = land + permits share (€1.35M × equity ratio). Deployed in 2026.
+  // Construction equity deployed in OPENING_YEAR when all invoices are paid.
+  const equityRatio = model.keyMetrics.totalCapex > 0 ? equityRequired / model.keyMetrics.totalCapex : 0;
+  const phase1Equity = PROJECT_CONSTANTS.PHASE1_LAND_PERMITS * equityRatio;
+  rows.push({ label: t('pnl.equityReturnSection'), getValue: () => "", format: "raw", separator: true, sectionKey: "equityCf" });
+  rows.push(
+    {
+      label: t('pnl.equityStructural'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? equityRequired : 0,
+      format: "currency",
+      indent: true,
+      detail: true,
+      section: "equityCf",
+    },
+    {
+      label: t('pnl.equityGraceReserve'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? graceInterestCarry : 0,
+      format: "currency",
+      indent: true,
+      detail: true,
+      section: "equityCf",
+    },
+    {
+      label: t('pnl.shareholderLoan'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? peakNegativeNCF : 0,
+      format: "currency",
+      indent: true,
+      detail: true,
+      section: "equityCf",
+    },
+    {
+      label: t('pnl.equityTotalOutOfPocket'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? totalOutOfPocket : 0,
+      format: "currency",
+      bold: true,
+    },
+    {
+      label: t('pnl.cumulativeNCF'),
+      getValue: (p) => p.cumulativeNCF,
+      format: "currency",
+      outflow: true,
+      indent: true,
+      detail: true,
+      section: "equityCf",
+    },
+    {
+      label: t('pnl.equityPosition'),
+      getValue: (p) => computeEquityPosition({
+        year: p.year,
+        cumulativeNCF: p.cumulativeNCF ?? 0,
+        graceMode,
+        equityRequired,
+        phase1Equity,
+        plotsStartYear,
+        constructionStartYear,
+        openingYear: PROJECT_CONSTANTS.OPENING_YEAR,
+      }),
+      format: "currency",
+      bold: true,
+      detail: true,
+      section: "equityCf",
+    },
+  );
+
   // ── Construction VAT timing (memo) ────────────────────────────────────────
   rows.push({ label: t('pnl.vatMemoSection'), getValue: () => "", format: "raw", separator: true });
   rows.push({
@@ -351,6 +437,10 @@ export function BankPnLSection({
               breakeven: t('bank.bar.breakeven'),
             }[activeScenario] ?? t('bank.bar.realistic')} · {t('pnl.yearByYear')}
           </h3>
+          {/* FI-25: break-even dual-axis clarification */}
+          {activeScenario === 'breakeven' && (
+            <p className="text-[10px] text-amber-700 font-medium mt-0.5">{t('bank.bar.breakevenSub')}</p>
+          )}
           <p className="text-xs text-text-tertiary mt-0.5">
             {t('pnl.expandHint')}
           </p>
@@ -514,6 +604,8 @@ export function BankPnLSection({
           {t('bank.pnlFooterNote')}
           {" "}{t('pnl.cfadsNote')}
         </p>
+        {/* FI-17: DSCR numerator footnote — clarifies pre-OpCo EBITDA basis in bank view */}
+        <p className="text-[10px] text-text-tertiary leading-relaxed">{t('pnl.dscrNumeratorNote')}</p>
       </div>
     </div>
   );

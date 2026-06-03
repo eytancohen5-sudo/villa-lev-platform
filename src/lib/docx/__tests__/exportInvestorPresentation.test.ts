@@ -85,6 +85,7 @@ function makeAnnualPnL(year: number): AnnualPnL {
     dscrLoaded: 1.5,
     grossRevenue: 1000,
     otaCommissions: 0,
+    floorAccrual: 0,
   };
 }
 

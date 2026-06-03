@@ -71,9 +71,9 @@ export function KPICard({
   const bgClass = accent
     ? "bg-brand-50 border-brand-200"
     : tone === "positive"
-    ? "bg-[#EEF7EB] border-[#BCD9B6]"
+    ? "bg-green-50 border-green-200"
     : tone === "warning"
-    ? "bg-[#FEF6EB] border-[#EDCF96]"
+    ? "bg-amber-50 border-amber-200"
     : "bg-white border-surface-tertiary";
   const valueColor =
     tone === "positive" ? "text-positive" : tone === "warning" ? "text-warning" : "text-text-primary";

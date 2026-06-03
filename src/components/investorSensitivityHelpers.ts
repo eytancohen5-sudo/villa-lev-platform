@@ -3,7 +3,9 @@
 // The component re-exports nothing from here — it imports and uses these
 // directly. Tests import from this module.
 
+import { computeModel } from "@/lib/engine/model";
 import type { ModelAssumptions } from "@/lib/engine/types";
+import type { ScenarioName } from "@/lib/store/modelStore";
 
 // ── Slider state ──────────────────────────────────────────────────────────────
 
@@ -16,7 +18,7 @@ export interface SliderValues {
   exitValuationPerM2: number;
 }
 
-function cloneAssumptions(a: ModelAssumptions): ModelAssumptions {
+export function cloneAssumptions(a: ModelAssumptions): ModelAssumptions {
   return JSON.parse(JSON.stringify(a));
 }
 
@@ -91,4 +93,26 @@ export function yieldDot(v: number): string {
   if (v >= 0.12) return "bg-positive";
   if (v >= 0.06) return "bg-warning";
   return "bg-negative";
+}
+
+// ── Hold period comparison helper ─────────────────────────────────────────────
+// Applies sliders then overrides exitYear with a forced value.
+// The explicit clone.exitYear = forcedExitYear assignment AFTER applySliders is
+// critical: applySliders sets exitYear from sliders.exitYear, so without the
+// override the 2037 column would track the slider instead of staying fixed.
+
+export function buildHoldScenario(
+  base: ModelAssumptions,
+  sliders: SliderValues,
+  forcedExitYear: number,
+  activeScenario: ScenarioName = 'realistic'
+): { irr: number; moic: number } {
+  const clone = cloneAssumptions(applySliders(base, sliders));
+  clone.exitYear = forcedExitYear; // ALWAYS force — even for 2037
+  const result = computeModel(clone);
+  const r = result.scenarios[activeScenario];
+  return {
+    irr:  isFinite(r.equityIRR) ? r.equityIRR : 0,
+    moic: isFinite(r.totalMOIC) ? r.totalMOIC : 0,
+  };
 }

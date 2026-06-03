@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -17,6 +17,9 @@ import {
   DEFAULT_GRANT_SUCCESS_FEE_PAYMENT_YEAR,
   DEFAULT_FEE_CASH_SPLIT_PCT,
 } from "@/lib/engine/founderWaterfall";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
+import { computeEquityPosition } from "@/lib/engine/equityPosition";
 
 type RowDef = {
   label: string;
@@ -38,9 +41,13 @@ type RowDef = {
   section?: string;
   /** Marks the equity distribution row for locale-safe gating indicator */
   isDistributionRow?: boolean;
+  /** Native tooltip shown on hover — dotted underline signals it is present */
+  tooltip?: string;
 };
 
 export default function PnLPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-pnl"); }, [track]);
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
   // Hooks must be unconditional — placed before early return.
@@ -61,13 +68,29 @@ export default function PnLPage() {
   const grantFeeTotal = (model.keyMetrics.grantAmount ?? DEFAULT_GRANT_AMOUNT) * DEFAULT_GRANT_PROCUREMENT_FEE_PCT;
   const grantFeeTotalCash = grantFeeTotal * DEFAULT_FEE_CASH_SPLIT_PCT;
 
+  const { loanAmount, equityRequired, annualDS } = model.keyMetrics;
+
   const pnl = model.scenarios[activeScenario].pnl;
+  const peakNegativeNCF = Math.abs(Math.min(0, ...pnl.map((p) => p.cumulativeNCF ?? 0)));
+  const equityRatio = model.keyMetrics.totalCapex > 0 ? model.keyMetrics.equityRequired / model.keyMetrics.totalCapex : 0;
+  const phase1Equity = PROJECT_CONSTANTS.PHASE1_LAND_PERMITS * equityRatio;
+  const totalOutOfPocket = model.keyMetrics.equityRequired + peakNegativeNCF;
+  const graceMode = (assumptions?.financingPath === 'commercial'
+    ? (assumptions?.commercialLoan?.graceMode ?? 'two-phase')
+    : 'standard') as 'standard' | 'two-phase' | 'rolling' | 'rolling-cohort';
+  const plotsStartYear = assumptions?.commercialLoan?.plotsStartYear ?? PROJECT_CONSTANTS.HORIZON_START_YEAR;
+  const constructionStartYear = assumptions?.commercialLoan?.constructionStartYear ?? (PROJECT_CONSTANTS.HORIZON_START_YEAR + 1);
+  const graceCarry = model.keyMetrics.graceInterestCarry ?? 0;
+  const dsraAtClose = model.scenarios[activeScenario]?.dsraPartnerAdvance ?? 0;
+  const totalEquityAtClose = model.keyMetrics.equityRequired + graceCarry + dsraAtClose;
   const opCoActive = pnl.some((p: AnnualPnL) => p.opCoTotalFee !== 0);
   const scenarioLabel =
     activeScenario === 'upside' ? t('scenario.upside') :
     activeScenario === 'downside' ? t('scenario.downside') :
     activeScenario === 'breakeven' ? t('scenario.breakeven') :
     t('scenario.realistic');
+
+  const manCoFeeRate = assumptions?.opCoFee?.baseMgmtFeeRate ?? DEFAULT_FOUNDER_MANCO_FEE_RATE;
 
   const sampleYear = pnl.find((p) => p.propertyBreakdown.length > 0);
   const portfolioShape = sampleYear?.propertyBreakdown ?? [];
@@ -133,6 +156,7 @@ export default function PnLPage() {
     { label: t('pnl.portfolioServices'),   getValue: (p) => p.portfolioOpex?.servicesTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.portfolioOverhead'),   getValue: (p) => p.portfolioOpex?.overheadTotal  ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.portfolioPreOpening'), getValue: (p) => p.portfolioOpex?.preOpeningAmort ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
+    { label: t('pnl.portfolioConstructionServices'), getValue: (p) => p.portfolioOpex?.constructionServicesExpense ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "opex" },
     { label: t('pnl.totalOpex'), getValue: (p) => p.totalOpex, format: "currency", bold: true },
     { label: t('pnl.ffeReserve'), getValue: (p) => p.propertyBreakdown.reduce((s, b) => s + (b.ffeReservePerUnit ?? 0) * b.count, 0), format: "currency", color: "negative", indent: true },
     { label: t('pnl.gopPreMgmt'), getValue: (p) => p.ebitdaPreOpCo, format: "currency", bold: true },
@@ -142,9 +166,10 @@ export default function PnLPage() {
   );
 
   // ── Finance (WC interest + term loan detail) ──────────────────────────────
-  rows.push({ label: t('pnl.debtServiceSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "finance" });
+  rows.push({ label: t('pnl.financeSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "finance" });
   rows.push(
     { label: t('pnl.wcInterest'), getValue: (p) => p.wcInterestExpense, format: "currency", color: "negative", detail: false, section: "finance" },
+    { label: t('pnl.commitmentFee'), getValue: (p: AnnualPnL) => p.commitmentFee ?? 0, format: "currency", color: "negative", tooltip: t('pnl.commitmentFeeTooltip') },
   );
 
   // ── Debt service ──────────────────────────────────────────────────────────
@@ -157,7 +182,7 @@ export default function PnLPage() {
     { label: t('pnl.dsraBalance'),      getValue: (p: AnnualPnL) => p.dsraBalance ?? 0,      format: "currency", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.partnerRepayment'), getValue: (p: AnnualPnL) => p.partnerRepayment ?? 0, format: "currency", color: "negative", indent: true, detail: true, section: "debtService" },
     { label: t('pnl.debtService'),       getValue: (p) => p.debtService,       format: "currency", color: "negative", anchorId: "pnl-row-debtService" },
-    { label: t('pnl.postDsResidual'),   getValue: (p) => p.ebitdaPreOpCo - p.debtService, format: "currency", bold: true },
+    { label: t('pnl.postDsResidual'),   getValue: (p) => p.netCashFlow ?? 0, format: "currency", bold: true },
     ...(opCoActive ? [
       {
         label: t('pnl.opcoIncentiveFee'),
@@ -173,7 +198,40 @@ export default function PnLPage() {
       format: "currency" as const,
       bold: true,
     },
-    { label: t('pnl.profitBeforeTax'),   getValue: (p) => (p.ebitdaPreOpCo ?? 0) - (p.annualDepreciation ?? 0) - (p.termLoanInterest ?? 0) - (p.wcInterestExpense ?? 0), format: "currency", bold: true, color: "dynamic" },
+    { label: t('pnl.profitBeforeTax'),   getValue: (p) => p.taxableProfit ?? 0, format: "currency", bold: true, color: "dynamic" },
+  );
+
+  // ── Founder ManCo fee — pre-equity (ADR-0019) ────────────────────────────
+  rows.push({ label: t('pnl.mancoFeeSection'), getValue: () => 0, format: "currency", separator: true, sectionKey: "mancoFee" });
+  rows.push(
+    {
+      label: t('dash.founder.manCoFee'),
+      getValue: (p) => -(p.totalRevenue * manCoFeeRate),
+      format: "currency",
+      color: "negative",
+      section: "mancoFee",
+      detail: false,
+    },
+    ...(grantApproved ? [{
+      label: t('pnl.grantSuccessFeeLabel').replace('{year}', String(grantPaymentYear)),
+      getValue: (p: AnnualPnL) => p.year === grantPaymentYear ? -grantFeeTotalCash : 0,
+      format: "currency" as const,
+      color: "negative" as const,
+      section: "mancoFee",
+      detail: false,
+    }] : []),
+    {
+      label: t('pnl.postDsPostMancoResidual'),
+      getValue: (p) =>
+        p.ebitdaPreOpCo
+        - p.debtService
+        - (p.totalRevenue * manCoFeeRate)
+        - (grantApproved && p.year === grantPaymentYear ? grantFeeTotalCash : 0),
+      format: "currency",
+      bold: true,
+      color: "dynamic",
+      section: "mancoFee",
+    },
   );
 
   // ── Tax & distributions ───────────────────────────────────────────────────
@@ -181,35 +239,17 @@ export default function PnLPage() {
   rows.push(
     { label: t('term.vatPayable'),       getValue: (p) => p.vatPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
     { label: t('term.citPayable'),       getValue: (p) => p.citPayable,                      format: "currency", color: "negative", detail: true, section: "tax" },
-    { label: t('term.taxLossGenerated'), getValue: (p) => -(p.taxLossGenerated ?? 0),        format: "currency", color: "negative", detail: true, section: "tax" },
+    { label: t('term.taxLossGenerated'), getValue: (p) => p.taxLossGenerated ?? 0,            format: "currency",                    detail: true, section: "tax" },
     { label: t('term.taxLossUtilised'),  getValue: (p) => p.taxLossUtilised ?? 0,            format: "currency", color: "dynamic",  detail: true, section: "tax" },
     { label: t('term.taxLossPoolBalance'), getValue: (p) => p.taxLossPoolBalance ?? 0,       format: "currency",                    detail: true, section: "tax" },
     { label: t('pnl.profitAfterTax'),   getValue: (p) => p.profitAfterTax,                  format: "currency", bold: true, color: "dynamic" },
     { label: t('pnl.ncfPostVAT'),     getValue: (p) => p.netCashFlowPostVAT, format: "currency", bold: true, color: "dynamic" },
     {
-      label: `Founder ManCo fee (${(DEFAULT_FOUNDER_MANCO_FEE_RATE * 100).toFixed(0)}% × revenue)`,
-      getValue: (p) => -(p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE),
-      format: "currency",
-      color: "negative",
-      indent: true,
-      detail: true,
-      section: "tax",
-    },
-    ...(grantApproved ? [{
-      label: `Grant success fee — cash (Aggelakakis + Eytan, ${grantPaymentYear})`,
-      getValue: (p: AnnualPnL) => p.year === grantPaymentYear ? -grantFeeTotalCash : 0,
-      format: "currency" as const,
-      color: "negative" as const,
-      indent: true,
-      detail: true,
-      section: "tax",
-    }] : []),
-    {
       label: t('pnl.distributableToEquity'),
       isDistributionRow: true,
       getValue: (p) => {
         if (p.distributionGated) return 0;
-        const manCo = p.totalRevenue * DEFAULT_FOUNDER_MANCO_FEE_RATE;
+        const manCo = p.totalRevenue * manCoFeeRate;
         const grantFee = (grantApproved && p.year === grantPaymentYear) ? grantFeeTotalCash : 0;
         return Math.max(0, p.netCashFlowPostVAT - manCo - grantFee);
       },
@@ -225,7 +265,67 @@ export default function PnLPage() {
     { label: t('pnl.cfads'),              getValue: (p) => p.cfads,                        format: "currency", color: "dynamic", detail: true, section: "returns" },
     { label: t('pnl.yieldOnEquity'),      getValue: (p) => p.yieldOnInitialEquity,          format: "percent",  color: "dynamic", anchorId: "pnl-row-yieldOnEquity", detail: true, section: "returns" },
     { label: t('pnl.totalYieldOnEquity'), getValue: (p) => p.cumulativeYieldOnInitialEquity,format: "percent",  bold: true, color: "dynamic", detail: true, section: "returns" },
-    { label: t('pnl.cumulativeNCF'),      getValue: (p) => p.cumulativeNCF,                 format: "currency", color: "dynamic" },
+    {
+      label: t('pnl.equityStructural'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? model.keyMetrics.equityRequired : 0,
+      format: "currency",
+      color: "dynamic",
+      indent: true,
+    },
+    {
+      label: t('pnl.equityGraceReserve'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? graceCarry : 0,
+      format: "currency",
+      color: "dynamic",
+      indent: true,
+    },
+    {
+      label: t('pnl.equityDsraAtClose'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? dsraAtClose : 0,
+      format: "currency",
+      color: "dynamic",
+      indent: true,
+    },
+    {
+      label: t('pnl.equityAtClose'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? totalEquityAtClose : 0,
+      format: "currency",
+      color: "dynamic",
+      bold: true,
+    },
+    {
+      label: t('pnl.shareholderLoan'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? peakNegativeNCF : 0,
+      format: "currency",
+      color: "dynamic",
+      indent: true,
+      detail: true,
+      section: "returns",
+    },
+    {
+      label: t('pnl.equityTotalOutOfPocket'),
+      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? totalOutOfPocket : 0,
+      format: "currency",
+      color: "dynamic",
+      bold: true,
+    },
+    { label: t('pnl.cumulativeNCF'),      getValue: (p) => p.cumulativeNCF,                 format: "currency", color: "negative", detail: true, section: "returns" },
+    {
+      label: t('pnl.equityPosition'),
+      getValue: (p) => computeEquityPosition({
+        year: p.year,
+        cumulativeNCF: p.cumulativeNCF ?? 0,
+        graceMode,
+        equityRequired,
+        phase1Equity,
+        plotsStartYear,
+        constructionStartYear,
+        openingYear: PROJECT_CONSTANTS.OPENING_YEAR,
+      }),
+      format: "currency",
+      bold: true,
+      color: "dynamic",
+    },
     { label: t('term.dscr'),              getValue: (p) => p.dscr,                          format: "multiple", anchorId: "pnl-row-dscr", goodAt: 1.25, bold: true },
     { label: t('pnl.dscrCfads'),          getValue: (p) => p.debtService > 0 ? (p.cfads ?? 0) / p.debtService : 0, format: "multiple", goodAt: 1.25, bold: true },
     { label: t('pnl.effectiveDSCR'),      getValue: (p: AnnualPnL) => p.effectiveDSCR ?? p.dscr ?? 0, format: "multiple", bold: true, goodAt: assumptions?.dsra?.targetDSCR ?? 1.25, detail: true, section: "returns" },
@@ -273,6 +373,32 @@ export default function PnLPage() {
             </button>
           )}
           <TourButton onClick={() => setTourOpen(true)} pulsing={!!neverSeen} />
+        </div>
+      </div>
+
+      {/* Capital structure summary — scalars from keyMetrics (stabilised-year) */}
+      <div className="mb-4 mt-3">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+            {t('pnl.capitalStructure')}
+          </span>
+          <span className="text-xs text-text-tertiary">
+            {t('pnl.capitalStructureSub')}
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+            <div className="mb-1 text-xs uppercase tracking-wider text-text-tertiary">{t('kpi.loanAmount')}</div>
+            <div className="font-mono text-xl font-semibold text-text-primary">{formatCurrency(loanAmount, true, locale)}</div>
+          </div>
+          <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+            <div className="mb-1 text-xs uppercase tracking-wider text-text-tertiary">{t('kpi.equityRequired')}</div>
+            <div className="font-mono text-xl font-semibold text-text-primary">{formatCurrency(equityRequired, true, locale)}</div>
+          </div>
+          <div className="rounded-xl border border-surface-tertiary bg-white p-4">
+            <div className="mb-1 text-xs uppercase tracking-wider text-text-tertiary">{t('kpi.annualDS')}</div>
+            <div className="font-mono text-xl font-semibold text-text-primary">{formatCurrency(annualDS, true, locale)}</div>
+          </div>
         </div>
       </div>
 
@@ -361,7 +487,9 @@ export default function PnLPage() {
                     className={`border-t border-surface-secondary/40 scroll-mt-24 ${isSection ? "bg-surface-secondary/30 font-medium" : ""}`}
                   >
                     <td className={`py-2.5 px-5 sticky left-0 z-10 ${isSection ? "bg-surface-secondary/30 font-medium" : "bg-white text-text-secondary"} ${row.indent ? "pl-8" : ""}`}>
-                      {row.label}
+                      {row.tooltip ? (
+                        <span title={row.tooltip} className="cursor-help border-b border-dotted border-current/40">{row.label}</span>
+                      ) : row.label}
                     </td>
                     {pnl.map((p) => {
                       const val = row.getValue(p);

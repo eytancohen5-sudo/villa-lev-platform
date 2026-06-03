@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
+import { BankGate } from "@/components/BankGate";
 
 export default function PitchLayout({ children }: { children: React.ReactNode }) {
   const { init, setViewModeOverride } = useModelStore();
@@ -21,5 +22,9 @@ export default function PitchLayout({ children }: { children: React.ReactNode })
     return () => setViewModeOverride(null);
   }, [setViewModeOverride]);
 
-  return <div className="bg-surface-primary">{children}</div>;
+  return (
+    <BankGate>
+      <div className="bg-surface-primary">{children}</div>
+    </BankGate>
+  );
 }

@@ -1,10 +1,11 @@
 // Engine viewMode test — verifies the unified cash-waterfall formula.
 //
-// Post-unification (2026-05-25): the old dual-branch waterfall (internal vs bank)
-// was replaced with a single unified formula. Key invariants:
-//   - seniorFloor is in OpEx for BOTH views → ebitdaPreOpCo is the same in both
-//   - DSCR = ebitdaPreOpCo / DS in BOTH views (junior is never in the numerator)
-//   - ebitda = ebitdaPreOpCo − opCoJuniorPaid in BOTH views
+// Post-floor-move (2026-06-01): the floor is no longer in OpEx; it is paid
+// junior to debt service from the post-DS residual and accrues when unpaid.
+// Key invariants:
+//   - ebitdaPreOpCo = totalRevenue − totalOpex (no floor in OpEx)
+//   - DSCR = ebitdaPreOpCo / DS in BOTH views (floor and junior never in numerator)
+//   - ebitda = ebitdaPreOpCo − opCoFloorActuallyPaid − opCoJuniorPaid in both views
 //   - viewMode no longer bifurcates the P&L computation
 //
 // The old "internal vs bank must differ when OpCo is enabled" invariant is gone.
@@ -43,14 +44,14 @@ describe("computeModel — viewMode branching", () => {
     expect(dscrBank).toBeCloseTo(dscrInternal, 8);
   });
 
-  it("unified: ebitda equals ebitdaPreOpCo − opCoJuniorPaid on the stabilised year", () => {
+  it("unified: ebitda equals ebitdaPreOpCo − opCoSeniorPaid − opCoJuniorPaid on the stabilised year", () => {
     const out = computeModel({ ...withOpCoEnabled(BASE_CASE), viewMode: "internal" });
     const stab = out.scenarios.realistic.stabilisedYear;
     expect(stab).not.toBeNull();
     if (!stab) return;
-    // Under the unified formula:
-    //   ebitda = ebitdaPreOpCo − opCoJuniorPaid   (senior already in OpEx)
-    expect(stab.ebitda + stab.opCoJuniorPaid).toBeCloseTo(stab.ebitdaPreOpCo, 5);
+    // Under the post-floor-move formula (floor is post-DS, not in OpEx):
+    //   ebitda = ebitdaPreOpCo − opCoSeniorPaid − opCoJuniorPaid
+    expect(stab.ebitda + stab.opCoSeniorPaid + stab.opCoJuniorPaid).toBeCloseTo(stab.ebitdaPreOpCo, 5);
   });
 
   it("unified: DSCR uses ebitdaPreOpCo / DS in the numerator (both views)", () => {
@@ -80,17 +81,21 @@ describe("computeModel — viewMode branching", () => {
     );
   });
 
-  it("seniorFloor in OpEx: ebitdaPreOpCo is net of the senior floor", () => {
-    // Senior floor is paid inside OpEx (before ebitdaPreOpCo) so it reduces
-    // DSCR directly. Verify the floor amount is visible in the difference
-    // between propertyOpexAll and totalOpex.
-    const out = computeModel({ ...BASE_CASE, viewMode: "bank" });
+  it("floor post-DS: ebitdaPreOpCo is NOT reduced by the floor (floor is post-DS)", () => {
+    // Floor is now paid from post-DS residual — it does NOT reduce ebitdaPreOpCo.
+    // DSCR = ebitdaPreOpCo / DS is therefore higher than it was when the floor was in OpEx.
+    // Verify: ebitdaPreOpCo = totalRevenue − totalOpex (no floor baked in).
+    const out = computeModel({ ...withOpCoEnabled(BASE_CASE), viewMode: "bank" });
     const stab = out.scenarios.realistic.stabilisedYear;
     expect(stab).not.toBeNull();
     if (!stab) return;
-    // DSCR = ebitdaPreOpCo / DS — senior already reduces this.
+    // DSCR = ebitdaPreOpCo / DS — floor never reduces this.
     expect(stab.dscr).toBeCloseTo(stab.ebitdaPreOpCo / stab.debtService, 5);
     expect(stab.dscr).toBeGreaterThan(0);
+    // ebitdaPreOpCo = totalRevenue − totalOpex (floor not in totalOpex).
+    expect(stab.ebitdaPreOpCo).toBeCloseTo(stab.totalRevenue - stab.totalOpex, 5);
+    // Floor is deducted below the DSCR line (in ebitda).
+    expect(stab.ebitda).toBeLessThan(stab.ebitdaPreOpCo);
   });
 
   it("default (omitted viewMode) matches explicit 'internal'", () => {

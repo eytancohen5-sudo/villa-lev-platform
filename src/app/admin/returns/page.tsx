@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useModelStore } from "@/lib/store/modelStore";
 import { VillaMarketDrawer } from "@/components/VillaMarketDrawer";
@@ -13,10 +13,13 @@ import { PageSkeleton } from "@/components/Skeleton";
 import { SectionHeader, KPICard } from "@/components/AdminUI";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { RETURNS_TOUR } from "@/lib/tours/configs";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 
 // ── Page ────────────────────────────────────────────────────
 
 export default function ReturnsPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-returns"); }, [track]);
   const { t, locale } = useTranslation();
   const { model, activeScenario, assumptions } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(RETURNS_TOUR.storageKey);

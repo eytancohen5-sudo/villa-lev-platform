@@ -20,16 +20,35 @@ type InputDef = {
 // upside → revenueUpside.*, everything else → revenueRealistic.*
 // (downside/breakeven are derived by the engine from the realistic inputs,
 // so they share the same editable paths as the realistic scenario.)
-function buildInputs(scenario: ScenarioName, t: (key: keyof TranslationDictionary) => string): InputDef[] {
+// When financingPath is 'optima', the rate/coverage inputs use optimaLoan.*
+// so the stress sliders actually affect the Optima DSCR and DS charts.
+function buildInputs(scenario: ScenarioName, financingPath: string, t: (key: keyof TranslationDictionary) => string): InputDef[] {
   const rev = scenario === "upside" ? "revenueUpside" : "revenueRealistic";
+  const isOptima = financingPath === 'optima';
   return [
     { label: t('stress.villaAdr'), path: `${rev}.villaADR`, historyLabel: "Villa ADR", type: "euro", min: 100, max: 5000, step: 50 },
     { label: t('stress.suiteStdAdr'), path: `${rev}.suiteStandardADR`, historyLabel: "Suite Standard ADR", type: "euro", min: 50, max: 3000, step: 25 },
     { label: t('stress.suiteDblAdr'), path: `${rev}.suiteDoubleADR`, historyLabel: "Suite Double ADR", type: "euro", min: 50, max: 3000, step: 25 },
     { label: t('stress.villaBaseNights'), path: `${rev}.villaBaseNights`, historyLabel: "Villa base nights", type: "integer", min: 60, max: 365, step: 5 },
     { label: t('stress.suiteBaseNights'), path: `${rev}.suiteBaseNights`, historyLabel: "Suite base nights", type: "integer", min: 60, max: 365, step: 5 },
-    { label: t('stress.interestRate'), path: "commercialLoan.interestRate", historyLabel: "Loan interest rate", type: "percent", min: 0.01, max: 0.15, step: 0.0025 },
-    { label: t('stress.loanCoverageRate'), path: "commercialLoan.loanCoverageRate", historyLabel: "Loan coverage rate", type: "percent", min: 0.30, max: 0.90, step: 0.01 },
+    {
+      label: t('stress.interestRate'),
+      path: isOptima ? "optimaLoan.euriborRate" : "commercialLoan.interestRate",
+      historyLabel: isOptima ? "Euribor rate (Optima)" : "Loan interest rate",
+      type: "percent",
+      min: isOptima ? 0.00 : 0.01,
+      max: isOptima ? 0.10 : 0.15,
+      step: 0.0025,
+    },
+    {
+      label: t('stress.loanCoverageRate'),
+      path: isOptima ? "optimaLoan.loanCoverageRate" : "commercialLoan.loanCoverageRate",
+      historyLabel: isOptima ? "Optima coverage rate (LTC)" : "Loan coverage rate",
+      type: "percent",
+      min: isOptima ? 0.50 : 0.30,
+      max: isOptima ? 0.85 : 0.90,
+      step: 0.01,
+    },
     { label: t('stress.exitMultiple'), path: "exitEbitdaMultiple", historyLabel: "Exit EBITDA multiple", type: "multiple", min: 4, max: 20, step: 0.5 },
   ];
 }
@@ -52,13 +71,14 @@ function formatDisplay(val: number, type: InputDef["type"]): string {
 }
 
 // Paths that belong to the "advanced" collapsible section.
-const ADVANCED_PATHS = new Set(["commercialLoan.loanCoverageRate", "exitEbitdaMultiple"]);
+const ADVANCED_PATHS = new Set(["commercialLoan.loanCoverageRate", "optimaLoan.loanCoverageRate", "exitEbitdaMultiple"]);
 
 export function BankStressTest() {
   const { t, locale } = useTranslation();
   const {
     model,
     assumptions,
+    financingPathOverride,
     stressTestOverrides,
     setStressTestOverride,
     clearAllStressTestOverrides,
@@ -68,13 +88,17 @@ export function BankStressTest() {
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
 
-  // Inputs depend on the active scenario (upside uses revenueUpside.* paths).
-  const INPUTS = useMemo(() => buildInputs(activeScenario, t), [activeScenario, t]);
+  const activePath = financingPathOverride ?? assumptions.financingPath;
 
-  // Clear in-flight typed text when the scenario pill changes.
+  // Inputs depend on the active scenario and financing path.
+  // On the Optima page (activePath === 'optima'), rate/coverage inputs use
+  // optimaLoan.* so the sliders actually drive the Optima DSCR and DS charts.
+  const INPUTS = useMemo(() => buildInputs(activeScenario, activePath, t), [activeScenario, activePath, t]);
+
+  // Clear in-flight typed text when the scenario pill or financing path changes.
   useEffect(() => {
     setLocalValues({});
-  }, [activeScenario]);
+  }, [activeScenario, activePath]);
 
   // "Base:" is always the clean assumption value — never the overridden value.
   const getBaseNum = (inp: InputDef): number => {
@@ -253,6 +277,12 @@ export function BankStressTest() {
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary mb-1">{t('bank.stress.output.dscr')}</div>
               <div className="font-mono font-semibold text-lg text-text-primary">
+                {model?.scenarios?.realistic?.minDSCRLoanLife != null
+                  ? model.scenarios.realistic.minDSCRLoanLife.toFixed(2) + '×'
+                  : '—'}
+              </div>
+              <div className="text-[10px] text-text-tertiary mt-0.5">
+                {t('bank.stress.output.dscrStabilised')}{' '}
                 {model?.scenarios?.realistic?.stabilisedYear?.dscr != null
                   ? model.scenarios.realistic.stabilisedYear.dscr.toFixed(2) + '×'
                   : '—'}

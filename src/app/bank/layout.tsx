@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { AssumptionsMemoButton } from "@/components/AssumptionsMemoButton";
 import { useModelStore } from "@/lib/store/modelStore";
 import { BankGate } from "@/components/BankGate";
 import { usePresence } from "@/lib/data/usePresence";
@@ -41,7 +40,9 @@ export default function BankLayout({ children }: { children: React.ReactNode }) 
   return (
     <BankGate>
       <div className="min-h-screen bg-surface-primary">
-        {children}
+        <main>
+          {children}
+        </main>
       </div>
     </BankGate>
   );

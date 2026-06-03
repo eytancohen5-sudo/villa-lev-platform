@@ -11,26 +11,37 @@ import { useEffectiveAuth } from "@/lib/data/useEffectiveAuth";
 import { useConnectionsLog, type ConnectionEntry } from "@/lib/data/useConnectionsLog";
 import { useConnectionHistory, type HistoryEntry } from "@/lib/data/useConnectionHistory";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
+import type { TranslationDictionary } from "@/lib/i18n/types";
 
 // ── Inline helpers ────────────────────────────────────────────────────────────
 
-const ACTION_LABELS: Record<string, string> = {
-  excel_download:    "Excel ↓",
-  presentation_view: "Presentation",
-  tour_start:        "Tour",
+const ACTION_KEY_MAP: Record<string, string> = {
+  excel_download:    'connections.action.excel',
+  presentation_view: 'connections.action.presentation',
+  tour_start:        'connections.action.tour',
 };
 
-function formatRelative(ms: number): string {
-  const diff = Date.now() - ms;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 5)  return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24)   return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+type TFn = (key: keyof TranslationDictionary) => string;
+
+function makeActionLabels(t: TFn): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(ACTION_KEY_MAP).map(([action, key]) => [action, t(key as keyof TranslationDictionary)])
+  );
+}
+
+function makeFormatRelative(t: TFn) {
+  return function formatRelative(ms: number): string {
+    const diff = Date.now() - ms;
+    const seconds = Math.floor(diff / 1000);
+    if (seconds < 5)  return t('connections.time.justNow');
+    if (seconds < 60) return t('connections.time.secondsAgo').replace('{{n}}', String(seconds));
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return t('connections.time.minutesAgo').replace('{{n}}', String(minutes));
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24)   return t('connections.time.hoursAgo').replace('{{n}}', String(hours));
+    const days = Math.floor(hours / 24);
+    return t('connections.time.daysAgo').replace('{{n}}', String(days));
+  };
 }
 
 function formatDuration(startMs: number, endMs: number): string {
@@ -72,6 +83,8 @@ function PageChips({ pages }: { pages: string[] }) {
 
 export default function ConnectionsPage() {
   const { t } = useTranslation();
+  const ACTION_LABELS = makeActionLabels(t);
+  const formatRelative = makeFormatRelative(t);
   const { user, isAdmin, loading } = useEffectiveAuth();
   const { entries, loading: logLoading, error } = useConnectionsLog(isAdmin);
   const { entries: historyEntries, loading: histLoading } = useConnectionHistory(isAdmin);

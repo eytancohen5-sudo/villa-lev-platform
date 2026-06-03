@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { formatCurrency, formatPercent, formatMultiple } from "@/lib/hooks/useModel";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
@@ -7,8 +8,11 @@ import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { PageSkeleton } from "@/components/Skeleton";
 import { SCENARIOS_TOUR } from "@/lib/tours/configs";
 import { SectionHeader } from "@/components/AdminUI";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 
 export default function ScenariosPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-scenarios"); }, [track]);
   const { t, locale } = useTranslation();
   const { model, assumptions } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(SCENARIOS_TOUR.storageKey);
@@ -96,7 +100,7 @@ export default function ScenariosPage() {
             </tr>
           </thead>
           <tbody>
-            {model.dscrByYear.filter(d => d.year >= 2029).map((d) => {
+            {model.dscrByYear.filter(d => d.year >= 2026).map((d) => {
               const floor = assumptions?.dsra?.targetDSCR ?? 1.25;
               // Always use effective DSCR — equals raw dscr when no reserve needed
               const r = d.effectiveRealistic ?? d.realistic;

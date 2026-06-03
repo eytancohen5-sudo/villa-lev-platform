@@ -91,8 +91,8 @@ export const ADVISORY_FOUNDER_CASH_NO_GRANT = 700_000;
 
 export type RatchetTier =
   | 'miss'            // IRR < 8% → 0% ratchet (merges old failure + below_pref)
-  | 'pref_met'        // 8–22% IRR → +9%
-  | 'excellent';      // ≥ 22% IRR → +29% (no-grant differential removed)
+  | 'pref_met'        // 8–25% IRR → +9%
+  | 'excellent';      // ≥ 25% IRR → +29% (no-grant differential removed)
 
 export interface RatchetTierDef {
   id: RatchetTier;
@@ -106,8 +106,8 @@ export interface RatchetTierDef {
 
 export const RATCHET_TIERS: readonly RatchetTierDef[] = [
   { id: 'miss',      label: 'Miss',      irrMin: -Infinity, irrMax: 0.08,     moicFloor: 0,   ratchetGrant: 0,    ratchetNoGrant: 0 },
-  { id: 'pref_met',  label: 'Pref met',  irrMin: 0.08,      irrMax: 0.22,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
-  { id: 'excellent', label: 'Excellent', irrMin: 0.22,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.10, ratchetNoGrant: 0.10 },
+  { id: 'pref_met',  label: 'Pref met',  irrMin: 0.08,      irrMax: 0.25,     moicFloor: 2.5, ratchetGrant: 0.09, ratchetNoGrant: 0.09 },
+  { id: 'excellent', label: 'Excellent', irrMin: 0.25,      irrMax: Infinity, moicFloor: 6.0, ratchetGrant: 0.10, ratchetNoGrant: 0.10 },
 ];
 
 export interface DealTermsConfig {

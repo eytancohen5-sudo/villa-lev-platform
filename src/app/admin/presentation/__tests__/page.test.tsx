@@ -28,7 +28,23 @@ vi.mock('@/lib/store/modelStore', () => ({
 
 vi.mock('@/lib/i18n/I18nProvider', () => ({
   useTranslation: () => ({
-    t: (key: string) => key,  // Returns the key itself — good enough for assertions
+    // Return the English label for known pill/button keys; fall back to the
+    // key itself for all other strings (section headers, body text, etc.).
+    t: (key: string) => {
+      const labels: Record<string, string> = {
+        'path.commercialShort': 'Commercial',
+        'path.rrfShort': 'RRF',
+        'path.grantShort': 'Grant',
+        'path.tepixLoanShort': 'TEPIX Loan',
+        'scenario.realistic': 'Conservative',
+        'scenario.upside': 'Realistic',
+        'scenario.downside': 'Downside',
+        'scenario.breakeven': 'Break-Even',
+        'presentation.loading': 'Building presentation…',
+        'presentation.exportDocx': 'Export to Word',
+      };
+      return labels[key] ?? key;
+    },
     locale: 'en',
   }),
 }));
@@ -203,8 +219,8 @@ describe('/admin/presentation — PresentationPage', () => {
     );
     render(<PresentationPage />);
     expect(screen.getByTestId('page-skeleton')).toBeTruthy();
-    // Should show the presentation.loading key (translated to key itself in test)
-    expect(screen.getByText('presentation.loading')).toBeTruthy();
+    // t() now resolves to real English — 'presentation.loading' → 'Building presentation…'
+    expect(screen.getByText('Building presentation…')).toBeTruthy();
   });
 
   it('does not render any section when model is null', () => {
@@ -281,8 +297,8 @@ describe('/admin/presentation — PresentationPage', () => {
       makeStoreState()
     );
     render(<PresentationPage />);
-    // Button text is the i18n key (mocked t() returns key)
-    const btn = screen.getByText('presentation.exportDocx');
+    // t() resolves to real English — 'presentation.exportDocx' → 'Export to Word'
+    const btn = screen.getByText('Export to Word');
     expect(btn).toBeTruthy();
   });
 
@@ -292,7 +308,7 @@ describe('/admin/presentation — PresentationPage', () => {
     );
     render(<PresentationPage />);
     // When model is null we show the skeleton, no export button
-    expect(screen.queryByText('presentation.exportDocx')).toBeNull();
+    expect(screen.queryByText('Export to Word')).toBeNull();
   });
 
   it('export button click does not throw with model present', async () => {
@@ -307,7 +323,7 @@ describe('/admin/presentation — PresentationPage', () => {
     );
     render(<PresentationPage />);
 
-    const btn = screen.getByText('presentation.exportDocx');
+    const btn = screen.getByText('Export to Word');
     // Should not throw synchronously
     expect(() => fireEvent.click(btn)).not.toThrow();
 
@@ -331,18 +347,23 @@ describe('/admin/presentation — PresentationPage', () => {
   // ── 6. Selector parity — switching scenario triggers re-render ───────────
 
   it('calls setActiveScenario when a scenario pill is clicked', () => {
+    // NOTE: 'scenario.upside' translates to 'Realistic' in English (the app
+    // maps the internal 'upside' key to the display label "Realistic").
+    // The pill renders the English label, not the internal key name.
     const setActiveScenario = vi.fn();
     vi.mocked(useModelStore).mockReturnValue(
       makeStoreState({ setActiveScenario })
     );
     render(<PresentationPage />);
-    // Click the "Upside" pill
-    const upsidePill = screen.getByText('Upside');
-    fireEvent.click(upsidePill);
+    // 'scenario.upside' → 'Realistic' per en.ts. There may be multiple
+    // "Realistic" text nodes (headline + pill); use getAllByText and click first.
+    const pills = screen.getAllByText('Realistic');
+    fireEvent.click(pills[0]);
     expect(setActiveScenario).toHaveBeenCalledWith('upside');
   });
 
   it('calls setFinancingPathOverride when a path pill is clicked (override active)', () => {
+    // 'path.grantShort' translates to 'Grant' in English.
     const setFinancingPathOverride = vi.fn();
     vi.mocked(useModelStore).mockReturnValue(
       makeStoreState({
@@ -351,7 +372,9 @@ describe('/admin/presentation — PresentationPage', () => {
       })
     );
     render(<PresentationPage />);
-    const grantPill = screen.getByText('Grant');
+    // 'Grant' may appear as both a pill and body text. Find the pill in the
+    // control bar by looking for the first match.
+    const grantPill = screen.getAllByText('Grant')[0];
     fireEvent.click(grantPill);
     expect(setFinancingPathOverride).toHaveBeenCalledWith('grant');
   });

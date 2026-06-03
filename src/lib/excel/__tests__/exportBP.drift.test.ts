@@ -83,6 +83,10 @@ describe("L1 — engine metrics that feed the validation table", () => {
    * model.ts changed a value that appears in the bank's credit pack — bless
    * intentional changes with `npm run test:run -- -u`.
    */
+  // SNAPSHOT PENDING UPDATE (2026-06-01):
+  // Floor moved from OpEx to post-DS waterfall. With OpCo disabled (BASE_CASE),
+  // stabilisedEBITDA increases by €75K/yr (opCoFloor × 3 plots no longer in OpEx).
+  // Reset with `vitest -u` after Eytan approves the new numbers.
   it("bank-view metrics snapshot (commercial path, realistic scenario)", () => {
     const m = computeModel({ ...BASE_CASE, viewMode: "bank" });
     const pnl2032 = m.scenarios.realistic.pnl.find((p) => p.year === 2032);
@@ -226,7 +230,9 @@ describe("L2 — exported XLSX structural shape", () => {
     });
   });
 
-  it("bank-view P&L contains 'Senior management floor' row", async () => {
+  it("bank-view P&L does NOT contain 'Senior management floor' row (floor moved post-DS)", async () => {
+    // ADR: floor is now paid junior to DS; the separate OpEx row was removed.
+    // Both views now show 'OpCo fee — floor + tiered (both junior to DS)' below EBITDA.
     const a = { ...BASE_CASE, viewMode: "bank" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
@@ -239,7 +245,9 @@ describe("L2 — exported XLSX structural shape", () => {
       if (v) labels.push(v);
     });
 
-    expect(labels.some((l) => l.includes("Senior management floor"))).toBe(true);
+    expect(labels.some((l) => l.includes("Senior management floor"))).toBe(false);
+    // Both views show the combined OpCo fee row (floor + junior, both post-DS).
+    expect(labels.some((l) => l.toLowerCase().includes("junior to ds"))).toBe(true);
   });
 
   it("internal-view P&L does NOT contain 'Senior management floor' row", async () => {
@@ -369,18 +377,19 @@ describe("L3 — OPEX formula integrity", () => {
   });
 
   /**
-   * Bank-view totalOpex SUM must include the Senior management floor row.
-   * This guards against the floor row being added to the P&L but accidentally
-   * excluded from the SUM (which would make EBITDA too high).
+   * Bank-view totalOpex SUM must NOT reference a "Senior management floor" row
+   * (that row was removed when the floor moved post-DS). The portfolio-overhead
+   * residual row absorbs the correct engine totalOpex without subtracting the floor.
    */
-  it("bank-view: totalOpex SUM formula references the Senior management floor row", async () => {
+  it("bank-view: totalOpex SUM formula does NOT reference a non-existent senior floor row", async () => {
+    // Floor was moved post-DS (2026-06-01). The separate OpEx row was removed.
+    // Guard: ensure no ghost row crept back in and distorted totalOpex.
     const a = { ...BASE_CASE, viewMode: "bank" as const };
     const m = computeModel(a);
     const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
     const wb = await loadWorkbook(blob);
     const pnl = wb.getWorksheet("OPEX & P&L")!;
 
-    // Find the Total OPEX row (label = "Total OPEX")
     let totalOpexRow = -1;
     let seniorFloorRow = -1;
     pnl.eachRow((row, rn) => {
@@ -390,16 +399,8 @@ describe("L3 — OPEX formula integrity", () => {
     });
 
     expect(totalOpexRow).toBeGreaterThan(0);
-    expect(seniorFloorRow).toBeGreaterThan(0);
-
-    const sumFormula = String(
-      (pnl.getRow(totalOpexRow).getCell("G").value as ExcelJS.CellFormulaValue)
-        ?.formula ?? ""
-    );
-
-    // The SUM must contain an explicit reference to the senior floor row
-    // e.g. =SUM(G8,G9,G10) where G10 is the senior floor
-    expect(sumFormula).toContain(`G${seniorFloorRow}`);
+    // The senior floor row must not exist at all.
+    expect(seniorFloorRow).toBe(-1);
   });
 
   /**

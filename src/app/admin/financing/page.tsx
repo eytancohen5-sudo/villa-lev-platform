@@ -1,24 +1,92 @@
 "use client";
 
+import { useRef, useMemo, useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
+import { CapexAbsorptionControl } from "@/components/CapexAbsorptionControl";
 import type { GraceMode } from "@/lib/engine/types";
 import {
   formatCurrency,
   formatPercent,
   formatMultiple,
 } from "@/lib/hooks/useModel";
+import { computeCapex, computeModel, computeOptimaCapResult } from "@/lib/engine/model";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { PageSkeleton } from "@/components/Skeleton";
 import { SectionHeader, StatusChip } from "@/components/AdminUI";
 import { PageTour, TourButton, usePageTour } from "@/components/PageTour";
 import { FINANCING_TOUR } from "@/lib/tours/configs";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
+
+type PerPathLoans = { commercial: number; rrf: number; grant: number; tepixLoan: number; optima: number };
 
 // ── Page ────────────────────────────────────────────────────
 
 export default function FinancingPage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-financing"); }, [track]);
   const { t, locale } = useTranslation();
-  const { model, assumptions, activeScenario, setGraceMode, setAssumption, financingPathOverride } = useModelStore();
+  const { model, assumptions, activeScenario, setGraceMode, setAssumption, financingPathOverride, capexUpliftBaselineLoans } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(FINANCING_TOUR.storageKey);
+  // rawCapexRef caches the pre-absorption CapEx so the absorption control
+  // can show correct "before" amounts without re-running computeCapex on render.
+  const rawCapexRef = useRef(model ? computeCapex(assumptions) : null);
+
+  const capexRows = useMemo(() => {
+    const deltas = [-0.20, -0.10, -0.05, 0, 0.05, 0.10, 0.20];
+    return deltas.map((delta) => {
+      const base = {
+        ...assumptions,
+        portfolio: assumptions.portfolio.map((p) => ({
+          ...p,
+          constructionCostPerM2: p.constructionCostPerM2 * (1 + delta),
+        })),
+      };
+      const r = computeModel(base);
+      const s = r.scenarios.realistic.stabilisedYear;
+      return {
+        label: delta === 0 ? t('sens.base') : `${delta > 0 ? '+' : ''}${(delta * 100).toFixed(0)}%`,
+        isBase: delta === 0,
+        capex: r.capex.portfolioTotal,
+        ds: s?.debtService ?? 0,
+        dscr: s?.dscr ?? 0,
+        ncf: s?.netCashFlowPostVAT ?? 0,
+      };
+    });
+  }, [assumptions, t]);
+
+  const subProjectData = useMemo(() => {
+    if (!model || !assumptions.optimaLoan) return null;
+    const optimaLoan = assumptions.optimaLoan;
+    const capResult = computeOptimaCapResult(model.capex, optimaLoan);
+    if (!capResult) return null;
+    const effectiveRate = optimaLoan.euriborRate + optimaLoan.spreadBps / 10000;
+    const repayYears = optimaLoan.repaymentYears ?? 10;
+    const optimaScenario = model.optimaScenario;
+    const stabYear = optimaScenario?.stabilisedYear;
+    const minDscrEntry = (optimaScenario?.pnl ?? [])
+      .filter((p) => p.dscr > 0)
+      .reduce<{ dscr: number; year: number } | null>(
+        (min, p) => (!min || p.dscr < min.dscr ? { dscr: p.dscr, year: p.year } : min),
+        null
+      );
+    const getTabValues = (side: 'A' | 'B') => {
+      const tabCapexTotal = capResult.subProjectTotalsPreCap[side] ?? 0;
+      const tabLoan = capResult.subProjectLoans[side] ?? 0;
+      const tabAnnualDS =
+        repayYears > 0 && effectiveRate > 0 && tabLoan > 0
+          ? (tabLoan * effectiveRate) / (1 - Math.pow(1 + effectiveRate, -repayYears))
+          : 0;
+      return {
+        tabCapexTotal,
+        tabLoan,
+        tabAnnualDS,
+        tabEbitdaMargin: stabYear?.ebitdaMargin ?? 0,
+        tabDSCR: minDscrEntry?.dscr ?? 0,
+        minDscrYear: minDscrEntry?.year ?? null,
+      };
+    };
+    return { A: getTabValues('A'), B: getTabValues('B') };
+  }, [model, assumptions]);
 
   if (!model) return <PageSkeleton variant="grid" />;
 
@@ -97,6 +165,34 @@ export default function FinancingPage() {
         </div>
       </div>
 
+      {/* CapEx Absorption — toggles that absorb service providers and/or contingency */}
+      {(() => {
+        // Derive raw (pre-absorption) CapEx on each render so amounts stay current
+        const rawCapex = computeCapex(assumptions);
+        rawCapexRef.current = rawCapex;
+
+        // Current per-path loans from the recomputed (post-absorption) model
+        const currentLoanRow = model.financingComparison.find(r => r.key === 'totalLoanDrawn');
+        const currentPerPathLoans: PerPathLoans | null = currentLoanRow ? {
+          commercial: typeof currentLoanRow.commercial === 'number' ? currentLoanRow.commercial : 0,
+          rrf:        typeof currentLoanRow.rrf        === 'number' ? currentLoanRow.rrf        : 0,
+          grant:      typeof currentLoanRow.grant      === 'number' ? currentLoanRow.grant      : 0,
+          tepixLoan:  typeof currentLoanRow.tepixLoan  === 'number' ? currentLoanRow.tepixLoan  : 0,
+          optima:     typeof currentLoanRow.optima     === 'number' ? currentLoanRow.optima     : 0,
+        } : null;
+
+        return (
+          <div className="mb-6">
+            <CapexAbsorptionControl
+              rawCapex={rawCapex}
+              activePath={activePath}
+              currentPerPathLoans={currentPerPathLoans}
+              baselinePerPathLoans={capexUpliftBaselineLoans}
+            />
+          </div>
+        );
+      })()}
+
       {/* Section 1 — Deal Terms / Term Sheet */}
       <div id="section-termsheet-financing" className="scroll-mt-24">
       <SectionHeader title={t("dash.termsheet.title")} sub={`${pathLabel} · ${scenarioLabel}`} />
@@ -106,7 +202,9 @@ export default function FinancingPage() {
             {
               label: t("dash.termsheet.loan"),
               value: formatCurrency(km.loanAmount, true, locale),
-              sub: `${(km.ltv * 100).toFixed(0)}% ${t("dash.termsheet.loanSub")}`,
+              sub: activePath === "tepix-loan" && (km.supplementaryLoan ?? 0) > 0
+                ? `TEPIX ${formatCurrency(km.primaryLoan ?? 0, true, locale)} · ${t("dash.termsheet.suppLoanNote")} ${formatCurrency(km.supplementaryLoan ?? 0, true, locale)} · ${(km.ltv * 100).toFixed(0)}% ${t("dash.termsheet.loanSub")}`
+                : `${(km.ltv * 100).toFixed(0)}% ${t("dash.termsheet.loanSub")}`,
               tone: undefined as "positive" | "warning" | undefined,
             },
             {
@@ -194,7 +292,7 @@ export default function FinancingPage() {
               {t('bank.graceMode.label')}
             </span>
             <div className="flex gap-1">
-              {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
+              {(['rolling-cohort', 'rolling'] as GraceMode[]).map((m) => (
                 <button
                   key={m}
                   onClick={() => setGraceMode(m)}
@@ -204,7 +302,7 @@ export default function FinancingPage() {
                       : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
                   }`}
                 >
-                  {t(`bank.graceMode.${m.replace('-','_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
+                  {t(`bank.graceMode.${m.replace(/-/g,'_')}` as 'bank.graceMode.rolling' | 'bank.graceMode.rolling_cohort')}
                 </button>
               ))}
             </div>
@@ -213,9 +311,11 @@ export default function FinancingPage() {
           <p className="text-[12px] text-text-secondary leading-relaxed">
             {graceMode === 'rolling'
               ? t('bank.graceMode.rolling.desc')
-              : t('bank.graceMode.two_phase.desc')}
+              : graceMode === 'rolling-cohort'
+                ? t('bank.graceMode.rolling_cohort.desc')
+                : t('bank.graceMode.two_phase.desc')}
           </p>
-          {graceMode === 'rolling' && (
+          {(graceMode === 'rolling' || graceMode === 'rolling-cohort') && (
             <div className="border-t border-surface-tertiary pt-3 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[11px] text-text-secondary w-36 shrink-0">
@@ -254,6 +354,42 @@ export default function FinancingPage() {
                 >
                   {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
                 </select>
+              </div>
+              {/* Commitment fee */}
+              <div className="border-t border-surface-tertiary pt-3 space-y-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="commitmentFeeToggle"
+                    checked={assumptions.commercialLoan?.commitmentFeeEnabled ?? false}
+                    onChange={(e) => setAssumption('commercialLoan.commitmentFeeEnabled', e.target.checked, 'Commitment fee')}
+                    className="w-4 h-4 accent-brand-600"
+                  />
+                  <label htmlFor="commitmentFeeToggle" className="text-sm font-medium text-text-primary cursor-pointer">
+                    {t('financing.commitmentFeeLabel')}
+                  </label>
+                </div>
+                {(assumptions.commercialLoan?.commitmentFeeEnabled ?? false) && (
+                  <div className="flex items-center gap-2 pl-7">
+                    <span className="text-[11px] text-text-secondary w-36 shrink-0">
+                      {t('financing.commitmentFeeRate')}
+                    </span>
+                    <input
+                      type="number"
+                      min={0.25} max={1.5} step={0.05}
+                      value={((assumptions.commercialLoan?.commitmentFeeRate ?? 0.0075) * 100).toFixed(2)}
+                      onChange={(e) => setAssumption('commercialLoan.commitmentFeeRate', parseFloat(e.target.value) / 100, 'Commitment fee rate')}
+                      className="w-20 px-2 py-1 text-sm border border-surface-tertiary rounded text-center"
+                    />
+                    <span className="text-[11px] text-text-secondary">%</span>
+                    <span className="text-[11px] text-text-tertiary ml-2">
+                      {t('financing.commitmentFeeTotal')}: {formatCurrency(
+                        activePnL.reduce((s, r) => s + (r.commitmentFee ?? 0), 0),
+                        true, locale
+                      )}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -535,6 +671,74 @@ export default function FinancingPage() {
         </div>
       </div>
       </div>{/* end section-financing-comparison */}
+
+      {/* Section 3 — CAPEX Sensitivity */}
+      <div id="section-capex-sensitivity" className="scroll-mt-24">
+        <SectionHeader title={t('sens.capexSensitivity')} />
+        <div className="bg-white rounded-xl border border-surface-tertiary p-5">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-surface-tertiary">
+                  <th className="text-left py-2 pr-4 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('sens.change')}</th>
+                  <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.capex')}</th>
+                  <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('kpi.annualDS')}</th>
+                  <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('term.dscr')}</th>
+                  <th className="text-right py-2 px-3 text-xs uppercase tracking-wider text-text-tertiary font-medium">{t('pnl.ncfPostVAT')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {capexRows.map((row) => (
+                  <tr key={row.label} className={`border-b border-surface-secondary/50 ${row.isBase ? "bg-brand-50/50 font-medium" : ""}`}>
+                    <td className="py-2 pr-4">{row.label}</td>
+                    <td className="text-right py-2 px-3 font-mono text-xs">{formatCurrency(row.capex, true, locale)}</td>
+                    <td className="text-right py-2 px-3 font-mono text-xs">{formatCurrency(row.ds, true, locale)}</td>
+                    <td className={`text-right py-2 px-3 font-mono text-xs ${row.dscr >= 1.25 ? "text-positive" : row.dscr >= 1.0 ? "text-warning" : "text-negative"}`}>
+                      {row.dscr > 0 ? formatMultiple(row.dscr) : "—"}
+                    </td>
+                    <td className={`text-right py-2 px-3 font-mono text-xs ${row.ncf >= 0 ? "text-positive" : "text-negative"}`}>
+                      {formatCurrency(row.ncf, true, locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {subProjectData && (
+            <div className="grid grid-cols-2 gap-4 mt-6">
+              {(['A', 'B'] as const).map((side) => {
+                const d = subProjectData[side];
+                const ltvPct = d.tabCapexTotal > 0 ? Math.round((d.tabLoan / d.tabCapexTotal) * 100) : 70;
+                return (
+                  <div key={side} className="bg-surface-secondary/30 rounded-xl border border-surface-tertiary px-5 py-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-3">
+                      {side === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')} — {side === 'A' ? t('bank.optima.subProjectA') : t('bank.optima.subProjectB')}
+                    </p>
+                    <div className="space-y-2.5">
+                      {(([
+                        { label: t('term.capex'), value: formatCurrency(d.tabCapexTotal, true, locale), highlight: false },
+                        { label: `${t('dash.termsheet.loan')} (${ltvPct}% LTC)`, value: formatCurrency(d.tabLoan, true, locale), highlight: true },
+                        { label: t('term.ebitdaMargin'), value: formatPercent(d.tabEbitdaMargin), highlight: false },
+                        { label: t('kpi.annualDS'), value: formatCurrency(d.tabAnnualDS, true, locale), highlight: false },
+                        { label: t('term.dscr'), value: d.tabDSCR > 0 ? formatMultiple(d.tabDSCR) : '—', sub: d.minDscrYear ? `min · ${d.minDscrYear}` : undefined, highlight: true },
+                      ]) as Array<{ label: string; value: string; highlight: boolean; sub?: string }>).map((row) => (
+                        <div key={row.label} className="flex items-baseline justify-between gap-2 text-sm">
+                          <span className="text-text-secondary">{row.label}</span>
+                          <span className={`font-mono font-semibold ${row.highlight ? 'text-brand-600' : 'text-text-primary'}`}>
+                            {row.value}
+                            {row.sub && <span className="text-[10px] text-text-tertiary ml-1 font-normal">{row.sub}</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={FINANCING_TOUR} />
     </div>
   );

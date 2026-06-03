@@ -88,6 +88,10 @@ export const he: TranslationDictionary = {
   'kpi.equityRequired': 'הון עצמי נדרש',
   'kpi.graceInterestCarry': 'רזרבת ריבית (בסגירה)',
   'kpi.graceInterestCarrySub': 'ריבית 2026–2028 · להחזרה לאחר תקופת הגרייס',
+  'kpi.capexEquity': 'הון עצמי CapEx',
+  'kpi.capexEquitySub': 'CapEx פחות הלוואה פחות מענק',
+  'kpi.totalEquityNeed': 'סך צורך בהון עצמי',
+  'kpi.totalEquityNeedSub': 'הון CapEx + ריבית תקופת גרייס',
   'kpi.annualDS': 'שירות חוב שנתי',
   'kpi.annualDSSub': 'פירעון מלא מ-2029',
   'kpi.netCashFlow': 'NCF (לאחר מס)',
@@ -159,6 +163,7 @@ export const he: TranslationDictionary = {
   'bank.bar.optimaSpread': 'מרווח',
   'bank.bar.optimaEuribor': 'Euribor',
   'bank.bar.optimaEffective': 'אפקטיבי',
+  'bank.bar.optimaLoanPct': 'אחוז הלוואה',
 
   // bank/page.tsx hero & section headings
   'bank.hero.eyebrow': 'בקשת אשראי · אנטיפארוס, יוון',
@@ -200,6 +205,9 @@ export const he: TranslationDictionary = {
   'financing.securityNote': 'ביטחון: משכנתא בדרגה 1 על קרקע + מבנה',
   'financing.stabilisedDSCR': 'DSCR מיוצב:',
   'financing.activePathNote': 'המסלול הפעיל מסומן. החליפו למעלה.',
+  'financing.commitmentFeeLabel': 'עמלת מחויבות',
+  'financing.commitmentFeeRate': 'שיעור (% לשנה)',
+  'financing.commitmentFeeTotal': 'סה"כ תקופת המשיכות',
 
   // ── Debt Coverage page ──
   'dc.title': 'כיסוי חוב',
@@ -223,6 +231,7 @@ export const he: TranslationDictionary = {
   'pnl.portfolioServices': 'שירותי תיק הנכסים',
   'pnl.portfolioOverhead': 'הוצאות כלליות של תיק הנכסים',
   'pnl.portfolioPreOpening': 'פחת טרום פתיחה',
+  'pnl.portfolioConstructionServices': 'שירותי בנייה (הוצאה)',
   // ── DSRA P&L rows ──
   'pnl.dsraDraw': 'משיכת DSRA',
   'pnl.dsraBalance': 'יתרת DSRA (ס"פ)',
@@ -318,6 +327,10 @@ export const he: TranslationDictionary = {
   'auth.error.popupBlocked': 'הכניסה עם Google נחסמה על ידי הדפדפן. אנא השתמשו באימייל וסיסמה.',
   'auth.error.unauthorizedDomain': 'אתר זה אינו מורשה לכניסה עם Google. בקשו מ-Eytan להוסיפו ב-Firebase Console.',
   'auth.error.unknown': 'הכניסה נכשלה. אנא נסו שוב.',
+  'auth.gate.nameRequired': 'אנא הזינו את שמכם.',
+  'auth.gate.incorrectCode': 'קוד גישה שגוי.',
+  'auth.gate.signingIn': 'מתחבר…',
+  'auth.gate.signInGoogle': 'כניסה עם Google',
 
   // ── Team page ──
   'team.title': 'צוות',
@@ -404,6 +417,8 @@ export const he: TranslationDictionary = {
   'pnl.yieldOnEquity': 'תשואת NCF לאחר מס / הון עצמי התחלתי',
   'pnl.totalYieldOnEquity': 'תשואה כוללת (מצטברת) / הון עצמי התחלתי',
   'pnl.termLoanInterest': 'ריבית על הלוואת לטווח ארוך',
+  'pnl.commitmentFee': 'עמלת מחויבות',
+  'pnl.commitmentFeeTooltip': 'מחויב על יתרת האשראי שלא נמשכה. מצטבר בתקופת הבנייה, ללא תלות בלוח הסילוקין.',
   'pnl.termLoanPrincipal': 'קרן הלוואה',
   'pnl.termLoanBalance': 'יתרת הלוואה (סוף שנה)',
   'pnl.icr': 'יחס כיסוי ריבית (ICR)',
@@ -411,6 +426,8 @@ export const he: TranslationDictionary = {
   'pnl.cit': 'מס חברות',
   'pnl.ebitdaMargin': 'שולי EBITDA',
   'pnl.cfads': 'CFADS',
+  'pnl.financeSection': 'עלויות מימון',
+  'pnl.taxSection': 'מס',
 
   'dash.section.dealSnapshot': 'תקציר עסקה',
   'dash.section.coverage': 'יחסי כיסוי',
@@ -541,7 +558,7 @@ export const he: TranslationDictionary = {
   'kpi.plcr': 'PLCR',
   'kpi.plcrSub': 'NPV CFADS / הלוואה, חיי פרויקט',
   'kpi.covHeadroom': 'מרווח DSCR קובננט',
-  'kpi.covHeadroomSub': 'מול קובננט 1.25×',
+  'kpi.covHeadroomSub': 'מול 1.25× (ממוצע חיי הלוואה)',
   'kpi.equityYield': 'תשואת הון (מיוצב)',
   'kpi.equityYieldSub': 'NCF לאחר מס / הון התחלתי, 2032',
   'kpi.cumYield': 'תשואה מצטברת (2037)',
@@ -812,6 +829,8 @@ export const he: TranslationDictionary = {
   'field.tepixLandGap': 'פער קרקע (מסחרי)',
   'field.tepixCombinedDS': 'שירות חוב שנתי משולב',
   'field.tepixCombinedStructure': 'מבנה הלוואה משולב',
+  'field.tepixActivePathBanner': 'TEPIX III הוא מסלול המימון הפעיל שלך — הפרמטרים האלה פועלים במודל.',
+  'field.tepixInertBanner': 'פרמטרי TEPIX III שמורים אך אינם פעילים. עבור ל-TEPIX III למעלה כדי להפעילם.',
   'comp.suppCommercialLoan': 'הלוואה מסחרית משלימה (€)',
 
   'dash.section.exitPath': 'השוואת נתיבי יציאה',
@@ -837,6 +856,7 @@ export const he: TranslationDictionary = {
   'sens.facility': 'מסגרת',
   'sens.wcY2Trough': 'שפל ספט\' Y2',
   'sens.capexSensitivity': 'רגישות CAPEX בנייה (±% בעלות/מ"ר)',
+  'sens.dscrStabilised': 'DSCR (2030)',
 
   'inv.portfolioExpansion': 'הרחבת תיק השקעות · אנטיפארוס, יוון',
   'inv.capitalStructure': 'מבנה הון',
@@ -851,6 +871,7 @@ export const he: TranslationDictionary = {
   'common.path': 'מסלול',
   'common.metric': 'מדד',
   'common.loading': 'טוען...',
+  'common.noData': '—',
 
   'config.title': 'תצורות',
   'config.save': 'שמירה',
@@ -1100,6 +1121,7 @@ export const he: TranslationDictionary = {
   'dash.termsheet.pass': 'עומד',
   'dash.termsheet.fail': 'לא עומד',
   'dash.termsheet.min': 'מינ׳',
+  'dash.termsheet.suppLoanNote': 'משלים',
 
   // ── Dashboard founder waterfall (audit 2026-05-21 fix #4) ──
   'dash.founder.section': 'מפל היזם',
@@ -1183,6 +1205,7 @@ export const he: TranslationDictionary = {
   'bank.wc.revolving': 'קו אשראי מתחדש',
   'bank.wc.bpsSpread': 'bps מרווח מעל ריבית ההלוואה',
   'bank.wc.selfLiquidating': 'מתפרק עצמית (נפרע בסוף כל עונת שיא)',
+  'bank.wc.selfLiquidatingSuffix': ' · מתפרק עצמית',
   'bank.wc.notIncluded': 'לא כלול בסכום ההלוואה לעיל',
   'bank.wc.dual.vatBridgeLabel': '① גשר ΦΠΑ בנייה',
   'bank.wc.dual.vatBridgeSub': 'Q1 2027 → Q1 2029 · משיכה 35/45/20% · החזר AADE רבעוני, פיגור רבעון אחד · שיא float €145,711',
@@ -1521,7 +1544,7 @@ export const he: TranslationDictionary = {
   'presentation.s4.propA.desc': 'שתי וילות תאומות (3 + 4 חדרי שינה), כל אחת עם כניסה נפרדת, בריכה פרטית ונוף ים. ADR יעד €3,500/לילה נטו.',
   'presentation.s4.propB.desc': 'ארבע סוויטות בוטיק — 2 סטנדרטיות (40מ"ר) ו-2 כפולות (65מ"ר) — בתוספת חמאם/סאונה/חדר כושר ושטח אירועים פנים/חוץ.',
   'presentation.s4.suiteTable.header': 'תמחור סוויטות',
-  'presentation.s4.events.note': 'הכנסות מאירועים וריטריטים אינן ממודלות בתרחיש השמרני — פוטנציאל עלייה שאינו ממודל עם ביקוש מוכח.',
+  'presentation.s4.events.note': 'הכנסות מאירועים (~€60K/שנה בבסיס) הן הכנסות נוספות ממודלות שטרם הוכחו על ידי הווילה הפעילה. קיים צינור ביקוש (40+ פניות חתונה/שנה) אך לא נערכו אירועים עד כה.',
   'presentation.s5.intro': 'כל התחזיות משתמשות בהנחות סטטיות ללא הרכבה. ה-ADR של הוילה במודל (€3,500) נמוך ממחיר החי של Villa Lev 2025 (€3,584).',
   'presentation.s5.rampTable.header': 'פרופיל עלייה הדרגתית — תרחיש ריאלי (מודל חי)',
   'presentation.s5.opexTable.header': 'מבנה עלויות תפעוליות (שנתי)',
@@ -1639,7 +1662,7 @@ export const he: TranslationDictionary = {
   'presentation.s8.alignment.1b.mechanism': 'דמי יעוץ TEPIX III',
   'presentation.s8.alignment.1b.detail': '10% ממענק TEPIX III כדמי יעוץ, נדחה לעת השחרור — מיישר את המפעיל עם אישור המענק.',
   'presentation.s8.alignment.1c.mechanism': 'מנגנון תמריץ ביציאה',
-  'presentation.s8.alignment.1c.detail': '0% חלק מפעיל אם IRR < 8% · +9% ב-IRR 8–22% · +29% אם IRR ≥ 22%.',
+  'presentation.s8.alignment.1c.detail': '0% חלק מפעיל אם IRR < 8% · +9% ב-IRR 8–25% · +29% אם IRR ≥ 25%.', // TODO translate
   'presentation.s8.alignment.2a.mechanism': 'דמי ניהול (הכנסה ברוטו)',
   'presentation.s8.alignment.2a.detail': '5% מהכנסה ברוטו, מינימום €24,000/וילה/שנה. בכיר לשרות החוב.',
   'presentation.s8.alignment.2b.mechanism': 'דמי תמריץ (GOP מעל הרדל)',
@@ -1759,10 +1782,30 @@ export const he: TranslationDictionary = {
   'inv.sens.resetAll':       'איפוס לבסיס',
   'inv.sens.covenantLegend': 'IRR ≥ 15% · MOIC ≥ 2.0× · תשואה ≥ 12%',
   'inv.sens.paybackUnit':    'שנ.',
+  // ── Break-even (Gap 2) ──
+  'inv.sens.breakEvenLabel':     'נקודת האיזון בתפוסה',
+  'inv.sens.breakEvenSub':       'לילות/שנה שבהם הכנסות מכסות שירות חוב',
+  'inv.sens.breakEvenUnit':      'לילות / שנה',
+  'inv.sens.bufferLabel':        'מרווח ביטחון',
+  'inv.sens.bufferSub':          'מרווח הכנסות מעל נקודת האיזון (בהנחות הנוכחיות)',
+  'inv.sens.breakEvenBaseNote':  'נקודת האיזון משתמשת בהנחות slider · לחץ קיצוני משתמש בהנחות בסיס',
+  // ── Hold period comparison (Gap 3) ──
+  'inv.sens.holdPanel.heading':    'השוואת תקופת החזקה',
+  'inv.sens.holdPanel.subheading': 'IRR ו-MOIC בשלוש שנות יציאה קבועות — הנחות תפעוליות נוכחיות, שנת יציאה לפי עמודה',
+  'inv.sens.holdPanel.col5':       'החזקה 5 שנים',
+  'inv.sens.holdPanel.col7':       'החזקה 7 שנים',
+  'inv.sens.holdPanel.col11':      'החזקה 11 שנים',
+  'inv.sens.holdPanel.baseLabel':  'מקרה בסיס',
+  'inv.sens.holdPanel.irrRow':     'IRR הון עצמי',
+  'inv.sens.holdPanel.moicRow':    'MOIC',
+  'inv.sens.holdPanel.tepixNote':  'הלוואת TEPIX III פעילה בתקופה זו',
 
   // ── Bank sensitivity tab (2026-05-25) ──
   'bank.tabs.overview':       'סקירה כללית',
   'bank.tabs.sensitivity':    'ניתוח רגישות',
+  'bank.tabs.creditAnalysis': 'ניתוח אשראי',
+  'bank.tabs.vatCashflow':    'תזרים מע"מ בנייה',
+  'bank.optimaLink':          'ראה תנאי Optima',
   'bank.sens.title':          'ניתוח רגישות בזמן אמת',
   'bank.sens.subtitle':       'שנו הנחות מפתח וצפו כיצד DSCR, LTV, ICR ו-NOI מחושבים מחדש באופן מיידי.',
   'bank.sens.slidersHeading': 'כוונון פרמטרים',
@@ -1781,7 +1824,7 @@ export const he: TranslationDictionary = {
   'bank.sens.opexSub':        'שיעור חיץ על הוצאות תפעול מבוקרות',
   'bank.sens.baseValue':      'בסיס',
   'bank.sens.dscrLabel':      'DSCR',
-  'bank.sens.dscrSub':        'שנת יציבות · אמת מידה ≥ 1.25×',
+  'bank.sens.dscrSub':        'שנת פעילות ראשונה 2030 · אמת מידה ≥ 1.25×',
   'bank.sens.ltvLabel':       'LTV',
   'bank.sens.ltvSub':         'בעת השלמה · שווי שמאות',
   'bank.sens.icrLabel':       'ICR',
@@ -1918,6 +1961,7 @@ export const he: TranslationDictionary = {
   'ct.founder.layerBInactive':  'לא פעיל (אין מסלול מענק)',
   'ct.founder.layerCNote':      'רמה:',
   'ct.founder.exitNote':        'יציאה:',
+  'ct.founder.exitNoteDetail':  '(pari-passu + developer equity + grant bonus + ratchet above 25% IRR)', // TODO translate
   'ct.founder.floorNote':       'רצפה מוגנת ב-',
   'ct.equityPoolModel':         'מאגר הון עצמי (מודל)',
   'ct.requiredFromInvestors':   'נדרש ממשקיעים',
@@ -2002,6 +2046,7 @@ export const he: TranslationDictionary = {
   'field.licensesPermits':         'רישיונות והיתרים',
   'field.constructionDirector':    'מנהל בנייה',
   'field.interiorDesignerCost':    'מעצב פנים',
+  'field.devConstructionFeePerYear': 'דמי בנייה לשנה',
   'field.poolCostPerM2':           'עלות בניית בריכה (€/מ"ר)',
   'field.poolSlotQty':             'Count',
   'field.poolSlotWidth':           'רוחב (מ)',
@@ -2025,6 +2070,8 @@ export const he: TranslationDictionary = {
   // ── Depreciation & EBIT (Art. 24, Law 4172/2013) ─────────────────────────
   'pnl.depreciation':        'פחת (סעיף 24, קו ישר)',
   'pnl.ebit':                'EBIT (לאחר פחת)',
+  'pnl.capitalStructure':    'מבנה הון',
+  'pnl.capitalStructureSub': 'מסלול פעיל · נתוני שנת ייצוב · מתעדכן בכל שינוי הנחה',
   'term.annualDepreciation': 'פחת שנתי',
 
   // ── Sources & Uses panel (SourcesUsesPanel) ───────────────────────────────
@@ -2044,6 +2091,22 @@ export const he: TranslationDictionary = {
   'finComp.payback':               'תקופת החזר',
   'finComp.totalEquityAtClose':    'סה״כ הון בסגירה',
   'finComp.minDSCRLoanLife':       'DSCR מינימום (אורך הלוואה)',
+
+  // ── Analytics page ───────────────────────────────────────────────────────
+  'nav.analytics':                 'אנליטיקה',
+  'analytics.title':               'אנליטיקת תכונות',
+  'analytics.pageIntro':           'טלמטריית שימוש בתכונות פנימיות — מופעל על ידי Firestore.',
+  'analytics.range7d':             '7 ימים',
+  'analytics.range30d':            '30 ימים',
+  'analytics.range90d':            '90 ימים',
+  'analytics.colFeature':          'תכונה',
+  'analytics.colTotalOpens':       'פתיחות',
+  'analytics.colUniqueSessions':   'סשנים ייחודיים',
+  'analytics.colAdminOpens':       'ניהול',
+  'analytics.colBankOpens':        'בנק',
+  'analytics.colLastUsed':         'שימוש אחרון',
+  'analytics.noData':              'אין נתוני שימוש בטווח הנבחר.',
+  'analytics.loading':             'טוען…',
 
   // ── Connections page ──────────────────────────────────────────────────────
   'nav.connections':               'חיבורים',
@@ -2127,7 +2190,7 @@ export const he: TranslationDictionary = {
 
   // ── Optima Bank page (2026-05-28) ──────────────────────────────────────────
   'bank.optima.eyebrow': 'Optima Bank — מבנה שני תת-פרויקטים',
-  'bank.optima.capexNote': 'עמלות נותני שירותים ועתודה בלתי צפויה נכללות בשורת הבנייה לפי כללי הכשירות של Optima Bank (הצעת Optima, 2026-05-28). תצוגת המנהל שומרת על הפירוט המלא.',
+
   'bank.optima.subProjectA': 'תת-פרויקט א\'',
   'bank.optima.subProjectB': 'תת-פרויקט ב\'',
   'bank.optima.loanTerm': '12 שנים סה"כ / 2 שנות גרייס / 10 שנות פירעון',
@@ -2164,6 +2227,21 @@ export const he: TranslationDictionary = {
   'bank.optima.upliftNewEquity': 'הון עצמי נוסף נדרש',
   'bank.optima.upliftSaved': '✓ נשמר',
   'bank.optima.upliftDscrVsBase': 'vs בסיס',
+  'bank.optima.upliftCapexBreakdown': 'פירוט קטגוריות CAPEX',
+  'bank.optima.upliftCategory': 'קטגוריה',
+  'bank.optima.upliftBefore': 'לפני',
+  'bank.optima.upliftAfter': 'אחרי',
+  'bank.optima.upliftDeltaAmt': 'Δ סכום',
+  'bank.optima.upliftDeltaPct': 'Δ %',
+  'bank.optima.upliftExpandBreakdown': 'הצג פירוט CAPEX',
+  'bank.optima.upliftCollapseBreakdown': 'הסתר פירוט CAPEX',
+  'bank.optima.pathImpactTitle': 'ספיגת CAPEX לפי מסלול מימון',
+  'bank.optima.pathImpactSub': 'כיצד החריגה מתפצלת בין הלוואה נוספת להון עצמי בכל מסלול',
+  'bank.optima.pathBaseline': 'הלוואת בסיס',
+  'bank.optima.pathNew': 'הלוואה חדשה',
+  'bank.optima.pathDeltaLoan': 'Δ הלוואה',
+  'bank.optima.pathDeltaPct': 'Δ %',
+  'bank.optima.pathEquityChange': 'שינוי הון עצמי',
   'as.optimaTab': 'Optima Bank',
   'bank.graceMode.label': 'מבנה המשיכות',
   'bank.graceMode.standard': 'הלוואה אחת',
@@ -2172,6 +2250,165 @@ export const he: TranslationDictionary = {
   'bank.graceMode.two_phase.desc': 'שתי הלוואות נפרדות: שלב 1 (מגרשים) נמשך בבת אחת עם תקופת חסד עצמאית של שנתיים. שלב 2 (בנייה) נמשך בסכום אחד בתחילת שלב 2 עם תקופת חסד עצמאית של שנתיים. כל הלוואה מוחזרת באופן עצמאי.',
   'bank.graceMode.rolling': 'משיכה שלבית',
   'bank.graceMode.rolling.desc': 'אותה מבנה שתי הלוואות, אך שלב 2 (בנייה) מחולק ל-4 משיכות סמסטריאליות של 25% כל אחת. לכל משיכה תקופת חסד עצמאית — ההחזר נכנס בהדרגה ומוריד את שירות החוב בשנות הפתיחה.',
+  'bank.graceMode.rolling_cohort': 'חסד מאוחד',
+  'bank.graceMode.rolling_cohort.desc': 'הבנייה נמשכת ב-4 תשלומים של 25% כל חצי שנה — ריבית רק על הסכומים שנמשכו. תקופת חסד אחת מאוחדת מהמשיכה הראשונה: כל התשלומים מתחילים להחזיר יחד לאחר סיום החסד.',
   'bank.graceMode.plotsStart': 'תחילת שלב 1 — מגרשים',
   'bank.graceMode.constructionStart': 'תחילת שלב 2 — בנייה',
+
+  // ── OpCo/Cap Table redesign — waterfall steps (2026-06-01) ──
+  'opco.wStep5Label': 'חלוקת הקרן pari-passu (משקיעים + ספונסר יחד בו זמנית)',
+  'opco.wStep5Detail': 'כל בעלי ההון — משקיעים וההשקעה המשותפת של הספונסר — מקבלים את חלקם היחסי מאותה קרן בו זמנית. אף צד אינו מקבל תשלום ראשון.',
+  'opco.wStep6Label': 'Promote ספונסר (דלי 1A) ו-ratchet מעל — לא לפני',
+  'opco.wStep6Detail': 'The sponsor holds a developer promote (Bucket 1A, free carry) and where the grant is approved a grant equity bonus. Both are additive to the sponsor\'s co-invest equity share. At exit, all three layers receive proceeds simultaneously alongside investors — no party is paid first. The ratchet (Layer C) adds an incremental bonus on top once investors reach an 8% IRR.', // TODO translate
+  'opco.wStep7Label': 'At exit — all equity layers apply to sale proceeds', // TODO translate
+  'opco.wStep7Detail': 'Exit proceeds are distributed: (1) bank repaid from proceeds; (2) all equity holders share the remainder simultaneously — sponsor co-invest, developer promote (Bucket 1A), and grant equity (where applicable) all receive their pro-rata slice at the same time. The ratchet (Layer C) adds an incremental slice for the sponsor when investor IRR at exit exceeds 25%.', // TODO translate
+
+  // Bucket 1A cross-reference on OpCo tab
+  'opco.bucket1AXref': 'דלי 1A — Promote הון הספונסר (25% carry חינמי) הוא פריט מבנה הון, לא עמלה תפעולית. ראו Cap Table → מבנה הון לפרטים.',
+
+  // ── Cap Table — capital structure section (migrated from opco-split) ──
+  'ct.cs.sectionTitle': 'מבנה הון',
+  'ct.cs.sponsorPromote': 'הון promote של ספונסר',
+  'ct.cs.sponsorPromoteSub': 'carry חינמי — לא נדרש מזומן מהספונסר',
+  'ct.cs.sponsorCoinvest': 'השקעה משותפת של ספונסר',
+  'ct.cs.sponsorCoinvestSub': 'מזומן בתנאי LP — pari-passu עם משקיעים',
+  'ct.cs.investorPool': 'מאגר משקיעים',
+  'ct.cs.investorPoolSub': '8% עדיפות · 70/30 מעל',
+  'ct.cs.bankLoan': 'הלוואת בנק',
+  'ct.cs.grant': 'מענק',
+  'ct.cs.grantInactive': 'לא פעיל במסלול הנוכחי',
+  'ct.cs.totalCapex': 'סה״כ CapEx',
+  'ct.cs.propcoPlot': 'מגרש',
+  'ct.cs.propcoPlots': 'מגרשים',
+
+  // ── Cap Table — equity waterfall section ──
+  'ct.equityWaterfall': 'מפל חלוקת הון',
+  'ct.equityWaterfallSub': 'כיצד מזומנים הניתנים לחלוקה זורמים מהקרן לכל מחזיק',
+
+  // ── P&L Founder ManCo fee section (ADR-0019) ──────────────────────────────
+  'pnl.mancoFeeSection': 'דמי ManCo של מייסד — לפני הון',
+  'pnl.postDsPostMancoResidual': 'יתרה לאחר DS ודמי ManCo',
+  'pnl.grantSuccessFeeLabel': 'דמי הצלחה מענק — מזומן (Aggelakakis + Eytan, {year})',
+
+  // ── CapEx Absorption ──────────────────────────────────────────────────────
+  'capexAbs.title': 'ספיגת CAPEX',
+  'capexAbs.subtitle': 'סופגת קווי עלות לא כשירים לתוך קו הבנייה.',
+  'capexAbs.serviceProviders': 'ספיגת ספקי שירות',
+  'capexAbs.serviceProvidersDesc': 'אדריכל, מהנדס אזרחי, משפטי, מנהל בנייה, רישיונות והיתרים',
+  'capexAbs.contingency': 'ספיגת רזרבה',
+  'capexAbs.contingencyDesc': 'רזרבה (10% מבנייה + FF&E) — נספגת לקו הבנייה',
+  'capexAbs.constructionBefore': 'בנייה לפני',
+  'capexAbs.constructionAfter': 'בנייה אחרי',
+  'capexAbs.constructionDelta': 'Δ בנייה',
+  'capexAbs.pathImpactTitle': 'ספיגה לפי מסלול מימון',
+  'capexAbs.pathBaseline': 'הלוואת בסיס',
+  'capexAbs.pathNew': 'הלוואה חדשה',
+  'capexAbs.pathDeltaLoan': 'Δ הלוואה',
+  'capexAbs.pathDeltaPct': 'Δ %',
+  'capexAbs.pathEquityChange': 'שינוי הון',
+  'capexAbs.ofTotalBudget': 'מהתקציב הכולל',
+
+  // ── P1-07/08/09/10: Bank view additions (2026-06-03) ──
+  'bank.stress.output.dscrStabilised': 'מייצב:',
+  'bank.exit.sectionTitle': 'ניתוח יציאה',
+  'bank.exit.sectionSub': 'שווי נכס סופי, יתרת חוב וLTV ביציאה.',
+  'bank.exit.exitYear': 'שנת יציאה',
+  'bank.exit.terminalAsset': 'שווי נכס סופי',
+  'bank.exit.terminalAssetSub': 'EBITDA × מכפיל',
+  'bank.exit.loanAtExit': 'יתרת הלוואה ביציאה',
+  'bank.exit.loanAtExitSub': 'חוב שנותר',
+  'bank.exit.terminalLTV': 'LTV סופי',
+  'bank.exit.ltvPass': 'עבר',
+  'bank.exit.ltvFail': 'נכשל',
+  'bank.exit.ltvThreshold': '≤ 70% סף',
+  'bank.exit.underwaterNote': 'ביציאה, יתרת ההלוואה עולה על שווי הנכס.',
+  'bank.kpi.wcFacilityLabel': 'מסגרת WC',
+  'bank.wc.adequacyBelowMin': 'עלולה להיות מתחת למינימום',
+  'bank.wc.adequacyShortfall': 'חסר:',
+  'bank.stabilised.ebitdaMarginBenchmark': 'טווח ענפי: 40–55% (אירוח בוטיק)',
+  'bank.stabilised.ffeReserve': 'מתוכם רזרבת FF&E',
+  'bank.kpi.revpar': 'RevPAR (מייצב)',
+  'bank.kpi.revparSub': 'הכנסות / לילות חדר זמינים',
+  'bank.kpi.ltvCovenant': 'אמות מידה LTV',
+  'bank.kpi.ltvCovenantThreshold': '≤ 70% סף הבנק',
+  'bank.kpi.preOpening': 'תקציב טרום-פתיחה',
+  'bank.kpi.preOpeningAmort': 'פחת',
+  'bank.kpi.mgmtFee': 'דמי ניהול',
+  'bank.kpi.mgmtFeeBaseLabel': 'תעריף בסיס',
+  'bank.kpi.mgmtFeeIncentiveLabel': 'תמריץ',
+
+  // ── P1-14: In-page anchor bars (2026-06-03) ──
+  'dash.anchor.overview': 'סקירה',
+  'dash.anchor.returns': 'תשואות',
+  'dash.anchor.dscr': 'DSCR',
+  'dash.anchor.conservatism': 'שמרנות',
+  'dash.anchor.founder': 'מייסד',
+  'bank.anchor.termSheet': 'תנאי עסקה',
+  'bank.anchor.dealOverview': 'סקירת עסקה',
+  'bank.anchor.loanMetrics': 'מדדי הלוואה',
+  'bank.anchor.dscr': 'DSCR',
+  'bank.anchor.capital': 'הון',
+  'bank.anchor.pnl': 'רווח והפסד',
+
+  // ── P1-15: Accessibility aria labels (2026-06-03) ──
+  'aria.chart.dscr': 'גרף מסלול DSCR',
+  'aria.chart.paymentCapacity': 'גרף כושר תשלום מול שירות חוב',
+  'aria.chart.dsra': 'גרף חשבון רזרבת שירות חוב',
+  'aria.chart.revenue': 'גרף הכנסות ו-EBITDA',
+  'aria.chart.allPathsDscr': 'גרף DSCR לכל מסלולי המימון',
+  'aria.chart.capitalStructure': 'גרף עוגה מבנה הון',
+  'aria.table.caption.portfolio': 'פירוט תיק לפי מגרש',
+  'aria.table.caption.capex': 'פירוט CAPEX לפי נכס',
+  'aria.table.caption.dscrSummary': 'סיכום DSCR לפי תרחיש',
+  'aria.table.caption.financingComparison': 'השוואת מסלולי מימון',
+  'aria.table.caption.pnl': 'ציר זמן רווח והפסד חזוי',
+
+  // ── P1-16: Connected viewers i18n (2026-06-03) ──
+  'bank.admin.connectedViewers': 'צופים מחוברים',
+  'bank.admin.noActiveViewers': 'אין צופים פעילים.',
+  'bank.admin.anonBadge': 'אנונ.',
+
+  // ── P1-17: i18n fixes (2026-06-03) ──
+  'assumptions.lastSaved': 'נשמר לאחרונה',
+  'connections.action.excel': 'Excel ↓',
+  'connections.action.presentation': 'מצגת',
+  'connections.action.tour': 'סיור',
+  'connections.time.justNow': 'הרגע',
+  'connections.time.secondsAgo': 'לפני {{n}}ש',
+  'connections.time.minutesAgo': 'לפני {{n}}ד',
+  'connections.time.hoursAgo': 'לפני {{n}}ש׳',
+  'connections.time.daysAgo': 'לפני {{n}} ימים',
+
+  'sau.equityFirstNote': 'ההון העצמי נמשך ראשון לפני כל שחרור הלוואה.',
+  'pnl.dscrNumeratorNote': 'DSCR משתמש ב-EBITDA לפני-OpCo בתצוגת הבנק (EBITDA לפני דמי ניהול ותמריצים).',
+  'bank.equityOverview.graceInterestReserve': 'רזרבת ריבית תקופת החסד',
+  'bank.equityOverview.graceInterestReserveSub': 'ריבית שנצברה טרום הכנסות בתקופת החסד 2026–2028 — מוחזרת להון לאחר תום החסד.',
+  'bank.bar.breakevenSub': 'לחץ כפול: ADR + תפוסה בו-זמנית',
+  'bank.actions.onRequest.title': 'חומרים נוספים זמינים לפי בקשה',
+  'bank.actions.onRequest.sub': 'מודל Excel ומצגת זמינים לפי בקשה.',
+
+  // ── CAPEX Comparison page ──
+  'nav.capexComparison': 'השוואת CAPEX',
+  'admin.capexComparison.title': 'השוואת CAPEX — אמיתי מול מוצהר',
+  'admin.capexComparison.pageIntro': 'הזן העלאה וירטואלית להשוואת ה-CAPEX המוצהר (לבנק) מול ה-CAPEX האמיתי. הנתונים אינם נשמרים.',
+  'admin.capexComparison.disclaimer': 'היפותטי — לא נשמר בתרחיש',
+  'admin.capexComparison.inputLabel': 'העלאה וירטואלית',
+  'admin.capexComparison.modeAbs': '€k',
+  'admin.capexComparison.modePct': '% מ-CAPEX האמיתי',
+  'admin.capexComparison.colTrue': 'CAPEX אמיתי',
+  'admin.capexComparison.colStated': 'CAPEX מוצהר',
+  'admin.capexComparison.colDelta': 'הפרש',
+  'admin.capexComparison.colBankNote': 'לבנק',
+  'admin.capexComparison.rowCapexTotal': 'סה"כ CAPEX',
+  'admin.capexComparison.rowEquityRequired': 'הון עצמי נדרש',
+  'admin.capexComparison.rowLoan': 'סה"כ הלוואה',
+  'admin.capexComparison.rowDepreciation': 'פחת שנתי',
+  'admin.capexComparison.rowEbitda': 'EBITDA מייצג',
+  'admin.capexComparison.rowEbitdaNote': '(לא מושפע)',
+  'admin.capexComparison.rowDscr': 'DSCR מייצב',
+  'admin.capexComparison.rowIrr': 'IRR על ההון',
+  'admin.capexComparison.inactiveHint': 'הזן העלאה כדי להפעיל את ההשוואה.',
+
+  // ── Events disclosure (Gap 5) ──
+  'inv.events.disclosure': 'הכנסות מאירועים (~€60K/שנה בבסיס) הן הכנסות נוספות ממודלות ללא השוואה חיה — Villa Lev מייצרת כיום €0 מאירועים. קיים צינור ביקוש (40+ פניות/שנה) אך זהו אינו הכנסה מוכחת עדיין.',
 };

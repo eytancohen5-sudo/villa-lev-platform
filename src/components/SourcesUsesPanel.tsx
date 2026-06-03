@@ -146,7 +146,7 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
                   className="inline-block w-2 h-2 rounded-sm shrink-0"
                   style={{ background: SOURCE_COLORS.equity }}
                 />
-                {t('kpi.equityRequired')}
+                {t('kpi.capexEquity')}
               </span>
               <span className="font-mono text-text-primary">{fmtAmt(km.equityRequired)}</span>
             </div>
@@ -209,6 +209,8 @@ export function SourcesUsesPanel({ km, capexCategories, wc, locale }: SourcesAnd
       <div className="mt-4 pt-3 border-t border-surface-secondary/50 space-y-1">
         <p className="text-[10px] text-text-tertiary leading-relaxed">{t('sau.balanceNote')}</p>
         <p className="text-[10px] text-text-tertiary leading-relaxed">{t('sau.wcNote')}</p>
+        {/* FI-12: equity draw order confirmation */}
+        <p className="text-[10px] text-text-tertiary leading-relaxed font-medium">{t('sau.equityFirstNote')}</p>
       </div>
     </div>
   );

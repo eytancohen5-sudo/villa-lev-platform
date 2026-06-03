@@ -7,8 +7,8 @@
 // engine's annual P&L contract.
 //
 // Schedule (default Realistic):
-//   • Q1-2029 → Q3-2029: pre-opening draw, €50K/quarter (×4 = €200K total)
-//   • Q3-2029 (peak season / opening): self-liquidating repay of pre-opening balance
+//   • Q1-2029 → Q3-2029: no WC draws — pre-opening period is equity-funded
+//     (preOpeningTotalDraw = 0; see model.ts preOpeningEquityBuffer = 1 month portfolioOpex)
 //   • Q4-2029: seasonal draw €150K + Y2 ramp buffer top-up €100K
 //   • Q1-2030, Q2-2030: balance carries
 //   • Q3-2030: self-liquidating repay

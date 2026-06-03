@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import {
   formatCurrency,
@@ -29,6 +30,7 @@ import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import type { GraceMode } from "@/lib/engine/types";
 import { SectionHeader, StatusChip, KPICard } from "@/components/AdminUI";
 import { ConstructionVatCashflow } from "@/components/ConstructionVatCashflow";
+import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
 
 function MiniStat({
   label,
@@ -58,6 +60,8 @@ function MiniStat({
 // ── Page ────────────────────────────────────────────────────
 
 export default function DebtCoveragePage() {
+  const { track } = useTrackFeature();
+  useEffect(() => { track("admin-debt-coverage"); }, [track]);
   const { t, locale } = useTranslation();
   const { model, assumptions, activeScenario, setAssumption, financingPathOverride } = useModelStore();
   const graceMode = (assumptions.commercialLoan?.graceMode ?? 'standard') as GraceMode;
@@ -78,6 +82,11 @@ export default function DebtCoveragePage() {
   const llcr = activeScenarioOutput.llcr;
   const plcr = activeScenarioOutput.plcr;
   const gracePeriodInterestTotal = activeScenarioOutput.gracePeriodInterestTotal;
+  const commitmentFeeEnabled = assumptions.commercialLoan?.commitmentFeeEnabled ?? false;
+  const cumulativeCommitmentFee = activePnL.reduce(
+    (sum, p) => sum + (p.commitmentFee && p.commitmentFee > 0 ? p.commitmentFee : 0),
+    0
+  );
   const netLeverage = activeScenarioOutput.netLeverage;
   const peakDebtOutstanding = activeScenarioOutput.peakDebtOutstanding;
   const roic = activeScenarioOutput.roic;
@@ -177,7 +186,7 @@ export default function DebtCoveragePage() {
             {t('bank.graceMode.label')}
           </span>
           <div className="flex gap-1">
-            {(['two-phase', 'rolling'] as GraceMode[]).map((m) => (
+            {(['rolling-cohort', 'rolling'] as GraceMode[]).map((m) => (
               <button
                 key={m}
                 onClick={() => setAssumption('commercialLoan.graceMode', m, 'Grace structure')}
@@ -187,7 +196,7 @@ export default function DebtCoveragePage() {
                     : 'bg-surface-secondary text-text-secondary hover:bg-surface-tertiary'
                 }`}
               >
-                {t(`bank.graceMode.${m.replace('-', '_')}` as 'bank.graceMode.two_phase' | 'bank.graceMode.rolling')}
+                {t(`bank.graceMode.${m.replace(/-/g, '_')}` as 'bank.graceMode.rolling' | 'bank.graceMode.rolling_cohort')}
               </button>
             ))}
           </div>
@@ -195,7 +204,9 @@ export default function DebtCoveragePage() {
         <p className="text-[12px] text-text-secondary leading-relaxed mt-3">
           {graceMode === 'rolling'
             ? t('bank.graceMode.rolling.desc')
-            : t('bank.graceMode.two_phase.desc')}
+            : graceMode === 'rolling-cohort'
+              ? t('bank.graceMode.rolling_cohort.desc')
+              : t('bank.graceMode.two_phase.desc')}
         </p>
       </div>}
 
@@ -343,6 +354,15 @@ export default function DebtCoveragePage() {
           tone={roic >= 0.07 ? "positive" : roic > 0 ? undefined : "warning"}
         />
       </div>
+      {commitmentFeeEnabled && cumulativeCommitmentFee > 0 && (
+        <div className="mt-3 px-1">
+          <MiniStat
+            label={t("pnl.commitmentFee")}
+            value={formatCurrency(cumulativeCommitmentFee, true, locale)}
+            tone="neutral"
+          />
+        </div>
+      )}
 
       {/* Section 4 — Operating Performance */}
       <SectionHeader title={t("dash.section.operating")} sub={t("dash.stabilisedYear")} />
