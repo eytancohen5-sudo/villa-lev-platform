@@ -2446,6 +2446,7 @@ export const el: TranslationDictionary = {
   'admin.capexComparison.rowEbitda': 'Σταθεροποιημένο EBITDA',
   'admin.capexComparison.rowEbitdaNote': '(δεν επηρεάζεται)',
   'admin.capexComparison.rowDscr': 'Σταθεροποιημένο DSCR',
+  'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'IRR Ιδίων Κεφαλαίων',
   'admin.capexComparison.inactiveHint': 'Εισάγετε αύξηση για να ενεργοποιήσετε τη σύγκριση.',
 

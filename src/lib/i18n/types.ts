@@ -2418,6 +2418,7 @@ export interface TranslationDictionary {
   'admin.capexComparison.rowEbitda': string;
   'admin.capexComparison.rowEbitdaNote': string;
   'admin.capexComparison.rowDscr': string;
+  'admin.capexComparison.rowMinDscr': string;
   'admin.capexComparison.rowIrr': string;
   'admin.capexComparison.inactiveHint': string;
 

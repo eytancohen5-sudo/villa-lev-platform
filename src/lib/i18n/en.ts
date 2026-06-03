@@ -2434,6 +2434,7 @@ export const en: TranslationDictionary = {
   'admin.capexComparison.rowEbitda': 'Stabilised EBITDA',
   'admin.capexComparison.rowEbitdaNote': '(not affected by uplift)',
   'admin.capexComparison.rowDscr': 'Stabilised DSCR',
+  'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'Equity IRR',
   'admin.capexComparison.inactiveHint': 'Enter an uplift above to activate the comparison.',
 

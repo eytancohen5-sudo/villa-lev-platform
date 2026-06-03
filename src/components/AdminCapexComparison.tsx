@@ -93,6 +93,18 @@ export default function AdminCapexComparison() {
       // totalMOIC lives on ScenarioOutput alongside equityIRR
       trueMoic: trueModel.scenarios.realistic.totalMOIC,
       statedMoic: statedModel.scenarios.realistic.totalMOIC,
+
+      // minDSCRLoanLife — minimum annual DSCR over loan life
+      trueMinDscr: trueModel.scenarios.realistic.minDSCRLoanLife,
+      statedMinDscr: statedModel.scenarios.realistic.minDSCRLoanLife,
+      trueMinDscrYear: (() => {
+        const valid = trueModel.scenarios.realistic.pnl.filter((p) => (p.dscr ?? 0) > 0);
+        return valid.length ? valid.reduce((a, b) => (b.dscr ?? 0) < (a.dscr ?? 0) ? b : a).year : null;
+      })(),
+      statedMinDscrYear: (() => {
+        const valid = statedModel.scenarios.realistic.pnl.filter((p) => (p.dscr ?? 0) > 0);
+        return valid.length ? valid.reduce((a, b) => (b.dscr ?? 0) < (a.dscr ?? 0) ? b : a).year : null;
+      })(),
     };
   }, [assumptions, baseCapex, upliftEur]);
 
@@ -346,6 +358,50 @@ export default function AdminCapexComparison() {
                         (comparison.statedDscr - comparison.trueDscr).toFixed(
                           2
                         ) +
+                        "x"}
+                  </td>
+                </tr>
+
+                {/* ── Min DSCR ── */}
+                <tr className="border-b border-surface-secondary/60">
+                  <td className="py-3 px-5 text-text-secondary font-medium">
+                    <span>{t("admin.capexComparison.rowMinDscr")}</span>
+                    {comparison.trueMinDscrYear && (
+                      <span className="ml-1.5 text-xs text-text-tertiary italic">
+                        ({comparison.trueMinDscrYear})
+                      </span>
+                    )}
+                  </td>
+                  <td
+                    className={[
+                      "text-right py-3 px-5 font-mono bg-surface-secondary/10 font-semibold",
+                      dscrColor(comparison.trueMinDscr),
+                    ].join(" ")}
+                  >
+                    {fmtDscr(comparison.trueMinDscr)}
+                  </td>
+                  <td
+                    className={[
+                      "text-right py-3 px-5 font-mono bg-amber-50 font-semibold",
+                      dscrColor(comparison.statedMinDscr),
+                    ].join(" ")}
+                  >
+                    {fmtDscr(comparison.statedMinDscr)}
+                  </td>
+                  <td
+                    className={[
+                      "text-right py-3 px-5 font-mono font-semibold",
+                      comparison.statedMinDscr < comparison.trueMinDscr
+                        ? "text-negative"
+                        : "text-text-tertiary",
+                    ].join(" ")}
+                  >
+                    {comparison.statedMinDscr === comparison.trueMinDscr
+                      ? "—"
+                      : (comparison.statedMinDscr - comparison.trueMinDscr > 0
+                          ? "+"
+                          : "") +
+                        (comparison.statedMinDscr - comparison.trueMinDscr).toFixed(2) +
                         "x"}
                   </td>
                 </tr>

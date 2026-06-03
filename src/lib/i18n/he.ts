@@ -2406,6 +2406,7 @@ export const he: TranslationDictionary = {
   'admin.capexComparison.rowEbitda': 'EBITDA מייצג',
   'admin.capexComparison.rowEbitdaNote': '(לא מושפע)',
   'admin.capexComparison.rowDscr': 'DSCR מייצב',
+  'admin.capexComparison.rowMinDscr': 'Min DSCR',
   'admin.capexComparison.rowIrr': 'IRR על ההון',
   'admin.capexComparison.inactiveHint': 'הזן העלאה כדי להפעיל את ההשוואה.',
 
