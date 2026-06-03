@@ -24,12 +24,6 @@ function fmtMoic(v: number): string {
   return v.toFixed(2) + "x";
 }
 
-function fmtDelta(v: number, prefix = "+"): string {
-  if (v === 0) return "—";
-  const sign = v > 0 ? prefix : "";
-  return sign + formatCurrency(v, false);
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function AdminCapexComparison() {
@@ -105,6 +99,19 @@ export default function AdminCapexComparison() {
         const valid = statedModel.scenarios.realistic.pnl.filter((p) => (p.dscr ?? 0) > 0);
         return valid.length ? valid.reduce((a, b) => (b.dscr ?? 0) < (a.dscr ?? 0) ? b : a).year : null;
       })(),
+
+      // ── Real outcome columns ──
+      // Real: Eytan takes the stated (larger) loan but spends only true CAPEX
+      realLoan:   statedModel.keyMetrics.loanAmount,
+      realEquity: baseCapex.portfolioTotal - statedModel.keyMetrics.loanAmount,
+      realDepr:   baseCapex.annualDepreciationTotal,
+      realEbitda: trueModel.keyMetrics.stabilisedEBITDA,
+      // Real DSCR: true EBITDA (actual operations) ÷ annualDS on the stated (larger) loan.
+      // We use statedModel.keyMetrics.annualDS — NOT trueModel.keyMetrics.annualDS —
+      // because Eytan actually services the larger bank-approved loan.
+      realDscr: statedModel.keyMetrics.annualDS > 0
+        ? trueModel.keyMetrics.stabilisedEBITDA / statedModel.keyMetrics.annualDS
+        : 0,
     };
   }, [assumptions, baseCapex, upliftEur]);
 
@@ -204,11 +211,7 @@ export default function AdminCapexComparison() {
                   <th className="text-left py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium w-48">
                     {/* row label column — no header */}
                   </th>
-                  {/* True CAPEX column */}
-                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium bg-surface-secondary/30">
-                    {t("admin.capexComparison.colTrue")}
-                  </th>
-                  {/* Stated CAPEX column */}
+                  {/* Stated CAPEX column — Col 1 */}
                   <th className="text-right py-3 px-5 font-medium bg-amber-50">
                     <div className="text-xs uppercase tracking-wider text-amber-800">
                       {t("admin.capexComparison.colStated")}
@@ -217,9 +220,18 @@ export default function AdminCapexComparison() {
                       {t("admin.capexComparison.colBankNote")}
                     </div>
                   </th>
-                  {/* Delta column */}
-                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium">
-                    {t("admin.capexComparison.colDelta")}
+                  {/* True CAPEX column — Col 2 */}
+                  <th className="text-right py-3 px-5 text-xs uppercase tracking-wider text-text-tertiary font-medium bg-surface-secondary/30">
+                    {t("admin.capexComparison.colTrue")}
+                  </th>
+                  {/* Real outcome column — Col 3 */}
+                  <th className="text-right py-3 px-5 font-medium bg-emerald-50">
+                    <div className="text-xs uppercase tracking-wider text-emerald-800">
+                      {t("admin.capexComparison.colReal")}
+                    </div>
+                    <div className="text-[10px] font-normal text-emerald-600 mt-0.5">
+                      {t("admin.capexComparison.colRealNote")}
+                    </div>
                   </th>
                 </tr>
               </thead>
@@ -229,14 +241,15 @@ export default function AdminCapexComparison() {
                   <td className="py-3 px-5 text-text-secondary font-medium">
                     {t("admin.capexComparison.rowCapexTotal")}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {formatCurrency(comparison.trueCapex, false, locale)}
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     {formatCurrency(comparison.statedCapex, false, locale)}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono text-text-tertiary">
-                    {fmtDelta(comparison.statedCapex - comparison.trueCapex)}
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    {formatCurrency(comparison.trueCapex, false, locale)}
+                  </td>
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50">
+                    {/* Real CAPEX = true CAPEX — that is what actually gets built */}
+                    {formatCurrency(comparison.trueCapex, false, locale)}
                   </td>
                 </tr>
 
@@ -245,21 +258,19 @@ export default function AdminCapexComparison() {
                   <td className="py-3 px-5 text-text-secondary font-medium">
                     {t("admin.capexComparison.rowEquityRequired")}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {formatCurrency(comparison.trueEquity, false, locale)}
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     {formatCurrency(comparison.statedEquity, false, locale)}
                   </td>
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    {formatCurrency(comparison.trueEquity, false, locale)}
+                  </td>
                   <td
                     className={[
-                      "text-right py-3 px-5 font-mono font-semibold",
-                      comparison.statedEquity > comparison.trueEquity
-                        ? "text-negative"
-                        : "text-text-tertiary",
+                      "text-right py-3 px-5 font-mono bg-emerald-50 font-bold",
+                      comparison.realEquity < 0 ? "text-negative" : "",
                     ].join(" ")}
                   >
-                    {fmtDelta(comparison.statedEquity - comparison.trueEquity)}
+                    {formatCurrency(comparison.realEquity, false, locale)}
                   </td>
                 </tr>
 
@@ -268,14 +279,14 @@ export default function AdminCapexComparison() {
                   <td className="py-3 px-5 text-text-secondary font-medium">
                     {t("admin.capexComparison.rowLoan")}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {formatCurrency(comparison.trueLoan, false, locale)}
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     {formatCurrency(comparison.statedLoan, false, locale)}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono text-text-tertiary">
-                    {fmtDelta(comparison.statedLoan - comparison.trueLoan)}
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    {formatCurrency(comparison.trueLoan, false, locale)}
+                  </td>
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 font-bold text-emerald-700">
+                    {formatCurrency(comparison.realLoan, false, locale)}
                   </td>
                 </tr>
 
@@ -284,14 +295,14 @@ export default function AdminCapexComparison() {
                   <td className="py-3 px-5 text-text-secondary font-medium">
                     {t("admin.capexComparison.rowDepreciation")}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {formatCurrency(comparison.trueDepr, false, locale)}
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     {formatCurrency(comparison.statedDepr, false, locale)}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono text-text-tertiary">
-                    {fmtDelta(comparison.statedDepr - comparison.trueDepr)}
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    {formatCurrency(comparison.trueDepr, false, locale)}
+                  </td>
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50">
+                    {formatCurrency(comparison.realDepr, false, locale)}
                   </td>
                 </tr>
 
@@ -303,18 +314,18 @@ export default function AdminCapexComparison() {
                       {t("admin.capexComparison.rowEbitdaNote")}
                     </span>
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {formatCurrency(comparison.trueEbitda, false, locale)}
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     {formatCurrency(comparison.statedEbitda, false, locale)}
                   </td>
-                  {/* EBITDA is pre-depreciation and unaffected — show grayed dash */}
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    {formatCurrency(comparison.trueEbitda, false, locale)}
+                  </td>
+                  {/* Real EBITDA = true EBITDA — actual operations, unaffected by CAPEX uplift */}
                   <td
-                    className="text-right py-3 px-5 font-mono text-text-tertiary"
+                    className="text-right py-3 px-5 font-mono bg-emerald-50"
                     title="CAPEX uplift does not flow through to EBITDA — EBITDA is pre-depreciation operating profit"
                   >
-                    —
+                    {formatCurrency(comparison.realEbitda, false, locale)}
                   </td>
                 </tr>
 
@@ -328,14 +339,6 @@ export default function AdminCapexComparison() {
                   </td>
                   <td
                     className={[
-                      "text-right py-3 px-5 font-mono bg-surface-secondary/10 font-semibold",
-                      dscrColor(comparison.trueDscr),
-                    ].join(" ")}
-                  >
-                    {fmtDscr(comparison.trueDscr)}
-                  </td>
-                  <td
-                    className={[
                       "text-right py-3 px-5 font-mono bg-amber-50 font-semibold",
                       dscrColor(comparison.statedDscr),
                     ].join(" ")}
@@ -344,21 +347,19 @@ export default function AdminCapexComparison() {
                   </td>
                   <td
                     className={[
-                      "text-right py-3 px-5 font-mono font-semibold",
-                      comparison.statedDscr < comparison.trueDscr
-                        ? "text-negative"
-                        : "text-text-tertiary",
+                      "text-right py-3 px-5 font-mono bg-surface-secondary/10 font-semibold",
+                      dscrColor(comparison.trueDscr),
                     ].join(" ")}
                   >
-                    {comparison.statedDscr === comparison.trueDscr
-                      ? "—"
-                      : (comparison.statedDscr - comparison.trueDscr > 0
-                          ? "+"
-                          : "") +
-                        (comparison.statedDscr - comparison.trueDscr).toFixed(
-                          2
-                        ) +
-                        "x"}
+                    {fmtDscr(comparison.trueDscr)}
+                  </td>
+                  <td
+                    className={[
+                      "text-right py-3 px-5 font-mono bg-emerald-50 font-semibold",
+                      dscrColor(comparison.realDscr),
+                    ].join(" ")}
+                  >
+                    {fmtDscr(comparison.realDscr)}
                   </td>
                 </tr>
 
@@ -374,14 +375,6 @@ export default function AdminCapexComparison() {
                   </td>
                   <td
                     className={[
-                      "text-right py-3 px-5 font-mono bg-surface-secondary/10 font-semibold",
-                      dscrColor(comparison.trueMinDscr),
-                    ].join(" ")}
-                  >
-                    {fmtDscr(comparison.trueMinDscr)}
-                  </td>
-                  <td
-                    className={[
                       "text-right py-3 px-5 font-mono bg-amber-50 font-semibold",
                       dscrColor(comparison.statedMinDscr),
                     ].join(" ")}
@@ -390,19 +383,15 @@ export default function AdminCapexComparison() {
                   </td>
                   <td
                     className={[
-                      "text-right py-3 px-5 font-mono font-semibold",
-                      comparison.statedMinDscr < comparison.trueMinDscr
-                        ? "text-negative"
-                        : "text-text-tertiary",
+                      "text-right py-3 px-5 font-mono bg-surface-secondary/10 font-semibold",
+                      dscrColor(comparison.trueMinDscr),
                     ].join(" ")}
                   >
-                    {comparison.statedMinDscr === comparison.trueMinDscr
-                      ? "—"
-                      : (comparison.statedMinDscr - comparison.trueMinDscr > 0
-                          ? "+"
-                          : "") +
-                        (comparison.statedMinDscr - comparison.trueMinDscr).toFixed(2) +
-                        "x"}
+                    {fmtDscr(comparison.trueMinDscr)}
+                  </td>
+                  {/* Min DSCR real: not independently computed — show dash */}
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 text-text-tertiary">
+                    —
                   </td>
                 </tr>
 
@@ -411,34 +400,22 @@ export default function AdminCapexComparison() {
                   <td className="py-3 px-5 text-text-secondary font-medium">
                     {t("admin.capexComparison.rowIrr")}
                   </td>
-                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    <div>{fmtIrr(comparison.trueIrr)}</div>
-                    <div className="text-xs text-text-tertiary mt-0.5">{fmtMoic(comparison.trueMoic)} MoM</div>
-                  </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
                     <div>{fmtIrr(comparison.statedIrr)}</div>
                     <div className="text-xs text-amber-600 font-normal mt-0.5">{fmtMoic(comparison.statedMoic)} MoM</div>
                   </td>
-                  <td
-                    className={[
-                      "text-right py-3 px-5 font-mono font-semibold",
-                      comparison.statedIrr > comparison.trueIrr
-                        ? "text-positive"
-                        : comparison.statedIrr < comparison.trueIrr
-                          ? "text-negative"
-                          : "text-text-tertiary",
-                    ].join(" ")}
-                  >
-                    {comparison.statedIrr === comparison.trueIrr
-                      ? "—"
-                      : (comparison.statedIrr - comparison.trueIrr > 0
-                          ? "+"
-                          : "") +
-                        (
-                          (comparison.statedIrr - comparison.trueIrr) *
-                          100
-                        ).toFixed(1) +
-                        "pp"}
+                  <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
+                    <div>{fmtIrr(comparison.trueIrr)}</div>
+                    <div className="text-xs text-text-tertiary mt-0.5">{fmtMoic(comparison.trueMoic)} MoM</div>
+                  </td>
+                  {/* Real IRR requires a full cash-flow re-run with hybrid loan — not computable here */}
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 text-text-tertiary">
+                    <span
+                      title={t("admin.capexComparison.irrHybridNote")}
+                      className="cursor-help underline decoration-dotted"
+                    >
+                      —
+                    </span>
                   </td>
                 </tr>
               </tbody>
