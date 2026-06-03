@@ -5,6 +5,7 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel, computeCapex } from "@/lib/engine/model";
 import { applyCapexUplift } from "@/lib/engine/capexUplift";
+import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { dscrColor } from "@/components/bankSensitivityHelpers";
 
@@ -17,6 +18,10 @@ function fmtDscr(v: number): string {
 function fmtIrr(v: number): string {
   // equityIRR is a decimal (e.g. 0.182 = 18.2%)
   return (v * 100).toFixed(1) + "%";
+}
+
+function fmtMoic(v: number): string {
+  return v.toFixed(2) + "x";
 }
 
 function fmtDelta(v: number, prefix = "+"): string {
@@ -84,6 +89,10 @@ export default function AdminCapexComparison() {
       // equityIRR lives on ScenarioOutput, not on keyMetrics
       trueIrr: trueModel.scenarios.realistic.equityIRR,
       statedIrr: statedModel.scenarios.realistic.equityIRR,
+
+      // totalMOIC lives on ScenarioOutput alongside equityIRR
+      trueMoic: trueModel.scenarios.realistic.totalMOIC,
+      statedMoic: statedModel.scenarios.realistic.totalMOIC,
     };
   }, [assumptions, baseCapex, upliftEur]);
 
@@ -300,7 +309,10 @@ export default function AdminCapexComparison() {
                 {/* ── Stabilised DSCR ── */}
                 <tr className="border-b border-surface-secondary/60">
                   <td className="py-3 px-5 text-text-secondary font-medium">
-                    {t("admin.capexComparison.rowDscr")}
+                    <span>{t("admin.capexComparison.rowDscr")}</span>
+                    <span className="ml-1.5 text-xs text-text-tertiary italic">
+                      (Year {PROJECT_CONSTANTS.STABILISED_YEAR})
+                    </span>
                   </td>
                   <td
                     className={[
@@ -344,10 +356,12 @@ export default function AdminCapexComparison() {
                     {t("admin.capexComparison.rowIrr")}
                   </td>
                   <td className="text-right py-3 px-5 font-mono bg-surface-secondary/10">
-                    {fmtIrr(comparison.trueIrr)}
+                    <div>{fmtIrr(comparison.trueIrr)}</div>
+                    <div className="text-xs text-text-tertiary mt-0.5">{fmtMoic(comparison.trueMoic)} MoM</div>
                   </td>
                   <td className="text-right py-3 px-5 font-mono bg-amber-50 font-semibold text-amber-900">
-                    {fmtIrr(comparison.statedIrr)}
+                    <div>{fmtIrr(comparison.statedIrr)}</div>
+                    <div className="text-xs text-amber-600 font-normal mt-0.5">{fmtMoic(comparison.statedMoic)} MoM</div>
                   </td>
                   <td
                     className={[
