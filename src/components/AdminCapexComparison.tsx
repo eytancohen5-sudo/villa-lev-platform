@@ -5,7 +5,6 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel, computeCapex } from "@/lib/engine/model";
 import { applyCapexUplift } from "@/lib/engine/capexUplift";
-import { applyCapexAbsorption, isAbsorptionActive, type CapexAbsorptionConfig } from "@/lib/engine/capexAbsorption";
 import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { dscrColor } from "@/components/bankSensitivityHelpers";
@@ -38,9 +37,6 @@ export default function AdminCapexComparison() {
   const viewModeOverride          = useModelStore((s) => s.viewModeOverride);
   const financingPathOverride     = useModelStore((s) => s.financingPathOverride);
   const stressTestOverrides       = useModelStore((s) => s.stressTestOverrides);
-  const capexAbsSP                = useModelStore((s) => s.capexAbsorptionServiceProviders);
-  const capexAbsContingency       = useModelStore((s) => s.capexAbsorptionContingency);
-
   // ── local state — uplift input is NEVER seeded from store (constraint §1) ──
   const [upliftRaw, setUpliftRaw] = useState<string>("");
   const [mode, setMode] = useState<"abs" | "pct">("pct");
@@ -95,16 +91,8 @@ export default function AdminCapexComparison() {
       }
     }
 
-    // ── 2. Build effectiveCapex — apply absorption then this component's uplift ──
-    const rawCapex = computeCapex(effectiveAssumptions);
-    const absorptionConfig: CapexAbsorptionConfig = {
-      serviceProviders: capexAbsSP,
-      contingency: capexAbsContingency,
-    };
-    const hasAbsorption = isAbsorptionActive(absorptionConfig);
-    let baseCapex = hasAbsorption
-      ? applyCapexAbsorption(rawCapex, absorptionConfig)
-      : rawCapex;
+    // ── 2. Build effectiveCapex — this component's uplift only; absorption never applied here ──
+    const baseCapex = computeCapex(effectiveAssumptions);
 
     const statedCapex =
       upliftEur > 0 ? applyCapexUplift(baseCapex, upliftEur) : baseCapex;
@@ -188,12 +176,19 @@ export default function AdminCapexComparison() {
       realLoan:   realModel.keyMetrics.loanAmount,           // sanity: should equal statedLoan
       realEquity: realModel.keyMetrics.equityRequired,        // replaces manual subtraction
       realDepr:   baseCapex.annualDepreciationTotal,           // based on what is actually built
-      realEbitda: realModel.keyMetrics.stabilisedEBITDA,      // same as true (EBITDA pre-depreciation)
+      // EBITDA is pre-depreciation operating profit — pinned to trueModel so all three
+      // columns reflect the same operating performance regardless of financing path.
+      realEbitda: trueModel.keyMetrics.stabilisedEBITDA,
       realDscr:   realModel.keyMetrics.stabilisedDSCR,        // replaces manual formula
       realIrr:    realModel.scenarios.realistic.equityIRR,    // actual Real IRR from engine
       realMoic:   realModel.scenarios.realistic.totalMOIC,    // actual Real MOIC from engine
+      realMinDscr: realModel.scenarios.realistic.minDSCRLoanLife,
+      realMinDscrYear: (() => {
+        const valid = realModel.scenarios.realistic.pnl.filter((p) => (p.dscr ?? 0) > 0);
+        return valid.length ? valid.reduce((a, b) => (b.dscr ?? 0) < (a.dscr ?? 0) ? b : a).year : null;
+      })(),
     };
-  }, [assumptions, viewModeOverride, financingPathOverride, stressTestOverrides, capexAbsSP, capexAbsContingency, upliftEur]);
+  }, [assumptions, viewModeOverride, financingPathOverride, stressTestOverrides, upliftEur]);
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -446,12 +441,7 @@ export default function AdminCapexComparison() {
                 {/* ── Min DSCR ── */}
                 <tr className="border-b border-surface-secondary/60">
                   <td className="py-3 px-5 text-text-secondary font-medium">
-                    <span>{t("admin.capexComparison.rowMinDscr")}</span>
-                    {comparison.trueMinDscrYear && (
-                      <span className="ml-1.5 text-xs text-text-tertiary italic">
-                        ({comparison.trueMinDscrYear})
-                      </span>
-                    )}
+                    {t("admin.capexComparison.rowMinDscr")}
                   </td>
                   <td
                     className={[
@@ -459,7 +449,12 @@ export default function AdminCapexComparison() {
                       dscrColor(comparison.statedMinDscr),
                     ].join(" ")}
                   >
-                    {fmtDscr(comparison.statedMinDscr)}
+                    <div>{fmtDscr(comparison.statedMinDscr)}</div>
+                    {comparison.statedMinDscrYear && (
+                      <div className="text-[10px] font-normal text-amber-600 mt-0.5">
+                        ({comparison.statedMinDscrYear})
+                      </div>
+                    )}
                   </td>
                   <td
                     className={[
@@ -467,11 +462,25 @@ export default function AdminCapexComparison() {
                       dscrColor(comparison.trueMinDscr),
                     ].join(" ")}
                   >
-                    {fmtDscr(comparison.trueMinDscr)}
+                    <div>{fmtDscr(comparison.trueMinDscr)}</div>
+                    {comparison.trueMinDscrYear && (
+                      <div className="text-[10px] font-normal text-text-tertiary mt-0.5">
+                        ({comparison.trueMinDscrYear})
+                      </div>
+                    )}
                   </td>
-                  {/* Min DSCR real: not independently computed — show dash */}
-                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 text-text-tertiary">
-                    —
+                  <td
+                    className={[
+                      "text-right py-3 px-5 font-mono bg-emerald-50 font-semibold",
+                      dscrColor(comparison.realMinDscr),
+                    ].join(" ")}
+                  >
+                    <div>{fmtDscr(comparison.realMinDscr)}</div>
+                    {comparison.realMinDscrYear && (
+                      <div className="text-[10px] font-normal text-emerald-600 mt-0.5">
+                        ({comparison.realMinDscrYear})
+                      </div>
+                    )}
                   </td>
                 </tr>
 
