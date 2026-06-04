@@ -1074,6 +1074,7 @@ export interface TranslationDictionary {
   'bank.bar.upside': string;
   'bank.bar.downside': string;
   'bank.bar.breakeven': string;
+  'bank.bar.backToAdmin': string;
   'bank.bar.optimaRate': string;
   'bank.bar.optimaSpread': string;
   'bank.bar.optimaEuribor': string;

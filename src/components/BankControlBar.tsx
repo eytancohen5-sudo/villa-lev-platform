@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useModelStore, ScenarioName } from '@/lib/store/modelStore';
 import { useTranslation } from '@/lib/i18n/I18nProvider';
 import { LanguageToggle } from '@/components/LanguageToggle';
@@ -253,6 +254,14 @@ export default function BankControlBar() {
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
         {/* Left: back-link (operator only) + brand */}
         <div className="flex items-center gap-3">
+          {user && !user.isAnonymous && (
+            <Link
+              href="/admin"
+              className="text-[11px] font-medium text-text-secondary hover:text-text-primary underline"
+            >
+              {t('bank.bar.backToAdmin')}
+            </Link>
+          )}
           <span className="font-semibold text-sm text-text-primary">Villa Lev Group</span>
         </div>
 

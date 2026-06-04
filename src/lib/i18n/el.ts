@@ -159,6 +159,7 @@ export const el: TranslationDictionary = {
   'bank.bar.upside': 'Ρεαλιστικό+',
   'bank.bar.downside': 'Απαισιόδοξο',
   'bank.bar.breakeven': 'Νεκρό Σημείο',
+  'bank.bar.backToAdmin': '← Διαχείριση',
   'bank.bar.optimaRate': 'Επιτόκιο',
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',

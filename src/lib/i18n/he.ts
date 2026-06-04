@@ -159,6 +159,7 @@ export const he: TranslationDictionary = {
   'bank.bar.upside': 'ריאלי+',
   'bank.bar.downside': 'פסימי',
   'bank.bar.breakeven': 'נקודת איזון',
+  'bank.bar.backToAdmin': 'ניהול ←',
   'bank.bar.optimaRate': 'ריבית',
   'bank.bar.optimaSpread': 'מרווח',
   'bank.bar.optimaEuribor': 'Euribor',

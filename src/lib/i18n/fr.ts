@@ -130,6 +130,7 @@ export const fr = {
   'bank.bar.upside': 'Réaliste+',
   'bank.bar.downside': 'Pessimiste',
   'bank.bar.breakeven': 'Seuil de rentabilité',
+  'bank.bar.backToAdmin': '← Admin',
   'bank.bar.optimaRate': 'Taux',
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',

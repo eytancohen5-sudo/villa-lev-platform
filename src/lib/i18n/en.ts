@@ -159,6 +159,7 @@ export const en: TranslationDictionary = {
   'bank.bar.upside': 'Realistic',
   'bank.bar.downside': 'Downside',
   'bank.bar.breakeven': 'Break-Even',
+  'bank.bar.backToAdmin': '← Admin',
   'bank.bar.optimaRate': 'Rate',
   'bank.bar.optimaSpread': 'Spread',
   'bank.bar.optimaEuribor': 'Euribor',
