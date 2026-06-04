@@ -578,7 +578,7 @@ export default function DashboardPage() {
             <KPICard
               label={t('kpi.grantAmount')}
               value={formatCurrency(km.grantAmount, true, locale)}
-              sublabel={`${formatPercent(km.grantAmount / km.totalCapex, 0)} ${t('kpi.grantAmountSub')}`}
+              sublabel={`${formatPercent(assumptions.grant.grantRate, 0)} ${t('kpi.grantAmountSub')}`}
               tone="positive"
             />
           )}

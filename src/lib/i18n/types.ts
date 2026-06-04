@@ -1409,6 +1409,10 @@ export interface TranslationDictionary {
   'returns.pageIntro': string;
   'dc.pageIntro': string;
   'financing.pageIntro': string;
+  'financing.anchor.termsheet': string;
+  'financing.anchor.comparison': string;
+  'financing.anchor.capexSensitivity': string;
+  'financing.comparison.recommended': string;
   'ct.pageIntro': string;
   'lex.pageIntro': string;
   'as.pageIntro': string;

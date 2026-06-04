@@ -165,6 +165,28 @@ export default function FinancingPage() {
         </div>
       </div>
 
+      {/* In-page jump navigation */}
+      <nav
+        aria-label="Page sections"
+        className="sticky top-0 z-40 bg-surface-primary/95 backdrop-blur-sm border-b border-surface-tertiary -mx-6 px-6 mb-6 scroll-smooth print:hidden"
+      >
+        <div className="flex gap-1 overflow-x-auto py-2 scrollbar-none">
+          {([
+            { href: '#section-termsheet-financing',  label: t('financing.anchor.termsheet') },
+            { href: '#section-financing-comparison', label: t('financing.anchor.comparison') },
+            { href: '#section-capex-sensitivity',    label: t('financing.anchor.capexSensitivity') },
+          ] as const).map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="shrink-0 px-3 py-1 rounded text-[11px] font-medium uppercase tracking-wider text-text-secondary hover:text-text-primary hover:bg-surface-secondary transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
+      </nav>
+
       {/* CapEx Absorption — toggles that absorb service providers and/or contingency */}
       {(() => {
         // Derive raw (pre-absorption) CapEx on each render so amounts stay current
@@ -194,7 +216,7 @@ export default function FinancingPage() {
       })()}
 
       {/* Section 1 — Deal Terms / Term Sheet */}
-      <div id="section-termsheet-financing" className="scroll-mt-24">
+      <div id="section-termsheet-financing" className="scroll-mt-32">
       <SectionHeader title={t("dash.termsheet.title")} sub={`${pathLabel} · ${scenarioLabel}`} />
       <div className="bg-white rounded-xl border border-surface-tertiary px-4 md:px-5 py-4 md:py-5">
         <div className="flex flex-col md:flex-row md:items-center md:flex-wrap md:gap-x-6 md:gap-y-2 gap-y-2.5 md:divide-x md:divide-surface-tertiary/60">
@@ -397,7 +419,7 @@ export default function FinancingPage() {
       )}
 
       {/* Section 2 — Financing Comparison table */}
-      <div id="section-financing-comparison" className="scroll-mt-24">
+      <div id="section-financing-comparison" className="scroll-mt-32">
       <SectionHeader
         title={t("dash.financingComparison")}
         sub={t('financing.activePathNote')}
@@ -520,7 +542,7 @@ export default function FinancingPage() {
                             className="text-[9px] font-semibold uppercase tracking-wider block mt-0.5"
                             style={activePath !== col.pathKey ? col.inactiveStyle : undefined}
                           >
-                            Recommended
+                            {t('financing.comparison.recommended')}
                           </span>
                         )}
                       </th>
@@ -673,7 +695,7 @@ export default function FinancingPage() {
       </div>{/* end section-financing-comparison */}
 
       {/* Section 3 — CAPEX Sensitivity */}
-      <div id="section-capex-sensitivity" className="scroll-mt-24">
+      <div id="section-capex-sensitivity" className="scroll-mt-32">
         <SectionHeader title={t('sens.capexSensitivity')} />
         <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="overflow-x-auto">
