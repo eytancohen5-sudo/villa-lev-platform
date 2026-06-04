@@ -720,6 +720,38 @@ export default function FinancingPage() {
             </div>
           );
         })()}
+        {subProjectData && (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            {(['A', 'B'] as const).map((side) => {
+              const d = subProjectData[side];
+              const ltvPct = d.tabCapexTotal > 0 ? Math.round((d.tabLoan / d.tabCapexTotal) * 100) : 70;
+              return (
+                <div key={side} className="bg-surface-secondary/30 rounded-xl border border-surface-tertiary px-5 py-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-3">
+                    {side === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')} — {side === 'A' ? t('bank.optima.subProjectA') : t('bank.optima.subProjectB')}
+                  </p>
+                  <div className="space-y-2.5">
+                    {(([
+                      { label: t('term.capex'), value: formatCurrency(d.tabCapexTotal, true, locale), highlight: false },
+                      { label: `${t('dash.termsheet.loan')} (${ltvPct}% LTC)`, value: formatCurrency(d.tabLoan, true, locale), highlight: true },
+                      { label: t('term.ebitdaMargin'), value: formatPercent(d.tabEbitdaMargin), highlight: false },
+                      { label: t('kpi.annualDS'), value: formatCurrency(d.tabAnnualDS, true, locale), highlight: false },
+                      { label: t('term.dscr'), value: d.tabDSCR > 0 ? formatMultiple(d.tabDSCR) : '—', sub: d.minDscrYear ? `min · ${d.minDscrYear}` : undefined, highlight: true },
+                    ]) as Array<{ label: string; value: string; highlight: boolean; sub?: string }>).map((row) => (
+                      <div key={row.label} className="flex items-baseline justify-between gap-2 text-sm">
+                        <span className="text-text-secondary">{row.label}</span>
+                        <span className={`font-mono font-semibold ${row.highlight ? 'text-brand-600' : 'text-text-primary'}`}>
+                          {row.value}
+                          {row.sub && <span className="text-[10px] text-text-tertiary ml-1 font-normal">{row.sub}</span>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -749,38 +781,6 @@ export default function FinancingPage() {
               </tbody>
             </table>
           </div>
-          {subProjectData && (
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              {(['A', 'B'] as const).map((side) => {
-                const d = subProjectData[side];
-                const ltvPct = d.tabCapexTotal > 0 ? Math.round((d.tabLoan / d.tabCapexTotal) * 100) : 70;
-                return (
-                  <div key={side} className="bg-surface-secondary/30 rounded-xl border border-surface-tertiary px-5 py-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-3">
-                      {side === 'A' ? t('bank.optima.project1') : t('bank.optima.project2')} — {side === 'A' ? t('bank.optima.subProjectA') : t('bank.optima.subProjectB')}
-                    </p>
-                    <div className="space-y-2.5">
-                      {(([
-                        { label: t('term.capex'), value: formatCurrency(d.tabCapexTotal, true, locale), highlight: false },
-                        { label: `${t('dash.termsheet.loan')} (${ltvPct}% LTC)`, value: formatCurrency(d.tabLoan, true, locale), highlight: true },
-                        { label: t('term.ebitdaMargin'), value: formatPercent(d.tabEbitdaMargin), highlight: false },
-                        { label: t('kpi.annualDS'), value: formatCurrency(d.tabAnnualDS, true, locale), highlight: false },
-                        { label: t('term.dscr'), value: d.tabDSCR > 0 ? formatMultiple(d.tabDSCR) : '—', sub: d.minDscrYear ? `min · ${d.minDscrYear}` : undefined, highlight: true },
-                      ]) as Array<{ label: string; value: string; highlight: boolean; sub?: string }>).map((row) => (
-                        <div key={row.label} className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="text-text-secondary">{row.label}</span>
-                          <span className={`font-mono font-semibold ${row.highlight ? 'text-brand-600' : 'text-text-primary'}`}>
-                            {row.value}
-                            {row.sub && <span className="text-[10px] text-text-tertiary ml-1 font-normal">{row.sub}</span>}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       </div>
 
