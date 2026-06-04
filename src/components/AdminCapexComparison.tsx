@@ -5,9 +5,11 @@ import { useModelStore } from "@/lib/store/modelStore";
 import { useTranslation } from "@/lib/i18n/I18nProvider";
 import { computeModel, computeCapex } from "@/lib/engine/model";
 import { applyCapexUplift } from "@/lib/engine/capexUplift";
+import { applyCapexAbsorption, isAbsorptionActive, type CapexAbsorptionConfig } from "@/lib/engine/capexAbsorption";
 import { PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { formatCurrency, formatPercent } from "@/lib/hooks/useModel";
 import { dscrColor } from "@/components/bankSensitivityHelpers";
+import type { ModelAssumptions, FinancingPath } from "@/lib/engine/types";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -16,12 +18,14 @@ function fmtDscr(v: number): string {
 }
 
 function fmtIrr(v: number): string {
+  if (v == null || !isFinite(v)) return "—";
   // equityIRR is a decimal (e.g. 0.182 = 18.2%)
   return (v * 100).toFixed(1) + "%";
 }
 
 function fmtMoic(v: number): string {
-  return v.toFixed(2) + "x";
+  if (v == null || !isFinite(v)) return "—";
+  return v.toFixed(2) + "×";
 }
 
 // ── component ─────────────────────────────────────────────────────────────────
@@ -29,8 +33,13 @@ function fmtMoic(v: number): string {
 export default function AdminCapexComparison() {
   const { t, locale } = useTranslation();
 
-  // ── store reads (ONLY assumptions — constraint §2) ──
-  const assumptions = useModelStore((s) => s.assumptions);
+  // ── store reads ──
+  const assumptions               = useModelStore((s) => s.assumptions);
+  const viewModeOverride          = useModelStore((s) => s.viewModeOverride);
+  const financingPathOverride     = useModelStore((s) => s.financingPathOverride);
+  const stressTestOverrides       = useModelStore((s) => s.stressTestOverrides);
+  const capexAbsSP                = useModelStore((s) => s.capexAbsorptionServiceProviders);
+  const capexAbsContingency       = useModelStore((s) => s.capexAbsorptionContingency);
 
   // ── local state — uplift input is NEVER seeded from store (constraint §1) ──
   const [upliftRaw, setUpliftRaw] = useState<string>("");
@@ -38,23 +47,96 @@ export default function AdminCapexComparison() {
 
   // ── derived ──────────────────────────────────────────────────────────────────
 
-  const baseCapex = useMemo(() => computeCapex(assumptions), [assumptions]);
+  // Raw baseCapex (from raw assumptions) is used only to compute the uplift € amount.
+  // The comparison useMemo recomputes capex from effectiveAssumptions internally.
+  const rawBaseCapex = useMemo(() => computeCapex(assumptions), [assumptions]);
 
   const upliftEur = useMemo(() => {
     const v = parseFloat(upliftRaw);
     if (!upliftRaw || isNaN(v) || v <= 0) return 0;
     if (mode === "abs") return v * 1_000;
-    return (v / 100) * baseCapex.portfolioTotal;
-  }, [upliftRaw, mode, baseCapex.portfolioTotal]);
+    return (v / 100) * rawBaseCapex.portfolioTotal;
+  }, [upliftRaw, mode, rawBaseCapex.portfolioTotal]);
 
   const comparison = useMemo(() => {
+    // ── 1. Build effectiveAssumptions — mirror recompute() exactly ──
+    let effectiveAssumptions: ModelAssumptions = { ...assumptions };
+
+    if (financingPathOverride !== null) {
+      effectiveAssumptions = {
+        ...effectiveAssumptions,
+        financingPath: financingPathOverride as FinancingPath,
+      };
+    }
+
+    if (stressTestOverrides !== null) {
+      for (const [path, value] of Object.entries(stressTestOverrides)) {
+        // setNestedValue is a private store helper — inline the same logic here
+        const keys = path.split(".");
+        const apply = (
+          obj: Record<string, unknown>,
+          keys: string[],
+          value: unknown
+        ): Record<string, unknown> => {
+          const result = { ...obj };
+          let current: Record<string, unknown> = result;
+          for (let i = 0; i < keys.length - 1; i++) {
+            current[keys[i]] = { ...(current[keys[i]] as Record<string, unknown>) };
+            current = current[keys[i]] as Record<string, unknown>;
+          }
+          current[keys[keys.length - 1]] = value;
+          return result;
+        };
+        effectiveAssumptions = apply(
+          effectiveAssumptions as unknown as Record<string, unknown>,
+          keys,
+          value
+        ) as unknown as ModelAssumptions;
+      }
+    }
+
+    // ── 2. Build effectiveCapex — apply absorption then this component's uplift ──
+    const rawCapex = computeCapex(effectiveAssumptions);
+    const absorptionConfig: CapexAbsorptionConfig = {
+      serviceProviders: capexAbsSP,
+      contingency: capexAbsContingency,
+    };
+    const hasAbsorption = isAbsorptionActive(absorptionConfig);
+    let baseCapex = hasAbsorption
+      ? applyCapexAbsorption(rawCapex, absorptionConfig)
+      : rawCapex;
+
     const statedCapex =
       upliftEur > 0 ? applyCapexUplift(baseCapex, upliftEur) : baseCapex;
 
-    // constraint §2: all model output from local computeModel calls only
-    const trueModel = computeModel(assumptions, baseCapex);
+    // ── 3. Apply viewModeOverride for computeModel calls ──
+    const effectiveAssumptionsWithView: ModelAssumptions = viewModeOverride
+      ? { ...effectiveAssumptions, viewMode: viewModeOverride }
+      : effectiveAssumptions;
+
+    const trueModel = computeModel(effectiveAssumptionsWithView, baseCapex);
     const statedModel =
-      upliftEur > 0 ? computeModel(assumptions, statedCapex) : trueModel;
+      upliftEur > 0
+        ? computeModel(effectiveAssumptionsWithView, statedCapex)
+        : trueModel;
+
+    // Real outcome model: true CAPEX spent, but loan sized to match the stated (bank-approved) amount.
+    // Cap at 1.0 to prevent negative equity / IRR solver failure when statedLoan > baseCapex.
+    const adjustedLoanCoverageRate = Math.min(
+      statedModel.keyMetrics.loanAmount / baseCapex.portfolioTotal,
+      1.0
+    );
+
+    const realModel = computeModel(
+      {
+        ...effectiveAssumptionsWithView,
+        commercialLoan: {
+          ...effectiveAssumptionsWithView.commercialLoan,
+          loanCoverageRate: adjustedLoanCoverageRate,
+        },
+      },
+      baseCapex, // ← true CAPEX (no uplift), not statedCapex
+    );
 
     // constraint §3: equityRequired from keyMetrics (not derived manually)
     return {
@@ -100,20 +182,18 @@ export default function AdminCapexComparison() {
         return valid.length ? valid.reduce((a, b) => (b.dscr ?? 0) < (a.dscr ?? 0) ? b : a).year : null;
       })(),
 
-      // ── Real outcome columns ──
-      // Real: Eytan takes the stated (larger) loan but spends only true CAPEX
-      realLoan:   statedModel.keyMetrics.loanAmount,
-      realEquity: baseCapex.portfolioTotal - statedModel.keyMetrics.loanAmount,
-      realDepr:   baseCapex.annualDepreciationTotal,
-      realEbitda: trueModel.keyMetrics.stabilisedEBITDA,
-      // Real DSCR: true EBITDA (actual operations) ÷ annualDS on the stated (larger) loan.
-      // We use statedModel.keyMetrics.annualDS — NOT trueModel.keyMetrics.annualDS —
-      // because Eytan actually services the larger bank-approved loan.
-      realDscr: statedModel.keyMetrics.annualDS > 0
-        ? trueModel.keyMetrics.stabilisedEBITDA / statedModel.keyMetrics.annualDS
-        : 0,
+      // ── Real outcome columns — all from realModel (engine-native, no manual derivation) ──
+      // Real: Eytan takes the stated (larger) loan but spends only true CAPEX.
+      // realModel is computed against baseCapex with loanCoverageRate adjusted to reproduce the stated loan.
+      realLoan:   realModel.keyMetrics.loanAmount,           // sanity: should equal statedLoan
+      realEquity: realModel.keyMetrics.equityRequired,        // replaces manual subtraction
+      realDepr:   baseCapex.annualDepreciationTotal,           // based on what is actually built
+      realEbitda: realModel.keyMetrics.stabilisedEBITDA,      // same as true (EBITDA pre-depreciation)
+      realDscr:   realModel.keyMetrics.stabilisedDSCR,        // replaces manual formula
+      realIrr:    realModel.scenarios.realistic.equityIRR,    // actual Real IRR from engine
+      realMoic:   realModel.scenarios.realistic.totalMOIC,    // actual Real MOIC from engine
     };
-  }, [assumptions, baseCapex, upliftEur]);
+  }, [assumptions, viewModeOverride, financingPathOverride, stressTestOverrides, capexAbsSP, capexAbsContingency, upliftEur]);
 
   // ── helpers ───────────────────────────────────────────────────────────────
 
@@ -408,14 +488,9 @@ export default function AdminCapexComparison() {
                     <div>{fmtIrr(comparison.trueIrr)}</div>
                     <div className="text-xs text-text-tertiary mt-0.5">{fmtMoic(comparison.trueMoic)} MoM</div>
                   </td>
-                  {/* Real IRR requires a full cash-flow re-run with hybrid loan — not computable here */}
-                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 text-text-tertiary">
-                    <span
-                      title={t("admin.capexComparison.irrHybridNote")}
-                      className="cursor-help underline decoration-dotted"
-                    >
-                      —
-                    </span>
+                  <td className="text-right py-3 px-5 font-mono bg-emerald-50 font-semibold text-emerald-700">
+                    <div>{fmtIrr(comparison.realIrr)}</div>
+                    <div className="text-xs text-emerald-600 font-normal mt-0.5">{fmtMoic(comparison.realMoic)} MoM</div>
                   </td>
                 </tr>
               </tbody>

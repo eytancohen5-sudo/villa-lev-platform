@@ -43,3 +43,6 @@ next-env.d.ts
 
 # server-side scenario store (shared saved scenarios — environment-specific)
 /data/
+
+# RBAC saved backup — never commit, restore manually if needed
+src/.rbac-saved/
