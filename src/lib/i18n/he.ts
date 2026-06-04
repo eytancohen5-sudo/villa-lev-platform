@@ -116,7 +116,7 @@ export const he: TranslationDictionary = {
   'kpi.wcSelfLiqFail': 'דגל',
   'kpi.wcSelfLiqSub': 'שפל ≤ €50K בכל ספט\'',
   'kpi.grantAmount': 'מענק שהתקבל',
-  'kpi.grantAmountSub': '% מהון הכשיר',
+  'kpi.grantAmountSub': 'מסך עלות הפרויקט',
   'dash.heroDscr': 'מסלול DSCR — כל מסלולי המימון',
   'dash.heroDscrSub': '2029–2037 · גרייס מסתיים 2028 · שירות חוב מלא מ-2029 · קובננט ≥1.25× · נוחות ≥1.5×',
   'bank.dscrChartSub': '2029: שנת הפירעון המלא הראשונה — תקופת הגרייס מסתיימת ב-2028. יעדי ההכנסות לשנים 2029–2030 נקבעו בשמרנות מתחת לביצועים בפועל של Villa Lev כיום, אשר כבר עולים על התחזיות המייצבות שלנו.',

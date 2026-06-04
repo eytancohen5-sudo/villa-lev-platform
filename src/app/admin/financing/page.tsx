@@ -3,6 +3,7 @@
 import { useRef, useMemo, useEffect } from "react";
 import { useModelStore } from "@/lib/store/modelStore";
 import { CapexAbsorptionControl } from "@/components/CapexAbsorptionControl";
+import { CapexUpliftControl } from "@/components/CapexUpliftControl";
 import type { GraceMode } from "@/lib/engine/types";
 import {
   formatCurrency,
@@ -25,11 +26,13 @@ export default function FinancingPage() {
   const { track } = useTrackFeature();
   useEffect(() => { track("admin-financing"); }, [track]);
   const { t, locale } = useTranslation();
-  const { model, assumptions, activeScenario, setGraceMode, setAssumption, financingPathOverride, capexUpliftBaselineLoans } = useModelStore();
+  const { model, assumptions, activeScenario, setGraceMode, setAssumption, financingPathOverride, capexUpliftEur, capexUpliftBaselineLoans } = useModelStore();
   const [tourOpen, setTourOpen, neverSeen] = usePageTour(FINANCING_TOUR.storageKey);
   // rawCapexRef caches the pre-absorption CapEx so the absorption control
   // can show correct "before" amounts without re-running computeCapex on render.
   const rawCapexRef = useRef(model ? computeCapex(assumptions) : null);
+  const baselineLoanRef = useRef<number>(0);
+  const baselineDscrRef = useRef<number>(0);
 
   const capexRows = useMemo(() => {
     const deltas = [-0.20, -0.10, -0.05, 0, 0.05, 0.10, 0.20];
@@ -697,6 +700,26 @@ export default function FinancingPage() {
       {/* Section 3 — CAPEX Sensitivity */}
       <div id="section-capex-sensitivity" className="scroll-mt-32">
         <SectionHeader title={t('sens.capexSensitivity')} />
+        {/* CAPEX uplift control — ephemeral %, affects sensitivity table below */}
+        {(() => {
+          const activePathKey = activePath === 'tepix-loan' ? 'tepixLoan' : activePath as 'commercial' | 'rrf' | 'grant' | 'optima';
+          if (capexUpliftEur === null) {
+            baselineLoanRef.current = km.loanAmount;
+            baselineDscrRef.current = model.scenarios.realistic.minDSCRLoanLife;
+          }
+          const baselineLoanEur = capexUpliftBaselineLoans?.[activePathKey] ?? baselineLoanRef.current;
+          return (
+            <div className="mb-4">
+              <CapexUpliftControl
+                baseCapexEur={model.capex.portfolioTotal}
+                baselineLoanEur={baselineLoanEur}
+                currentLoanEur={km.loanAmount}
+                currentDscr={model.scenarios.realistic.minDSCRLoanLife}
+                baselineDscr={baselineDscrRef.current > 0 ? baselineDscrRef.current : undefined}
+              />
+            </div>
+          );
+        })()}
         <div className="bg-white rounded-xl border border-surface-tertiary p-5">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
