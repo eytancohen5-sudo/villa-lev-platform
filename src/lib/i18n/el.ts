@@ -79,6 +79,7 @@ export const el: TranslationDictionary = {
   'term.irr': 'IRR',
 
   'kpi.totalInvestment': 'Συνολική επένδυση',
+  'kpi.upliftActive': 'προσαύξηση ενεργή',
   'kpi.plots': 'οικόπεδα',
   'kpi.plotsSingular': 'οικόπεδο',
   'kpi.stabilisedRevenue': 'Σταθεροποιημένα έσοδα',

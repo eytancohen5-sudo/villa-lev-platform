@@ -73,6 +73,7 @@ export const fr = {
   'term.irr': 'TRI',
 
   'kpi.totalInvestment': 'Investissement total',
+  'kpi.upliftActive': 'majoration active',
   'kpi.plots': 'parcelles',
   'kpi.plotsSingular': 'parcelle',
   'kpi.stabilisedRevenue': 'Chiffre d\'affaires stabilisé',

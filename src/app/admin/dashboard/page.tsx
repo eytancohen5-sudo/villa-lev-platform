@@ -537,6 +537,10 @@ export default function DashboardPage() {
               const n = projects.reduce((s, p) => s + p.count, 0);
               return `${n} ${t(n === 1 ? 'kpi.plotsSingular' : 'kpi.plots')}`;
             })()}
+            chip={capexUpliftEur && capexUpliftEur > 0
+              ? { label: `+${formatCurrency(capexUpliftEur, true, locale)}`, ok: false }
+              : undefined}
+            tone={capexUpliftEur && capexUpliftEur > 0 ? 'warning' : undefined}
           />
           <KPICard
             label={t('kpi.capexEquity')}

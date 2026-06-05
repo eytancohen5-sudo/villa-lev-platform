@@ -1526,8 +1526,15 @@ export default function AssumptionsPage() {
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider text-text-tertiary mb-1">{t('as.portfolioOverview.totalCapex')}</label>
-            <div className="font-mono text-lg font-semibold text-text-primary">
-              {formatCurrency(model.capex.portfolioTotal, true, locale)}
+            <div className="flex items-baseline gap-2">
+              <div className="font-mono text-lg font-semibold text-text-primary">
+                {formatCurrency(model.capex.portfolioTotal, true, locale)}
+              </div>
+              {capexUpliftEur && capexUpliftEur > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                  +{formatCurrency(capexUpliftEur, true, locale)} {t('kpi.upliftActive')}
+                </span>
+              )}
             </div>
           </div>
         </div>

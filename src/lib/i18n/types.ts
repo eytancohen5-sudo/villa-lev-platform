@@ -95,6 +95,7 @@ export interface TranslationDictionary {
 
   // ── Dashboard KPIs ──
   'kpi.totalInvestment': string;
+  'kpi.upliftActive': string;
   'kpi.plots': string;
   'kpi.plotsSingular': string;
   'kpi.stabilisedRevenue': string;

@@ -557,9 +557,10 @@ function loadCapexUpliftFromStorage(): { eur: number | null; base: number | null
     const raw = localStorage.getItem(CAPEX_UPLIFT_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    // If an uplift was saved without baseline loans (pre-fix format), discard it.
-    // Without baselines we can't compute a correct delta — force the user to re-enter.
-    if (parsed.eur && parsed.eur > 0 && !parsed.baselineLoans) {
+    // Discard only truly old pre-fix saves where the 'baselineLoans' key is
+    // entirely absent. null is acceptable — extraLoan display shows €0 which is
+    // fine, and the uplift itself still applies correctly to portfolioTotal.
+    if (parsed.eur && parsed.eur > 0 && !('baselineLoans' in parsed)) {
       try { localStorage.removeItem(CAPEX_UPLIFT_STORAGE_KEY); } catch { /* ok */ }
       return null;
     }
@@ -1130,9 +1131,27 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       ...(baseEur !== undefined && { capexUpliftBase: baseEur }),
     });
     const s = get();
-    // s.capexUpliftBaselineLoans was already populated in-memory by captureCapexBaselines (useEffect).
-    // Saving it here persists it to localStorage alongside the uplift.
-    saveCapexUpliftToStorage(upliftEur, baseEur ?? s.capexUpliftBase, s.capexUpliftMode, s.capexUpliftBaselineLoans);
+    // Baselines are captured by recompute() when no override is active. But if
+    // the app started with an uplift already loaded (Firestore scenario), recompute
+    // skips capture (noOverrideActive=false). Fall back to computing from the
+    // current model so the save always carries valid baseline data.
+    let baselineLoans = s.capexUpliftBaselineLoans;
+    if (!baselineLoans && s.model) {
+      const loanRow = s.model.financingComparison.find(
+        (r: { key: string }) => r.key === 'totalLoanDrawn'
+      ) as Record<string, unknown> | undefined;
+      if (loanRow) {
+        baselineLoans = {
+          commercial: typeof loanRow.commercial === 'number' ? loanRow.commercial : 0,
+          rrf:        typeof loanRow.rrf        === 'number' ? loanRow.rrf        : 0,
+          grant:      typeof loanRow.grant      === 'number' ? loanRow.grant      : 0,
+          tepixLoan:  typeof loanRow.tepixLoan  === 'number' ? loanRow.tepixLoan  : 0,
+          optima:     typeof loanRow.optima     === 'number' ? loanRow.optima     : 0,
+        };
+        set({ capexUpliftBaselineLoans: baselineLoans });
+      }
+    }
+    saveCapexUpliftToStorage(upliftEur, baseEur ?? s.capexUpliftBase, s.capexUpliftMode, baselineLoans);
     get().recompute();
   },
   setCapexUpliftMode: (mode) => {

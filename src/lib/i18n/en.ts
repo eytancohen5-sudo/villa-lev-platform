@@ -79,6 +79,7 @@ export const en: TranslationDictionary = {
   'term.irr': 'IRR',
 
   'kpi.totalInvestment': 'Total Investment',
+  'kpi.upliftActive': 'uplift active',
   'kpi.plots': 'plots',
   'kpi.plotsSingular': 'plot',
   'kpi.stabilisedRevenue': 'Stabilised Revenue',
