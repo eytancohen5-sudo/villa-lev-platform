@@ -12,12 +12,11 @@
 //      director salary, Construction director (devMgmtFee)
 //   2. Contingency — 10% of building + FF&E
 //
-// The underlying mechanism reuses applyCapexUplift: we compute
-// the EUR sum of the toggled categories and add it to the
-// "Building & excavation" line.  The absorbed categories are
-// NOT zeroed in the resulting breakdown so the admin CapEx page
-// still shows the full breakdown; only the construction line is
-// inflated for the financing calculation.
+// The underlying mechanism:
+//   1. Inflate "Building & excavation" by the absorbed total (via applyCapexUplift).
+//   2. Zero out the absorbed categories so portfolioTotal stays flat — pure shift,
+//      not additive. The admin CapEx page reads model.capex (un-absorbed), so it
+//      always shows the full breakdown regardless.
 
 import type { CapexBreakdown } from './types';
 import { applyCapexUplift } from './capexUplift';
@@ -63,9 +62,8 @@ export function computeAbsorptionAmounts(
 /**
  * Apply absorption to a CapexBreakdown.
  *
- * Internally delegates to applyCapexUplift which adds the absorbed
- * amount to "Building & excavation" and keeps all invariants consistent
- * (portfolioTotal, depreciation, VAT schedule).
+ * Inflates "Building & excavation" by the absorbed total, then zeros out
+ * the absorbed categories so portfolioTotal stays flat (pure shift).
  *
  * Returns the same reference when no absorption is active.
  */
@@ -75,7 +73,42 @@ export function applyCapexAbsorption(
 ): CapexBreakdown {
   const { total } = computeAbsorptionAmounts(capex, config);
   if (total <= 0) return capex;
-  return applyCapexUplift(capex, total);
+
+  // Step 1: inflate construction (also scales VAT schedule correctly).
+  const uplifted = applyCapexUplift(capex, total);
+
+  // Step 2: zero out absorbed categories — they now live inside construction.
+  const absorbedNames = new Set<string>();
+  if (config.serviceProviders) {
+    for (const name of SERVICE_PROVIDER_CATEGORIES) absorbedNames.add(name);
+  }
+  if (config.contingency) {
+    absorbedNames.add(CONTINGENCY_CATEGORY);
+  }
+
+  const newCategories = uplifted.categories.map((cat) =>
+    absorbedNames.has(cat.name)
+      ? { ...cat, grandTotal: 0, perProperty: cat.perProperty.map((pp) => ({ ...pp, total: 0, perUnit: 0 })) }
+      : cat,
+  );
+
+  const newPortfolioTotal = newCategories.reduce((s, c) => s + c.grandTotal, 0);
+  const newAnnualDepreciationTotal = newCategories.reduce(
+    (sum, cat) => sum + cat.grandTotal * cat.depreciationRate,
+    0,
+  );
+  const newDepreciationByCategory: Record<string, number> = { ...uplifted.depreciationByCategory };
+  for (const name of absorbedNames) {
+    newDepreciationByCategory[name] = 0;
+  }
+
+  return {
+    ...uplifted,
+    categories: newCategories,
+    portfolioTotal: newPortfolioTotal,
+    annualDepreciationTotal: newAnnualDepreciationTotal,
+    depreciationByCategory: newDepreciationByCategory,
+  };
 }
 
 /** True when at least one absorption toggle is ON. */
