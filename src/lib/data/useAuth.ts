@@ -111,6 +111,7 @@ const listeners = new Set<Listener>();
 let unsubAuth: Unsubscribe | null = null;
 let unsubProfile: Unsubscribe | null = null;
 let currentProfileUid: string | null = null;
+let profileTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let subscribeCount = 0;
 // Incremented by stopAuth() so that any authStateReady() promise that was
 // pending when the subscription was torn down will see a stale generation
@@ -140,6 +141,10 @@ function legacyAdminProfile(user: User): UserProfile | null {
 }
 
 function stopProfile() {
+  if (profileTimeoutId !== null) {
+    clearTimeout(profileTimeoutId);
+    profileTimeoutId = null;
+  }
   if (unsubProfile) {
     unsubProfile();
     unsubProfile = null;
@@ -162,9 +167,21 @@ function startProfile(user: User) {
   }
   currentProfileUid = user.uid;
   const ref = doc(db, USERS_COLLECTION, user.uid);
+
+  // Safety net: if onSnapshot stalls (Firestore connection issue, expired token
+  // not yet refreshed, etc.), unblock authLoading after 5 s so the save row
+  // renders. The snapshot may still arrive later and will update state normally.
+  profileTimeoutId = setTimeout(() => {
+    profileTimeoutId = null;
+    if (currentProfileUid !== user.uid || current.profileReady) return;
+    const fallback = legacyAdminProfile(user);
+    emit({ ...current, user, profile: fallback ?? null, authReady: true, profileReady: true });
+  }, 5000);
+
   unsubProfile = onSnapshot(
     ref,
     (snap) => {
+      if (profileTimeoutId !== null) { clearTimeout(profileTimeoutId); profileTimeoutId = null; }
       // Guard against stale callbacks after a uid change (sign-out + sign-in
       // as a different user) — only accept this snapshot if it still matches
       // the uid we last started a subscription for.
@@ -220,6 +237,7 @@ function startProfile(user: User) {
       });
     },
     (err) => {
+      if (profileTimeoutId !== null) { clearTimeout(profileTimeoutId); profileTimeoutId = null; }
       if (process.env.NODE_ENV !== "production") {
         console.warn(
           "[useAuth] users/{uid} onSnapshot error — falling back:",
