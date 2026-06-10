@@ -496,6 +496,8 @@ export const fr = {
   'as.portfolioOpexTab': 'Portfolio OPEX',
   // TODO: translate
   'as.portfolioOpex.tabIntro': 'Undistributed overhead shared across all properties.',
+  'as.portfolioOpex.enabledLabel': 'Include portfolio OPEX layer',
+  'as.portfolioOpex.disabledNote': 'Portfolio OPEX disabled — only per-unit template costs apply.',
   // TODO: translate
   'as.portfolioOpex.totalBadge': 'Total Portfolio OPEX',
   // TODO: translate

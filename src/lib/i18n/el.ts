@@ -707,6 +707,8 @@ export const el: TranslationDictionary = {
   'as.portfolioOpexTab': 'OPEX Χαρτοφυλακίου',
  
   'as.portfolioOpex.tabIntro': 'Αδιανέμητα γενικά έξοδα κοινά για όλα τα ακίνητα.',
+  'as.portfolioOpex.enabledLabel': 'Συμπερίληψη επιπέδου portfolio OPEX',
+  'as.portfolioOpex.disabledNote': 'Το portfolio OPEX είναι απενεργοποιημένο — ισχύουν μόνο τα κόστη ανά μονάδα.',
  
   'as.portfolioOpex.totalBadge': 'Συνολικό OPEX Χαρτοφυλακίου',
  

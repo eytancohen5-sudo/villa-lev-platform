@@ -1552,6 +1552,9 @@ export function computePortfolioOpex(year: number, assumptions: ModelAssumptions
   // TODO: apply inflationHook escalator when activated
   const po = assumptions.portfolioOpex ?? DEFAULT_PORTFOLIO_OPEX;
 
+  // Portfolio OPEX disabled — return zeros; per-unit template OPEX still applies.
+  if (po.enabled === false) return ZERO;
+
   // Pre-opening years: staff/services/overhead are zero (not yet operational).
   // Two cost types may apply:
   //   1. preOpeningAmort — if amortisation starts before OPENING_YEAR

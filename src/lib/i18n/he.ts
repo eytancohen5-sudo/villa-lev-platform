@@ -693,6 +693,8 @@ export const he: TranslationDictionary = {
   'as.opexTab': 'OPEX',
   'as.portfolioOpexTab': 'OPEX תיק הנכסים',
   'as.portfolioOpex.tabIntro': 'הוצאות כלליות בלתי מחולקות משותפות לכל הנכסים.',
+  'as.portfolioOpex.enabledLabel': 'Include portfolio OPEX layer',
+  'as.portfolioOpex.disabledNote': 'Portfolio OPEX disabled — only per-unit template costs apply.',
   'as.portfolioOpex.totalBadge': 'סה"כ OPEX תיק הנכסים',
   'as.portfolioOpex.yearRoundFixed': 'קבוע כל השנה',
   'as.portfolioOpex.variable': 'משתנה',

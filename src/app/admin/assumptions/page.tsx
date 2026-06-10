@@ -2375,10 +2375,35 @@ export default function AssumptionsPage() {
         <div className="space-y-4">
           <PortfolioOpexMigrationBanner />
 
+          {/* Enable / disable toggle */}
+          {(() => {
+            const po = assumptions.portfolioOpex;
+            const isEnabled = !po || po.enabled !== false;
+            return (
+              <div className="flex items-center justify-between px-4 py-3 rounded-lg border border-surface-tertiary bg-white">
+                <div>
+                  <span className="text-sm font-medium text-text-primary">{t('as.portfolioOpex.enabledLabel')}</span>
+                  {!isEnabled && (
+                    <p className="text-xs text-text-tertiary mt-0.5">{t('as.portfolioOpex.disabledNote')}</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isEnabled}
+                  onClick={() => updatePortfolioOpexScalar('enabled', !isEnabled)}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40 ${isEnabled ? 'bg-brand-600' : 'bg-surface-tertiary'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition duration-200 ${isEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            );
+          })()}
+
           {/* Summary strip */}
           {(() => {
             const po = assumptions.portfolioOpex;
-            if (!po) return null;
+            if (!po || po.enabled === false) return null;
             const result = computePortfolioOpex(2031, assumptions);
             return (
               <div className="flex flex-wrap gap-3 mb-2">
@@ -2401,7 +2426,7 @@ export default function AssumptionsPage() {
           {/* Section 1 — Shared Staff */}
           {(() => {
             const po = assumptions.portfolioOpex;
-            if (!po) return null;
+            if (!po || po.enabled === false) return null;
             return (
               <div className="bg-white rounded-xl border border-surface-tertiary p-5">
                 <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.staffSection')}</h4>
@@ -2518,7 +2543,7 @@ export default function AssumptionsPage() {
           {/* Section 2 — Shared Services */}
           {(() => {
             const po = assumptions.portfolioOpex;
-            if (!po) return null;
+            if (!po || po.enabled === false) return null;
             return (
               <div className="bg-white rounded-xl border border-surface-tertiary p-5">
                 <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.servicesSection')}</h4>
@@ -2645,7 +2670,7 @@ export default function AssumptionsPage() {
           {/* Section 3 — Shared Overhead */}
           {(() => {
             const po = assumptions.portfolioOpex;
-            if (!po) return null;
+            if (!po || po.enabled === false) return null;
             return (
               <div className="bg-white rounded-xl border border-surface-tertiary p-5">
                 <h4 className="text-sm font-semibold text-text-primary mb-3">{t('as.portfolioOpex.overheadSection')}</h4>
@@ -2729,7 +2754,7 @@ export default function AssumptionsPage() {
           {/* Section 4 — Pre-opening Amortisation */}
           {(() => {
             const po = assumptions.portfolioOpex;
-            if (!po) return null;
+            if (!po || po.enabled === false) return null;
             const annualAmort = po.preOpeningAmortYears > 0 ? po.preOpeningTotal / po.preOpeningAmortYears : 0;
             return (
               <div className="bg-white rounded-xl border border-surface-tertiary p-5">

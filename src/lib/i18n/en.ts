@@ -703,6 +703,8 @@ export const en: TranslationDictionary = {
   'as.portfolioOpexTab': 'Portfolio OPEX',
   // Portfolio OPEX tab
   'as.portfolioOpex.tabIntro': 'Undistributed overhead shared across all properties.',
+  'as.portfolioOpex.enabledLabel': 'Include portfolio OPEX layer',
+  'as.portfolioOpex.disabledNote': 'Portfolio OPEX disabled — only per-unit template costs apply.',
   'as.portfolioOpex.totalBadge': 'Total Portfolio OPEX',
   'as.portfolioOpex.yearRoundFixed': 'Year-round fixed',
   'as.portfolioOpex.variable': 'Variable',

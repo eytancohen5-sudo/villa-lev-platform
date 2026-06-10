@@ -471,6 +471,8 @@ export interface TranslationDictionary {
   'as.portfolioOpexTab': string;
   // Portfolio OPEX tab content
   'as.portfolioOpex.tabIntro': string;
+  'as.portfolioOpex.enabledLabel': string;
+  'as.portfolioOpex.disabledNote': string;
   'as.portfolioOpex.totalBadge': string;
   'as.portfolioOpex.yearRoundFixed': string;
   'as.portfolioOpex.variable': string;

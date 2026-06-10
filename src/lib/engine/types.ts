@@ -517,6 +517,9 @@ export interface SharedServiceLine {
 }
 
 export interface PortfolioOpex {
+  /** When false the entire portfolio-level cost layer (staff, services, overhead,
+   *  pre-opening amort) is excluded from the engine. Per-unit template OPEX still applies. */
+  enabled?: boolean;
   staffRoles: StaffRole[];
   sharedServices: SharedServiceLine[];
   sharedOverhead: SharedServiceLine[];
