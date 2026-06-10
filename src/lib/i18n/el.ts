@@ -1745,7 +1745,7 @@ export const el: TranslationDictionary = {
   'bank.about.totalKeysLabel':       'κλειδιά (μέγιστη διαίρεση)',
   'bank.about.totalBedroomsLabel':   'υπνοδωμάτια',
   'bank.about.isDeveloping':         'αναπτύσσει',
-  'bank.about.villaDesc':            'πολυτελείς βίλες επτά υπνοδωματίων με ανεξάρτητα περίπτερα φιλοξενίας',
+  'bank.about.villaDesc':            'πολυτελείς βίλες με περίπτερα φιλοξενίας',
   'bank.about.and':                  'και',
   'bank.about.suiteDesc':            'ιδιωτικές σουίτες-βίλες σε δύο κτίρια (το κτίριο 11 villa suites στο οικόπεδο 15.000 m² και το boutique & wellness κτίριο εντός χωριού).',
   'bank.about.inventoryIntro':       'Συνολικό απόθεμα:',

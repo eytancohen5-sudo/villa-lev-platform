@@ -1226,7 +1226,7 @@ export const fr = {
   'bank.about.title': 'About the project',
   'bank.about.isDeveloping':    'is developing',
   'bank.about.plotsIn':         'plots in Agios Georgios, Antiparos —',
-  'bank.about.villaDesc':       'seven-bedroom luxury villas with independent guest pavilions and',
+  'bank.about.villaDesc':       'luxury villas with guest pavilions',
   'bank.about.suiteDesc':       'private suite-villas across two buildings (the 11 villa suites building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
   'bank.about.inventoryIntro':  'Total inventory:',
   'bank.about.bedroomsAcross':  'bedrooms across up to',

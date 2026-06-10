@@ -1707,7 +1707,7 @@ export const he: TranslationDictionary = {
   'bank.about.totalKeysLabel':       'יחידות (פיצול מקסימלי)',
   'bank.about.totalBedroomsLabel':   'חדרי שינה',
   'bank.about.isDeveloping':         'is developing',
-  'bank.about.villaDesc':            'seven-bedroom luxury villas with independent guest pavilions',
+  'bank.about.villaDesc':            'luxury villas with guest pavilions',
   'bank.about.and':                  'and',
   'bank.about.suiteDesc':            'private suite-villas across two buildings (the 11 villa suites building on the 15,000 m² plot and the boutique-and-wellness building inside the village).',
   'bank.about.inventoryIntro':       'Total inventory:',
