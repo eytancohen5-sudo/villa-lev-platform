@@ -49,6 +49,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [anonAuthWarn, setAnonAuthWarn] = useState<string>('');
 
   useEffect(() => {
     void (async () => {
@@ -74,7 +75,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   await updateProfile(cred.user, { displayName: storedName });
                 }
               }
-            } catch { /* non-fatal — UI still works, writes will fail gracefully */ }
+            } catch (err) {
+              const code = (err as { code?: string }).code ?? '';
+              console.error('[AuthGate] signInAnonymously failed (return-visit):', err);
+              if (code === 'auth/operation-not-allowed') {
+                setAnonAuthWarn('Anonymous auth is disabled in Firebase — live feed and saves will not work until it is enabled.');
+              } else {
+                setAnonAuthWarn('Firebase session could not be established. Live feed may be unavailable.');
+              }
+            }
           })();
         }
       } else {
@@ -186,7 +195,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
                   await updateProfile(cred.user, { displayName: name.trim() });
                 }
               }
-            } catch { /* non-fatal */ }
+            } catch (err) {
+              const code = (err as { code?: string }).code ?? '';
+              console.error('[AuthGate] signInAnonymously failed (first-visit):', err);
+              if (code === 'auth/operation-not-allowed') {
+                setAnonAuthWarn('Anonymous auth is disabled in Firebase — live feed and saves will not work until it is enabled.');
+              } else {
+                setAnonAuthWarn('Firebase session could not be established. Live feed may be unavailable.');
+              }
+            }
           })();
         }
       } else {
@@ -254,7 +271,41 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {anonAuthWarn && (
+        <div
+          role="alert"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 9999,
+            background: '#7c3c00',
+            color: '#fff',
+            fontSize: '13px',
+            padding: '8px 16px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <span>{anonAuthWarn}</span>
+          <button
+            type="button"
+            onClick={() => setAnonAuthWarn('')}
+            style={{ flexShrink: 0, background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '16px' }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
 
 // Utility — read the name the visitor entered at the gate.
