@@ -1579,6 +1579,7 @@ export interface TranslationDictionary {
   'dash.about.colKeysPerPlot':     string;
   'dash.about.colBedrooms':        string;
   'dash.about.colGia':             string;
+  'dash.about.colLandArea':        string;
   'dash.about.typeLuxuryVilla':    string;
   'dash.about.typeSuiteVillas':    string;
   'dash.about.totalRow':           string;
@@ -1590,6 +1591,7 @@ export interface TranslationDictionary {
   'dash.about.isDeveloping':       string;
   'dash.about.plotsIn':            string;
   'dash.about.villaDesc':          string;
+  'dash.about.and':                string;
   'dash.about.suiteDesc':          string;
   'dash.about.inventoryIntro':     string;
   'dash.about.bedroomsAcross':     string;
@@ -1600,6 +1602,7 @@ export interface TranslationDictionary {
   // ── Bank page keys & bedrooms additions ──
   'bank.about.colBedrooms':          string;
   'bank.about.colKeysPerPlot':       string;
+  'bank.about.colLandArea':          string;
   'bank.about.villaUnitMixWhole':    string;
   'bank.about.villaUnitMixMaxSplit': string;
   'bank.about.totalKeysLabel':       string;

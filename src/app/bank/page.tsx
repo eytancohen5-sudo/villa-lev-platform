@@ -151,6 +151,10 @@ export default function BankPage() {
   const totalDblSuites = portfolio.reduce((s, p) => s + p.count * p.doubleSuites, 0);
   const totalSuites = totalStdSuites + totalDblSuites;
   const totalGIA = portfolio.reduce((s, p) => s + p.count * (p.constructionArea ?? 0), 0);
+  // Land / plot column renders only when at least one plot carries a land area
+  // (landArea is optional — no data yet; column stays hidden until values exist).
+  const hasLandArea = portfolio.some((p) => (p.landArea ?? 0) > 0);
+  const totalLandArea = portfolio.reduce((s, p) => s + p.count * (p.landArea ?? 0), 0);
   const totalKeysMaxSplit = computeTotalKeysMaxSplit(portfolio);
   const totalBedrooms     = computeTotalBedrooms(portfolio);
 
@@ -478,7 +482,7 @@ export default function BankPage() {
                   </>
                 )}
                 {totalSuites > 0 && (
-                  <><span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>{' '}</>
+                  <><span className="font-semibold text-text-primary">{totalSuites} {t('bank.about.suiteDesc')}</span>{'. '}</>
                 )}
                 {t('bank.about.inventoryIntro')}{' '}
                 <span className="font-semibold text-text-primary">{totalBedrooms} {t('bank.about.bedroomsAcross')}</span>
@@ -509,6 +513,9 @@ export default function BankPage() {
                     <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colKeysPerPlot')}</th>
                     <th className="text-right py-2.5 px-3 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colBedrooms')}</th>
                     <th className="text-right py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colGiaPerPlot')}</th>
+                    {hasLandArea && (
+                      <th className="text-right py-2.5 px-4 font-semibold uppercase tracking-wider text-text-tertiary">{t('bank.about.colLandArea')}</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -531,6 +538,11 @@ export default function BankPage() {
                       <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
                         ~{Math.round(p.constructionArea ?? 0).toLocaleString()} m²
                       </td>
+                      {hasLandArea && (
+                        <td className="py-2.5 px-4 text-right font-mono text-text-secondary">
+                          {p.landArea ? <>{Math.round(p.landArea).toLocaleString()} m²</> : <>—</>}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -548,6 +560,11 @@ export default function BankPage() {
                     <td className="py-2.5 px-4 text-right font-mono font-semibold text-text-primary">
                       ~{Math.round(totalGIA).toLocaleString()} m²
                     </td>
+                    {hasLandArea && (
+                      <td className="py-2.5 px-4 text-right font-mono font-semibold text-text-primary">
+                        {Math.round(totalLandArea).toLocaleString()} m²
+                      </td>
+                    )}
                   </tr>
                 </tfoot>
               </table>

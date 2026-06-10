@@ -418,6 +418,7 @@ export function resolvePortfolio(
         count: proj.count,
         roomAreas,
         landCost: tpl.landCost,
+        landArea: tpl.landArea,
         constructionArea,
         constructionCostPerM2: tpl.constructionCostPerM2,
         ffeCost: tpl.ffeCost,

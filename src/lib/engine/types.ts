@@ -114,6 +114,7 @@ export interface PropertyConfig {
   roomAreas: RoomAreaBreakdown;
   // CAPEX parameters
   landCost: number;
+  landArea?: number;        // m² — plot land area (display-only; optional, data entered per-plot later)
   constructionArea: number; // m² — computed from roomAreas, kept for backward compat
   constructionCostPerM2: number;
   ffeCost: number;
@@ -172,6 +173,7 @@ export interface PropertyTemplate {
   roomAreas: RoomAreaBreakdown;
   // CAPEX parameters
   landCost: number;
+  landArea?: number;        // m² — plot land area (display-only; optional, data entered per-plot later)
   constructionArea: number; // computed from roomAreas — kept for display
   constructionCostPerM2: number;
   ffeCost: number;
