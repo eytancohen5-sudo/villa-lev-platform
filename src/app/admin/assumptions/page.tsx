@@ -3267,9 +3267,9 @@ function ConfigPanel() {
     isImpersonating,
     effectiveRole,
   } = useEffectiveAuth();
-  // Anonymous Firebase Auth users (set up by AuthGate after password login)
-  // can write scenarios — the password gate already controls app access.
-  const canWrite = canEdit || (user?.isAnonymous === true && !isImpersonating);
+  // Any authenticated Firebase user (anonymous via password gate OR Google) can
+  // write — the password gate / AuthGate already controls who reaches this page.
+  const canWrite = canEdit || (user !== null && !isImpersonating);
   // SECURITY: while admin is previewing as banker, treat the session as
   // unauthenticated for scenario-ownership purposes. Without this guard
   // useEffectiveAuth preserves the real `user`, so the real uid would
@@ -3501,9 +3501,9 @@ function ConfigPanel() {
       ) : (
         <div className="flex gap-2 mb-6 items-center">
           <div className="flex-1 px-4 py-2.5 rounded-xl border border-surface-tertiary bg-surface-secondary/30 text-sm text-text-tertiary">
-            {user
-              ? `Signed in as ${user.email ?? 'unknown'} — not on admin allow-list. Scenarios are read-only.`
-              : 'Scenarios are read-only for unauthenticated visitors. Save, import, rename, and delete require admin sign-in.'}
+            {isImpersonating
+              ? 'View-As mode is active — saves are disabled while previewing another role.'
+              : 'Scenarios are read-only for unauthenticated visitors. Save, import, rename, and delete require sign-in.'}
           </div>
           <button
             onClick={handleSignIn}
