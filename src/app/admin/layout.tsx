@@ -255,9 +255,10 @@ const NAV_GROUPS: NavGroup[] = [
 
 function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption } =
+  const { init, model, assumptions, setFinancingPath, activeScenario, setActiveScenario, setAssumption, loadConfig } =
     useModelStore();
-  useReferenceScenarioAutoLoad();
+  const [refPrompt, setRefPrompt] = useState<{ id: string; name: string } | null>(null);
+  useReferenceScenarioAutoLoad((id, name) => setRefPrompt({ id, name }));
   usePresence();
   const { t, locale } = useTranslation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -414,6 +415,32 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
               {t('admin.banner.stalePart1')}{snapshotPulledAt ? <> <bdi><strong>{snapshotPulledAt}</strong></bdi></> : null}{' '}{t('admin.banner.stalePart2')}
               {' '}<code className="mx-1 px-1 rounded bg-amber-100 font-mono">seasonSnapshots/latest</code>
             </span>
+          </div>
+        )}
+        {refPrompt && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="bg-brand-50 border-b border-brand-200 text-brand-900 text-xs px-6 py-2 flex items-center gap-3 print:hidden"
+          >
+            <span aria-hidden="true">📌</span>
+            <span className="flex-1">
+              {t('admin.banner.refPromptPart1')}{' '}
+              <strong>&ldquo;{refPrompt.name}&rdquo;</strong>
+              {t('admin.banner.refPromptPart2')}
+            </span>
+            <button
+              onClick={() => { loadConfig(refPrompt.id); setRefPrompt(null); }}
+              className="px-3 py-1 rounded bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors"
+            >
+              {t('admin.banner.refPromptLoad')}
+            </button>
+            <button
+              onClick={() => setRefPrompt(null)}
+              className="px-3 py-1 rounded bg-surface-secondary text-text-secondary text-xs font-medium hover:bg-surface-tertiary transition-colors"
+            >
+              {t('admin.banner.refPromptDismiss')}
+            </button>
           </div>
         )}
         {/* Stripped control bar — Path, Scenario, Exit, Rate/Loan popover.

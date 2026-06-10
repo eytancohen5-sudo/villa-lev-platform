@@ -1059,6 +1059,10 @@ export interface TranslationDictionary {
   'admin.nav.collapse': string;
   'admin.banner.stalePart1': string;
   'admin.banner.stalePart2': string;
+  'admin.banner.refPromptPart1': string;
+  'admin.banner.refPromptPart2': string;
+  'admin.banner.refPromptLoad': string;
+  'admin.banner.refPromptDismiss': string;
   'admin.actions.heading': string;
   'admin.actions.tour.title': string;
   'admin.actions.tour.sub': string;

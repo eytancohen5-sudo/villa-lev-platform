@@ -412,17 +412,25 @@ function loadTemplatesFromStorage(): PropertyTemplate[] {
 
 function saveTemplatesToStorage(templates: PropertyTemplate[]) {
   if (typeof window === 'undefined') return;
+  const custom = templates.filter((t) => !t.builtIn);
+  const modifiedBuiltIns = templates.filter((t) => {
+    if (!t.builtIn) return false;
+    const original = BUILT_IN_TEMPLATES.find((bt) => bt.id === t.id);
+    if (!original) return false;
+    return JSON.stringify(t) !== JSON.stringify(original);
+  });
+  const payload = JSON.stringify([...custom, ...modifiedBuiltIns]);
   try {
-    // Save custom templates + any modified built-in templates
-    const custom = templates.filter((t) => !t.builtIn);
-    const modifiedBuiltIns = templates.filter((t) => {
-      if (!t.builtIn) return false;
-      const original = BUILT_IN_TEMPLATES.find((bt) => bt.id === t.id);
-      if (!original) return false;
-      return JSON.stringify(t) !== JSON.stringify(original);
-    });
-    localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify([...custom, ...modifiedBuiltIns]));
-  } catch { /* storage full */ }
+    localStorage.setItem(TEMPLATES_STORAGE_KEY, payload);
+  } catch {
+    // Storage quota exceeded — evict the oldest saved configs (largest key) and retry once.
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, payload);
+    } catch (err2) {
+      console.error('[villa-lev] saveTemplatesToStorage: write failed even after eviction', err2);
+    }
+  }
 }
 
 function loadHistoryFromStorage(): ChangeEntry[] {
@@ -1876,8 +1884,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
       roomAreas: { ...base.roomAreas },
     };
     const updated = [...templates, newTemplate];
-    set({ templates: updated });
+    // Mark referenceAutoLoadAttempted so the auto-load hook can't fire and
+    // wipe this new template in the same session (it resets on hard refresh,
+    // but the bumpEditCounter + localStorage write cover that path).
+    set({ templates: updated, referenceAutoLoadAttempted: true });
     saveTemplatesToStorage(updated);
+    bumpEditCounter(get, set);
   },
 
   updateTemplate: (id: string, path: string, value: unknown, label?: string) => {

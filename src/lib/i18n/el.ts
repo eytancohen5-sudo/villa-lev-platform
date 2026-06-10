@@ -149,6 +149,10 @@ export const el: TranslationDictionary = {
   'admin.nav.collapse': 'Σύμπτυξη',
   'admin.banner.stalePart1': 'Εμφάνιση στατικής στιγμιότυπας από',
   'admin.banner.stalePart2': '— η ζωντανή τροφοδοσία δεν είναι συνδεδεμένη.',
+  'admin.banner.refPromptPart1': 'Βασικό σενάριο:',
+  'admin.banner.refPromptPart2': '. Φόρτωση;',
+  'admin.banner.refPromptLoad': 'Φόρτωση',
+  'admin.banner.refPromptDismiss': 'Απόρριψη',
 
   // BankControlBar
   'bank.bar.commercial': 'Εμπορική',

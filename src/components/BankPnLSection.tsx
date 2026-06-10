@@ -53,7 +53,13 @@ export function BankPnLSection({
   annualDebtServiceOverride?: number;
 } = {}) {
   const { t, locale } = useTranslation();
-  const { model, activeScenario, assumptions } = useModelStore();
+  const { model, activeScenario, assumptions, viewModeOverride } = useModelStore();
+  // Effective view mode: the store's ephemeral override (pinned by the
+  // /bank/* layout and by the /admin/presentation layout) wins over the
+  // persisted assumption. The grace interest reserve row is suppressed
+  // whenever the effective mode is 'bank' — see ADR-0018 (suppress
+  // graceInterestCarry from bank-facing surfaces).
+  const isBankView = (viewModeOverride ?? assumptions?.viewMode) === 'bank';
   // Distinct storage key for optima context so expand state doesn't bleed between pages.
   const storageKey = subProjectLabel !== undefined ? 'bank-pnl-expanded-optima' : 'bank-pnl-expanded';
   // useState must be unconditional (Rules of Hooks) — placed before any early return.
@@ -330,14 +336,15 @@ export function BankPnLSection({
       detail: true,
       section: "equityCf",
     },
-    {
+    // graceInterestCarry row hidden in effective bank view — ADR-0018.
+    ...(!isBankView ? [{
       label: t('pnl.equityGraceReserve'),
-      getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? graceInterestCarry : 0,
+      getValue: (p: AnnualPnL) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? graceInterestCarry : 0,
       format: "currency",
       indent: true,
       detail: true,
       section: "equityCf",
-    },
+    }] as RowDef[] : []),
     {
       label: t('pnl.shareholderLoan'),
       getValue: (p) => p.year === PROJECT_CONSTANTS.HORIZON_START_YEAR ? peakNegativeNCF : 0,

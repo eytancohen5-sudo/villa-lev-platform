@@ -857,28 +857,7 @@ export default function BankPage() {
           locale={locale}
         />
 
-        {/* FI-18: Grace Period Interest Reserve — prominent tile (P2-10) */}
-        {km.graceInterestCarry > 0 && (
-          <div className="mb-6 rounded-xl border border-amber-300/60 bg-amber-50/40 px-5 py-4 flex items-start gap-4">
-            <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <circle cx="8" cy="8" r="6.5" stroke="#B45309" strokeWidth="1.3"/>
-                <path d="M8 5v3l2 2" stroke="#B45309" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-amber-700 mb-0.5">
-                {t('bank.equityOverview.graceInterestReserve')}
-              </div>
-              <div className="text-2xl font-bold font-mono tabular-nums text-amber-900 leading-none">
-                {formatCurrency(km.graceInterestCarry, false, locale)}
-              </div>
-              <p className="text-[11px] text-amber-700/80 mt-1 leading-snug">
-                {t('bank.equityOverview.graceInterestReserveSub')}
-              </p>
-            </div>
-          </div>
-        )}
+        {/* graceInterestCarry tile removed — suppressed from bank view per ADR-0018 */}
 
         {/* 8. Capital Structure + Stabilised Metrics */}
         <div id="bank-capital-structure" className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-6">

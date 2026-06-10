@@ -163,6 +163,10 @@ export const fr = {
   'admin.nav.collapse': 'Réduire',
   'admin.banner.stalePart1': 'Showing static snapshot from', // TODO: translate
   'admin.banner.stalePart2': '— live feed not connected.', // TODO: translate
+  'admin.banner.refPromptPart1': 'Scénario de référence :', // TODO: translate
+  'admin.banner.refPromptPart2': '. Charger ?', // TODO: translate
+  'admin.banner.refPromptLoad': 'Charger', // TODO: translate
+  'admin.banner.refPromptDismiss': 'Ignorer', // TODO: translate
 
   // BankStressTest
   'bank.stress.title': 'Scénarios de Stress',

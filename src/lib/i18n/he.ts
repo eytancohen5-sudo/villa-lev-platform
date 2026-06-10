@@ -149,6 +149,10 @@ export const he: TranslationDictionary = {
   'admin.nav.collapse': 'כיווץ',
   'admin.banner.stalePart1': 'מציג תצלום סטטי מ-',
   'admin.banner.stalePart2': '— עדכון חי לא מחובר.',
+  'admin.banner.refPromptPart1': 'תרחיש בסיס:',
+  'admin.banner.refPromptPart2': '. לטעון?',
+  'admin.banner.refPromptLoad': 'טעינה',
+  'admin.banner.refPromptDismiss': 'ביטול',
 
   // BankControlBar
   'bank.bar.commercial': 'מסחרי',

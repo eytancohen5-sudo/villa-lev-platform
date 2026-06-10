@@ -149,6 +149,10 @@ export const en: TranslationDictionary = {
   'admin.nav.collapse': 'Collapse',
   'admin.banner.stalePart1': 'Showing static snapshot from',
   'admin.banner.stalePart2': '— live feed not connected.',
+  'admin.banner.refPromptPart1': 'Base case set to',
+  'admin.banner.refPromptPart2': '. Load it?',
+  'admin.banner.refPromptLoad': 'Load',
+  'admin.banner.refPromptDismiss': 'Dismiss',
 
   // BankControlBar
   'bank.bar.commercial': 'Commercial',
