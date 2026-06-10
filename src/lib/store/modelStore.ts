@@ -2593,6 +2593,12 @@ export const useModelStore = create<ModelStore>((set, get) => ({
             } : st;
             return ensureRoomAreas(merged);
           }),
+        // Preserve custom templates that exist locally but are not in the saved
+        // scenario — e.g. templates created after the last Firestore save. Without
+        // this, loading any prior scenario silently wipes locally-created templates.
+        ...storeTemplates
+          .filter((st) => !st.builtIn && !savedTemplates.some((t) => t.id === st.id))
+          .map(ensureRoomAreas),
       ];
       targetProjects = source.projects!;
       targetAssumptions = ensurePortfolioOpex(mergedAssumptions);
