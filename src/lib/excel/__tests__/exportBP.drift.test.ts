@@ -286,6 +286,65 @@ describe("L2 — exported XLSX structural shape", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// L2b — Grant path: Coverage sheet loan + equity do not drift from engine
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("L2b — Grant path Coverage sheet drift prevention", () => {
+  /**
+   * On the Grant financing path the engine deducts the grant amount from the
+   * loan base, so m.keyMetrics.loanAmount is LESS than portfolioTotal × 0.80.
+   * The Coverage sheet must seed these rows with the exact engine values —
+   * NOT re-derive them from CAPEX × loanCoverageRate (which would be the
+   * naive commercial figure).
+   *
+   * The exporter guards this by writing plain numeric values (not formulas)
+   * for the "Total loan drawn" and "Structural equity at close" rows when
+   * path === 'grant'. This test locks that behaviour.
+   */
+  it("Coverage sheet 'Total loan drawn' and 'Structural equity at close' equal engine keyMetrics on grant path", async () => {
+    const a = { ...BASE_CASE, financingPath: "grant" as const, viewMode: "bank" as const };
+    const m = computeModel(a);
+
+    // Confirm the engine itself reduced the loan below the naive 80% LTC figure.
+    // This is the core invariant: grant deduction is working at the model level.
+    expect(m.keyMetrics.loanAmount).toBeLessThan(m.capex.portfolioTotal * 0.80);
+
+    const blob = await exportBusinessPlan(a, m, "realistic", undefined, undefined, "en");
+    const wb = await loadWorkbook(blob);
+    const cov = wb.getWorksheet("Coverage");
+    expect(cov).toBeTruthy();
+
+    // Locate the "Total loan drawn" and "Structural equity at close" rows by
+    // scanning column A. These are the only authoritative values for the grant
+    // path — a formula would be overwritten by Excel on open to the wrong figure.
+    let loanRowValue: number | null = null;
+    let equityRowValue: number | null = null;
+
+    cov!.eachRow((row) => {
+      const label = String(row.getCell("A").value ?? "").trim();
+      if (label === "Total loan drawn") {
+        const cell = row.getCell("B");
+        // Must be a plain number — not a formula object — on the grant path.
+        expect(typeof cell.value, "loan cell must be a plain numeric value on grant path (not a formula)").toBe("number");
+        loanRowValue = cell.value as number;
+      }
+      if (label === "Structural equity at close") {
+        const cell = row.getCell("B");
+        expect(typeof cell.value, "equity cell must be a plain numeric value on grant path (not a formula)").toBe("number");
+        equityRowValue = cell.value as number;
+      }
+    });
+
+    expect(loanRowValue).not.toBeNull();
+    expect(equityRowValue).not.toBeNull();
+
+    // Values must match engine keyMetrics exactly — no rounding, no drift.
+    expect(loanRowValue).toBe(m.keyMetrics.loanAmount);
+    expect(equityRowValue).toBe(m.keyMetrics.equityRequired);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // L3 — Formula integrity (OPEX double-charge + contingency regression guards)
 // ─────────────────────────────────────────────────────────────────────────────
 

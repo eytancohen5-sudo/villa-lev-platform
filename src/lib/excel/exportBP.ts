@@ -1875,7 +1875,13 @@ export async function exportBusinessPlan(
 
   const covLoanRow = xr;
   Cov.getCell(`A${xr}`).value = 'Total loan drawn';
-  Cov.getCell(`B${xr}`).value = { formula: `=${capexTotalCell}*loanCoverage`, result: m.keyMetrics.loanAmount };
+  // On the Grant path the engine deducts the grant from the loan base, so
+  // loanAmount is much smaller than capexTotal × loanCoverageRate. Writing a
+  // formula would cause Excel to re-derive the naive commercial figure on open,
+  // overriding the seeded result. Use a plain numeric value instead.
+  Cov.getCell(`B${xr}`).value = path === 'grant'
+    ? m.keyMetrics.loanAmount
+    : { formula: `=${capexTotalCell}*loanCoverage`, result: m.keyMetrics.loanAmount };
   Cov.getCell(`B${xr}`).numFmt = FMT.euro;
   Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
@@ -1883,7 +1889,11 @@ export async function exportBusinessPlan(
 
   const covEquityRow = xr;
   Cov.getCell(`A${xr}`).value = 'Structural equity at close';
-  Cov.getCell(`B${xr}`).value = { formula: `=${capexTotalCell}*(1-loanCoverage)`, result: m.keyMetrics.equityRequired };
+  // Same drift risk on the Grant path — use plain numeric to prevent Excel
+  // recalc from overwriting the engine-computed equity figure.
+  Cov.getCell(`B${xr}`).value = path === 'grant'
+    ? m.keyMetrics.equityRequired
+    : { formula: `=${capexTotalCell}*(1-loanCoverage)`, result: m.keyMetrics.equityRequired };
   Cov.getCell(`B${xr}`).numFmt = FMT.euro;
   Cov.getCell(`B${xr}`).fill = STYLE.formulaFill;
   Cov.getCell(`B${xr}`).font = FONT.bold;
