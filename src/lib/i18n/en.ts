@@ -1752,8 +1752,8 @@ export const en: TranslationDictionary = {
   'presentation.s4.capex.header': 'CAPEX — Detailed Cost Breakdown',
 
   // §5 scenario table headers
-  'presentation.s5.realisticTable.header': 'Realistic Scenario — Stabilised Year (2032)',
-  'presentation.s5.upsideTable.header': 'Upside Scenario — Stabilised Year (2032)',
+  'presentation.s5.realisticTable.header': 'Conservative Scenario — Stabilised Year (2032)',
+  'presentation.s5.upsideTable.header': 'Realistic Scenario — Stabilised Year (2032)',
   'presentation.s5.downsideTable.header': 'Downside Stress Scenario',
 
   // §9 instruments header

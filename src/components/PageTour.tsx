@@ -294,10 +294,10 @@ export function PageTour({
         </div>
 
         <h3 className="font-display text-xl text-text-primary mb-2">
-          {current.title[locale]}
+          {current.title[locale] ?? current.title.en}
         </h3>
         <p className="text-sm text-text-secondary leading-relaxed mb-4">
-          {current.body[locale]}
+          {current.body[locale] ?? current.body.en}
         </p>
 
         {isWelcome && config.showLanguagePicker && (

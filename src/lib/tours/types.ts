@@ -1,9 +1,8 @@
-import type { Locale } from "@/lib/i18n/types";
-
-// Required for the three shipped locales; additional locale keys (e.g. 'fr')
-// are allowed so tour configs can be prepared for future locales without
-// triggering a type error.
-export type LocalizedString = Record<Locale, string> & Partial<Record<string, string>>;
+// English is the only required locale (language policy 2026-06-11: EN-first,
+// EL/HE frozen until re-translated in one pass). Additional locale keys are
+// allowed so tour configs can carry translations without a type error;
+// PageTour falls back to `en` when the active locale has no entry.
+export type LocalizedString = { en: string } & Partial<Record<string, string>>;
 
 export interface TourStep {
   // CSS selector. Omit on the welcome step (no spotlight, centered card).

@@ -436,7 +436,7 @@ export async function exportBankPresentation(
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      headerRowN(['Metric', 'Downside', 'Realistic', 'Upside'], stress8Widths),
+      headerRowN(['Metric', 'Downside', 'Conservative', 'Realistic'], stress8Widths),
       dataRowN([
         'Stabilised Revenue',
         eur(ds.stabilisedYear?.totalRevenue ?? 0),

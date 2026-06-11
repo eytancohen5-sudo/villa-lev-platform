@@ -12,10 +12,8 @@ export const FINANCING_TOUR: TourConfig = {
         he: "השוואת מימון",
       },
       body: {
-        en: "Side-by-side metrics for Commercial, RRF, Grant and TEPIX III paths. Switch the active path in the top bar to update all figures across the platform.",
-        el: "Σύγκριση μεταξύ Commercial, RRF, Grant και TEPIX III. Αλλάξτε το ενεργό μονοπάτι στη γραμμή επάνω για να ενημερωθούν όλοι οι αριθμοί.",
-        fr: "Comparaison côte à côte des voies Commercial, RRF, Grant et TEPIX III. Changez la voie active dans la barre supérieure pour mettre à jour toutes les métriques.",
-        he: "השוואה זה-לצד-זה בין מסלולי Commercial, RRF, Grant ו-TEPIX III. שנה את המסלול הפעיל בסרגל העליון לעדכון כל הנתונים.",
+        // EN-only per language policy 2026-06-11 — EL/HE re-translated in one pass later.
+        en: "Side-by-side metrics for every financing path in the model. Switch the active path in the top bar to update all figures across the platform.",
       },
     },
   ],
@@ -79,7 +77,7 @@ export const DASHBOARD_TOUR: TourConfig = {
         he: "סרגל בקרה",
       },
       body: {
-        en: "Pinned to the top: switch financing path (Commercial / RRF / Grant / TEPIX), scenario (Realistic / Upside / Downside / Break-Even), exit year × EBITDA multiple, and tune rate + loan coverage via the Adjust popover. Every number on every sub-page updates when you change these.",
+        en: "Pinned to the top: switch the financing path, the scenario, and the exit year × EBITDA multiple, and tune rate + loan coverage via the Adjust popover. Every number on every sub-page updates when you change these.",
         el: "Καρφιτσωμένη στην κορυφή: αλλάξτε διαδρομή χρηματοδότησης, σενάριο, έτος εξόδου × πολλαπλάσιο EBITDA, και ρυθμίστε επιτόκιο + κάλυψη μέσω Adjust. Κάθε αριθμός σε κάθε υποσελίδα ενημερώνεται αυτόματα.",
         fr: "Épinglée en haut : changer voie de financement, scénario, année de sortie × multiple EBITDA, et ajuster taux + couverture via Adjust. Chaque chiffre sur chaque sous-page se met à jour automatiquement.",
         he: "מוצמד למעלה: החליפו מסלול מימון, תרחיש, שנת יציאה × כפולת EBITDA, וכווננו ריבית + כיסוי דרך Adjust. כל מספר בכל דף-משנה מתעדכן אוטומטית.",
@@ -109,10 +107,8 @@ export const DASHBOARD_TOUR: TourConfig = {
         he: "תשואות בשלושה תרחישים",
       },
       body: {
-        en: "Upside / Base / Downside returns side-by-side: Equity IRR, Cash Yield at stabilised year, and Total MOIC. The Base row is highlighted — that's the primary credit-committee reference. Downside confirms the deal still works under adverse conditions.",
-        el: "Αποδόσεις Upside / Base / Downside δίπλα-δίπλα: Equity IRR, Cash Yield σταθεροποιημένου έτους, Total MOIC. Η γραμμή Base είναι highlighted — αυτή είναι η κύρια αναφορά πιστωτικής επιτροπής. Το Downside επιβεβαιώνει ότι η συμφωνία λειτουργεί υπό αντίξοες συνθήκες.",
-        fr: "Rendements Upside / Base / Downside côte à côte : TRI fonds propres, Rendement en année stabilisée, MOIC total. La ligne Base est mise en évidence — c'est la référence principale du comité de crédit. Le Downside confirme que le deal tient sous conditions adverses.",
-        he: "תשואות Upside / Base / Downside זה לצד זה: Equity IRR, Cash Yield בשנה המיוצבת, MOIC כולל. שורת ה-Base מוסטת — זו ההפניה העיקרית של ועדת האשראי. ה-Downside מאשר שהעסקה עובדת בתנאים שליליים.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried banned scenario labels.
+        en: "Realistic / Conservative / Downside returns side-by-side: Equity IRR, Cash Yield at stabilised year, and Total MOIC. The Conservative row is highlighted — that's the primary credit-committee reference. Downside confirms the deal still works under adverse conditions.",
       },
     },
     {
@@ -124,10 +120,8 @@ export const DASHBOARD_TOUR: TourConfig = {
         he: "סיכום DSCR",
       },
       body: {
-        en: "DSCR trajectory chart and cross-scenario table: Stabilised, Avg Loan Life, and Min DSCR across Upside / Base / Downside. The Min column is the bank's key test — does the 1.25× covenant hold in the worst single year? Click through to /admin/debt-coverage for LLCR, PLCR, and year-by-year detail.",
-        el: "Γράφημα DSCR και cross-scenario πίνακας: Σταθεροποιημένο, Μέσο Διάρκειας και Ελάχιστο DSCR για Upside / Base / Downside. Η στήλη Ελάχιστου είναι ο βασικός έλεγχος τράπεζας — παραμένει το covenant 1.25× στο χειρότερο έτος; Κλικ για /admin/debt-coverage για LLCR, PLCR και ετήσια ανάλυση.",
-        fr: "Graphique de trajectoire DSCR et tableau multi-scénarios : DSCR stabilisé, moyen et minimum pour Upside / Base / Downside. La colonne Min est le test clé de la banque — le covenant 1,25× tient-il lors de la pire année ? Cliquez pour /admin/debt-coverage pour LLCR, PLCR et le détail annuel.",
-        he: "תרשים מסלול DSCR וטבלת multi-scenario: DSCR מיוצב, ממוצע ומינימלי עבור Upside / Base / Downside. עמודת המינימום היא הבדיקה המרכזית של הבנק — האם הקובננט 1.25× עומד בשנה הגרועה? לחצו ל-/admin/debt-coverage ל-LLCR, PLCR ופירוט שנתי.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried banned scenario labels.
+        en: "DSCR trajectory chart and cross-scenario table: Stabilised, Avg Loan Life, and Min DSCR across Realistic / Conservative / Downside. The Min column is the bank's key test — does the 1.25× covenant hold in the worst single year? Click through to /admin/debt-coverage for LLCR, PLCR, and year-by-year detail.",
       },
     },
     {
@@ -286,10 +280,8 @@ export const SCENARIOS_TOUR: TourConfig = {
         he: "השוואת תרחישים",
       },
       body: {
-        en: "Four scenarios side-by-side at the stabilised year (2031): Realistic, Upside, Downside, and the Grant financing path. Use this view to argue stress-resilience to a credit committee — the headline DSCR + NCF survive Downside.",
-        el: "Τέσσερα σενάρια στο σταθεροποιημένο έτος (2031): Realistic, Upside, Downside, διαδρομή Grant. Χρήσιμο για ανθεκτικότητα σε πιστωτική επιτροπή.",
-        fr: "Quatre scénarios en année stabilisée (2031) : Realistic, Upside, Downside, voie Grant. Utile pour démontrer la résilience en comité de crédit.",
-        he: "ארבעה תרחישים בשנה המיוצבת (2031): Realistic, Upside, Downside, מסלול Grant. שימושי להוכחת עמידות לוועדת אשראי.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried banned scenario labels.
+        en: "Four columns side-by-side at the stabilised year: Conservative, Realistic, Downside, and the Grant financing path. Use this view to argue stress-resilience to a credit committee — the headline DSCR + NCF survive Downside.",
       },
     },
     {
@@ -301,10 +293,8 @@ export const SCENARIOS_TOUR: TourConfig = {
         he: "מדדים מיוצבים",
       },
       body: {
-        en: "Revenue, OPEX, EBITDA, DSCR, NCF post-tax by scenario. Bold rows are the lines a banker checks first. Colour coding: gold = Realistic, green = Upside, red = Downside, blue = Grant.",
-        el: "Έσοδα, OPEX, EBITDA, DSCR, NCF μετά φόρων ανά σενάριο. Έντονες γραμμές = πρώτος έλεγχος τραπεζίτη. Χρώματα: χρυσό = Realistic, πράσινο = Upside, κόκκινο = Downside, μπλε = Grant.",
-        fr: "Revenus, OPEX, EBITDA, DSCR, FTN post-impôts par scénario. Lignes en gras = ce qu'un banquier vérifie en premier. Couleurs : or = Realistic, vert = Upside, rouge = Downside, bleu = Grant.",
-        he: "הכנסות, OPEX, EBITDA, DSCR, NCF לאחר מס לפי תרחיש. שורות מודגשות = הבדיקה הראשונה של בנקאי. צבעים: זהב = Realistic, ירוק = Upside, אדום = Downside, כחול = Grant.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried banned scenario labels.
+        en: "Revenue, OPEX, EBITDA, DSCR, NCF post-tax by scenario. Bold rows are the lines a banker checks first. Colour coding: gold = Conservative, green = Realistic, red = Downside, blue = Grant.",
       },
     },
     {
@@ -518,10 +508,8 @@ export const OPCO_SPLIT_TOUR: TourConfig = {
         he: "שלושת זרמי העמלות",
       },
       body: {
-        en: "1) Base fee — % of total revenue (covers OpCo overhead). 2) Brand / marketing fee — % of room revenue (covers brand + acquisition). 3) Incentive fee — % of GOP above the owner's priority return on equity. The table below shows the live stabilised values for the active scenario.",
-        el: "1) Base fee — % συνολικών εσόδων. 2) Brand / marketing fee — % εσόδων δωματίων. 3) Incentive fee — % GOP πάνω από το priority return ιδιοκτήτη.",
-        fr: "1) Base fee — % du revenu total. 2) Brand / marketing — % revenu chambre. 3) Incentive — % du GOP au-dessus du priority return du propriétaire.",
-        he: "1) Base fee — % מסך ההכנסות. 2) Brand / marketing — % הכנסות חדרים. 3) Incentive — % מ-GOP מעל priority return של הבעלים.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the retired fee structure.
+        en: "1) Development management fee during the build phase. 2) Base management fee on operations — a guaranteed floor, paid junior to debt service. 3) Incentive fee — tiered, on the residual cash flow after debt service. The table below shows the live stabilised values for the active scenario.",
       },
     },
     {
@@ -644,10 +632,8 @@ export const BANK_TOUR: TourConfig = {
         he: "Villa Lev Group — מצב בנקאי",
       },
       body: {
-        en: "This is the live financial model for the Villa Lev Group multi-villa expansion in Antiparos, Greece. Three plots, two villas + one boutique suites property, financed against an existing operating villa with a four-year track record. Tour takes ~90 seconds.",
-        el: "Αυτό είναι το ζωντανό χρηματοοικονομικό μοντέλο για την επέκταση Villa Lev Group στην Αντίπαρο. Τρία οικόπεδα, δύο villas + ένα boutique suites property, χρηματοδοτούμενα έναντι ενός λειτουργικού villa με τετραετές track record.",
-        fr: "Voici le modèle financier en direct pour l'expansion Villa Lev Group à Antiparos, Grèce. Trois parcelles, deux villas + un ensemble de suites, financés contre une villa déjà en exploitation avec quatre ans de track record.",
-        he: "זה המודל הפיננסי החי של הרחבת Villa Lev Group באנטיפרוס, יוון. שלושה מגרשים, שתי וילות + נכס סוויטות בוטיק, ממומנים מול וילה פעילה עם track record של ארבע שנים.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried the dead 3-plot project identity.
+        en: "This is the live financial model for the Villa Lev Group expansion in Antiparos, Greece, financed against an existing operating villa with an established track record. The portfolio composition and unit mix are detailed in the About section just below. The tour takes about five minutes.",
       },
     },
     {
@@ -681,21 +667,6 @@ export const BANK_TOUR: TourConfig = {
       },
     },
     {
-      target: "#bank-collateral",
-      title: {
-        en: "Collateral position",
-        el: "Θέση εξασφάλισης",
-        fr: "Position de garantie",
-        he: "עמדת בטחונות",
-      },
-      body: {
-        en: "Asset coverage at three valuation tiers: Stress (conservative), Market (base), Positive (premium). LTV and coverage ratio shown for each. Banks underwrite to the Stress tier — note how the deal remains well-covered even there.",
-        el: "Κάλυψη ενεργητικού σε τρία επίπεδα: Stress, Market, Positive. LTV και δείκτης κάλυψης ανά επίπεδο. Η τράπεζα ανερεύνει στο Stress.",
-        fr: "Couverture à trois niveaux : Stress, Marché, Positif. LTV et ratio de couverture par niveau. Les banques évaluent au niveau Stress.",
-        he: "כיסוי בשלוש רמות: Stress, שוק, חיובי. LTV ויחס כיסוי לכל רמה. בנקים מחתמים ברמת Stress.",
-      },
-    },
-    {
       target: "#bank-kpi-strip",
       title: {
         en: "Headline loan metrics",
@@ -704,10 +675,8 @@ export const BANK_TOUR: TourConfig = {
         he: "מדדי הלוואה עיקריים",
       },
       body: {
-        en: "Five KPIs: Total Investment, Loan Amount, LTV at completion, Asset Coverage, and post-ramp 2030 DSCR. The 2030 figure is the post-grace covenant-relevant year — this deal clears 1.25× in every scenario including Downside.",
-        el: "Πέντε KPIs: Συνολική Επένδυση, Δάνειο, LTV, Κάλυψη Ενεργητικού, DSCR 2030 (μετά grace). Το 2030 είναι το κύριο covenant-relevant έτος — ξεπερνά το 1.25× σε κάθε σενάριο.",
-        fr: "Cinq KPIs : Investissement total, Prêt, LTV, Couverture actif, DSCR 2030 (post-grâce). 2030 est l'année de référence pour le covenant — dépasse 1,25× dans tous les scénarios.",
-        he: "חמישה KPIs: השקעה כוללת, הלוואה, LTV, כיסוי נכסים, DSCR 2030 (לאחר חסד). 2030 הוא שנת הקובננט — עובר 1.25× בכל תרחיש.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the old five-KPI strip.
+        en: "Headline loan metrics: Total Investment, Loan Amount, and asset coverage with LTV at completion, plus the minimum DSCR over the loan life — the covenant-relevant figure. This deal clears the 1.25× covenant in every scenario including Downside.",
       },
     },
     {
@@ -733,25 +702,8 @@ export const BANK_TOUR: TourConfig = {
         he: "DSCR בכל התרחישים",
       },
       body: {
-        en: "Stabilised, average-loan-life, and minimum DSCR for Upside, Realistic, and Downside scenarios side-by-side. The minimum column is what a credit committee stress-tests: does coverage hold even in the worst single year? Pass/fail badges confirm whether each scenario clears the 1.25× covenant.",
-        el: "Σταθεροποιημένο, μέσο όρο διάρκειας δανείου και ελάχιστο DSCR για Upside, Realistic και Downside δίπλα-δίπλα. Η στήλη ελάχιστου είναι αυτό που ελέγχει η πιστωτική επιτροπή: παραμένει η κάλυψη στο χειρότερο μεμονωμένο έτος;",
-        fr: "DSCR stabilisé, moyen sur la durée du prêt et minimum pour les scénarios Upside, Realistic et Downside côte à côte. La colonne minimum est ce qu'un comité de crédit stresse : la couverture tient-elle même lors de la pire année ?",
-        he: "DSCR מיוצב, ממוצע לאורך ההלוואה ומינימלי עבור Upside, Realistic ו-Downside זה לצד זה. עמודת המינימום היא מה שוועדת אשראי בוחנת: האם הכיסוי עומד גם בשנה הגרועה ביותר?",
-      },
-    },
-    {
-      target: "#bank-stress-test",
-      title: {
-        en: "Stress test",
-        el: "Stress test",
-        fr: "Test de résistance",
-        he: "מבחן עמידות",
-      },
-      body: {
-        en: "Interactive downside stress: what happens to DSCR when occupancy and ADR drop simultaneously? The widget lets you dial both inputs and see coverage in real time — confirming the 1.25× covenant survives plausible adverse scenarios.",
-        el: "Διαδραστικό stress test: τι συμβαίνει στο DSCR όταν πέσουν ταυτόχρονα πληρότητα και ADR; Ρυθμίστε και δείτε κάλυψη σε πραγματικό χρόνο.",
-        fr: "Stress test interactif : que devient le DSCR quand occupation et ADR chutent simultanément ? Ajustez en temps réel pour vérifier le covenant 1.25×.",
-        he: "מבחן עמידות אינטראקטיבי: מה קורה ל-DSCR כשתפוסה ו-ADR יורדים יחד? כווננו בזמן אמת לאימות הקובננט 1.25×.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE carried banned scenario labels.
+        en: "Stabilised, average-loan-life, and minimum DSCR for the Realistic, Conservative, and Downside scenarios side-by-side. The minimum column is what a credit committee stress-tests: does coverage hold even in the worst single year? Pass/fail badges confirm whether each scenario clears the 1.25× covenant.",
       },
     },
     {
@@ -778,10 +730,8 @@ export const BANK_TOUR: TourConfig = {
         he: "P&L מלא + הורדה",
       },
       body: {
-        en: "The full 11-year P&L table — Revenue, EBITDA, Debt Service, NCF post-tax, DSCR, and yield to equity year by year. Use the Quick Access cards at the top of the page (Tour · Presentation · Model) to download the full Excel workbook or the bank presentation deck.",
-        el: "Πλήρης πίνακας P&L 11 ετών: έσοδα, EBITDA, εξυπηρέτηση, NCF, DSCR. Χρησιμοποιήστε τα Quick Access cards στην κορυφή (Tour · Presentation · Model) για να κατεβάσετε το Excel ή την παρουσίαση τράπεζας.",
-        fr: "Tableau P&L complet sur 11 ans — Revenus, EBITDA, Service dette, FTN, DSCR. Utilisez les cartes Quick Access en haut de la page (Tour · Présentation · Modèle) pour télécharger le classeur Excel ou la présentation bancaire.",
-        he: "טבלת P&L מלאה ל-11 שנים — הכנסות, EBITDA, שירות חוב, NCF, DSCR. השתמשו בכרטיסי Quick Access בראש הדף (Tour · Presentation · Model) להורדת חוברת ה-Excel או מצגת הבנק.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the retired Quick Access download flow.
+        en: "The full 11-year P&L table — Revenue, EBITDA, Debt Service, NCF post-tax, DSCR, and yield to equity year by year. The full Excel model and the bank presentation deck are available on request — see the Get Started cards at the top of the page.",
       },
     },
   ],
@@ -799,10 +749,8 @@ export const ASSUMPTIONS_TOUR: TourConfig = {
         he: "הנחות — תא הטייס של המודל",
       },
       body: {
-        en: "Every number in the Dashboard, P&L, and Scenarios is derived from the inputs on this page. Change a value here and the entire model recomputes in milliseconds. Six tabs cover the full input surface — Portfolio, Templates, Financing, General, Revenue, and OPEX.",
-        el: "Κάθε νούμερο στο Dashboard, P&L και Σενάρια προέρχεται από τις εισόδους αυτής της σελίδας. Αλλάξτε μια τιμή και όλο το μοντέλο επανυπολογίζεται. Έξι tabs καλύπτουν όλες τις εισόδους.",
-        fr: "Chaque chiffre du Dashboard, P&L et Scénarios provient des entrées de cette page. Modifiez une valeur et tout le modèle se recalcule. Six onglets couvrent la surface complète.",
-        he: "כל מספר ב-Dashboard, P&L ותרחישים נגזר מהקלטים בדף זה. שנו ערך וכל המודל מחושב מחדש. שישה לשוניות מכסות את כל משטח הקלט.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the old six-tab layout.
+        en: "Every number in the Dashboard, P&L, and Scenarios is derived from the inputs on this page. Change a value here and the entire model recomputes in milliseconds. The tabs along the top cover the full input surface — portfolio, financing, revenue, operating costs, general settings, and templates.",
       },
     },
     {
@@ -823,16 +771,12 @@ export const ASSUMPTIONS_TOUR: TourConfig = {
     {
       target: "#assumptions-tabs",
       title: {
-        en: "Six tabs, full control",
-        el: "Έξι tabs, πλήρης έλεγχος",
-        fr: "Six onglets, contrôle total",
-        he: "שש לשוניות, שליטה מלאה",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the old six-tab layout.
+        en: "One tab per input area",
       },
       body: {
-        en: "Portfolio — add/remove plots and set unit counts. Templates — define per-property CAPEX and OPEX. Financing — select path and tune loan terms. General — ramp factors and tax rates. Revenue — ADR, nights, events, ancillary by scenario. OPEX — operating cost overrides per template.",
-        el: "Portfolio — plots και μονάδες. Templates — CAPEX/OPEX ανά property. Financing — διαδρομή και όροι δανείου. General — ramp και φόροι. Revenue — ADR, βραδιές, events ανά σενάριο. OPEX — λειτουργικά κόστη.",
-        fr: "Portfolio — parcelles et unités. Templates — CAPEX/OPEX par propriété. Financement — voie et conditions du prêt. Général — ramp et taxes. Revenus — ADR, nuitées, événements. OPEX — coûts opérationnels.",
-        he: "Portfolio — מגרשים ויחידות. Templates — CAPEX/OPEX לנכס. Financing — מסלול ותנאי הלוואה. General — ramp ומסים. Revenue — ADR, לילות, אירועים. OPEX — עלויות תפעול.",
+        // EN-only per language policy 2026-06-11 — stale EL/FR/HE described the old six-tab layout.
+        en: "Portfolio — add/remove plots and set unit counts. Templates — define per-property CAPEX and OPEX. Financing — select path and tune loan terms. General — ramp factors and tax rates. Revenue — ADR, nights, events, ancillary by scenario. OPEX tabs — operating cost overrides per template and at portfolio level.",
       },
     },
     {

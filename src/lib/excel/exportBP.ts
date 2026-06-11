@@ -370,7 +370,7 @@ export async function exportBusinessPlan(
     '  OPEX & P&L — operating costs, EBITDA, debt service, NCF, taxes.',
     '  Debt Service — amortisation schedule for the active financing path.',
     '  Coverage — DSCR vs covenant + separate Unlevered Project IRR and Levered Equity IRR + MOIC, cash-on-cash, equity payback.',
-    '  Scenarios — Downside / Realistic / Upside side-by-side: EBITDA, NCF, DSCR per year + summary IRRs / MOIC.',
+    '  Scenarios — Downside / Conservative / Realistic side-by-side: EBITDA, NCF, DSCR per year + summary IRRs / MOIC.',
     '  Cap Table — per-stakeholder distributions, MOIC, IRR, payback + year-by-year cash flow. Reconciliation diff confirms the waterfall sums to project distributable.',
     '  Waterfall — 3-layer founder economics (pari-passu / grant bonus / performance ratchet) with investor protection caps (33% earned, 75% total). Layer B is derived from live grant, fee, and project-value inputs (auditable). Stress test at €200K/€300K/€400K/€500K founder cash; ManCo fee + consultant payment subtracted from NCF.',
     '',
@@ -2136,7 +2136,7 @@ export async function exportBusinessPlan(
   S.getCell('A1').value = 'Scenario sensitivity';
   S.getCell('A1').font = { name: 'Calibri', size: 16, bold: true, color: { argb: 'FF8B6914' } };
   S.getCell('A2').value =
-    'Downside: −10% occupancy, −5% ADR, 4 events/yr. Upside: revenue assumptions per BASE_CASE.revenueUpside. ' +
+    'Downside: −10% occupancy, −5% ADR, 4 events/yr. Conservative is the lending base case; Realistic reflects documented current performance. ' +
     'All scenarios use the same financing path and CapEx as the active export.';
   S.getCell('A2').font = FONT.italic;
   S.mergeCells(`A2:${col(2 + years.length)}2`);

@@ -885,7 +885,7 @@ export default function DashboardPage() {
                 </th>
                 {showDscrTepixCol && (
                   <th className="px-4 py-3 text-right text-xs font-semibold text-text-tertiary uppercase tracking-wide">
-                    {t('path.tepixLoanShort')} (Base)
+                    {t('path.tepixLoanShort')} ({t('scenario.realistic')})
                   </th>
                 )}
               </tr>

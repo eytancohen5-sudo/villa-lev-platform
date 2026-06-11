@@ -17,10 +17,7 @@ import { resolvePortfolio, PROJECT_CONSTANTS } from "@/lib/engine/defaults";
 import { computeTotalKeysMaxSplit, computeTotalBedrooms, bedroomsForPlot, keysForPlot } from "@/lib/engine/bedroomKeys";
 import { LiveTrackRecord } from "@/components/LiveTrackRecord";
 import BankControlBar from "@/components/BankControlBar";
-import { PageTour, usePageTour } from "@/components/PageTour";
-import { BANK_TOUR } from "@/lib/tours/configs";
 import { useTrackFeature } from "@/lib/hooks/useTrackFeature";
-import { logPresenceActivity } from "@/lib/data/usePresence";
 import { MetricCell } from "@/components/MetricCell";
 import Link from "next/link";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ComposedChart, Area, Bar } from "recharts";
@@ -40,7 +37,6 @@ export default function OptimaPage() {
     setFinancingPathOverride,
     setOptimaEuriborRate,
   } = useModelStore();
-  const [tourOpen, setTourOpen] = usePageTour(BANK_TOUR.storageKey);
   const [activeTab, setActiveTab] = useState<TabSide>('A');
   const [villaSaleDrawerOpen, setVillaSaleDrawerOpen] = useState(false);
   const [xlsxLoading, setXlsxLoading] = useState(false);
@@ -431,25 +427,8 @@ export default function OptimaPage() {
         </div>
         <div className="grid grid-cols-3 gap-3">
 
-          {/* Tour */}
-          <button
-            onClick={() => { void logPresenceActivity('tour_start'); setTourOpen(true); }}
-            className="group relative flex flex-col gap-4 rounded-xl border border-surface-tertiary bg-white p-5 hover:border-brand-300 hover:shadow-md hover:-translate-y-0.5 transition-all text-left w-full"
-          >
-            <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3" className="text-brand-500"/>
-                  <path d="M6 5.5l5 2.5-5 2.5V5.5z" fill="currentColor" className="text-brand-500"/>
-                </svg>
-              </div>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-50 px-2 py-0.5 rounded-full">{t('bank.tourDuration')}</span>
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-text-primary leading-tight">{t('bank.actions.tour.title')}</p>
-              <p className="text-xs text-text-tertiary mt-1 leading-relaxed">{t('bank.actions.tour.sub')}</p>
-            </div>
-          </button>
+          {/* Tour removed 2026-06-11 — BANK_TOUR targets /bank section anchors;
+              7 of 8 did not exist on this page (dead spotlights). */}
 
           {/* Coming Soon — Excel & Presentation flip card */}
           <div
@@ -1076,7 +1055,6 @@ export default function OptimaPage() {
         initialTab="sale"
       />
     </div>
-    <PageTour open={tourOpen} onClose={() => setTourOpen(false)} config={BANK_TOUR} />
     </>
   );
 }
